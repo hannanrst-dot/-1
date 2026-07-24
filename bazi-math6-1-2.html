@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>بادکنکِ ارزش مکانی</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--bg0:#0c0a1e;--ink:#f2eaff;--muted:#c3b4e6;--gr:#3ddc97;--gd:#ffc857;--pk:#ff5c8a;--bl:#5cc8ff;
+    --card:rgba(255,255,255,.06);--line:rgba(255,255,255,.14);}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:radial-gradient(120% 80% at 50% 0%,#241a48 0%,var(--bg0) 60%,#070510 100%);
+    min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 10px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
+  .qbar{background:linear-gradient(90deg,rgba(192,132,252,.16),rgba(92,200,255,.14));border:1px solid var(--line);border-radius:14px;padding:8px 12px;text-align:center;margin-bottom:6px}
+  .qbar b{font-size:16px;font-weight:900}.qbar .s{color:var(--muted);font-size:13px;margin-top:2px;direction:ltr;letter-spacing:2px}
+  .track{height:8px;background:rgba(0,0,0,.35);border-radius:6px;overflow:hidden;margin-bottom:6px}
+  #prog{height:100%;width:0;background:linear-gradient(90deg,var(--bl),var(--gr));transition:width .2s}
+  .stage{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(180deg,#181139,#0c0a1e)}
+  canvas{display:block;width:100%;touch-action:none}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(7,5,16,.9);z-index:5}
+  .ov h1{margin:0;font-size:23px}.ov p{margin:0;color:var(--muted);font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#06121f;padding:13px 30px;border-radius:16px;background:linear-gradient(180deg,#ffe08a,var(--gd));box-shadow:0 8px 22px rgba(255,200,87,.35);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:44px}.hidden{display:none}
+  .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--gd);font-size:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
+    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۸</span></div>
+    <div class="grow"></div>
+    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+  </div>
+  <div class="qbar"><b id="q">بادکنکِ رقمِ درست را بترکان!</b><div class="s" id="qs"></div></div>
+  <div class="track"><div id="prog"></div></div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">🎈</div><h1>بادکنکِ ارزش مکانی</h1>
+      <p>یک عددِ بزرگ بالای صفحه نوشته می‌شود.<br>
+      از تو خواسته می‌شود رقمِ یک <b>جایگاه</b> را پیدا کنی (مثلاً «هزار» یا «صدگان»).<br>
+      بادکنکی که آن رقم را دارد <b>بترکان</b>! 🎯</p>
+      <button class="btn" id="btnStart">شروع بازی</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="scoreBig">امتیاز: <b id="esc">۰</b></div>
+      <div class="pill" id="em"></div>
+      <button class="btn" id="btnAgain">دوباره</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='math6-1-2';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const groupFa=n=>fa(n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'٬'));
+  const PLACES=['یکان','دهگان','صدگان','هزار','ده‌هزار','صدهزار'];
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sPop=()=>{beep(720,.08,'square',.13);setTimeout(()=>beep(960,.1,'square',.12),60)};
+  const sBad=()=>beep(150,.28,'sawtooth',.17);
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.15),i*140));
+
+  const TOTAL=8;
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(380,Math.min(500,Math.round(window.innerHeight-190)));
+    dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+
+  let state='start',ri=0,score=0,lives=3,N,place,correct,balloons,pops=[],confetti=[];
+  const COLORS=['#ff5c8a','#5cc8ff','#3ddc97','#ffc857','#c084fc','#ff8f5c'];
+
+  function loadRound(i){ri=i;
+    const digits=4+Math.floor(i/3); // 4..6 رقمی
+    N=Math.floor(Math.random()*(Math.pow(10,digits)-Math.pow(10,digits-1)))+Math.pow(10,digits-1);
+    const maxPlace=digits-1;place=Math.floor(Math.random()*(maxPlace+1));
+    correct=Math.floor(N/Math.pow(10,place))%10;
+    spawnBalloons();
+    $('round').textContent=fa((i+1)+'/'+TOTAL);
+    $('q').textContent='رقمِ جایگاهِ «'+PLACES[place]+'» را بترکان';
+    $('qs').textContent=groupFa(N);
+    updateHud();
+  }
+  function spawnBalloons(){
+    const set=new Set([correct]);while(set.size<5)set.add(Math.floor(Math.random()*10));
+    const arr=[...set];for(let k=arr.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[arr[k],arr[j]]=[arr[j],arr[k]];}
+    const n=arr.length,gap=W/(n+1);
+    balloons=arr.map((d,k)=>({d,x:gap*(k+1),y:H+40+Math.random()*80,
+      vy:26+ri*3+Math.random()*10,sway:Math.random()*7,col:COLORS[k%COLORS.length],r:26,dead:false}));
+  }
+  function updateHud(){$('score').textContent=fa(score);
+    $('hearts').textContent='❤️'.repeat(lives)+'🖤'.repeat(3-lives);
+    $('prog').style.width=(100*ri/TOTAL)+'%';}
+
+  cv.addEventListener('pointerdown',e=>{
+    if(state!=='play')return;
+    const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)*(W/r.width),y=(e.clientY-r.top)*(H/r.height);
+    for(const b of balloons){if(!b.dead&&Math.hypot(x-b.x,y-b.y)<b.r+8){popBalloon(b);return;}}
+  });
+  function popBalloon(b){
+    b.dead=true;for(let i=0;i<10;i++)pops.push({x:b.x,y:b.y,a:i/10*7,t:0,c:b.col});
+    if(b.d===correct){score+=10;sPop();for(let i=0;i<12;i++)confetti.push(spawnConf(b.x,b.y));
+      updateHud();setTimeout(next,550);}
+    else{lives--;sBad();updateHud();if(lives<=0){endGame(false);}}
+  }
+  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
+
+  function draw(dt){
+    ctx.clearRect(0,0,W,H);
+    if(state==='play'){
+      let escaped=false;
+      for(const b of balloons){if(b.dead)continue;
+        b.y-=b.vy*dt;b.x+=Math.sin(performance.now()/500+b.sway)*0.3;
+        if(b.y<-40){if(b.d===correct)escaped=true;b.dead=true;}
+        drawBalloon(b);}
+      if(escaped){lives--;sBad();updateHud();if(lives<=0)endGame(false);else loadRound(ri);}
+      else if(balloons.every(b=>b.dead)&&state==='play'){loadRound(ri);} // همه ترکید/رفت بدون درست
+    } else if(balloons){balloons.forEach(b=>{if(!b.dead)drawBalloon(b);});}
+    pops=pops.filter(p=>{p.t+=dt*2.2;ctx.globalAlpha=clamp(1-p.t,0,1);ctx.fillStyle=p.c;
+      ctx.beginPath();ctx.arc(p.x+Math.cos(p.a)*p.t*45,p.y+Math.sin(p.a)*p.t*45,3,0,7);ctx.fill();
+      ctx.globalAlpha=1;return p.t<1;});
+    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
+    ctx.globalAlpha=1;
+  }
+  function drawBalloon(b){
+    ctx.save();
+    ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(b.x,b.y+b.r);ctx.lineTo(b.x,b.y+b.r+16);ctx.stroke();
+    const g=ctx.createRadialGradient(b.x-8,b.y-8,4,b.x,b.y,b.r+4);
+    g.addColorStop(0,'#ffffff');g.addColorStop(.35,b.col);g.addColorStop(1,b.col);
+    ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(b.x,b.y,b.r,b.r+4,0,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='900 22px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(fa(b.d),b.x,b.y);ctx.restore();ctx.textBaseline='alphabetic';
+  }
+  function spawnConf(x,y){const cols=['#ffc857','#ff5c8a','#5cc8ff','#3ddc97','#c084fc'];
+    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+      c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
+
+  function endGame(won){state='end';const pct=score/(TOTAL*10);
+    const stars=pct>=.8?3:pct>=.55?2:1;
+    for(let i=0;i<60;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
+    $('em').textContent=won?'ارزش مکانیِ رقم‌ها را خوب یاد گرفتی!':'از راست: یکان، دهگان، صدگان… 💪';
+    $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}
+  }
+  let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
+    draw(dt);requestAnimationFrame(loop);}
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;loadRound(0);state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;confetti=[];loadRound(0);state='play';};
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
