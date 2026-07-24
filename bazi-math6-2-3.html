@@ -6,62 +6,54 @@
 <title>پیتزافروشیِ کسری — تقسیم کسرها</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg0:#0b0716;--bg1:#17102e;--ink:#f2eaff;--muted:#b9a9e0;
-    --gr:#3ddc97;--gd:#ffc857;--pk:#ff5c8a;--bl:#5cc8ff;
-    --card:rgba(255,255,255,.06);--line:rgba(255,255,255,.14);
-  }
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;
+    --gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;--gd:#ffc857;
+    --card:#fff;--line:rgba(120,120,200,.25);}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%}
   body{font-family:'Vazirmatn',system-ui,sans-serif;color:var(--ink);
-    background:radial-gradient(120% 80% at 50% 0%,#241a48 0%,var(--bg0) 55%,#080510 100%);
+    background:linear-gradient(160deg,#ffd9a0 0%,#ffb0c8 48%,#c3a0ff 100%);
     min-height:100vh;padding:8px;overflow:hidden;user-select:none}
   .wrap{max-width:440px;margin:0 auto;position:relative}
-
-  /* HUD */
   .hud{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-  .chip{background:var(--card);border:1px solid var(--line);border-radius:14px;
-    padding:6px 10px;font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px}
+  .chip{background:#fff;border-radius:16px;box-shadow:0 4px 12px rgba(80,80,160,.18);
+    padding:6px 12px;font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px}
   .chip .lbl{color:var(--muted);font-weight:700;font-size:11px}
   .hearts{letter-spacing:2px;font-size:15px}
   .grow{flex:1}
-
-  .qbar{background:linear-gradient(90deg,rgba(255,92,138,.18),rgba(92,200,255,.14));
-    border:1px solid var(--line);border-radius:14px;padding:8px 12px;margin-bottom:6px;
-    text-align:center}
+  .qbar{background:#fff;border-radius:16px;padding:9px 12px;margin-bottom:6px;text-align:center;
+    box-shadow:0 4px 12px rgba(80,80,160,.18)}
   .qbar .q{font-weight:900;font-size:16px}
-  .qbar .sub{color:var(--muted);font-size:12px;font-weight:700;margin-top:2px;direction:ltr}
-
+  .qbar .sub{color:var(--muted);font-size:13px;font-weight:800;margin-top:3px}
   .bars{display:flex;gap:8px;margin-bottom:6px}
-  .barbox{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;
-    padding:5px 8px}
+  .barbox{flex:1;background:#fff;border-radius:12px;padding:5px 10px;box-shadow:0 2px 8px rgba(80,80,160,.14)}
   .barbox .t{font-size:10px;color:var(--muted);font-weight:800;margin-bottom:3px;display:flex;justify-content:space-between}
-  .track{height:8px;background:rgba(0,0,0,.35);border-radius:6px;overflow:hidden}
+  .track{height:8px;background:#eef1ff;border-radius:6px;overflow:hidden}
   .fill{height:100%;width:0%;border-radius:6px;transition:width .12s linear}
   #timeFill{background:linear-gradient(90deg,var(--gd),var(--pk))}
   #progFill{background:linear-gradient(90deg,var(--bl),var(--gr))}
-
-  .stage{position:relative;border-radius:20px;overflow:hidden;
-    background:linear-gradient(180deg,#1a1338,#120c26);border:1px solid var(--line)}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(80,80,160,.25);
+    background:linear-gradient(180deg,#fff4e6,#ffe9f2)}
   canvas{display:block;width:100%;touch-action:none}
-
-  /* overlays */
   .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
     justify-content:center;text-align:center;padding:22px;gap:12px;
-    background:rgba(9,6,20,.86);backdrop-filter:blur(3px);z-index:5}
-  .ov h1{margin:0;font-size:24px;font-weight:900}
-  .ov p{margin:0;color:var(--muted);font-size:14px;line-height:1.9;font-weight:700}
+    background:rgba(255,255,255,.88);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:24px;font-weight:900;color:var(--pu)}
+  .ov p{margin:0;color:#43508f;font-size:14px;line-height:1.9;font-weight:700}
   .btn{margin-top:6px;border:0;cursor:pointer;font-family:inherit;font-weight:900;
-    font-size:18px;color:#0a0616;padding:13px 30px;border-radius:16px;
-    background:linear-gradient(180deg,#ffe08a,var(--gd));box-shadow:0 8px 22px rgba(255,200,87,.35)}
+    font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;
+    background:linear-gradient(180deg,#ff9d6b,var(--or));box-shadow:0 8px 20px rgba(255,159,69,.45)}
   .btn:active{transform:translateY(2px)}
-  .stars{font-size:40px;letter-spacing:6px;filter:drop-shadow(0 4px 10px rgba(255,200,87,.4))}
+  .stars{font-size:40px;letter-spacing:6px}
   .scoreBig{font-size:15px;font-weight:800}
-  .scoreBig b{color:var(--gd);font-size:22px}
+  .scoreBig b{color:var(--or);font-size:22px}
   .hidden{display:none}
-  .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;
-    padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .pill{background:#eef1ff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
   .emoji{font-size:44px}
+  .eq{direction:ltr;display:inline-flex;align-items:center;gap:8px;justify-content:center;font-weight:900}
+  .fr{display:inline-flex;flex-direction:column;line-height:1.05;text-align:center;vertical-align:middle}
+  .fr .n{border-bottom:2.5px solid currentColor;padding:0 5px}
+  .fr .d{padding:2px 5px 0}
 </style>
 </head>
 <body>
@@ -119,6 +111,14 @@
 
   // ---------- helpers ----------
   const fa = s => (''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const frH=(n,d)=>d===1?'<span>'+fa(n)+'</span>':'<span class="fr"><span class="n">'+fa(n)+'</span><span class="d">'+fa(d)+'</span></span>';
+  function drawFrac(x,y,n,d,size){ctx.font='900 '+size+'px Vazirmatn';ctx.textAlign='center';
+    if(d===1){ctx.textBaseline='middle';ctx.fillText(fa(n),x,y);ctx.textBaseline='alphabetic';return;}
+    const nw=ctx.measureText(fa(n)).width,dw=ctx.measureText(fa(d)).width,w=Math.max(nw,dw),g=size*0.16;
+    ctx.textBaseline='alphabetic';ctx.fillText(fa(n),x,y-g);
+    ctx.textBaseline='top';ctx.fillText(fa(d),x,y+g);ctx.textBaseline='alphabetic';
+    ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=Math.max(2,size*0.07);
+    ctx.beginPath();ctx.moveTo(x-w/2-3,y);ctx.lineTo(x+w/2+3,y);ctx.stroke();}
   const $ = id => document.getElementById(id);
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
@@ -145,12 +145,12 @@
   // ---------- rounds (تقسیم کسر) ----------
   // avail = تعداد برش موجود ، denom = پیتزا به چند تکه ، per = هر مشتری چند برش ، ans = پاسخ تقسیم
   const rounds = [
-    {A:'۱',   want:'۱/۴', denom:4, per:1, avail:4, ans:4},
-    {A:'۱/۲', want:'۱/۴', denom:4, per:1, avail:2, ans:2},
-    {A:'۳/۴', want:'۱/۸', denom:8, per:1, avail:6, ans:6},
-    {A:'۱',   want:'۱/۴', denom:8, per:2, avail:8, ans:4},
-    {A:'۳/۴', want:'۳/۸', denom:8, per:3, avail:6, ans:2},
-    {A:'۲',   want:'۱/۳', denom:3, per:1, avail:6, ans:6},
+    {An:1,Ad:1, wn:1,wd:4, denom:4, per:1, avail:4, ans:4},
+    {An:1,Ad:2, wn:1,wd:4, denom:4, per:1, avail:2, ans:2},
+    {An:3,Ad:4, wn:1,wd:8, denom:8, per:1, avail:6, ans:6},
+    {An:1,Ad:1, wn:1,wd:4, denom:8, per:2, avail:8, ans:4},
+    {An:3,Ad:4, wn:3,wd:8, denom:8, per:3, avail:6, ans:2},
+    {An:2,Ad:1, wn:1,wd:3, denom:3, per:1, avail:6, ans:6},
   ];
   const MAXSCORE = rounds.reduce((s,r)=>s+r.ans*10,0);
 
@@ -205,8 +205,8 @@
     timeMax = R.avail*3 + 7; timeLeft=timeMax;
     flyers=[]; bursts=[];
     $('round').textContent = fa((i+1)+'/'+rounds.length);
-    $('qtext').textContent = 'چند تا «'+R.want+'» در «'+R.A+'» جا می‌شود؟';
-    $('qsub').textContent  = R.A.replace('/','⁄')+' ÷ '+R.want.replace('/','⁄');
+    $('qtext').innerHTML = 'چند تا '+frH(R.wn,R.wd)+' در '+frH(R.An,R.Ad)+' جا می‌شود؟';
+    $('qsub').innerHTML  = '<span class="eq">'+frH(R.An,R.Ad)+'<span>÷</span>'+frH(R.wn,R.wd)+'</span>';
     updateHud();
   }
 
@@ -364,8 +364,8 @@
             ctx.fillStyle=k? '#7a1f1f':'#c62828'; ctx.fill();
           }
         }else{
-          ctx.fillStyle='rgba(255,255,255,.05)'; ctx.fill();
-          ctx.strokeStyle='rgba(255,255,255,.10)'; ctx.setLineDash([4,4]);
+          ctx.fillStyle='rgba(120,120,180,.10)'; ctx.fill();
+          ctx.strokeStyle='rgba(120,120,180,.28)'; ctx.setLineDash([4,4]);
           ctx.lineWidth=1; ctx.stroke(); ctx.setLineDash([]);
         }
       }
@@ -375,8 +375,8 @@
       ctx.lineWidth=4; ctx.strokeStyle='#b9611a'; ctx.stroke();
     });
     // hint
-    ctx.fillStyle='rgba(233,224,255,.55)';
-    ctx.font='700 12px Vazirmatn'; ctx.textAlign='center';
+    ctx.fillStyle='rgba(26,36,82,.55)';
+    ctx.font='800 12px Vazirmatn'; ctx.textAlign='center';
     ctx.fillText('روی برش‌ها بزن 👆', W/2, Math.min(H*0.30,150)+ (pizzas[0].R)+22);
   }
 
@@ -400,25 +400,24 @@
     ctx.beginPath(); ctx.roundRect(bx-34,by-18,68,34,12);
     ctx.fillStyle='#fff'; ctx.fill();
     ctx.beginPath(); ctx.arc(bx-14,by+18,4,0,7); ctx.arc(bx-20,by+24,2.5,0,7); ctx.fill();
-    ctx.fillStyle='#17102e'; ctx.font='900 18px Vazirmatn'; ctx.textAlign='center';
-    ctx.fillText(R.want, bx, by+6);
+    ctx.fillStyle='#17102e'; drawFrac(bx, by, R.wn, R.wd, 20);
 
     // plate
     const p=plate;
     ctx.beginPath(); ctx.ellipse(p.x,p.y+6,46,14,0,0,7);
-    ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,.3)'; ctx.lineWidth=2; ctx.stroke();
+    ctx.fillStyle='#dfe6f5'; ctx.fill();
+    ctx.strokeStyle='rgba(90,107,176,.5)'; ctx.lineWidth=2; ctx.stroke();
     // target slots
     for(let k=0;k<R.per;k++){
       const yy=p.y-8-k*8;
       ctx.beginPath(); ctx.ellipse(p.x,yy,24,7,0,0,7);
-      ctx.fillStyle = k<plateCount? '#ff9e3d':'rgba(255,255,255,.06)';
+      ctx.fillStyle = k<plateCount? '#ff9e3d':'#eef1ff';
       ctx.fill();
-      ctx.strokeStyle='rgba(255,255,255,.18)'; ctx.lineWidth=1; ctx.stroke();
+      ctx.strokeStyle='rgba(90,107,176,.35)'; ctx.lineWidth=1; ctx.stroke();
     }
     // progress text
-    ctx.fillStyle='var(--muted)'; ctx.fillStyle='#b9a9e0';
-    ctx.font='800 12px Vazirmatn';
+    ctx.fillStyle='#5b6bb0';
+    ctx.font='800 12px Vazirmatn'; ctx.textBaseline='alphabetic';
     ctx.fillText(fa(plateCount)+' از '+fa(R.per), p.x, p.y+30);
   }
 
@@ -460,10 +459,10 @@
   }
 
   function drawBanner(){
-    ctx.fillStyle='rgba(9,6,20,.5)'; ctx.fillRect(0,0,W,H);
-    ctx.textAlign='center';
+    ctx.fillStyle='rgba(255,255,255,.62)'; ctx.fillRect(0,0,W,H);
+    ctx.textAlign='center'; ctx.textBaseline='alphabetic';
     ctx.font='900 30px Vazirmatn';
-    ctx.fillStyle = bannerTxt.indexOf('وقت')>=0? '#ff5c8a':'#3ddc97';
+    ctx.fillStyle = bannerTxt.indexOf('وقت')>=0? '#ff5d8f':'#12a06e';
     ctx.fillText(bannerTxt, W/2, H/2);
   }
 

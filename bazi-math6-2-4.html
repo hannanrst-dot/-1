@@ -28,6 +28,10 @@
   .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
   .pill{background:#eef1ff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
   .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--or);font-size:22px}
+  .eq{direction:ltr;display:inline-flex;align-items:center;gap:8px;justify-content:center;font-weight:900}
+  .fr{display:inline-flex;flex-direction:column;line-height:1.05;text-align:center;vertical-align:middle}
+  .fr .n{border-bottom:2.5px solid currentColor;padding:0 5px}
+  .fr .d{padding:2px 5px 0}
 </style>
 </head>
 <body>
@@ -62,8 +66,15 @@
 (function(){"use strict";
   const GAMEID='math6-2-4';
   const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
-  const frac=f=>f.d===1?fa(f.n):fa(f.n)+'⁄'+fa(f.d);
+  const frH=(n,d)=>d===1?'<span>'+fa(n)+'</span>':'<span class="fr"><span class="n">'+fa(n)+'</span><span class="d">'+fa(d)+'</span></span>';
   const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  function drawFrac(x,y,n,d,size){ctx.font='900 '+size+'px Vazirmatn';ctx.textAlign='center';
+    if(d===1){ctx.textBaseline='middle';ctx.fillText(fa(n),x,y);ctx.textBaseline='alphabetic';return;}
+    const nw=ctx.measureText(fa(n)).width,dw=ctx.measureText(fa(d)).width,w=Math.max(nw,dw),g=size*0.16;
+    ctx.textBaseline='alphabetic';ctx.fillText(fa(n),x,y-g);
+    ctx.textBaseline='top';ctx.fillText(fa(d),x,y+g);ctx.textBaseline='alphabetic';
+    ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=Math.max(2,size*0.07);
+    ctx.beginPath();ctx.moveTo(x-w/2-3,y);ctx.lineTo(x+w/2+3,y);ctx.stroke();}
   let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
   function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
     o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
@@ -76,14 +87,14 @@
 
   // expr نمایش، ans پاسخ، dec دو گزینه‌ی نادرست (خطاهای رایج)
   const ROUNDS=[
-    {expr:'۱⁄۲ × ۱⁄۳', ans:{n:1,d:6},  dec:[{n:2,d:5},{n:1,d:5}]},
-    {expr:'۲⁄۳ + ۱⁄۶', ans:{n:5,d:6},  dec:[{n:3,d:9},{n:1,d:2}]},
-    {expr:'۳⁄۴ − ۱⁄۲', ans:{n:1,d:4},  dec:[{n:2,d:2},{n:2,d:4}]},
-    {expr:'۲⁄۵ × ۳⁄۴', ans:{n:3,d:10}, dec:[{n:5,d:9},{n:6,d:9}]},
-    {expr:'۳⁄۴ ÷ ۱⁄۲', ans:{n:3,d:2},  dec:[{n:3,d:8},{n:2,d:3}]},
-    {expr:'۱⁄۳ + ۱⁄۲', ans:{n:5,d:6},  dec:[{n:2,d:5},{n:1,d:6}]},
-    {expr:'۵⁄۶ × ۳⁄۵', ans:{n:1,d:2},  dec:[{n:8,d:11},{n:15,d:30}] },
-    {expr:'۷⁄۸ − ۳⁄۸', ans:{n:1,d:2},  dec:[{n:4,d:16},{n:4,d:8}]},
+    {a:{n:1,d:2},op:'×',b:{n:1,d:3}, ans:{n:1,d:6},  dec:[{n:2,d:5},{n:1,d:5}]},
+    {a:{n:2,d:3},op:'+',b:{n:1,d:6}, ans:{n:5,d:6},  dec:[{n:3,d:9},{n:1,d:2}]},
+    {a:{n:3,d:4},op:'−',b:{n:1,d:2}, ans:{n:1,d:4},  dec:[{n:2,d:2},{n:2,d:4}]},
+    {a:{n:2,d:5},op:'×',b:{n:3,d:4}, ans:{n:3,d:10}, dec:[{n:5,d:9},{n:6,d:9}]},
+    {a:{n:3,d:4},op:'÷',b:{n:1,d:2}, ans:{n:3,d:2},  dec:[{n:3,d:8},{n:2,d:3}]},
+    {a:{n:1,d:3},op:'+',b:{n:1,d:2}, ans:{n:5,d:6},  dec:[{n:2,d:5},{n:1,d:6}]},
+    {a:{n:5,d:6},op:'×',b:{n:3,d:5}, ans:{n:1,d:2},  dec:[{n:8,d:11},{n:3,d:5}]},
+    {a:{n:7,d:8},op:'−',b:{n:3,d:8}, ans:{n:1,d:2},  dec:[{n:4,d:16},{n:4,d:8}]},
   ];
   const TOTAL=ROUNDS.length;
   const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
@@ -99,7 +110,8 @@
     for(let k=opts.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[opts[k],opts[j]]=[opts[j],opts[k]];}
     cards=opts;timeMax=13;timeLeft=timeMax;drop=null;
     $('round').textContent=fa((i+1)+'/'+TOTAL);
-    $('q').innerHTML=R.expr+' = ؟';updateHud();}
+    $('q').innerHTML='<span class="eq">'+frH(R.a.n,R.a.d)+'<span>'+R.op+'</span>'+frH(R.b.n,R.b.d)+'<span>=</span><span>؟</span></span>';
+    updateHud();}
   function updateHud(){$('score').textContent=fa(score);
     $('hearts').textContent='❤️'.repeat(clamp(lives,0,3))+'🤍'.repeat(clamp(3-lives,0,3));
     $('prog').style.width=(100*ri/TOTAL)+'%';}
@@ -128,8 +140,7 @@
       if(!drop||drop.t<1){for(const rc of cardRects()){
         ctx.fillStyle='#fff';ctx.strokeStyle='#ffcf99';ctx.lineWidth=3;
         ctx.beginPath();ctx.roundRect(rc.x,rc.y,rc.w,rc.h,14);ctx.fill();ctx.stroke();
-        ctx.fillStyle='#1a2452';ctx.font='900 30px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.fillText(frac(rc.c.f),rc.x+rc.w/2,rc.y+rc.h/2);ctx.textBaseline='alphabetic';}}
+        ctx.fillStyle='#1a2452';drawFrac(rc.x+rc.w/2,rc.y+rc.h/2,rc.c.f.n,rc.c.f.d,30);}}
       // دیگ
       const p=potXY();
       ctx.fillStyle='#6b7280';ctx.beginPath();ctx.roundRect(p.x-58,p.y-30,116,64,{tl:10,tr:10,br:22,bl:22});ctx.fill();
@@ -156,8 +167,7 @@
         const dx=drop.x+(p.x-drop.x)*e,dy=drop.y+(p.y-20-drop.y)*e;
         if(drop.t<1){ctx.fillStyle='#fff';ctx.strokeStyle=drop.ok?'#22c993':'#ff5d8f';ctx.lineWidth=3;
           ctx.beginPath();ctx.roundRect(dx-34,dy-24,68,48,10);ctx.fill();ctx.stroke();
-          ctx.fillStyle='#1a2452';ctx.font='900 24px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
-          ctx.fillText(frac(drop.f),dx,dy);ctx.textBaseline='alphabetic';}
+          ctx.fillStyle='#1a2452';drawFrac(dx,dy,drop.f.n,drop.f.d,24);}
         else resolve();}
       puff=puff.filter(q=>{q.t+=dt*1.8;q.x+=Math.cos(q.a)*1.5;q.y-=1.2;ctx.globalAlpha=clamp(1-q.t,0,1);
         ctx.fillStyle='#bbb';ctx.beginPath();ctx.arc(q.x,q.y,5+q.t*6,0,7);ctx.fill();ctx.globalAlpha=1;return q.t<1;});

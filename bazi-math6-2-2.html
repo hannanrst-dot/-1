@@ -28,6 +28,10 @@
   .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
   .pill{background:#eef1ff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
   .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--or);font-size:22px}
+  .eq{direction:ltr;display:inline-flex;align-items:center;gap:8px;justify-content:center;font-weight:900}
+  .fr{display:inline-flex;flex-direction:column;line-height:1.05;text-align:center;vertical-align:middle}
+  .fr .n{border-bottom:2.5px solid currentColor;padding:0 5px}
+  .fr .d{padding:2px 5px 0}
 </style>
 </head>
 <body>
@@ -63,9 +67,16 @@
 (function(){"use strict";
   const GAMEID='math6-2-2';
   const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
-  const frac=(n,d)=>fa(n)+'⁄'+fa(d);
+  const frH=(n,d)=>d===1?'<span>'+fa(n)+'</span>':'<span class="fr"><span class="n">'+fa(n)+'</span><span class="d">'+fa(d)+'</span></span>';
   const gcd=(a,b)=>b?gcd(b,a%b):a;
   const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  function drawFrac(x,y,n,d,size){ctx.font='900 '+size+'px Vazirmatn';ctx.textAlign='center';
+    if(d===1){ctx.textBaseline='middle';ctx.fillText(fa(n),x,y);ctx.textBaseline='alphabetic';return;}
+    const nw=ctx.measureText(fa(n)).width,dw=ctx.measureText(fa(d)).width,w=Math.max(nw,dw),g=size*0.16;
+    ctx.textBaseline='alphabetic';ctx.fillText(fa(n),x,y-g);
+    ctx.textBaseline='top';ctx.fillText(fa(d),x,y+g);ctx.textBaseline='alphabetic';
+    ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=Math.max(2,size*0.07);
+    ctx.beginPath();ctx.moveTo(x-w/2-3,y);ctx.lineTo(x+w/2+3,y);ctx.stroke();}
   let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
   function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
     o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
@@ -94,7 +105,7 @@
   function loadRound(i){ri=i;R=ROUNDS[i];collected=new Set();need=R.a*R.c;
     layoutGrid();
     $('round').textContent=fa((i+1)+'/'+TOTAL);
-    $('q').innerHTML=frac(R.a,R.b)+' × '+frac(R.c,R.d)+' = ؟';
+    $('q').innerHTML='<span class="eq">'+frH(R.a,R.b)+'<span>×</span>'+frH(R.c,R.d)+'<span>=</span><span>؟</span></span>';
     updateHud();}
   function layoutGrid(){const gw=Math.min(W-56,300),gh=Math.min(H-150,300);
     const cw=gw/R.b,ch=gh/R.d;const gx=(W-cw*R.b)/2,gy=92;
@@ -116,8 +127,8 @@
   function win(){const n=R.a*R.c,d=R.b*R.d,g=gcd(n,d);
     score+=10;sOk();for(let i=0;i<16;i++)confetti.push(spawnConf(W/2,grid.gy+grid.ch*R.d/2));
     updateHud();
-    $('qs').textContent='حاصل: '+frac(n,d)+(g>1?'  =  '+frac(n/g,d/g):'');
-    setTimeout(()=>{$('qs').textContent='ناحیه‌ی مشترکِ آبی و زرد را لمس کن';next();},900);}
+    $('qs').innerHTML='حاصل = <span class="eq">'+frH(n,d)+(g>1?'<span>=</span>'+frH(n/g,d/g):'')+'</span>';
+    setTimeout(()=>{$('qs').textContent='ناحیه‌ی مشترکِ آبی و زرد را لمس کن';next();},1000);}
   function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
 
   function draw(dt){
@@ -140,11 +151,10 @@
       ctx.strokeStyle='rgba(90,107,176,.5)';ctx.lineWidth=1.5;
       for(let c=0;c<=R.b;c++){ctx.beginPath();ctx.moveTo(gx+c*cw,gy);ctx.lineTo(gx+c*cw,gy+ch*R.d);ctx.stroke();}
       for(let r=0;r<=R.d;r++){ctx.beginPath();ctx.moveTo(gx,gy+r*ch);ctx.lineTo(gx+cw*R.b,gy+r*ch);ctx.stroke();}
-      // برچسبِ کسرها
-      ctx.fillStyle='#3aa0ff';ctx.font='900 15px Vazirmatn';ctx.textAlign='center';
-      ctx.fillText(frac(R.a,R.b)+' ↔',gx+cw*R.b/2,gy+ch*R.d+22);
-      ctx.save();ctx.translate(gx-14,gy+ch*R.d/2);ctx.rotate(-Math.PI/2);
-      ctx.fillStyle='#e0a900';ctx.fillText(frac(R.c,R.d)+' ↕',0,0);ctx.restore();
+      // برچسبِ کسرها (کسرِ واقعی)
+      ctx.fillStyle='#3aa0ff';drawFrac(gx+cw*R.b/2,gy+ch*R.d+26,R.a,R.b,16);
+      ctx.save();ctx.translate(gx-20,gy+ch*R.d/2);ctx.rotate(-Math.PI/2);
+      ctx.fillStyle='#e0a900';drawFrac(0,0,R.c,R.d,16);ctx.restore();
       // شمارنده
       ctx.fillStyle='#1a2452';ctx.font='800 13px Vazirmatn';ctx.textAlign='center';
       ctx.fillText('خانه‌های مشترک: '+fa(collected.size)+' از '+fa(need),W/2,gy+ch*R.d+48);

@@ -28,6 +28,10 @@
   .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
   .pill{background:#eef1ff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
   .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--bl);font-size:22px}
+  .eq{direction:ltr;display:inline-flex;align-items:center;gap:8px;justify-content:center;font-weight:900}
+  .fr{display:inline-flex;flex-direction:column;line-height:1.05;text-align:center;vertical-align:middle}
+  .fr .n{border-bottom:2.5px solid currentColor;padding:0 5px}
+  .fr .d{padding:2px 5px 0}
 </style>
 </head>
 <body>
@@ -62,8 +66,15 @@
 (function(){"use strict";
   const GAMEID='math6-2-1';
   const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
-  const frac=(n,d)=>fa(n)+'⁄'+fa(d);
+  const frH=(n,d)=>d===1?'<span>'+fa(n)+'</span>':'<span class="fr"><span class="n">'+fa(n)+'</span><span class="d">'+fa(d)+'</span></span>';
   const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  function drawFrac(x,y,n,d,size){ctx.font='900 '+size+'px Vazirmatn';ctx.textAlign='center';
+    if(d===1){ctx.textBaseline='middle';ctx.fillText(fa(n),x,y);ctx.textBaseline='alphabetic';return;}
+    const nw=ctx.measureText(fa(n)).width,dw=ctx.measureText(fa(d)).width,w=Math.max(nw,dw),g=size*0.16;
+    ctx.textBaseline='alphabetic';ctx.fillText(fa(n),x,y-g);
+    ctx.textBaseline='top';ctx.fillText(fa(d),x,y+g);ctx.textBaseline='alphabetic';
+    ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=Math.max(2,size*0.07);
+    ctx.beginPath();ctx.moveTo(x-w/2-3,y);ctx.lineTo(x+w/2+3,y);ctx.stroke();}
   const gcd=(a,b)=>b?gcd(b,a%b):a;
   function red(f){const g=gcd(Math.abs(f.n),f.d)||1;return{n:f.n/g,d:f.d/g};}
   const add=(a,b)=>red({n:a.n*b.d+b.n*a.d,d:a.d*b.d});
@@ -103,7 +114,7 @@
     btns=[];R.dens.forEach(d=>{btns.push({n:1,d:d,sign:1});btns.push({n:1,d:d,sign:-1});});
     timeMax=18;timeLeft=timeMax;flash=0;
     $('round').textContent=fa((i+1)+'/'+TOTAL);
-    $('q').textContent='به مقدارِ هدف برس: '+frac(R.target.n,R.target.d);
+    $('q').innerHTML='هدف: <span class="eq">'+frH(R.target.n,R.target.d)+'</span>';
     $('qs').textContent=(val(R.start)>val(R.target)?'باید کم کنی (تفریق)':'باید اضافه کنی (جمع)');
     updateHud();}
   function updateHud(){$('score').textContent=fa(score);
@@ -146,14 +157,19 @@
       ctx.beginPath();ctx.moveTo(tx,by-10);ctx.lineTo(tx,by+bh+10);ctx.stroke();ctx.setLineDash([]);
       ctx.fillStyle='#ff5d8f';ctx.font='900 13px Vazirmatn';ctx.textAlign='center';
       ctx.fillText('هدف',tx,by-14);
-      // متنِ مقدارِ فعلی و هدف
-      ctx.fillStyle='#1a2452';ctx.font='900 22px Vazirmatn';ctx.textAlign='center';
-      ctx.fillText('الان: '+frac(sum.n,sum.d)+'    هدف: '+frac(R.target.n,R.target.d),W/2,by+bh+40);
+      // متنِ مقدارِ فعلی و هدف (کسرِ واقعی)
+      const ry=by+bh+42;ctx.fillStyle='#1a2452';
+      ctx.font='900 17px Vazirmatn';ctx.textAlign='right';ctx.textBaseline='middle';
+      ctx.fillText('الان:',W*0.36,ry);drawFrac(W*0.44,ry,sum.n,sum.d,20);
+      ctx.fillStyle='#1a2452';ctx.font='900 17px Vazirmatn';ctx.textAlign='right';ctx.textBaseline='middle';
+      ctx.fillText('هدف:',W*0.72,ry);drawFrac(W*0.80,ry,R.target.n,R.target.d,20);
+      ctx.textBaseline='alphabetic';
       // دکمه‌ها
-      for(const rc of btnRects()){const b=rc.b,pos=b.sign>0;
+      for(const rc of btnRects()){const b=rc.b,pos=b.sign>0,mid=rc.y+rc.h/2;
         ctx.fillStyle=pos?'#22c993':'#ff5d8f';ctx.beginPath();ctx.roundRect(rc.x,rc.y,rc.w,rc.h,12);ctx.fill();
-        ctx.fillStyle='#fff';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.fillText((pos?'+ ':'− ')+frac(1,b.d),rc.x+rc.w/2,rc.y+rc.h/2);ctx.textBaseline='alphabetic';}
+        ctx.fillStyle='#fff';ctx.font='900 24px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(pos?'+':'−',rc.x+rc.w/2-24,mid);
+        drawFrac(rc.x+rc.w/2+10,mid,1,b.d,20);ctx.textBaseline='alphabetic';}
       if(flash>0){ctx.fillStyle='rgba(255,93,143,'+(flash*0.25)+')';ctx.fillRect(0,0,W,H);flash=Math.max(0,flash-dt*3);}
       // timer
       if(state==='play'){timeLeft-=dt;
