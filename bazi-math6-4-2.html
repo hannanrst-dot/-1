@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>دوران — چرخاندن تا زاویه‌ی هدف</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:linear-gradient(160deg,#ffd08f 0%,#ff9fc0 50%,#b39bff 100%);
+    min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(80,80,160,.18)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
+  .qbar{background:#fff;border-radius:16px;padding:9px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(80,80,160,.18)}
+  .qbar b{font-size:16px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(80,80,160,.14)}
+  #prog{height:100%;width:0;background:linear-gradient(90deg,var(--or),var(--pk));transition:width .2s}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(80,80,160,.25)}
+  canvas{display:block;width:100%;touch-action:none}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.88);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:23px;color:var(--pk)}.ov p{margin:0;color:#43508f;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#ff86b3,var(--pk));box-shadow:0 8px 20px rgba(255,93,143,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
+  .pill{background:#ffe9f2;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--pk);font-size:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
+    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۸</span></div>
+    <div class="grow"></div>
+    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+  </div>
+  <div class="qbar"><b id="q">شکل را بچرخان تا روی نقشِ کم‌رنگ بیفتد</b><div class="s" id="qs"></div></div>
+  <div class="track"><div id="prog"></div></div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">🔄</div><h1>دوران</h1>
+      <p>شکل حولِ مرکز می‌چرخد.<br>
+      نقشِ <b>کم‌رنگ</b> نشان می‌دهد بعد از دوران کجا باید بیفتد.<br>
+      دقیقاً وقتی شکل روی نقشِ کم‌رنگ منطبق شد، <b>«توقف»</b> بزن! 🎯</p>
+      <button class="btn" id="btnStart">شروع بازی</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="scoreBig">امتیاز: <b id="esc">۰</b></div>
+      <div class="pill" id="em"></div>
+      <button class="btn" id="btnAgain">دوباره</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='math6-4-2';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
+  const sBad=()=>beep(160,.28,'sawtooth',.16);
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
+
+  const ANGLES=[90,180,270,90,180,270,90,180], TOTAL=ANGLES.length, TOL=13;
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(360,Math.min(440,W));dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+
+  let state='start',ri=0,score=0,lives=3,targetA,ang,spin,stopped,resultGood,confetti=[];
+  function loadRound(i){ri=i;targetA=ANGLES[i];ang=0;spin=70+i*14;stopped=false;resultGood=false;
+    $('round').textContent=fa((i+1)+'/'+TOTAL);
+    $('qs').textContent='زاویه‌ی دوران: '+fa(targetA)+'° در جهتِ عقربه‌های ساعت';updateHud();}
+  function updateHud(){$('score').textContent=fa(score);
+    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
+    $('prog').style.width=(100*ri/TOTAL)+'%';}
+
+  cv.addEventListener('pointerdown',()=>{if(state==='play'&&!stopped)stop();});
+  function angDiff(a,b){let d=Math.abs((a-b)%360);return Math.min(d,360-d);}
+  function stop(){stopped=true;const good=angDiff(ang,targetA)<=TOL;resultGood=good;
+    if(good){ang=targetA;score+=10;sOk();for(let i=0;i<18;i++)confetti.push(spawnConf(W/2,H*0.46));updateHud();
+      setTimeout(next,900);}
+    else{lives--;sBad();updateHud();if(lives<=0){setTimeout(()=>endGame(false),350);return;}
+      setTimeout(()=>{ang=0;stopped=false;},800);}}
+  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
+
+  // شکلِ نامتقارن (پرچم/L) حولِ مرکز
+  const SHAPE=[[-8,-30],[14,-30],[14,-14],[0,-14],[0,26],[-8,26]];
+  function drawShape(cx,cy,deg,fill,alpha){
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(deg*Math.PI/180);ctx.globalAlpha=alpha;
+    const sc=Math.min(W,H)/150;ctx.scale(sc,sc);
+    ctx.beginPath();ctx.moveTo(SHAPE[0][0],SHAPE[0][1]);
+    for(let k=1;k<SHAPE.length;k++)ctx.lineTo(SHAPE[k][0],SHAPE[k][1]);ctx.closePath();
+    ctx.fillStyle=fill;ctx.fill();ctx.globalAlpha=alpha;ctx.strokeStyle='rgba(0,0,0,.25)';ctx.lineWidth=2;ctx.stroke();
+    // نقطه‌ی نشانه روی یک سر (برای دیدنِ جهت)
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(9,-22,4,0,7);ctx.fill();
+    ctx.restore();}
+
+  function draw(dt){
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#fff3f8');bg.addColorStop(1,'#f3eeff');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    if(state!=='start'){
+      const cx=W/2,cy=H*0.46;
+      // دایره‌ی راهنما + درجه‌ها
+      ctx.strokeStyle='rgba(90,107,176,.25)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,Math.min(W,H)*0.32,0,7);ctx.stroke();
+      // نقشِ کم‌رنگِ هدف
+      drawShape(cx,cy,targetA,'#9b6cff',0.28);
+      // چرخش
+      if(state==='play'&&!stopped){ang=(ang+spin*dt)%360;}
+      drawShape(cx,cy,ang,resultGood?'#22c993':'#ff5d8f',1);
+      // مرکز
+      ctx.fillStyle='#1a2452';ctx.beginPath();ctx.arc(cx,cy,4,0,7);ctx.fill();
+      // دکمه‌ی توقف
+      const by=H-52,r=32;
+      ctx.fillStyle='#ff5d8f';ctx.beginPath();ctx.arc(cx,by,r,0,7);ctx.fill();
+      ctx.fillStyle='#fff';ctx.font='900 16px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('توقف',cx,by);ctx.textBaseline='alphabetic';
+      if(stopped&&!resultGood){ctx.fillStyle='#ff5d8f';ctx.font='900 16px Vazirmatn';ctx.textAlign='center';
+        ctx.fillText('روی نقش نیفتاد ❌',cx,cy-Math.min(W,H)*0.32-10);}
+      if(stopped&&resultGood){ctx.fillStyle='#12a06e';ctx.font='900 16px Vazirmatn';ctx.textAlign='center';
+        ctx.fillText('منطبق شد! ✅',cx,cy-Math.min(W,H)*0.32-10);}
+      if(!stopped){ctx.fillStyle='rgba(26,36,82,.55)';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';
+        ctx.fillText('برای توقف بزن ✋',cx,H-14);}
+    }
+    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
+    ctx.globalAlpha=1;}
+  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+      c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
+
+  function endGame(won){state='end';const pct=score/(TOTAL*10);
+    const stars=pct>=.8?3:pct>=.55?2:1;
+    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
+    $('em').textContent=won?'دورانِ شکل حولِ مرکز را یاد گرفتی!':'زاویه‌ی دوران را بشمار و به‌موقع توقف کن 💪';
+    $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
+  let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
+    draw(dt);requestAnimationFrame(loop);}
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;loadRound(0);state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;confetti=[];loadRound(0);state='play';};
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
