@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>شکارِ گنج — محورهای مختصات</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#0e2a3a;--muted:#3d6b86;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:#0e2a3a;
+    background:linear-gradient(160deg,#7fe0ff 0%,#3aa0ff 55%,#2a6fb0 100%);
+    min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(0,40,70,.2)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
+  .qbar{background:#fff;border-radius:16px;padding:9px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(0,40,70,.2)}
+  .qbar b{font-size:16px;font-weight:900}.qbar .big{color:var(--pu);font-size:20px;font-weight:900;direction:ltr;display:inline-block}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,40,70,.16)}
+  #prog{height:100%;width:0;background:linear-gradient(90deg,var(--yl),var(--gr));transition:width .2s}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(0,40,70,.3)}
+  canvas{display:block;width:100%;touch-action:none}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.9);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:23px;color:var(--bl)}.ov p{margin:0;color:#2a4a66;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#ffcf5b,var(--or));box-shadow:0 8px 20px rgba(255,159,69,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
+  .pill{background:#e6f4ff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--or);font-size:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
+    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۸</span></div>
+    <div class="grow"></div>
+    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+  </div>
+  <div class="qbar"><b>گنج در این مختصات است:</b> <span class="big" id="target">(۳ ، ۲)</span></div>
+  <div class="track"><div id="prog"></div></div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">🤿💰</div><h1>شکارِ گنج</h1>
+      <p>مختصاتِ گنج به‌صورتِ <b>(x ، y)</b> داده می‌شود.<br>
+      اول <b>x واحد</b> روی محورِ افقی، بعد <b>y واحد</b> روی محورِ عمودی.<br>
+      روی همان نقطه بزن تا غوّاص گنج را پیدا کند! 🎯</p>
+      <button class="btn" id="btnStart">شروع بازی</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="scoreBig">امتیاز: <b id="esc">۰</b></div>
+      <div class="pill" id="em"></div>
+      <button class="btn" id="btnAgain">دوباره</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='math6-4-3';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sDig=()=>{beep(500,.08,'square',.12);setTimeout(()=>beep(760,.12,'square',.12),90)};
+  const sBad=()=>beep(160,.28,'sawtooth',.16);
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
+
+  const N=6, TOTAL=8; // محورها از ۰ تا ۶ (ربعِ اول، مطابقِ کتابِ ششم)
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(360,Math.min(430,W));cv.width=W*(dpr=Math.min(2,window.devicePixelRatio||1));
+    dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+
+  let state='start',ri=0,score=0,lives=3,tx,ty,diver,pick=null,reveal=0,timeLeft,timeMax,confetti=[];
+  function O(){return{x:40,y:H-34};} // مبدأ
+  function step(){return Math.min((W-64)/N,(H-70)/N);}
+  const gx=x=>O().x+x*step(), gy=y=>O().y-y*step();
+  function loadRound(i){ri=i;tx=1+Math.floor(Math.random()*N);ty=1+Math.floor(Math.random()*N);
+    diver={x:O().x,y:24};pick=null;reveal=0;timeMax=12;timeLeft=timeMax;
+    $('round').textContent=fa((i+1)+'/'+TOTAL);$('target').textContent='('+fa(tx)+' ، '+fa(ty)+')';updateHud();}
+  function updateHud(){$('score').textContent=fa(score);
+    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
+    $('prog').style.width=(100*ri/TOTAL)+'%';}
+
+  cv.addEventListener('pointerdown',e=>{
+    if(state!=='play'||pick)return;
+    const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)*(W/r.width),y=(e.clientY-r.top)*(H/r.height);
+    const cx=Math.round((x-O().x)/step()),cy=Math.round((O().y-y)/step());
+    if(cx<0||cx>N||cy<0||cy>N)return;
+    pick={x:cx,y:cy};reveal=1;const good=(cx===tx&&cy===ty);
+    diver.tx=gx(cx);diver.ty=gy(cy);diver.good=good;
+    if(good){score+=10;sDig();for(let i=0;i<16;i++)confetti.push(spawnConf(gx(cx),gy(cy)));}
+    else{lives--;sBad();}
+    updateHud();
+    setTimeout(()=>{if(lives<=0){endGame(false);return;}
+      if(ri>=TOTAL-1)endGame(true);else loadRound(ri+1);},1200);});
+
+  function draw(dt){
+    // زیرِ دریا
+    const sea=ctx.createLinearGradient(0,0,0,H);sea.addColorStop(0,'#bfeeff');sea.addColorStop(1,'#8fd0f5');
+    ctx.fillStyle=sea;ctx.fillRect(0,0,W,H);
+    const s=step(),o=O();
+    // شبکه
+    ctx.strokeStyle='rgba(20,80,120,.18)';ctx.lineWidth=1;
+    for(let k=0;k<=N;k++){ctx.beginPath();ctx.moveTo(gx(k),gy(0));ctx.lineTo(gx(k),gy(N));ctx.stroke();
+      ctx.beginPath();ctx.moveTo(gx(0),gy(k));ctx.lineTo(gx(N),gy(k));ctx.stroke();}
+    // محورها
+    ctx.strokeStyle='#0e2a3a';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(o.x,o.y);ctx.lineTo(gx(N)+10,o.y);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(o.x,o.y);ctx.lineTo(o.x,gy(N)-10);ctx.stroke();
+    // پیکان‌ها
+    ctx.fillStyle='#0e2a3a';
+    ctx.beginPath();ctx.moveTo(gx(N)+10,o.y);ctx.lineTo(gx(N)+2,o.y-5);ctx.lineTo(gx(N)+2,o.y+5);ctx.fill();
+    ctx.beginPath();ctx.moveTo(o.x,gy(N)-10);ctx.lineTo(o.x-5,gy(N)-2);ctx.lineTo(o.x+5,gy(N)-2);ctx.fill();
+    // برچسب‌ها
+    ctx.fillStyle='#0e2a3a';ctx.font='800 11px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='top';
+    for(let k=1;k<=N;k++)ctx.fillText(fa(k),gx(k),o.y+4);
+    ctx.textAlign='right';ctx.textBaseline='middle';
+    for(let k=1;k<=N;k++)ctx.fillText(fa(k),o.x-5,gy(k));
+    ctx.fillStyle='#0e2a3a';ctx.textAlign='right';ctx.textBaseline='top';ctx.fillText('۰',o.x-4,o.y+4);
+    // راهنمای انتخاب/نتیجه
+    if(pick){const good=pick.x===tx&&pick.y===ty;
+      // خطوطِ راهنما به محور
+      ctx.strokeStyle='rgba(255,159,69,.7)';ctx.setLineDash([4,4]);ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(gx(tx),o.y);ctx.lineTo(gx(tx),gy(ty));ctx.lineTo(o.x,gy(ty));ctx.stroke();ctx.setLineDash([]);
+      // گنج در محلِّ درست
+      ctx.font='22px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('💰',gx(tx),gy(ty));
+      if(!good){ctx.font='20px serif';ctx.fillText('❌',gx(pick.x),gy(pick.y));}
+      ctx.fillStyle=good?'#12a06e':'#ff5d8f';ctx.font='900 16px Vazirmatn';ctx.textBaseline='alphabetic';ctx.textAlign='center';
+      ctx.fillText(good?'گنج پیدا شد! ✅':'اینجا نبود ❌',W/2,gy(N)-2);
+    } else {
+      ctx.fillStyle='rgba(14,42,58,.55)';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';
+      ctx.fillText('روی نقطه‌ی مختصاتِ گنج بزن 👆',W/2,gy(N)-2);
+      // timer
+      if(state==='play'){timeLeft-=dt;if(timeLeft<=0)timeout();}
+    }
+    // غوّاص (روی مبدأ یا در حالِ حرکت)
+    if(state!=='start'&&diver){
+      let dx=diver.x,dy=diver.y;
+      if(diver.tx!=null){diver.x+=(diver.tx-diver.x)*0.2;diver.y+=(diver.ty-diver.y)*0.2;dx=diver.x;dy=diver.y;}
+      ctx.font='22px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🤿',dx,dy);
+    }
+    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
+    ctx.globalAlpha=1;}
+  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+      c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
+  function timeout(){if(state!=='play'||pick)return;lives--;sBad();updateHud();
+    if(lives<=0){endGame(false);return;} timeLeft=timeMax;
+    // یک شانسِ از دست رفته؛ همان مرحله ادامه با زمانِ نو
+  }
+
+  function endGame(won){state='end';const pct=score/(TOTAL*10);
+    const stars=pct>=.8?3:pct>=.55?2:1;
+    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
+    $('em').textContent=won?'خواندنِ مختصات (x ، y) را یاد گرفتی!':'اول افقی (x)، بعد عمودی (y) 💪';
+    $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
+  let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
+    draw(dt);requestAnimationFrame(loop);}
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;loadRound(0);state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;confetti=[];loadRound(0);state='play';};
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

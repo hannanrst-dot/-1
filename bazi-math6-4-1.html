@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>نقاشیِ متقارن — تقارن مرکزی</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:linear-gradient(160deg,#c6a0ff 0%,#8fb6ff 50%,#a0f0d0 100%);
+    min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(80,80,160,.18)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
+  .qbar{background:#fff;border-radius:16px;padding:9px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(80,80,160,.18)}
+  .qbar b{font-size:15px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(80,80,160,.14)}
+  #prog{height:100%;width:0;background:linear-gradient(90deg,var(--pu),var(--pk));transition:width .2s}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(80,80,160,.25)}
+  canvas{display:block;width:100%;touch-action:none}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.88);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:23px;color:var(--pu)}.ov p{margin:0;color:#43508f;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#c08aff,var(--pu));box-shadow:0 8px 20px rgba(155,108,255,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
+  .pill{background:#f0eaff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--pu);font-size:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
+    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۶</span></div>
+    <div class="grow"></div>
+    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+  </div>
+  <div class="qbar"><b id="q">قرینه‌ی نقطه‌ی روشن را نسبت به مرکز بگذار</b><div class="s" id="qs"></div></div>
+  <div class="track"><div id="prog"></div></div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">🎨</div><h1>نقاشیِ متقارن</h1>
+      <p>نقطه‌ی <b>مرکزِ تقارن</b> (⭐) وسطِ صفحه است.<br>
+      برای هر نقطه‌ی روشن، <b>قرینه‌اش نسبت به مرکز</b> را پیدا کن:<br>
+      به همان اندازه از مرکز، اما در <b>جهتِ مخالف</b>.<br>
+      نقاشیِ متقارن را کامل کن! 🎯</p>
+      <button class="btn" id="btnStart">شروع بازی</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="scoreBig">امتیاز: <b id="esc">۰</b></div>
+      <div class="pill" id="em"></div>
+      <button class="btn" id="btnAgain">دوباره</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='math6-4-1';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sOk=()=>{beep(680,.09,'square',.13);setTimeout(()=>beep(920,.11,'square',.12),70)};
+  const sBad=()=>beep(160,.28,'sawtooth',.16);
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
+
+  const R=3, COUNTS=[2,2,3,3,4,4], TOTAL=COUNTS.length;
+  const COLORS=['#ff5d8f','#3aa0ff','#22c993','#ff9f45','#9b6cff'];
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(380,Math.min(460,W+30));dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+
+  let state='start',ri=0,score=0,lives=3,C,sources,placed,active,shake=0,confetti=[];
+  function cell(){return Math.min((W-50)/(2*R+1),(H-70)/(2*R+1));}
+  function cx0(){return W/2;} function cy0(){return H*0.46;}
+  // نگاشتِ مختصاتِ شبکه به صفحه (مرکزِ شبکه = مبدأ ۰،۰ روی صفحه)
+  function px(x){return cx0()+x*cell();}
+  function py(y){return cy0()-y*cell();}
+  const mirror=p=>({x:2*C.x-p.x, y:2*C.y-p.y});
+
+  function loadRound(i){ri=i;const k=COUNTS[i];
+    C=(i<3)?{x:0,y:0}:[{x:1,y:0},{x:0,y:1},{x:1,y:-1}][i-3]||{x:0,y:0};
+    // ساختِ نقاطِ منبع با قرینه‌ی معتبر
+    for(let tries=0;tries<200;tries++){
+      sources=[];let ok=true;const used=new Set([C.x+','+C.y]);
+      for(let j=0;j<k;j++){let p,m,t=0;
+        do{p={x:rnd(),y:rnd()};m=mirror(p);t++;}
+        while((Math.abs(m.x)>R||Math.abs(m.y)>R||used.has(p.x+','+p.y)||used.has(m.x+','+m.y)||(p.x===C.x&&p.y===C.y))&&t<40);
+        if(t>=40){ok=false;break;}
+        used.add(p.x+','+p.y);used.add(m.x+','+m.y);sources.push({p,m,col:COLORS[j%COLORS.length]});}
+      if(ok&&sources.length===k)break;
+    }
+    placed=[];active=0;shake=0;
+    $('round').textContent=fa((i+1)+'/'+TOTAL);
+    $('qs').textContent=(C.x===0&&C.y===0)?'مرکز روی مبدأ است':'مرکز جابه‌جا شده — دقت کن!';
+    updateHud();}
+  function rnd(){return Math.floor(Math.random()*(2*R+1))-R;}
+  function updateHud(){$('score').textContent=fa(score);
+    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
+    $('prog').style.width=(100*ri/TOTAL)+'%';}
+
+  cv.addEventListener('pointerdown',e=>{
+    if(state!=='play'||active>=sources.length)return;
+    const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)*(W/r.width),y=(e.clientY-r.top)*(H/r.height);
+    const cxx=Math.round((x-cx0())/cell()),cyy=Math.round((cy0()-y)/cell());
+    if(Math.abs(cxx)>R||Math.abs(cyy)>R)return;
+    const m=sources[active].m;
+    if(cxx===m.x&&cyy===m.y){placed.push({x:m.x,y:m.y,col:sources[active].col});sOk();
+      for(let i=0;i<10;i++)confetti.push(spawnConf(px(m.x),py(m.y)));
+      active++;updateHud();
+      if(active>=sources.length){for(let i=0;i<14;i++)confetti.push(spawnConf(W/2,cy0()));
+        score+=10;updateHud();setTimeout(next,700);}}
+    else{lives--;sBad();shake=1;updateHud();if(lives<=0)setTimeout(()=>endGame(false),250);}});
+  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
+
+  function draw(dt){
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#f3eeff');bg.addColorStop(1,'#eafaf3');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    let sx=0;if(shake>0){sx=Math.sin(performance.now()/30)*5*shake;shake=Math.max(0,shake-dt*3);}
+    ctx.save();ctx.translate(sx,0);
+    if(state!=='start'&&C){
+      // شبکه
+      ctx.strokeStyle='rgba(90,107,176,.18)';ctx.lineWidth=1;
+      for(let k=-R;k<=R;k++){ctx.beginPath();ctx.moveTo(px(k),py(-R));ctx.lineTo(px(k),py(R));ctx.stroke();
+        ctx.beginPath();ctx.moveTo(px(-R),py(k));ctx.lineTo(px(R),py(k));ctx.stroke();}
+      // محورها
+      ctx.strokeStyle='rgba(90,107,176,.5)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(px(-R),py(0));ctx.lineTo(px(R),py(0));ctx.stroke();
+      ctx.beginPath();ctx.moveTo(px(0),py(-R));ctx.lineTo(px(0),py(R));ctx.stroke();
+      // خطوطِ کمکی از منبع به مرکز تا قرینه (برای نقاطِ گذاشته‌شده)
+      placed.forEach((m,idx)=>{const s=sources.find(o=>o.m.x===m.x&&o.m.y===m.y);
+        if(s){ctx.strokeStyle=s.col+'66';ctx.lineWidth=2;ctx.setLineDash([3,3]);
+          ctx.beginPath();ctx.moveTo(px(s.p.x),py(s.p.y));ctx.lineTo(px(m.x),py(m.y));ctx.stroke();ctx.setLineDash([]);}});
+      // مرکز
+      const cxp=px(C.x),cyp=py(C.y);
+      ctx.fillStyle='#ffce3b';ctx.font='20px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⭐',cxp,cyp);
+      // نقاطِ منبع
+      sources.forEach((o,idx)=>{const isActive=(idx===active);
+        drawDot(px(o.p.x),py(o.p.y),o.col,true,isActive);});
+      // قرینه‌های گذاشته‌شده
+      placed.forEach(m=>drawDot(px(m.x),py(m.y),m.col,false,false));
+      // راهنما
+      ctx.fillStyle='rgba(26,36,82,.55)';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      ctx.fillText('روی خانه‌ی قرینه بزن 👆',W/2,H-12);
+    }
+    ctx.restore();
+    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
+    ctx.globalAlpha=1;}
+  function drawDot(x,y,col,filled,active){
+    if(active){ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();
+      ctx.arc(x,y,13+Math.sin(performance.now()/200)*2,0,7);ctx.stroke();}
+    ctx.beginPath();ctx.arc(x,y,9,0,7);
+    if(filled){ctx.fillStyle=col;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}
+    else{ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=3;ctx.stroke();
+      ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,y,4,0,7);ctx.fill();}}
+  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+      c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
+
+  function endGame(won){state='end';const pct=score/(TOTAL*10);
+    const stars=pct>=.8?3:pct>=.55?2:1;
+    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
+    $('em').textContent=won?'تقارنِ مرکزی را یاد گرفتی!':'قرینه = همان فاصله، جهتِ مخالفِ مرکز 💪';
+    $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
+  let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
+    draw(dt);requestAnimationFrame(loop);}
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;loadRound(0);state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;confetti=[];loadRound(0);state='play';};
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
