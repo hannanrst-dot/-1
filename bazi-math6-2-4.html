@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>پیتزافروشیِ کسری — تقسیم کسرها</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg0:#0b0716;--bg1:#17102e;--ink:#f2eaff;--muted:#b9a9e0;
+    --gr:#3ddc97;--gd:#ffc857;--pk:#ff5c8a;--bl:#5cc8ff;
+    --card:rgba(255,255,255,.06);--line:rgba(255,255,255,.14);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',system-ui,sans-serif;color:var(--ink);
+    background:radial-gradient(120% 80% at 50% 0%,#241a48 0%,var(--bg0) 55%,#080510 100%);
+    min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+
+  /* HUD */
+  .hud{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .chip{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:6px 10px;font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px}
+  .chip .lbl{color:var(--muted);font-weight:700;font-size:11px}
+  .hearts{letter-spacing:2px;font-size:15px}
+  .grow{flex:1}
+
+  .qbar{background:linear-gradient(90deg,rgba(255,92,138,.18),rgba(92,200,255,.14));
+    border:1px solid var(--line);border-radius:14px;padding:8px 12px;margin-bottom:6px;
+    text-align:center}
+  .qbar .q{font-weight:900;font-size:16px}
+  .qbar .sub{color:var(--muted);font-size:12px;font-weight:700;margin-top:2px;direction:ltr}
+
+  .bars{display:flex;gap:8px;margin-bottom:6px}
+  .barbox{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:5px 8px}
+  .barbox .t{font-size:10px;color:var(--muted);font-weight:800;margin-bottom:3px;display:flex;justify-content:space-between}
+  .track{height:8px;background:rgba(0,0,0,.35);border-radius:6px;overflow:hidden}
+  .fill{height:100%;width:0%;border-radius:6px;transition:width .12s linear}
+  #timeFill{background:linear-gradient(90deg,var(--gd),var(--pk))}
+  #progFill{background:linear-gradient(90deg,var(--bl),var(--gr))}
+
+  .stage{position:relative;border-radius:20px;overflow:hidden;
+    background:linear-gradient(180deg,#1a1338,#120c26);border:1px solid var(--line)}
+  canvas{display:block;width:100%;touch-action:none}
+
+  /* overlays */
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;padding:22px;gap:12px;
+    background:rgba(9,6,20,.86);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:24px;font-weight:900}
+  .ov p{margin:0;color:var(--muted);font-size:14px;line-height:1.9;font-weight:700}
+  .btn{margin-top:6px;border:0;cursor:pointer;font-family:inherit;font-weight:900;
+    font-size:18px;color:#0a0616;padding:13px 30px;border-radius:16px;
+    background:linear-gradient(180deg,#ffe08a,var(--gd));box-shadow:0 8px 22px rgba(255,200,87,.35)}
+  .btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px;filter:drop-shadow(0 4px 10px rgba(255,200,87,.4))}
+  .scoreBig{font-size:15px;font-weight:800}
+  .scoreBig b{color:var(--gd);font-size:22px}
+  .hidden{display:none}
+  .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;
+    padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .emoji{font-size:44px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- HUD -->
+  <div class="hud">
+    <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
+    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۶</span></div>
+    <div class="grow"></div>
+    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+  </div>
+
+  <div class="qbar">
+    <div class="q" id="qtext">پیتزا را برش بزن و مشتری‌ها را سیر کن!</div>
+    <div class="sub" id="qsub"></div>
+  </div>
+
+  <div class="bars">
+    <div class="barbox"><div class="t"><span>زمان</span><span id="timeTxt"></span></div>
+      <div class="track"><div class="fill" id="timeFill"></div></div></div>
+    <div class="barbox"><div class="t"><span>پیشرفت</span><span id="progTxt">۰/۶</span></div>
+      <div class="track"><div class="fill" id="progFill"></div></div></div>
+  </div>
+
+  <div class="stage">
+    <canvas id="cv"></canvas>
+
+    <!-- start -->
+    <div class="ov" id="ovStart">
+      <div class="emoji">🍕</div>
+      <h1>پیتزافروشیِ کسری</h1>
+      <p>هر مشتری مقدارِ مشخصی پیتزا می‌خواهد.<br>
+         روی <b>برش‌های پیتزا</b> بزن تا به بشقاب پرواز کنند.<br>
+         وقتی بشقاب پُر شد، مشتری سیر می‌شود! ✅<br>
+         این یعنی <b>تقسیم کسر</b>: چند تا از این تکه در پیتزا جا می‌شود؟</p>
+      <button class="btn" id="btnStart">شروع بازی</button>
+    </div>
+
+    <!-- end -->
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji" id="endFace">🎉</div>
+      <h1 id="endTitle">آفرین!</h1>
+      <div class="stars" id="endStars">⭐⭐⭐</div>
+      <div class="scoreBig">امتیاز نهایی: <b id="endScore">۰</b></div>
+      <div class="pill" id="endMsg"></div>
+      <button class="btn" id="btnAgain">دوباره بازی کن</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const GAMEID = 'math6-2-4';
+
+  // ---------- helpers ----------
+  const fa = s => (''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $ = id => document.getElementById(id);
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+  // ---------- audio ----------
+  let AC=null;
+  function ac(){ if(!AC){ try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} } return AC; }
+  function beep(freq,dur,type,vol){
+    const c=ac(); if(!c)return;
+    const o=c.createOscillator(), g=c.createGain();
+    o.type=type||'sine'; o.frequency.value=freq;
+    g.gain.value=0; o.connect(g); g.connect(c.destination);
+    const t=c.currentTime;
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(vol||0.18,t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+(dur||0.15));
+    o.start(t); o.stop(t+(dur||0.15)+0.02);
+  }
+  const sfxTap  =()=>beep(520,0.08,'triangle',0.12);
+  const sfxServe=()=>{beep(660,0.1,'square',0.14);setTimeout(()=>beep(880,0.14,'square',0.14),90);};
+  const sfxBad  =()=>beep(150,0.22,'sawtooth',0.16);
+  function sfxWin(){[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,0.16,'square',0.16),i*110));}
+  function sfxLose(){[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,0.2,'sawtooth',0.16),i*140));}
+
+  // ---------- rounds (تقسیم کسر) ----------
+  // avail = تعداد برش موجود ، denom = پیتزا به چند تکه ، per = هر مشتری چند برش ، ans = پاسخ تقسیم
+  const rounds = [
+    {A:'۱',   want:'۱/۴', denom:4, per:1, avail:4, ans:4},
+    {A:'۱/۲', want:'۱/۴', denom:4, per:1, avail:2, ans:2},
+    {A:'۳/۴', want:'۱/۸', denom:8, per:1, avail:6, ans:6},
+    {A:'۱',   want:'۱/۴', denom:8, per:2, avail:8, ans:4},
+    {A:'۳/۴', want:'۳/۸', denom:8, per:3, avail:6, ans:2},
+    {A:'۲',   want:'۱/۳', denom:3, per:1, avail:6, ans:6},
+  ];
+  const MAXSCORE = rounds.reduce((s,r)=>s+r.ans*10,0);
+
+  // ---------- canvas / layout ----------
+  const cv=$('cv'), ctx=cv.getContext('2d');
+  let W=0,H=0,dpr=1;
+  let pizzas=[];       // {cx,cy,R}
+  let plate={x:0,y:0}, cust={x:0,y:0};
+
+  function layout(){
+    const stage=cv.parentElement;
+    W = stage.clientWidth;
+    H = Math.max(360, Math.min(500, Math.round(window.innerHeight - 230)));
+    dpr = Math.min(2, window.devicePixelRatio||1);
+    cv.width=W*dpr; cv.height=H*dpr; cv.style.height=H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    plate={x:W*0.63, y:H-72};
+    cust ={x:W*0.28, y:H-80};
+  }
+
+  function placePizzas(r){
+    const P=Math.ceil(r.avail/r.denom);
+    pizzas=[];
+    const topY=Math.min(H*0.30, 150);
+    if(P===1){ pizzas.push({cx:W/2,cy:topY,R:Math.min(96,W*0.24)}); }
+    else{
+      const R=Math.min(66,W*0.17);
+      for(let i=0;i<P;i++){
+        pizzas.push({cx: W*(0.30+0.40*i), cy:topY, R:R});
+      }
+    }
+  }
+
+  // ---------- game state ----------
+  let state='start';       // start|play|banner|end
+  let ri=0;                // round index
+  let R=null;              // current round
+  let present=[];          // slice present flags (length avail)
+  let plateCount=0;
+  let served=0;            // customers served (global count -> for progress)
+  let score=0, lives=3;
+  let timeLeft=0, timeMax=1;
+  let flyers=[], confetti=[], bursts=[];
+  let bannerT=0, bannerTxt='', bannerColor='';
+  let last=0;
+
+  function loadRound(i){
+    R=rounds[i]; ri=i;
+    placePizzas(R);
+    present=new Array(R.avail).fill(true);
+    plateCount=0;
+    timeMax = R.avail*3 + 7; timeLeft=timeMax;
+    flyers=[]; bursts=[];
+    $('round').textContent = fa((i+1)+'/'+rounds.length);
+    $('qtext').textContent = 'چند تا «'+R.want+'» در «'+R.A+'» جا می‌شود؟';
+    $('qsub').textContent  = R.A.replace('/','⁄')+' ÷ '+R.want.replace('/','⁄');
+    updateHud();
+  }
+
+  function updateHud(){
+    $('score').textContent=fa(score);
+    $('hearts').textContent='❤️'.repeat(lives)+'🖤'.repeat(3-lives);
+    const doneRounds = ri + (state==='end'?1:0);
+    $('progTxt').textContent = fa(ri)+'/'+fa(rounds.length);
+    $('progFill').style.width = (100*ri/rounds.length)+'%';
+  }
+
+  // slice geometry
+  function sliceCentroid(gid){
+    const p=pizzas[Math.floor(gid/R.denom)], loc=gid%R.denom;
+    const step=2*Math.PI/R.denom, mid=-Math.PI/2+(loc+0.5)*step;
+    return {x:p.cx+Math.cos(mid)*p.R*0.6, y:p.cy+Math.sin(mid)*p.R*0.6};
+  }
+  function remaining(){ return present.reduce((s,v)=>s+(v?1:0),0); }
+
+  // ---------- input ----------
+  cv.addEventListener('pointerdown',e=>{
+    if(state!=='play')return;
+    const rect=cv.getBoundingClientRect();
+    const x=(e.clientX-rect.left)*(W/rect.width);
+    const y=(e.clientY-rect.top )*(H/rect.height);
+    for(let p=0;p<pizzas.length;p++){
+      const pz=pizzas[p], dx=x-pz.cx, dy=y-pz.cy, d=Math.hypot(dx,dy);
+      if(d<=pz.R && d>6){
+        let a=Math.atan2(dy,dx)+Math.PI/2; a=(a%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+        const loc=Math.floor(a/(2*Math.PI/R.denom));
+        const gid=p*R.denom+loc;
+        if(gid<R.avail && present[gid]){
+          present[gid]=false;
+          const c=sliceCentroid(gid);
+          flyers.push({x:c.x,y:c.y,x0:c.x,y0:c.y,t:0});
+          sfxTap();
+        }
+        return;
+      }
+    }
+  },{passive:true});
+
+  // ---------- update ----------
+  function update(dt){
+    if(state==='banner'){ bannerT-=dt; if(bannerT<=0) advance(); }
+    if(state==='play'){
+      timeLeft-=dt;
+      if(timeLeft<=0){ timeLeft=0; timeout(); }
+    }
+    // flyers
+    const tgt={x:plate.x,y:plate.y-14-plateCount*8};
+    for(let i=flyers.length-1;i>=0;i--){
+      const f=flyers[i]; f.t=Math.min(1,f.t+dt/0.38);
+      const e=1-Math.pow(1-f.t,2);
+      f.x=f.x0+(tgt.x-f.x0)*e; f.y=f.y0+(tgt.y-f.y0)*e - Math.sin(f.t*Math.PI)*40;
+      if(f.t>=1){ flyers.splice(i,1); landSlice(); }
+    }
+    // confetti
+    for(let i=confetti.length-1;i>=0;i--){
+      const c=confetti[i]; c.vy+=140*dt; c.x+=c.vx*dt; c.y+=c.vy*dt; c.r+=c.vr*dt; c.life-=dt;
+      if(c.y>H+20||c.life<=0) confetti.splice(i,1);
+    }
+    for(let i=bursts.length-1;i>=0;i--){
+      const b=bursts[i]; b.t+=dt; if(b.t>0.5)bursts.splice(i,1);
+    }
+    // hud bars
+    $('timeFill').style.width=(100*timeLeft/timeMax)+'%';
+    $('timeTxt').textContent=fa(Math.ceil(timeLeft));
+  }
+
+  function landSlice(){
+    plateCount++;
+    if(plateCount>=R.per){
+      score+=10; served++; plateCount=0;
+      sfxServe();
+      bursts.push({x:cust.x,y:cust.y-10,t:0});
+      for(let k=0;k<10;k++) confetti.push(spawnConf(cust.x,cust.y-20));
+      updateHud();
+    }
+    // end of round?
+    if(remaining()===0 && flyers.length===0){
+      // small delay handled by banner
+      if(plateCount>0 && plateCount<R.per){ /* leftover, no serve */ }
+      finishRound(false);
+    }
+  }
+
+  function timeout(){
+    if(state!=='play')return;
+    lives--; sfxBad(); updateHud();
+    if(lives<=0){ endGame(false); return; }
+    finishRound(true);
+  }
+
+  function finishRound(byTime){
+    if(state!=='play')return;
+    bannerTxt = byTime? 'وقت تمام! ⏰' : 'آفرین! ✅';
+    bannerColor = byTime? 'var(--pk)':'var(--gr)';
+    bannerT=1.0; state='banner';
+    if(!byTime && ri<rounds.length-1) sfxTap();
+  }
+
+  function advance(){
+    if(ri>=rounds.length-1){ endGame(true); return; }
+    loadRound(ri+1); state='play';
+  }
+
+  function spawnConf(x,y){
+    const cols=['#ffc857','#ff5c8a','#5cc8ff','#3ddc97','#c084fc'];
+    return {x,y,vx:(Math.random()-0.5)*220,vy:-Math.random()*220-60,
+      r:Math.random()*Math.PI, vr:(Math.random()-0.5)*10,
+      s:5+Math.random()*5, c:cols[(Math.random()*cols.length)|0], life:1.6+Math.random()};
+  }
+
+  // ---------- draw ----------
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    // soft floor
+    ctx.fillStyle='rgba(255,255,255,.03)';
+    ctx.beginPath(); ctx.ellipse(W/2,H-40,W*0.55,40,0,0,7); ctx.fill();
+
+    if(state!=='start') drawPizzas();
+    drawCustomerPlate();
+    drawFlyers();
+    drawBursts();
+    drawConfetti();
+
+    if(state==='banner') drawBanner();
+  }
+
+  function drawPizzas(){
+    const step=2*Math.PI/R.denom;
+    pizzas.forEach((pz,p)=>{
+      // crust
+      ctx.save();
+      for(let loc=0;loc<R.denom;loc++){
+        const gid=p*R.denom+loc;
+        const a0=-Math.PI/2+loc*step, a1=a0+step;
+        ctx.beginPath();
+        ctx.moveTo(pz.cx,pz.cy);
+        ctx.arc(pz.cx,pz.cy,pz.R,a0,a1);
+        ctx.closePath();
+        const has = gid<R.avail && present[gid];
+        if(has){
+          const g=ctx.createRadialGradient(pz.cx,pz.cy,4,pz.cx,pz.cy,pz.R);
+          g.addColorStop(0,'#ffd76b'); g.addColorStop(0.7,'#ff9e3d'); g.addColorStop(1,'#e07a1e');
+          ctx.fillStyle=g; ctx.fill();
+          ctx.strokeStyle='rgba(120,60,10,.55)'; ctx.lineWidth=1.4; ctx.stroke();
+          // toppings
+          const mid=a0+step/2;
+          for(let k=0;k<2;k++){
+            const rr=pz.R*(0.4+0.25*k);
+            ctx.beginPath();
+            ctx.arc(pz.cx+Math.cos(mid)*rr,pz.cy+Math.sin(mid)*rr,pz.R*0.09,0,7);
+            ctx.fillStyle=k? '#7a1f1f':'#c62828'; ctx.fill();
+          }
+        }else{
+          ctx.fillStyle='rgba(255,255,255,.05)'; ctx.fill();
+          ctx.strokeStyle='rgba(255,255,255,.10)'; ctx.setLineDash([4,4]);
+          ctx.lineWidth=1; ctx.stroke(); ctx.setLineDash([]);
+        }
+      }
+      ctx.restore();
+      // outer crust ring
+      ctx.beginPath(); ctx.arc(pz.cx,pz.cy,pz.R,0,7);
+      ctx.lineWidth=4; ctx.strokeStyle='#b9611a'; ctx.stroke();
+    });
+    // hint
+    ctx.fillStyle='rgba(233,224,255,.55)';
+    ctx.font='700 12px Vazirmatn'; ctx.textAlign='center';
+    ctx.fillText('روی برش‌ها بزن 👆', W/2, Math.min(H*0.30,150)+ (pizzas[0].R)+22);
+  }
+
+  function drawCustomerPlate(){
+    if(state==='start')return;
+    // customer face
+    const c=cust;
+    ctx.beginPath(); ctx.arc(c.x,c.y,26,0,7);
+    ctx.fillStyle='#ffd9a0'; ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.lineWidth=2; ctx.stroke();
+    ctx.fillStyle='#3a2a1a';
+    ctx.beginPath(); ctx.arc(c.x-9,c.y-4,3,0,7); ctx.fill();
+    ctx.beginPath(); ctx.arc(c.x+9,c.y-4,3,0,7); ctx.fill();
+    ctx.beginPath();
+    if(plateCount>=R.per||served>0&&plateCount===0){ ctx.arc(c.x,c.y+4,9,0.1*Math.PI,0.9*Math.PI); }
+    else { ctx.arc(c.x,c.y+8,8,1.1*Math.PI,1.9*Math.PI); } // hungry
+    ctx.lineWidth=3; ctx.strokeStyle='#3a2a1a'; ctx.stroke();
+
+    // thought bubble (want)
+    const bx=c.x, by=c.y-52;
+    ctx.beginPath(); ctx.roundRect(bx-34,by-18,68,34,12);
+    ctx.fillStyle='#fff'; ctx.fill();
+    ctx.beginPath(); ctx.arc(bx-14,by+18,4,0,7); ctx.arc(bx-20,by+24,2.5,0,7); ctx.fill();
+    ctx.fillStyle='#17102e'; ctx.font='900 18px Vazirmatn'; ctx.textAlign='center';
+    ctx.fillText(R.want, bx, by+6);
+
+    // plate
+    const p=plate;
+    ctx.beginPath(); ctx.ellipse(p.x,p.y+6,46,14,0,0,7);
+    ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.3)'; ctx.lineWidth=2; ctx.stroke();
+    // target slots
+    for(let k=0;k<R.per;k++){
+      const yy=p.y-8-k*8;
+      ctx.beginPath(); ctx.ellipse(p.x,yy,24,7,0,0,7);
+      ctx.fillStyle = k<plateCount? '#ff9e3d':'rgba(255,255,255,.06)';
+      ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,.18)'; ctx.lineWidth=1; ctx.stroke();
+    }
+    // progress text
+    ctx.fillStyle='var(--muted)'; ctx.fillStyle='#b9a9e0';
+    ctx.font='800 12px Vazirmatn';
+    ctx.fillText(fa(plateCount)+' از '+fa(R.per), p.x, p.y+30);
+  }
+
+  function drawFlyers(){
+    flyers.forEach(f=>{
+      ctx.save(); ctx.translate(f.x,f.y);
+      ctx.beginPath();
+      ctx.moveTo(0,0); ctx.arc(0,0,13,-0.5,0.9); ctx.closePath();
+      const g=ctx.createRadialGradient(0,0,2,0,0,14);
+      g.addColorStop(0,'#ffd76b'); g.addColorStop(1,'#e07a1e');
+      ctx.fillStyle=g; ctx.fill();
+      ctx.strokeStyle='#b9611a'; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  function drawBursts(){
+    bursts.forEach(b=>{
+      const n=8, rad=10+b.t*40, al=1-b.t/0.5;
+      ctx.globalAlpha=Math.max(0,al);
+      for(let i=0;i<n;i++){
+        const a=i/n*7;
+        ctx.beginPath();
+        ctx.arc(b.x+Math.cos(a)*rad,b.y+Math.sin(a)*rad,3,0,7);
+        ctx.fillStyle=['#ffc857','#3ddc97','#5cc8ff'][i%3]; ctx.fill();
+      }
+      ctx.globalAlpha=1;
+    });
+  }
+
+  function drawConfetti(){
+    confetti.forEach(c=>{
+      ctx.save(); ctx.translate(c.x,c.y); ctx.rotate(c.r);
+      ctx.fillStyle=c.c; ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillRect(-c.s/2,-c.s/2,c.s,c.s*0.6);
+      ctx.restore();
+    });
+    ctx.globalAlpha=1;
+  }
+
+  function drawBanner(){
+    ctx.fillStyle='rgba(9,6,20,.5)'; ctx.fillRect(0,0,W,H);
+    ctx.textAlign='center';
+    ctx.font='900 30px Vazirmatn';
+    ctx.fillStyle = bannerTxt.indexOf('وقت')>=0? '#ff5c8a':'#3ddc97';
+    ctx.fillText(bannerTxt, W/2, H/2);
+  }
+
+  // roundRect fallback
+  if(!CanvasRenderingContext2D.prototype.roundRect){
+    CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+      this.beginPath();this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);
+      this.arcTo(x+w,y+h,x,y+h,r);this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);
+      this.closePath();return this;};
+  }
+
+  // ---------- loop ----------
+  function loop(ts){
+    if(!last)last=ts;
+    let dt=(ts-last)/1000; last=ts; dt=Math.min(dt,0.05);
+    update(dt); draw();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- end ----------
+  function endGame(won){
+    state='end';
+    const pct=score/MAXSCORE;
+    const stars = pct>=0.8?3 : pct>=0.55?2 : 1;
+    for(let k=0;k<60;k++) confetti.push(spawnConf(Math.random()*W, -Math.random()*40));
+    $('endFace').textContent = won? '🎉':'😅';
+    $('endTitle').textContent = won? 'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
+    $('endStars').textContent = '⭐'.repeat(stars)+'☆'.repeat(3-stars);
+    $('endScore').textContent = fa(score);
+    $('endMsg').textContent = won? 'یاد گرفتی چطور کسرها را تقسیم کنی!':'با تمرین بهتر می‌شوی 💪';
+    $('progFill').style.width='100%'; $('progTxt').textContent=fa(rounds.length)+'/'+fa(rounds.length);
+    $('ovEnd').classList.remove('hidden');
+    won? sfxWin() : sfxLose();
+
+    // 🔑 خط حیاتی اتصال به سایت
+    if(window.parent !== window){
+      window.parent.postMessage(
+        { type:'setareh_game', event:'complete', score:score, stars:stars, gameId:GAMEID },
+        '*'
+      );
+    }
+  }
+
+  // ---------- buttons ----------
+  $('btnStart').addEventListener('click',()=>{
+    ac();
+    $('ovStart').classList.add('hidden');
+    score=0; lives=3; served=0;
+    loadRound(0); state='play';
+  });
+  $('btnAgain').addEventListener('click',()=>{
+    $('ovEnd').classList.add('hidden');
+    score=0; lives=3; served=0; confetti=[];
+    loadRound(0); state='play';
+  });
+
+  // ---------- init ----------
+  function init(){ layout(); if(R) placePizzas(R); }
+  window.addEventListener('resize',()=>{ layout(); if(R) placePizzas(R); });
+  layout();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
