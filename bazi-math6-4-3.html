@@ -18,6 +18,10 @@
   .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
   .qbar{background:#fff;border-radius:16px;padding:9px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(0,40,70,.2)}
   .qbar b{font-size:16px;font-weight:900}.qbar .big{color:var(--pu);font-size:20px;font-weight:900;direction:ltr;display:inline-block}
+  .vec{display:inline-flex;align-items:center;direction:ltr;vertical-align:middle;gap:1px}
+  .vec .br{font-size:40px;font-weight:400;color:var(--pu);line-height:.9}
+  .vec .col{display:inline-flex;flex-direction:column;line-height:1.1;font-size:19px;font-weight:900;color:var(--pu)}
+  .vec .col .xr{color:#e0324f}.vec .col .yr{color:#2a7fd0}
   .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,40,70,.16)}
   #prog{height:100%;width:0;background:linear-gradient(90deg,var(--yl),var(--gr));transition:width .2s}
   .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(0,40,70,.3)}
@@ -38,14 +42,14 @@
     <div class="grow"></div>
     <div class="chip hearts" id="hearts">❤️❤️❤️</div>
   </div>
-  <div class="qbar"><b>گنج در این مختصات است:</b> <span class="big" id="target">(۳ ، ۲)</span></div>
+  <div class="qbar"><b>گنجِ این مختصات را پیدا کن:</b> <span id="target"></span></div>
   <div class="track"><div id="prog"></div></div>
   <div class="stage">
     <canvas id="cv"></canvas>
     <div class="ov" id="ovStart">
       <div class="emoji">🤿💰</div><h1>شکارِ گنج</h1>
-      <p>مختصاتِ گنج به‌صورتِ <b>(x ، y)</b> داده می‌شود.<br>
-      اول <b>x واحد</b> روی محورِ افقی، بعد <b>y واحد</b> روی محورِ عمودی.<br>
+      <p>مختصاتِ گنج به‌صورتِ <b>ستونی داخلِ کروشه</b> داده می‌شود:<br>
+      عددِ <b style="color:#e0324f">بالا</b> = محورِ <b style="color:#e0324f">افقی</b> · عددِ <b style="color:#2a7fd0">پایین</b> = محورِ <b style="color:#2a7fd0">عمودی</b>.<br>
       روی همان نقطه بزن تا غوّاص گنج را پیدا کند! 🎯</p>
       <button class="btn" id="btnStart">شروع بازی</button>
     </div>
@@ -87,7 +91,9 @@
   const gx=x=>O().x+x*step(), gy=y=>O().y-y*step();
   function loadRound(i){ri=i;tx=1+Math.floor(Math.random()*N);ty=1+Math.floor(Math.random()*N);
     diver={x:O().x,y:24};pick=null;reveal=0;timeMax=12;timeLeft=timeMax;
-    $('round').textContent=fa((i+1)+'/'+TOTAL);$('target').textContent='('+fa(tx)+' ، '+fa(ty)+')';updateHud();}
+    $('round').textContent=fa((i+1)+'/'+TOTAL);
+    $('target').innerHTML='<span class="vec"><span class="br">[</span><span class="col"><span class="xr">'+fa(tx)+'</span><span class="yr">'+fa(ty)+'</span></span><span class="br">]</span></span>';
+    updateHud();}
   function updateHud(){$('score').textContent=fa(score);
     $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
     $('prog').style.width=(100*ri/TOTAL)+'%';}
@@ -128,6 +134,11 @@
     ctx.textAlign='right';ctx.textBaseline='middle';
     for(let k=1;k<=N;k++)ctx.fillText(fa(k),o.x-5,gy(k));
     ctx.fillStyle='#0e2a3a';ctx.textAlign='right';ctx.textBaseline='top';ctx.fillText('۰',o.x-4,o.y+4);
+    // نامِ محورها (رنگی، مطابقِ کروشه)
+    ctx.fillStyle='#e0324f';ctx.font='900 12px Vazirmatn';ctx.textAlign='right';ctx.textBaseline='top';
+    ctx.fillText('افقی (x)',gx(N)+8,o.y+18);
+    ctx.save();ctx.translate(o.x-24,gy(N)+6);ctx.rotate(-Math.PI/2);
+    ctx.fillStyle='#2a7fd0';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText('عمودی (y)',0,0);ctx.restore();
     // راهنمای انتخاب/نتیجه
     if(pick){const good=pick.x===tx&&pick.y===ty;
       // خطوطِ راهنما به محور
