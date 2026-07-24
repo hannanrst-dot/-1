@@ -6,29 +6,28 @@
 <title>آسانسورِ اعداد صحیح</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root{--bg0:#0a0f1e;--ink:#eef2ff;--muted:#a9b6e0;--gr:#3ddc97;--gd:#ffc857;--pk:#ff5c8a;--bl:#5cc8ff;
-    --card:rgba(255,255,255,.06);--line:rgba(255,255,255,.14);}
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%}
   body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
-    background:radial-gradient(120% 80% at 50% 0%,#1c2547 0%,var(--bg0) 60%,#05070f 100%);
+    background:linear-gradient(160deg,#8fe3ff 0%,#b19bff 48%,#ffc0e0 100%);
     min-height:100vh;padding:8px;overflow:hidden;user-select:none}
   .wrap{max-width:440px;margin:0 auto;position:relative}
   .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
-  .chip{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 10px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(80,80,160,.18)}
   .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
-  .qbar{background:linear-gradient(90deg,rgba(92,200,255,.16),rgba(255,200,87,.14));border:1px solid var(--line);border-radius:14px;padding:8px 12px;text-align:center;margin-bottom:6px}
+  .qbar{background:#fff;border-radius:16px;padding:9px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(80,80,160,.18)}
   .qbar b{font-size:16px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px}
-  .track{height:8px;background:rgba(0,0,0,.35);border-radius:6px;overflow:hidden;margin-bottom:6px}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(80,80,160,.14)}
   #prog{height:100%;width:0;background:linear-gradient(90deg,var(--bl),var(--gr));transition:width .2s}
-  .stage{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(180deg,#0f1732,#0a1020)}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(80,80,160,.25)}
   canvas{display:block;width:100%;touch-action:none}
-  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(6,8,18,.9);z-index:5}
-  .ov h1{margin:0;font-size:23px}.ov p{margin:0;color:var(--muted);font-size:14px;line-height:1.9;font-weight:700}
-  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#06121f;padding:13px 30px;border-radius:16px;background:linear-gradient(180deg,#ffe08a,var(--gd));box-shadow:0 8px 22px rgba(255,200,87,.35);margin-top:4px}.btn:active{transform:translateY(2px)}
-  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:44px}.hidden{display:none}
-  .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
-  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--gd);font-size:22px}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.86);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:24px;color:var(--pu)}.ov p{margin:0;color:#43508f;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#5bd7ae,var(--gr));box-shadow:0 8px 20px rgba(34,201,147,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
+  .pill{background:#eef1ff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--gr);font-size:22px}
 </style>
 </head>
 <body>
@@ -39,15 +38,16 @@
     <div class="grow"></div>
     <div class="chip hearts" id="hearts">❤️❤️❤️</div>
   </div>
-  <div class="qbar"><b id="q">آسانسور را به طبقه‌ی خواسته‌شده ببر!</b><div class="s" id="qs"></div></div>
+  <div class="qbar"><b id="q">مأموریت را انجام بده!</b><div class="s" id="qs"></div></div>
   <div class="track"><div id="prog"></div></div>
   <div class="stage">
     <canvas id="cv"></canvas>
     <div class="ov" id="ovStart">
       <div class="emoji">🛗</div><h1>آسانسورِ اعداد صحیح</h1>
       <p>طبقه‌های <b>مثبت</b> بالای همکف (۰) و طبقه‌های <b>منفی</b> زیرِ همکف‌اند.<br>
-      با دکمه‌های ▲ و ▼ آسانسور را حرکت بده و به طبقه‌ی خواسته‌شده برسان.<br>
-      دقت کن: از ۰ به سمتِ پایین، اعداد منفی می‌شوند!</p>
+      هر بار از یک طبقه شروع می‌کنی و مأموریتی می‌گیری، مثلاً<br>
+      <b>«۲ طبقه بالا، بعد ۳ طبقه پایین»</b>.<br>
+      با دکمه‌های ▲ و ▼ آسانسور را حرکت بده و به طبقه‌ی درست برس. 🎯</p>
       <button class="btn" id="btnStart">شروع بازی</button>
     </div>
     <div class="ov hidden" id="ovEnd">
@@ -70,82 +70,91 @@
     o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
     g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
     g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
-  const sMove=()=>beep(440,.05,'square',.08);
-  const sOk=()=>{beep(660,.09,'square',.13);setTimeout(()=>beep(880,.11,'square',.12),70)};
-  const sBad=()=>beep(150,.28,'sawtooth',.17);
+  const sMove=()=>beep(480,.05,'square',.07);
+  const sOk=()=>{beep(680,.09,'square',.13);setTimeout(()=>beep(920,.11,'square',.12),70)};
+  const sBad=()=>beep(160,.28,'sawtooth',.16);
   const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
-  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.15),i*140));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
 
-  const MIN=-6,MAX=6,TOTAL=8;
+  const MIN=-5,MAX=5,TOTAL=8;
   const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
   function layout(){const st=cv.parentElement;W=st.clientWidth;
-    H=Math.max(380,Math.min(500,Math.round(window.innerHeight-190)));
+    H=Math.max(400,Math.min(520,Math.round(window.innerHeight-190)));
     dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
     ctx.setTransform(dpr,0,0,dpr,0,0);}
   layout();window.addEventListener('resize',layout);
 
-  let state='start',ri=0,score=0,lives=3,cur,target,anim,moves,timeLeft,timeMax,confetti=[];
-  const floorY=v=>{const top=44,bot=H-44;return bot-(v-MIN)/(MAX-MIN)*(bot-top);};
-  const laneX=()=>W*0.60, upBtn=()=>({x:W*0.22,y:H*0.34,r:40}), dnBtn=()=>({x:W*0.22,y:H*0.66,r:40});
+  let state='start',ri=0,score=0,lives=3,cur,start,target,moves,anim,timeLeft,timeMax,confetti=[];
+  const floorY=v=>{const top=40,bot=H-58;return bot-(v-MIN)/(MAX-MIN)*(bot-top);};
+  const laneX=()=>W*0.62;
+  const upBtn=()=>({x:W*0.24,y:H*0.32,r:38}), dnBtn=()=>({x:W*0.24,y:H*0.66,r:38});
 
-  function loadRound(i){ri=i;cur=0;
-    do{target=MIN+Math.floor(Math.random()*(MAX-MIN+1));}while(target===0);
-    anim=null;moves=0;timeMax=9;timeLeft=timeMax;
+  function rnd(a,b){return a+Math.floor(Math.random()*(b-a+1));}
+  function loadRound(i){ri=i;
+    // مبدأ تصادفی
+    for(let t=0;t<200;t++){
+      start=rnd(MIN+1,MAX-1);
+      const compound=i>=4;
+      if(!compound){const dir=Math.random()<0.5?1:-1,k=rnd(1,4);target=start+dir*k;moves=[dir*k];}
+      else{const d1=Math.random()<0.5?1:-1,k1=rnd(1,3),d2=Math.random()<0.5?1:-1,k2=rnd(1,3);
+        target=start+d1*k1+d2*k2;moves=[d1*k1,d2*k2];}
+      if(target>=MIN&&target<=MAX&&target!==start)break;
+    }
+    cur=start;anim=null;timeMax=11;timeLeft=timeMax;
     $('round').textContent=fa((i+1)+'/'+TOTAL);
-    $('q').textContent='برو به طبقه‌ی '+sign(target);
-    $('qs').textContent=target>0?'طبقه‌ی مثبت (بالای همکف)':'طبقه‌ی منفی (زیرِ همکف)';
-    updateHud();
-  }
+    $('q').textContent='از طبقه‌ی '+sign(start)+' شروع کن';
+    $('qs').textContent='مأموریت: '+missionText(moves);
+    updateHud();}
+  function missionText(mv){return mv.map((m,idx)=>{const w=(m>0?'طبقه بالا':'طبقه پایین');
+    return (idx>0?'سپس ':'')+fa(Math.abs(m))+' '+w;}).join('، ');}
   function updateHud(){$('score').textContent=fa(score);
-    $('hearts').textContent='❤️'.repeat(lives)+'🖤'.repeat(3-lives);
+    $('hearts').textContent='❤️'.repeat(lives)+'🤍'.repeat(3-lives);
     $('prog').style.width=(100*ri/TOTAL)+'%';}
 
   cv.addEventListener('pointerdown',e=>{
     if(state!=='play'||anim)return;
     const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)*(W/r.width),y=(e.clientY-r.top)*(H/r.height);
     const u=upBtn(),d=dnBtn();
-    if(Math.hypot(x-u.x,y-u.y)<u.r+8&&cur<MAX){step(1);}
-    else if(Math.hypot(x-d.x,y-d.y)<d.r+8&&cur>MIN){step(-1);}
-  });
-  function step(dir){const from=cur;cur=clamp(cur+dir,MIN,MAX);moves++;sMove();
-    anim={from,to:cur,t:0,cb:()=>{ if(cur===target)arrive(); }};}
-  function arrive(){score+=10;sOk();for(let i=0;i<14;i++)confetti.push(spawnConf(laneX(),floorY(cur)));
-    updateHud();setTimeout(next,600);}
+    if(Math.hypot(x-u.x,y-u.y)<u.r+10&&cur<MAX)step(1);
+    else if(Math.hypot(x-d.x,y-d.y)<d.r+10&&cur>MIN)step(-1);});
+  function step(dir){const from=cur;cur=clamp(cur+dir,MIN,MAX);sMove();
+    anim={from,to:cur,t:0,cb:()=>{if(cur===target)arrive();}};}
+  function arrive(){score+=10;sOk();for(let i=0;i<16;i++)confetti.push(spawnConf(laneX(),floorY(cur)));
+    updateHud();setTimeout(next,650);}
   function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
 
   function draw(dt){
-    ctx.clearRect(0,0,W,H);
+    const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#cfeaff');sky.addColorStop(1,'#f0e9ff');
+    ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
     const lx=laneX();
-    // shaft
-    ctx.fillStyle='rgba(255,255,255,.04)';ctx.fillRect(lx-34,30,68,H-60);
-    // زمین/همکف
+    // ساختمان
+    ctx.fillStyle='#ffffff';ctx.strokeStyle='rgba(120,120,180,.25)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.roundRect(lx-46,30,92,H-70,14);ctx.fill();ctx.stroke();
+    // خطِ همکف
     const gy=floorY(0);
-    ctx.strokeStyle='rgba(255,255,255,.25)';ctx.setLineDash([6,5]);ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(20,gy);ctx.lineTo(W-20,gy);ctx.stroke();ctx.setLineDash([]);
-    // floors labels
-    ctx.font='800 15px Vazirmatn';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.strokeStyle='rgba(255,159,69,.9)';ctx.setLineDash([7,5]);ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(18,gy);ctx.lineTo(W-18,gy);ctx.stroke();ctx.setLineDash([]);
+    // برچسبِ طبقه‌ها (محورِ اعداد صحیح) — بدونِ علامت‌گذاریِ جواب
+    ctx.font='800 14px Vazirmatn';ctx.textBaseline='middle';
     for(let v=MAX;v>=MIN;v--){const y=floorY(v);
-      ctx.fillStyle=v===0?'#ffc857':(v>0?'#8fe6c0':'#ff9db8');
-      ctx.beginPath();ctx.arc(lx+50,y,3,0,7);ctx.fill();
-      ctx.fillStyle=v===target?'#ffc857':'rgba(238,242,255,.85)';
-      ctx.font=(v===target?'900 17px':'800 15px')+' Vazirmatn';
-      ctx.fillText(v===0?'همکف ۰':sign(v),lx+108<W?lx+108:W-8,y);
-    }
-    // هدف: نشانه‌ی طبقه
-    const ty=floorY(target);ctx.textAlign='center';
-    ctx.fillStyle='rgba(255,200,87,.9)';ctx.font='900 13px Vazirmatn';
-    ctx.fillText('⬅ اینجا',lx-52,ty);
+      ctx.strokeStyle='rgba(120,120,180,.15)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(lx-46,y);ctx.lineTo(lx+46,y);ctx.stroke();
+      ctx.textAlign='left';ctx.fillStyle=v===0?'#ff9f45':(v>0?'#22a37a':'#e0527f');
+      ctx.fillText(v===0?'همکف':sign(v),lx+54,y);
+      ctx.textAlign='right';ctx.fillStyle='rgba(26,36,82,.35)';
+      ctx.fillText(v===0?'۰':sign(v),lx-54,y);}
     // آسانسور
-    let cv2=cur;
-    if(anim){anim.t=Math.min(1,anim.t+dt*4);const e=anim.t<0?0:1-Math.pow(1-anim.t,2);
-      cv2=anim.from+(anim.to-anim.from)*e;if(anim.t>=1){const cb=anim.cb;anim=null;cb&&cb();}}
-    const ey=floorY(cv2);
-    ctx.fillStyle='#5cc8ff';ctx.strokeStyle='#1a3a55';ctx.lineWidth=2;
-    ctx.beginPath();ctx.roundRect(lx-30,ey-22,60,44,8);ctx.fill();ctx.stroke();
-    ctx.fillStyle='#06121f';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(sign(Math.round(cv2)),lx,ey);
-    // دکمه‌ها ▲▼
-    drawBtn(upBtn(),'▲',cur<MAX);drawBtn(dnBtn(),'▼',cur>MIN);
+    let cc=cur;
+    if(anim){anim.t=Math.min(1,anim.t+dt*4);const e=1-Math.pow(1-anim.t,2);
+      cc=anim.from+(anim.to-anim.from)*e;if(anim.t>=1){const cb=anim.cb;anim=null;cb&&cb();}}
+    const ey=floorY(cc);
+    ctx.fillStyle='#3aa0ff';ctx.strokeStyle='#1f6fbf';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.roundRect(lx-34,ey-24,68,48,10);ctx.fill();ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.85)';ctx.beginPath();ctx.roundRect(lx-27,ey-17,54,20,6);ctx.fill();
+    ctx.fillStyle='#1a2452';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(sign(Math.round(cc)),lx,ey+8);ctx.fillText('🧒',lx,ey-7);
+    // دکمه‌ها
+    drawBtn(upBtn(),'▲',cur<MAX,'#22c993');drawBtn(dnBtn(),'▼',cur>MIN,'#ff5d8f');
     ctx.textBaseline='alphabetic';
     // confetti
     confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
@@ -154,37 +163,35 @@
     ctx.globalAlpha=1;
     // timer
     if(state==='play'){timeLeft-=dt;
-      ctx.fillStyle='rgba(255,255,255,.1)';ctx.fillRect(20,H-20,W-40,6);
-      ctx.fillStyle=timeLeft<3?'#ff5c8a':'#3ddc97';ctx.fillRect(20,H-20,(W-40)*clamp(timeLeft/timeMax,0,1),6);
-      if(timeLeft<=0){timeout();}}
-  }
-  function drawBtn(b,ch,on){
+      ctx.fillStyle='rgba(255,255,255,.6)';ctx.beginPath();ctx.roundRect(18,H-22,W-36,8,4);ctx.fill();
+      ctx.fillStyle=timeLeft<3.5?'#ff5d8f':'#22c993';ctx.beginPath();
+      ctx.roundRect(18,H-22,(W-36)*clamp(timeLeft/timeMax,0,1),8,4);ctx.fill();
+      if(timeLeft<=0)timeout();}}
+  function drawBtn(b,ch,on,col){
     ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,7);
-    ctx.fillStyle=on?'rgba(92,200,255,.22)':'rgba(255,255,255,.05)';ctx.fill();
-    ctx.strokeStyle=on?'#5cc8ff':'rgba(255,255,255,.2)';ctx.lineWidth=2;ctx.stroke();
-    ctx.fillStyle=on?'#eef2ff':'rgba(238,242,255,.3)';ctx.font='900 30px Vazirmatn';
-    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(ch,b.x,b.y+2);ctx.textBaseline='alphabetic';
-  }
-  if(!CanvasRenderingContext2D.prototype.roundRect){
-    CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
-      this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
-      this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this};}
-  function spawnConf(x,y){const cols=['#ffc857','#ff5c8a','#5cc8ff','#3ddc97','#c084fc'];
+    ctx.fillStyle=on?col:'#e6e9f5';ctx.fill();
+    ctx.strokeStyle=on?'rgba(0,0,0,.12)':'rgba(0,0,0,.06)';ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle=on?'#fff':'rgba(26,36,82,.3)';ctx.font='900 30px Vazirmatn';
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(ch,b.x,b.y+2);ctx.textBaseline='alphabetic';}
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
     return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
       c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
-  function timeout(){if(state!=='play')return;lives--;sBad();timeLeft=timeMax;
-    updateHud();if(lives<=0){endGame(false);return;}}
+  function timeout(){if(state!=='play')return;lives--;sBad();timeLeft=timeMax;updateHud();
+    if(lives<=0){endGame(false);return;}}
 
   function endGame(won){state='end';const pct=score/(TOTAL*10);
     const stars=pct>=.8?3:pct>=.55?2:1;
-    for(let i=0;i<60;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
     $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
     $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
-    $('em').textContent=won?'اعداد مثبت و منفی را خوب شناختی!':'جهتِ بالا مثبت، پایین منفی 💪';
+    $('em').textContent=won?'حرکتِ بالا و پایین روی اعداد صحیح را یاد گرفتی!':'بالا مثبت، پایین منفی 💪';
     $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
     if(window.parent!==window){window.parent.postMessage(
-      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}
-  }
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
   let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
     draw(state==='play'||anim?dt:0);requestAnimationFrame(loop);}
   $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;loadRound(0);state='play';};

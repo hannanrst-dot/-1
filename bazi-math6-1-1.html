@@ -3,60 +3,50 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>پرشِ ربات — الگوهای عددی</title>
+<title>قورباغه و الگوهای عددی</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root{--bg0:#07101f;--bg1:#0f2138;--ink:#eaf4ff;--muted:#9fc0e8;
-    --gr:#3ddc97;--gd:#ffc857;--pk:#ff5c8a;--bl:#5cc8ff;
-    --card:rgba(255,255,255,.06);--line:rgba(255,255,255,.14);}
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%}
   body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
-    background:radial-gradient(120% 80% at 50% 0%,#123 0%,var(--bg0) 60%,#040a14 100%);
+    background:linear-gradient(160deg,#8fe3ff 0%,#a7e6b0 55%,#ffe6a0 100%);
     min-height:100vh;padding:8px;overflow:hidden;user-select:none}
   .wrap{max-width:440px;margin:0 auto;position:relative}
   .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
-  .chip{background:var(--card);border:1px solid var(--line);border-radius:14px;
-    padding:6px 10px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center}
-  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}
-  .grow{flex:1}.hearts{font-size:15px}
-  .qbar{background:linear-gradient(90deg,rgba(92,200,255,.16),rgba(61,220,151,.14));
-    border:1px solid var(--line);border-radius:14px;padding:8px 12px;text-align:center;margin-bottom:6px}
-  .qbar b{font-size:16px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px}
-  .track{height:8px;background:rgba(0,0,0,.35);border-radius:6px;overflow:hidden;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(80,80,160,.18)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
+  .qbar{background:#fff;border-radius:16px;padding:9px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(80,80,160,.18)}
+  .qbar b{font-size:16px;font-weight:900}.qbar .s{color:var(--pu);font-size:15px;margin-top:3px;font-weight:900;direction:ltr;letter-spacing:1px}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(80,80,160,.14)}
   #prog{height:100%;width:0;background:linear-gradient(90deg,var(--bl),var(--gr));transition:width .2s}
-  .stage{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--line);
-    background:linear-gradient(180deg,#0d2540,#0a1a30)}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(80,80,160,.25)}
   canvas{display:block;width:100%;touch-action:none}
-  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(6,12,24,.88);z-index:5}
-  .ov h1{margin:0;font-size:23px}.ov p{margin:0;color:var(--muted);font-size:14px;line-height:1.9;font-weight:700}
-  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#06121f;
-    padding:13px 30px;border-radius:16px;background:linear-gradient(180deg,#ffe08a,var(--gd));
-    box-shadow:0 8px 22px rgba(255,200,87,.35);margin-top:4px}.btn:active{transform:translateY(2px)}
-  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:44px}
-  .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;
-    font-size:13px;font-weight:800;color:var(--muted)}.hidden{display:none}
-  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--gd);font-size:22px}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.86);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:24px;color:var(--pu)}.ov p{margin:0;color:#43508f;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#5bd7ae,var(--gr));box-shadow:0 8px 20px rgba(34,201,147,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
+  .pill{background:#eef1ff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--gr);font-size:22px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="hud">
     <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
-    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۸</span></div>
+    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۶</span></div>
     <div class="grow"></div>
     <div class="chip hearts" id="hearts">❤️❤️❤️</div>
   </div>
-  <div class="qbar"><b id="q">الگو را ادامه بده و ربات را بپران!</b><div class="s" id="qs"></div></div>
+  <div class="qbar"><b id="q">الگو را ادامه بده!</b><div class="s" id="qs"></div></div>
   <div class="track"><div id="prog"></div></div>
   <div class="stage">
     <canvas id="cv"></canvas>
     <div class="ov" id="ovStart">
-      <div class="emoji">🤖</div><h1>پرشِ ربات</h1>
-      <p>رباتِ ما روی سنگ‌های عددی می‌پرد.<br>
-      دو سنگ جلوی رویش ظاهر می‌شود؛ روی سنگی بزن که <b>الگو را درست ادامه می‌دهد</b>.<br>
-      اشتباه بزنی، ربات در آب می‌افتد! 💦</p>
+      <div class="emoji">🐸</div><h1>قورباغه و الگو</h1>
+      <p>قورباغه روی برگ‌های نیلوفر می‌پرد.<br>
+      دنباله‌ی اعداد را ببین و روی برگی بزن که <b>عددِ بعدیِ الگو</b> را دارد.<br>
+      انتخابِ درست = یک پرشِ جلو! 🎯</p>
       <button class="btn" id="btnStart">شروع بازی</button>
     </div>
     <div class="ov hidden" id="ovEnd">
@@ -72,179 +62,145 @@
 (function(){"use strict";
   const GAMEID='math6-1-1';
   const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
-  const $=id=>document.getElementById(id), clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
   function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
     o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
     g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
     g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
-  const sHop=()=>{beep(600,.09,'square',.13);setTimeout(()=>beep(820,.11,'square',.12),70)};
-  const sBad=()=>beep(140,.3,'sawtooth',.18);
+  const sHop=()=>{beep(560,.09,'square',.12);setTimeout(()=>beep(840,.11,'square',.12),80)};
+  const sBad=()=>beep(160,.3,'sawtooth',.16);
   const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
-  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.15),i*140));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
 
-  // الگوها: تابعی که با شماره‌ی گام مقدار بعدی را می‌دهد. برگرفته از کتاب: زوج‌ها، ×۲ چرخ‌ها، پرش ربات +۲ و ...
-  function makePatterns(){
-    const P=[];
-    P.push({rule:'+۲ (اعداد زوج)', start:2, step:i=>2+2*i});          // 2,4,6,8
-    P.push({rule:'+۳', start:3, step:i=>3+3*i});                       // 3,6,9,12
-    P.push({rule:'+۵', start:5, step:i=>5+5*i});                       // 5,10,15
-    P.push({rule:'×۲ (چرخ‌های دوچرخه)', start:2, step:i=>2*Math.pow(2,i)}); // 2,4,8,16
-    P.push({rule:'+۱۰', start:7, step:i=>7+10*i});                     // 7,17,27
-    P.push({rule:'+۴', start:1, step:i=>1+4*i});                       // 1,5,9,13
-    P.push({rule:'−۲ (شمارش معکوس)', start:20, step:i=>20-2*i});       // 20,18,16
-    P.push({rule:'مربع‌ها ۱،۴،۹،…', start:1, step:i=>(i+1)*(i+1)});    // 1,4,9,16
-    return P;
-  }
-  const PATTERNS=makePatterns();
+  // الگوها: seq(k) مقدارِ اندیسِ k را می‌دهد (k از ۰). برگرفته از کتاب: زوج‌ها، ×۲ چرخ‌ها، پرشِ ربات و ...
+  const PATTERNS=[
+    {rule:'اعداد زوج (+۲)', seq:k=>2+2*k},
+    {rule:'الگوی +۳',       seq:k=>3+3*k},
+    {rule:'الگوی +۵',       seq:k=>5+5*k},
+    {rule:'الگوی +۴',       seq:k=>1+4*k},
+    {rule:'دو برابر (×۲)',  seq:k=>Math.pow(2,k+1)}, // 2,4,8,16
+    {rule:'شمارشِ معکوس (−۲)', seq:k=>20-2*k},
+  ];
+  const TOTAL=PATTERNS.length, GOAL=4;
 
   const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
   function layout(){const st=cv.parentElement;W=st.clientWidth;
-    H=Math.max(340,Math.min(470,Math.round(window.innerHeight-190)));
+    H=Math.max(380,Math.min(500,Math.round(window.innerHeight-190)));
     dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
     ctx.setTransform(dpr,0,0,dpr,0,0);}
   layout();window.addEventListener('resize',layout);
 
-  let state='start',ri=0,score=0,lives=3;
-  let pat,step,trail,stones,robot,anim=null,confetti=[],splash=[];
-  const TOTAL=PATTERNS.length;
+  let state='start',ri=0,score=0,lives=3,P,seqVals,nextIdx,hops,choices,frog,anim,wobble,confetti=[];
+  const curPad=()=>({x:W/2,y:H*0.74}), padL=()=>({x:W*0.30,y:H*0.36}), padR=()=>({x:W*0.70,y:H*0.36});
 
-  function loadRound(i){
-    ri=i;pat=PATTERNS[i];step=0;
-    // trail: 3 عددِ اول الگو برای نشان‌دادن قاعده
-    trail=[pat.step(0),pat.step(1),pat.step(2)];
-    robot={x:W*0.5,y:0,onStone:2};   // روی سومین سنگِ trail
-    spawnStones();
+  function loadRound(i){ri=i;P=PATTERNS[i];
+    seqVals=[P.seq(0),P.seq(1),P.seq(2)];nextIdx=3;hops=0;
+    frog={x:curPad().x,y:curPad().y};anim=null;wobble=0;
+    makeChoices();
     $('round').textContent=fa((i+1)+'/'+TOTAL);
-    $('q').textContent='الگو را ادامه بده!';
-    $('qs').textContent='قاعده: '+pat.rule;
-    updateHud();
-  }
-  function correctNext(){return pat.step(2+step+1);} // مقدار درست بعدی
-  function spawnStones(){
-    const good=correctNext();
-    // یک مزاحم نزدیک ولی نادرست
-    let bad=good+([2,-2,3,-3,1,5][Math.floor(Math.random()*6)]);
-    if(bad===good)bad=good+2; if(bad<0)bad=good+4;
-    const arr=[{v:good,ok:true},{v:bad,ok:false}];
+    $('q').textContent='قاعده: '+P.rule;
+    updateSeqText();updateHud();}
+  function updateSeqText(){$('qs').textContent=seqVals.map(fa).join(' ، ')+' ، ؟';}
+  function makeChoices(){
+    const correct=P.seq(nextIdx);
+    let dec;const step=P.seq(nextIdx)-P.seq(nextIdx-1);
+    const offs=[step, -step, 2, -2, 1, -1, 3];
+    for(let t=0;t<20;t++){const o=offs[Math.floor(Math.random()*offs.length)];
+      dec=correct+o;if(dec!==correct&&dec>0)break;}
+    if(dec===correct||dec<=0)dec=correct+1;
+    const arr=[{v:correct,ok:true},{v:dec,ok:false}];
     if(Math.random()<0.5)arr.reverse();
-    stones=arr;
-  }
+    choices=arr;}
   function updateHud(){$('score').textContent=fa(score);
-    $('hearts').textContent='❤️'.repeat(lives)+'🖤'.repeat(3-lives);
+    $('hearts').textContent='❤️'.repeat(lives)+'🤍'.repeat(3-lives);
     $('prog').style.width=(100*ri/TOTAL)+'%';}
-
-  // چیدمان: trail سمت راست، دو سنگِ انتخاب بالای آب سمت چپ
-  function stoneXY(idx,total){ // trail stones spread
-    return null;
-  }
-  function draw(){
-    ctx.clearRect(0,0,W,H);
-    // آب
-    ctx.fillStyle='#0a3556';ctx.fillRect(0,H*0.62,W,H*0.38);
-    for(let i=0;i<3;i++){ctx.strokeStyle='rgba(120,200,255,.15)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.moveTo(0,H*0.7+i*18);
-      for(let x=0;x<=W;x+=20)ctx.lineTo(x,H*0.7+i*18+Math.sin((x+performance.now()/300+i)*0.3)*3);
-      ctx.stroke();}
-    if(state==='start')return;
-    // trail سنگ‌های طی‌شده پایین سمت راست
-    const ty=H*0.58, tgap=Math.min(78,W*0.2);
-    const baseX=W-40;
-    for(let i=0;i<3;i++){const x=baseX-i*tgap;drawStone(x,ty,fa(trail[i]),'#5a4634',false);}
-    // دو سنگِ انتخاب بالاتر (کنار هم)
-    const sy=H*0.34;
-    stones._pos=[{x:W*0.24,y:sy},{x:W*0.52,y:sy}];
-    stones.forEach((s,k)=>{const p=stones._pos[k];drawStone(p.x,p.y,fa(s.v),'#4a6b3a',true);});
-    // ربات
-    if(anim){anim.t=Math.min(1,anim.t+0.06);const e=1-Math.pow(1-anim.t,2);
-      robot.x=anim.x0+(anim.x1-anim.x0)*e;robot.y=anim.y0+(anim.y1-anim.y0)*e-Math.sin(anim.t*Math.PI)*70;
-      if(anim.t>=1){const cb=anim.cb;anim=null;cb&&cb();}}
-    drawRobot(robot.x, robot.y|| (ty-34));
-    // پاشش و کانفتی
-    splash=splash.filter(p=>{p.t+=0.05;p.y+=p.vy;p.vy+=0.5;p.x+=p.vx;
-      ctx.globalAlpha=clamp(1-p.t,0,1);ctx.fillStyle='#7fd3ff';
-      ctx.beginPath();ctx.arc(p.x,p.y,3,0,7);ctx.fill();ctx.globalAlpha=1;return p.t<1;});
-    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
-      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
-      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
-    ctx.globalAlpha=1;
-    // hint arrow
-    if(!anim){ctx.fillStyle='rgba(234,244,255,.6)';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';
-      ctx.fillText('روی سنگِ درست بزن 👆',W/2,H*0.34-46);}
-  }
-  function drawStone(x,y,txt,col,glow){
-    ctx.save();
-    if(glow){ctx.shadowColor='rgba(120,255,180,.5)';ctx.shadowBlur=14;}
-    ctx.beginPath();ctx.ellipse(x,y,34,22,0,0,7);
-    const g=ctx.createLinearGradient(x,y-22,x,y+22);g.addColorStop(0,'#8a9a7a');g.addColorStop(1,col);
-    ctx.fillStyle=g;ctx.fill();ctx.shadowBlur=0;
-    ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=2;ctx.stroke();
-    ctx.fillStyle='#fff';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(txt,x,y);ctx.restore();ctx.textBaseline='alphabetic';
-  }
-  function drawRobot(x,y){
-    ctx.save();ctx.translate(x,y-8);
-    ctx.fillStyle='#5cc8ff';ctx.strokeStyle='#1a3a55';ctx.lineWidth=2;
-    ctx.beginPath();ctx.roundRect(-16,-24,32,30,8);ctx.fill();ctx.stroke();
-    ctx.fillStyle='#06121f';ctx.beginPath();ctx.roundRect(-11,-18,22,12,5);ctx.fill();
-    ctx.fillStyle='#3ddc97';ctx.beginPath();ctx.arc(-5,-12,3,0,7);ctx.arc(5,-12,3,0,7);ctx.fill();
-    ctx.strokeStyle='#5cc8ff';ctx.beginPath();ctx.moveTo(0,-24);ctx.lineTo(0,-32);ctx.stroke();
-    ctx.fillStyle='#ffc857';ctx.beginPath();ctx.arc(0,-34,3,0,7);ctx.fill();
-    ctx.restore();
-  }
-  if(!CanvasRenderingContext2D.prototype.roundRect){
-    CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
-      this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
-      this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this};}
-
-  function spawnConf(x,y){const cols=['#ffc857','#ff5c8a','#5cc8ff','#3ddc97','#c084fc'];
-    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,
-      vr:(Math.random()-.5)*.4,c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
 
   cv.addEventListener('pointerdown',e=>{
     if(state!=='play'||anim)return;
     const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)*(W/r.width),y=(e.clientY-r.top)*(H/r.height);
-    for(let k=0;k<stones.length;k++){const p=stones._pos[k];
-      if(Math.hypot(x-p.x,y-p.y)<44){pick(k,p);return;}}
-  });
-  function pick(k,p){
-    const s=stones[k];
-    if(s.ok){
-      anim={x0:robot.x,y0:(H*0.58-34),x1:p.x,y1:p.y-30,t:0,cb:()=>{
-        sHop();score+=10;step++;
-        // به‌روزرسانی trail: سنگِ درست به دنباله اضافه شود
-        trail=[correctNextPrev(),trail[0],trail[1]];
-        robot.x=W-40;robot.y=H*0.58-34;
-        if(step>=4){ // بعد از چند پرشِ درست، مرحله‌ی بعد
-          for(let i=0;i<14;i++)confetti.push(spawnConf(p.x,p.y-20));
-          setTimeout(next,500);
-        } else { spawnStones(); }
-        updateHud();
-      }};
-    } else {
-      // افتادن در آب
-      anim={x0:robot.x,y0:(H*0.58-34),x1:p.x,y1:H*0.9,t:0,cb:()=>{
-        sBad();for(let i=0;i<12;i++)splash.push({x:p.x+(Math.random()-.5)*30,y:H*0.7,vx:(Math.random()-.5)*4,vy:-Math.random()*6-2,t:0});
-        lives--;updateHud();robot.x=W-40;robot.y=H*0.58-34;
-        if(lives<=0){endGame(false);return;}
-        spawnStones();
-      }};
-    }
+    const pads=[{p:padL(),c:choices[0]},{p:padR(),c:choices[1]}];
+    for(const it of pads){if(Math.hypot(x-it.p.x,y-it.p.y)<44){choose(it.c,it.p);return;}}});
+  function choose(c,pos){
+    if(c.ok){
+      anim={x0:frog.x,y0:frog.y,x1:pos.x,y1:pos.y,t:0,cb:()=>{
+        sHop();score+=10;seqVals.push(P.seq(nextIdx));if(seqVals.length>4)seqVals.shift();
+        nextIdx++;hops++;updateSeqText();updateHud();
+        frog.x=curPad().x;frog.y=curPad().y;
+        if(hops>=GOAL){for(let i=0;i<16;i++)confetti.push(spawnConf(pos.x,pos.y));setTimeout(next,520);}
+        else makeChoices();}};
+    } else { sBad();wobble=1;lives--;updateHud();if(lives<=0)setTimeout(()=>endGame(false),200);}
   }
-  function correctNextPrev(){return pat.step(2+step);} // مقداری که ربات تازه روی آن رفت
-  function next(){ if(ri>=TOTAL-1){endGame(true);return;} loadRound(ri+1); }
+  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
 
-  function endGame(won){state='end';const pct=score/(TOTAL*40);
+  function draw(dt){
+    // آب و ساحل
+    const wat=ctx.createLinearGradient(0,0,0,H);wat.addColorStop(0,'#bfefff');wat.addColorStop(1,'#7fd6ff');
+    ctx.fillStyle=wat;ctx.fillRect(0,0,W,H);
+    for(let i=0;i<4;i++){ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(0,H*0.2+i*40);
+      for(let x=0;x<=W;x+=18)ctx.lineTo(x,H*0.2+i*40+Math.sin((x*0.04)+performance.now()/500+i)*4);ctx.stroke();}
+    if(state!=='start'&&P){
+      // برگ‌های انتخاب
+      drawPad(padL(),choices?choices[0].v:'');
+      drawPad(padR(),choices?choices[1].v:'');
+      // برگِ فعلی
+      drawLily(curPad().x,curPad().y,40);
+      // فلش‌های راهنما
+      ctx.fillStyle='rgba(26,36,82,.5)';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';
+      ctx.fillText('روی برگِ عددِ درست بزن 👆',W/2,H*0.19);
+      // قورباغه
+      let fx=frog.x,fy=frog.y;
+      if(anim){anim.t=Math.min(1,anim.t+dt*3.2);const e=1-Math.pow(1-anim.t,2);
+        fx=anim.x0+(anim.x1-anim.x0)*e;fy=anim.y0+(anim.y1-anim.y0)*e-Math.sin(anim.t*Math.PI)*70;
+        if(anim.t>=1){const cb=anim.cb;anim=null;cb&&cb();}}
+      if(wobble>0){fx+=Math.sin(performance.now()/40)*6*wobble;wobble=Math.max(0,wobble-dt*3);}
+      drawFrog(fx,fy);
+    }
+    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
+    ctx.globalAlpha=1;}
+  function drawLily(x,y,r){
+    ctx.save();ctx.shadowColor='rgba(0,0,0,.12)';ctx.shadowBlur=8;ctx.shadowOffsetY=4;
+    ctx.fillStyle='#39b56a';ctx.beginPath();ctx.arc(x,y,r,0.35,Math.PI*2+0.05);ctx.lineTo(x,y);ctx.fill();
+    ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+    ctx.fillStyle='#2f9d5b';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+r*0.9,y-r*0.3);ctx.lineTo(x+r*0.9,y+r*0.2);ctx.fill();
+    ctx.restore();}
+  function drawPad(p,val){
+    drawLily(p.x,p.y,42);
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.x,p.y-2,26,0,7);ctx.fill();
+    ctx.strokeStyle='#39b56a';ctx.lineWidth=3;ctx.stroke();
+    ctx.fillStyle='#1a2452';ctx.font='900 24px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(fa(val),p.x,p.y-1);ctx.textBaseline='alphabetic';}
+  function drawFrog(x,y){
+    ctx.save();ctx.translate(x,y-10);
+    ctx.fillStyle='#3ecb6a';ctx.strokeStyle='#238a49';ctx.lineWidth=2;
+    ctx.beginPath();ctx.ellipse(0,0,22,17,0,0,7);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.arc(-9,-14,7,0,7);ctx.arc(9,-14,7,0,7);ctx.fillStyle='#3ecb6a';ctx.fill();ctx.stroke();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-9,-15,4,0,7);ctx.arc(9,-15,4,0,7);ctx.fill();
+    ctx.fillStyle='#111';ctx.beginPath();ctx.arc(-8,-15,2,0,7);ctx.arc(10,-15,2,0,7);ctx.fill();
+    ctx.strokeStyle='#1c6b39';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,2,9,0.1*Math.PI,0.9*Math.PI);ctx.stroke();
+    ctx.restore();}
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+      c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
+
+  function endGame(won){state='end';const pct=score/(TOTAL*GOAL*10);
     const stars=pct>=.8?3:pct>=.55?2:1;
-    for(let i=0;i<60;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
     $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
     $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
-    $('em').textContent=won?'یاد گرفتی الگوهای عددی را ادامه بدهی!':'با دقت به قاعده‌ی الگو نگاه کن 💪';
+    $('em').textContent=won?'الگوهای عددی را خوب ادامه دادی!':'به قاعده‌ی الگو خوب نگاه کن 💪';
     $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
     if(window.parent!==window){window.parent.postMessage(
-      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}
-  }
-  function loop(){draw();requestAnimationFrame(loop);}
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
+  let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
+    draw(dt);requestAnimationFrame(loop);}
   $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;loadRound(0);state='play';};
   $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;confetti=[];loadRound(0);state='play';};
   requestAnimationFrame(loop);
