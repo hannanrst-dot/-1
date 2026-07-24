@@ -104,11 +104,11 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);}
   layout();window.addEventListener('resize',layout);
 
-  let state='start',ri=0,score=0,lives=3,R,cards,potFill,timeLeft,timeMax,drop=null,puff=[],confetti=[];
+  let state='start',ri=0,score=0,lives=3,R,cards,potFill,timeLeft,timeMax,drop=null,busy=false,puff=[],confetti=[];
   function loadRound(i){ri=i;R=ROUNDS[i];
     const opts=[{f:R.ans,ok:true},{f:R.dec[0],ok:false},{f:R.dec[1],ok:false}];
     for(let k=opts.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[opts[k],opts[j]]=[opts[j],opts[k]];}
-    cards=opts;timeMax=13;timeLeft=timeMax;drop=null;
+    cards=opts;timeMax=13;timeLeft=timeMax;drop=null;busy=false;
     $('round').textContent=fa((i+1)+'/'+TOTAL);
     $('q').innerHTML='<span class="eq">'+frH(R.a.n,R.a.d)+'<span>'+R.op+'</span>'+frH(R.b.n,R.b.d)+'<span>=</span><span>؟</span></span>';
     updateHud();}
@@ -119,16 +119,17 @@
     return cards.map((c,k)=>({x:20+k*(cw+gap),y:cy,w:cw,h:ch,c}));}
 
   cv.addEventListener('pointerdown',e=>{
-    if(state!=='play'||drop)return;
+    if(state!=='play'||drop||busy)return;
     const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)*(W/r.width),y=(e.clientY-r.top)*(H/r.height);
     for(const rc of cardRects()){if(x>=rc.x&&x<=rc.x+rc.w&&y>=rc.y&&y<=rc.y+rc.h){pick(rc);return;}}});
-  function pick(rc){drop={x:rc.x+rc.w/2,y:rc.y+rc.h/2,ok:rc.c.ok,f:rc.c.f,t:0};}
+  function pick(rc){busy=true;drop={x:rc.x+rc.w/2,y:rc.y+rc.h/2,ok:rc.c.ok,f:rc.c.f,t:0};}
   function resolve(){
-    if(state!=='play'){drop=null;return;}
-    if(drop.ok){score+=10;potFill=clamp(potFill+1/TOTAL,0,1);sOk();
+    const ok=drop.ok;drop=null;              // یک‌بار حل شود؛ از تکرارِ هر فریم جلوگیری می‌کند
+    if(state!=='play'){busy=false;return;}
+    if(ok){score+=10;potFill=clamp(potFill+1/TOTAL,0,1);sOk();
       for(let i=0;i<16;i++)confetti.push(spawnConf(W/2,H*0.72));updateHud();setTimeout(next,600);}
     else{lives--;sBad();for(let i=0;i<10;i++)puff.push({x:W/2,y:H*0.66,a:Math.random()*7,t:0});
-      updateHud();if(lives<=0){endGame(false);return;}drop=null;}}
+      updateHud();busy=false;if(lives<=0)endGame(false);}}
   function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
 
   function potXY(){return{x:W/2,y:H*0.74};}

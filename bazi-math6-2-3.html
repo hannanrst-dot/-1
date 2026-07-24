@@ -190,6 +190,7 @@
   let R=null;              // current round
   let present=[];          // slice present flags (length avail)
   let plateCount=0;
+  let groups=0;            // گروه‌های سرو‌شده در این مرحله = جوابِ تقسیم
   let served=0;            // customers served (global count -> for progress)
   let score=0, lives=3;
   let timeLeft=0, timeMax=1;
@@ -201,7 +202,7 @@
     R=rounds[i]; ri=i;
     placePizzas(R);
     present=new Array(R.avail).fill(true);
-    plateCount=0;
+    plateCount=0; groups=0;
     timeMax = R.avail*3 + 7; timeLeft=timeMax;
     flyers=[]; bursts=[];
     $('round').textContent = fa((i+1)+'/'+rounds.length);
@@ -212,7 +213,7 @@
 
   function updateHud(){
     $('score').textContent=fa(score);
-    $('hearts').textContent='❤️'.repeat(lives)+'🖤'.repeat(3-lives);
+    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
     const doneRounds = ri + (state==='end'?1:0);
     $('progTxt').textContent = fa(ri)+'/'+fa(rounds.length);
     $('progFill').style.width = (100*ri/rounds.length)+'%';
@@ -280,7 +281,7 @@
   function landSlice(){
     plateCount++;
     if(plateCount>=R.per){
-      score+=10; served++; plateCount=0;
+      score+=10; served++; groups++; plateCount=0;
       sfxServe();
       bursts.push({x:cust.x,y:cust.y-10,t:0});
       for(let k=0;k<10;k++) confetti.push(spawnConf(cust.x,cust.y-20));
@@ -329,12 +330,30 @@
     ctx.beginPath(); ctx.ellipse(W/2,H-40,W*0.55,40,0,0,7); ctx.fill();
 
     if(state!=='start') drawPizzas();
+    if(state!=='start') drawQuotient();
     drawCustomerPlate();
     drawFlyers();
     drawBursts();
     drawConfetti();
 
     if(state==='banner') drawBanner();
+  }
+
+  // نمایشِ مفهومِ تقسیم: هر گروهِ سیرشده = یک واحدِ «مقسوم‌علیه»؛ تعدادشان = جوابِ تقسیم
+  function drawQuotient(){
+    const y=Math.min(H*0.30,150)+ (pizzas[0]?pizzas[0].R:80)+42;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='#5b6bb0'; ctx.font='800 12px Vazirmatn';
+    ctx.fillText('هر مشتری یک گروه می‌گیرد؛ تعدادِ گروه‌ها = جوابِ تقسیم', W/2, y);
+    // نشانه‌ی هر گروهِ سرو‌شده (برشِ کوچک)
+    const tw=24, total=Math.min(groups,10), startX=W/2-(total*tw)/2+tw/2;
+    for(let k=0;k<total;k++){const gx=startX+k*tw, gy=y+20;
+      ctx.fillStyle='#ffb15d'; ctx.beginPath();
+      ctx.moveTo(gx,gy); ctx.arc(gx,gy,9,-0.5,0.95); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#e07a1e'; ctx.lineWidth=1.5; ctx.stroke();}
+    ctx.fillStyle='#1a2452'; ctx.font='900 16px Vazirmatn';
+    ctx.fillText('جواب تا اینجا: '+fa(groups)+' گروه', W/2, y+42);
+    ctx.textBaseline='alphabetic';
   }
 
   function drawPizzas(){
@@ -459,11 +478,24 @@
   }
 
   function drawBanner(){
-    ctx.fillStyle='rgba(255,255,255,.62)'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(255,255,255,.82)'; ctx.fillRect(0,0,W,H);
     ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+    const win = bannerTxt.indexOf('وقت')<0;
     ctx.font='900 30px Vazirmatn';
-    ctx.fillStyle = bannerTxt.indexOf('وقت')>=0? '#ff5d8f':'#12a06e';
-    ctx.fillText(bannerTxt, W/2, H/2);
+    ctx.fillStyle = win? '#12a06e':'#ff5d8f';
+    ctx.fillText(bannerTxt, W/2, win?H*0.40:H*0.5);
+    if(win && R){ // عبارتِ تقسیم با جواب:  A ÷ want = ans
+      const cy=H*0.54, g=46;
+      ctx.fillStyle='#1a2452';
+      drawFrac(W/2-g*1.5, cy, R.An, R.Ad, 26);
+      ctx.font='900 26px Vazirmatn'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('÷', W/2-g*0.75, cy);
+      drawFrac(W/2, cy, R.wn, R.wd, 26);
+      ctx.fillText('=', W/2+g*0.75, cy);
+      ctx.font='900 36px Vazirmatn';
+      ctx.fillText(fa(R.ans), W/2+g*1.45, cy);
+      ctx.textBaseline='alphabetic';
+    }
   }
 
   // roundRect fallback
