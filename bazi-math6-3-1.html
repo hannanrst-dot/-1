@@ -89,7 +89,7 @@
   const xOf=v=>LX()+v*(RX()-LX());
   const archer=()=>({x:W/2,y:H-42});
 
-  function loadRound(i){ri=i;target=TARGETS[i];phase=Math.random()*2;rate=0.75+i*0.11;aim=0;shot=null;
+  function loadRound(i){ri=i;target=TARGETS[i];phase=Math.random()*2;rate=0.42+i*0.05;aim=0;shot=null;
     $('round').textContent=fa((i+1)+'/'+TOTAL);$('target').textContent=faD(target);updateHud();}
   function updateHud(){$('score').textContent=fa(score);
     $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
