@@ -38,15 +38,15 @@
     <div class="grow"></div>
     <div class="chip hearts" id="hearts">❤️❤️❤️</div>
   </div>
-  <div class="qbar"><b id="q"></b><div class="s" id="qs">با ▲ و ▼ سهمِ هر لیوان را تنظیم کن</div></div>
+  <div class="qbar"><b id="q"></b><div class="s">وقتی مجموع برابرِ کل شد، «نگه‌دار» بزن</div></div>
   <div class="track"><div id="prog"></div></div>
   <div class="stage">
     <canvas id="cv"></canvas>
     <div class="ov" id="ovStart">
       <div class="emoji">🥤</div><h1>پخشِ مساوی</h1>
-      <p>یک مقدار آب‌میوه داری و باید آن را <b>مساوی</b> بین چند لیوان پخش کنی.<br>
-      با ▲ و ▼ <b>سهمِ هر لیوان</b> را تنظیم کن تا مجموعِ لیوان‌ها دقیقاً برابرِ کل شود.<br>
-      این یعنی <b>تقسیمِ عددِ اعشاری بر تعدادِ لیوان‌ها</b>! 🎯</p>
+      <p>سهمِ همه‌ی لیوان‌ها با هم بالا می‌رود.<br>
+      دقیقاً وقتی <b>مجموعِ لیوان‌ها</b> برابرِ <b>کل</b> شد، برای <b>نگه‌داشتن</b> بزن!<br>
+      این یعنی <b>کل ÷ تعداد لیوان = سهمِ هر لیوان</b>. 🎯</p>
       <button class="btn" id="btnStart">شروع بازی</button>
     </div>
     <div class="ov hidden" id="ovEnd">
@@ -69,8 +69,8 @@
     o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
     g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
     g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
-  const sTic=()=>beep(500,.05,'square',.08);
-  const sOk=()=>{beep(680,.09,'square',.13);setTimeout(()=>beep(920,.11,'square',.12),70)};
+  const sTic=()=>beep(440,.03,'square',.05);
+  const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
   const sBad=()=>beep(160,.28,'sawtooth',.16);
   const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
   const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
@@ -87,62 +87,63 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);}
   layout();window.addEventListener('resize',layout);
 
-  let state='start',ri=0,score=0,lives=3,R,g,per,maxLvl,timeLeft,timeMax,confetti=[];
-  function loadRound(i){ri=i;R=ROUNDS[i];g=0;per=Math.round((R.T/R.n)*100)/100;
-    maxLvl=Math.ceil(per)+0.5;timeMax=16;timeLeft=timeMax;
+  let state='start',ri=0,score=0,lives=3,R,per,maxStep,step,tacc,interval,maxLvl,stopped,confetti=[];
+  function loadRound(i){ri=i;R=ROUNDS[i];per=Math.round((R.T/R.n)*10)/10;
+    maxStep=Math.round(per/0.1)+3;maxLvl=(maxStep)*0.1;step=0;tacc=0;stopped=false;
+    interval=Math.max(0.2,0.5-i*0.035);
     $('round').textContent=fa((i+1)+'/'+TOTAL);
     $('q').innerHTML='<span style="direction:ltr;display:inline-block">'+faD(R.T)+' لیتر ÷ '+fa(R.n)+' لیوان</span>';
     updateHud();}
   function updateHud(){$('score').textContent=fa(score);
     $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
     $('prog').style.width=(100*ri/TOTAL)+'%';}
-  function btns(){const y=H-52,r=34;return[{x:W*0.30,y,r,up:true},{x:W*0.70,y,r,up:false}];}
 
-  cv.addEventListener('pointerdown',e=>{
-    if(state!=='play')return;
-    const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)*(W/r.width),y=(e.clientY-r.top)*(H/r.height);
-    for(const b of btns()){if(Math.hypot(x-b.x,y-b.y)<b.r+10){adj(b.up?0.1:-0.1);return;}}});
-  function adj(d){g=clamp(Math.round((g+d)*100)/100,0,maxLvl);sTic();
-    const sum=Math.round(g*R.n*100)/100;
-    if(Math.abs(sum-R.T)<1e-6){score+=10;sOk();for(let i=0;i<16;i++)confetti.push(spawnConf(W/2,H*0.4));
-      updateHud();setTimeout(next,750);}else updateHud();}
+  cv.addEventListener('pointerdown',()=>{if(state==='play'&&!stopped)stop();});
+  function stop(){stopped=true;const share=Math.round(step*0.1*100)/100,sum=Math.round(share*R.n*100)/100;
+    if(Math.abs(sum-R.T)<1e-6){score+=10;sOk();for(let i=0;i<18;i++)confetti.push(spawnConf(W/2,H*0.4));
+      updateHud();setTimeout(next,900);}
+    else{lives--;sBad();updateHud();if(lives<=0){setTimeout(()=>endGame(false),300);return;}
+      setTimeout(()=>{step=0;tacc=0;stopped=false;},700);}}
   function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
 
   function draw(dt){
     const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#eef7ff');sky.addColorStop(1,'#f7efff');
     ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
     if(state!=='start'&&R){
-      const sum=Math.round(g*R.n*100)/100, over=sum>R.T+1e-6;
+      if(state==='play'&&!stopped){tacc+=dt;if(tacc>=interval){tacc=0;step++;sTic();
+        if(step>maxStep){lives--;sBad();updateHud();if(lives<=0){setTimeout(()=>endGame(false),200);}step=0;}}}
+      const share=Math.round(step*0.1*100)/100, sum=Math.round(share*R.n*100)/100;
+      const good=Math.abs(sum-R.T)<1e-6;
       // لیوان‌ها
-      const n=R.n, gap=Math.min(64,(W-40)/n), cw=Math.min(42,gap-8), gx0=(W-gap*n)/2+gap/2;
-      const topY=70, gh=150;
+      const n=R.n, gap=Math.min(60,(W-40)/n), cw=Math.min(40,gap-8), gx0=(W-gap*n)/2+gap/2;
+      const topY=64, gh=150;
       for(let k=0;k<n;k++){const cx=gx0+k*gap;
-        // بدنه‌ی لیوان
         ctx.strokeStyle='#9fb0e0';ctx.lineWidth=2.5;ctx.fillStyle='rgba(255,255,255,.5)';
         ctx.beginPath();ctx.roundRect(cx-cw/2,topY,cw,gh,{tl:6,tr:6,br:14,bl:14});ctx.fill();ctx.stroke();
-        // مایع
-        const lvl=clamp(g/maxLvl,0,1),fh=(gh-6)*lvl;
+        const lvl=clamp(share/maxLvl,0,1),fh=(gh-6)*lvl;
         ctx.save();ctx.beginPath();ctx.roundRect(cx-cw/2+3,topY+3,cw-6,gh-6,{tl:4,tr:4,br:12,bl:12});ctx.clip();
         const juice=ctx.createLinearGradient(0,topY+gh-fh,0,topY+gh);juice.addColorStop(0,'#ff9f45');juice.addColorStop(1,'#ff7e3d');
-        ctx.fillStyle=over?'#ff5d8f':juice;ctx.fillRect(cx-cw/2,topY+gh-fh,cw,fh);ctx.restore();}
-      // سهمِ هر لیوان
-      ctx.fillStyle='#1a2452';ctx.font='900 18px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
-      ctx.fillText('سهمِ هر لیوان: '+faD(g)+' لیتر',W/2,topY+gh+34);
-      // مجموع در مقابلِ کل
-      ctx.font='900 16px Vazirmatn';ctx.fillStyle=over?'#ff5d8f':(Math.abs(sum-R.T)<1e-6?'#12a06e':'#5b6bb0');
-      ctx.fillText('مجموع لیوان‌ها: '+faD(sum)+' لیتر   /   کل: '+faD(R.T)+' لیتر',W/2,topY+gh+58);
-      // دکمه‌ها ▲▼
-      for(const b of btns()){ctx.fillStyle=b.up?'#22c993':'#ff5d8f';
-        ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,7);ctx.fill();
-        ctx.fillStyle='#fff';ctx.font='900 26px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.fillText(b.up?'▲':'▼',b.x,b.y+1);ctx.textBaseline='alphabetic';}
-      ctx.fillStyle='#5b6bb0';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';
-      ctx.fillText('+۰/۱',W*0.30,H-52+50);ctx.fillText('−۰/۱',W*0.70,H-52+50);
-      // timer
-      if(state==='play'){timeLeft-=dt;
-        ctx.fillStyle='rgba(255,255,255,.7)';ctx.beginPath();ctx.roundRect(24,H-10,W-48,6,3);ctx.fill();
-        ctx.fillStyle=timeLeft<4?'#ff5d8f':'#22c993';ctx.beginPath();ctx.roundRect(24,H-10,(W-48)*clamp(timeLeft/timeMax,0,1),6,3);ctx.fill();
-        if(timeLeft<=0)timeout();}
+        ctx.fillStyle=juice;ctx.fillRect(cx-cw/2,topY+gh-fh,cw,fh);ctx.restore();}
+      // خواننده‌ها
+      ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      ctx.fillStyle='#1a2452';ctx.font='900 18px Vazirmatn';
+      ctx.fillText('سهمِ هر لیوان: '+faD(share)+' لیتر',W/2,topY+gh+34);
+      // نوارِ مجموع در مقابل کل
+      const bx=40,bw=W-80,by=topY+gh+52,bh=22;
+      ctx.fillStyle='#e6ebff';ctx.beginPath();ctx.roundRect(bx,by,bw,bh,10);ctx.fill();
+      const frac=clamp(sum/(R.T*1.25),0,1);
+      ctx.fillStyle=good?'#22c993':(sum>R.T+1e-6?'#ff5d8f':'#3aa0ff');
+      ctx.beginPath();ctx.roundRect(bx,by,bw*frac,bh,10);ctx.fill();
+      // خطِ هدف روی نوار
+      const tX=bx+bw*clamp(R.T/(R.T*1.25),0,1);
+      ctx.strokeStyle='#ff5d8f';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(tX,by-6);ctx.lineTo(tX,by+bh+6);ctx.stroke();
+      ctx.fillStyle='#1a2452';ctx.font='900 14px Vazirmatn';
+      ctx.fillText('مجموع: '+faD(sum)+'   /   کل: '+faD(R.T),W/2,by+bh+26);
+      // دکمه‌ی نگه‌دار
+      const by2=by+bh+44, r=34;
+      ctx.fillStyle=good?'#22c993':'#3aa0ff';ctx.beginPath();ctx.arc(W/2,by2+r,r,0,7);ctx.fill();
+      ctx.fillStyle='#fff';ctx.font='900 16px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('نگه‌دار',W/2,by2+r);ctx.textBaseline='alphabetic';
     }
     confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
       ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
@@ -159,8 +160,6 @@
   function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
     return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
       c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
-  function timeout(){if(state!=='play')return;lives--;sBad();timeLeft=timeMax;g=0;updateHud();
-    if(lives<=0)endGame(false);}
 
   function endGame(won){state='end';const pct=score/(TOTAL*10);
     const stars=pct>=.8?3:pct>=.55?2:1;

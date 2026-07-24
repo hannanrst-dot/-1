@@ -3,31 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ممیزِ لغزان — ضرب و تقسیم اعشاری</title>
+<title>سفینه‌ی اعشاری — ضرب و تقسیم بر ۱۰</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%}
   body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
-    background:linear-gradient(160deg,#8fe3ff 0%,#b19bff 48%,#ffc0e0 100%);
+    background:linear-gradient(160deg,#3a2f6e 0%,#5b4b9e 45%,#7c5bb0 100%);
     min-height:100vh;padding:8px;overflow:hidden;user-select:none}
   .wrap{max-width:440px;margin:0 auto;position:relative}
   .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
-  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(80,80,160,.18)}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(0,0,0,.2)}
   .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
-  .qbar{background:#fff;border-radius:16px;padding:9px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(80,80,160,.18)}
-  .qbar b{font-size:17px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px}
-  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(80,80,160,.14)}
+  .qbar{background:#fff;border-radius:16px;padding:9px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+  .qbar b{font-size:16px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,.16)}
   #prog{height:100%;width:0;background:linear-gradient(90deg,var(--bl),var(--gr));transition:width .2s}
-  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(80,80,160,.25)}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.3)}
   canvas{display:block;width:100%;touch-action:none}
-  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.86);backdrop-filter:blur(3px);z-index:5}
-  .ov h1{margin:0;font-size:23px;color:var(--pu)}.ov p{margin:0;color:#43508f;font-size:14px;line-height:1.9;font-weight:700}
-  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#8ab6ff,var(--bl));box-shadow:0 8px 20px rgba(58,160,255,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(30,24,60,.9);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:23px;color:#ffd23f}.ov p{margin:0;color:#d8d2f5;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#26205a;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#ffe08a,var(--yl));box-shadow:0 8px 20px rgba(255,210,63,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
   .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
-  .pill{background:#eef1ff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
-  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--bl);font-size:22px}
+  .pill{background:rgba(255,255,255,.15);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:#d8d2f5}
+  .scoreBig{font-size:15px;font-weight:800;color:#fff}.scoreBig b{color:var(--yl);font-size:22px}
 </style>
 </head>
 <body>
@@ -38,15 +38,16 @@
     <div class="grow"></div>
     <div class="chip hearts" id="hearts">❤️❤️❤️</div>
   </div>
-  <div class="qbar"><b id="q">ممیز را جابه‌جا کن!</b><div class="s" id="qs"></div></div>
+  <div class="qbar"><b id="q">سفینه را به عددِ هدف برسان!</b><div class="s" id="qs"></div></div>
   <div class="track"><div id="prog"></div></div>
   <div class="stage">
     <canvas id="cv"></canvas>
     <div class="ov" id="ovStart">
-      <div class="emoji">🔢</div><h1>ممیزِ لغزان</h1>
-      <p>وقتی یک عدد را در <b>۱۰</b> ضرب می‌کنی، ممیز یک خانه به <b>راست</b> می‌رود؛<br>
-      و وقتی بر <b>۱۰</b> تقسیم می‌کنی، یک خانه به <b>چپ</b>.<br>
-      با دکمه‌های <b>×۱۰</b> و <b>÷۱۰</b> عدد را به مقدارِ هدف برسان. 🎯</p>
+      <div class="emoji">🚀</div><h1>سفینه‌ی اعشاری</h1>
+      <p>سفینه را با <b>کشیدنِ انگشت</b> چپ و راست ببر.<br>
+      از داخلِ حلقه‌ی <b style="color:#3ddc97">×۱۰</b> رد شوی، ممیز یک خانه راست می‌رود؛<br>
+      از حلقه‌ی <b style="color:#ff5d8f">÷۱۰</b>، یک خانه چپ.<br>
+      عددِ سفینه را به <b>هدف</b> برسان! 🎯</p>
       <button class="btn" id="btnStart">شروع بازی</button>
     </div>
     <div class="ov hidden" id="ovEnd">
@@ -62,92 +63,110 @@
 (function(){"use strict";
   const GAMEID='math6-3-2';
   const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
-  const faD=x=>{let n=Math.round(x*1000)/1000;let str=(''+n).replace('.','/');return fa(str);};
+  const faD=x=>{let n=Math.round(x*1000)/1000;return fa((''+n).replace('.','/'));};
   const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
   function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
     o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
     g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
     g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
-  const sTic=()=>beep(520,.05,'square',.09);
-  const sOk=()=>{beep(680,.09,'square',.13);setTimeout(()=>beep(920,.11,'square',.12),70)};
+  const sPass=()=>{beep(520,.06,'square',.1);setTimeout(()=>beep(720,.08,'square',.09),50);};
+  const sOk=()=>{beep(700,.1,'square',.14);setTimeout(()=>beep(1000,.12,'square',.13),80)};
   const sBad=()=>beep(160,.28,'sawtooth',.16);
   const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
   const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
 
-  // start مقدار اولیه، op متن، target هدف
   const ROUNDS=[
-    {start:34.5, op:'× ۱۰',  target:345},
-    {start:6,    op:'÷ ۱۰',  target:0.6},
-    {start:2.5,  op:'× ۱۰۰', target:250},
-    {start:340,  op:'÷ ۱۰',  target:34},
-    {start:0.7,  op:'× ۱۰',  target:7},
-    {start:45,   op:'÷ ۱۰۰', target:0.45},
-    {start:1.23, op:'× ۱۰',  target:12.3},
-    {start:89,   op:'÷ ۱۰',  target:8.9},
+    {start:34.5,target:345},{start:6,target:0.6},{start:2.5,target:250},{start:340,target:34},
+    {start:0.7,target:7},{start:45,target:0.45},{start:1.23,target:12.3},{start:8,target:0.08},
   ];
   const TOTAL=ROUNDS.length;
   const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
   function layout(){const st=cv.parentElement;W=st.clientWidth;
-    H=Math.max(360,Math.min(470,Math.round(window.innerHeight-190)));
+    H=Math.max(400,Math.min(520,Math.round(window.innerHeight-190)));
     dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';
     ctx.setTransform(dpr,0,0,dpr,0,0);}
   layout();window.addEventListener('resize',layout);
 
-  let state='start',ri=0,score=0,lives=3,R,cur,timeLeft,timeMax,pulse=0,confetti=[];
-  function loadRound(i){ri=i;R=ROUNDS[i];cur=R.start;timeMax=14;timeLeft=timeMax;pulse=0;
+  let state='start',ri=0,score=0,lives=3,R,cur,ship,rings,spawnT,fallV,timeLeft,timeMax,stars2=[],confetti=[],flash=0;
+  function loadRound(i){ri=i;R=ROUNDS[i];cur=R.start;
+    ship={x:W/2,tx:W/2,y:0,pulse:0};rings=[];spawnT=0;fallV=90+i*10;timeMax=16;timeLeft=timeMax;
     $('round').textContent=fa((i+1)+'/'+TOTAL);
-    $('q').innerHTML='<span style="direction:ltr;display:inline-block">'+faD(R.start)+' &nbsp;'+R.op+'&nbsp; = ?</span>';
-    $('qs').textContent='با ×۱۰ و ÷۱۰ به هدف برس';updateHud();}
+    $('qs').textContent='سفینه را داخلِ حلقه‌ی درست ببر';updateHud();
+    if(!stars2.length)for(let k=0;k<40;k++)stars2.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+0.5});}
   function updateHud(){$('score').textContent=fa(score);
     $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
     $('prog').style.width=(100*ri/TOTAL)+'%';}
-  function btns(){const y=H*0.72,r=46;return[{x:W*0.30,y,r,mul:true},{x:W*0.70,y,r,mul:false}];}
 
-  cv.addEventListener('pointerdown',e=>{
-    if(state!=='play')return;
-    const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)*(W/r.width),y=(e.clientY-r.top)*(H/r.height);
-    for(const b of btns()){if(Math.hypot(x-b.x,y-b.y)<b.r+8){apply(b.mul);return;}}});
-  function apply(mul){cur=Math.round((mul?cur*10:cur/10)*1000)/1000;sTic();pulse=1;
-    if(Math.abs(cur-R.target)<1e-6){score+=10;sOk();for(let i=0;i<16;i++)confetti.push(spawnConf(W/2,H*0.36));
-      updateHud();setTimeout(next,650);}
+  function shipY(){return H-70;}
+  cv.addEventListener('pointerdown',e=>moveShip(e));
+  cv.addEventListener('pointermove',e=>{if(e.buttons)moveShip(e);});
+  function moveShip(e){if(state!=='play')return;const r=cv.getBoundingClientRect();
+    ship.tx=clamp((e.clientX-r.left)*(W/r.width),30,W-30);}
+
+  function spawnRing(){const mul=Math.random()<0.5;
+    rings.push({x:30+Math.random()*(W-60),y:-30,mul,used:false,hw:46});}
+  function applyRing(rg){rg.used=true;cur=Math.round((rg.mul?cur*10:cur/10)*1000)/1000;
+    cur=clamp(cur,0.0001,1e7);sPass();ship.pulse=1;flash=rg.mul?1:-1;
+    if(Math.abs(cur-R.target)<1e-6){score+=10;sOk();
+      for(let i=0;i<20;i++)confetti.push(spawnConf(ship.x,shipY()));
+      updateHud();state='won';setTimeout(next,850);}
     else updateHud();}
-  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
+  function next(){state='play';if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
 
   function draw(dt){
-    const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#eef7ff');sky.addColorStop(1,'#f7efff');
-    ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
-    if(state!=='start'&&R){
-      // نمایشگرِ عددِ فعلی
-      const cy=H*0.30;const s=1+ (pulse>0?pulse*0.12:0);pulse=Math.max(0,pulse-dt*3);
-      ctx.save();ctx.translate(W/2,cy);ctx.scale(s,s);
-      ctx.fillStyle='#eaf0ff';ctx.strokeStyle='#c7d2f5';ctx.lineWidth=2;
-      ctx.beginPath();ctx.roundRect(-W*0.4,-40,W*0.8,80,16);ctx.fill();ctx.stroke();
-      ctx.fillStyle='#1a2452';ctx.font='900 40px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.direction='ltr';ctx.fillText(faD(cur),0,0);ctx.direction='rtl';
-      ctx.restore();
-      // هدف
-      ctx.fillStyle='#5b6bb0';ctx.font='800 14px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
-      ctx.fillText('هدف:',W/2+40,cy+66);
-      ctx.fillStyle='#9b6cff';ctx.font='900 22px Vazirmatn';ctx.direction='ltr';
-      ctx.fillText(faD(R.target),W/2-18,cy+68);ctx.direction='rtl';
-      // دکمه‌ها
-      for(const b of btns()){ctx.fillStyle=b.mul?'#22c993':'#ff5d8f';
-        ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,7);ctx.fill();
-        ctx.fillStyle='#fff';ctx.font='900 22px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.fillText(b.mul?'×۱۰':'÷۱۰',b.x,b.y);ctx.textBaseline='alphabetic';}
-      ctx.fillStyle='rgba(26,36,82,.55)';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';
-      ctx.fillText('راست‌رفتنِ ممیز = ×۱۰     چپ‌رفتن = ÷۱۰',W/2,H*0.55);
-      // timer
-      if(state==='play'){timeLeft-=dt;
-        ctx.fillStyle='rgba(255,255,255,.7)';ctx.beginPath();ctx.roundRect(24,H-14,W-48,7,3);ctx.fill();
-        ctx.fillStyle=timeLeft<4?'#ff5d8f':'#22c993';ctx.beginPath();ctx.roundRect(24,H-14,(W-48)*clamp(timeLeft/timeMax,0,1),7,3);ctx.fill();
-        if(timeLeft<=0)timeout();}
-    }
+    // فضا
+    const sp=ctx.createLinearGradient(0,0,0,H);sp.addColorStop(0,'#241d52');sp.addColorStop(1,'#3a2f6e');
+    ctx.fillStyle=sp;ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(255,255,255,.7)';stars2.forEach(s=>{ctx.globalAlpha=0.4+0.4*Math.sin(performance.now()/600+s.x);
+      ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill();});ctx.globalAlpha=1;
+    if(state==='start')return;
+    // هدف
+    ctx.fillStyle='#ffd23f';ctx.font='900 15px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.fillText('هدف:',W/2+44,30);ctx.font='900 22px Vazirmatn';ctx.direction='ltr';
+    ctx.fillText(faD(R.target),W/2-16,32);ctx.direction='rtl';
+    if(state==='play'){spawnT-=dt;if(spawnT<=0){spawnRing();spawnT=0.95;}
+      timeLeft-=dt;if(timeLeft<=0)timeout();}
+    // حلقه‌ها
+    const sy=shipY();
+    for(const rg of rings){if(!rg.used)rg.y+=fallV*dt;
+      if(!rg.used && rg.y>=sy-24 && rg.y<=sy+24 && Math.abs(rg.x-ship.x)<rg.hw){applyRing(rg);}
+      drawRing(rg);}
+    rings=rings.filter(rg=>!rg.used && rg.y<H+40 || (rg.used&&false));
+    // سفینه
+    ship.x+=(ship.tx-ship.x)*0.3;
+    drawShip(ship.x,sy);
+    // فلاش
+    if(flash!==0){ctx.fillStyle=(flash>0?'rgba(61,220,151,':'rgba(255,93,143,')+(Math.abs(flash)*0.18)+')';
+      ctx.fillRect(0,0,W,H);flash-=Math.sign(flash)*dt*3;if(Math.abs(flash)<0.02)flash=0;}
+    // timer
+    if(state==='play'||state==='won'){
+      ctx.fillStyle='rgba(255,255,255,.25)';ctx.beginPath();ctx.roundRect(24,H-14,W-48,7,3);ctx.fill();
+      ctx.fillStyle=timeLeft<4?'#ff5d8f':'#3ddc97';ctx.beginPath();ctx.roundRect(24,H-14,(W-48)*clamp(timeLeft/timeMax,0,1),7,3);ctx.fill();}
+    ctx.fillStyle='rgba(255,255,255,.55)';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';
+    ctx.fillText('با کشیدن، سفینه را داخلِ حلقه ببر ✋',W/2,H-24);
     confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
       ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
       ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
     ctx.globalAlpha=1;}
+  function drawRing(rg){const col=rg.mul?'#3ddc97':'#ff5d8f';
+    ctx.strokeStyle=col;ctx.lineWidth=5;ctx.beginPath();ctx.ellipse(rg.x,rg.y,rg.hw,20,0,0,7);ctx.stroke();
+    ctx.fillStyle=col;ctx.globalAlpha=.15;ctx.fill();ctx.globalAlpha=1;
+    ctx.fillStyle='#fff';ctx.font='900 18px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(rg.mul?'×۱۰':'÷۱۰',rg.x,rg.y);ctx.textBaseline='alphabetic';}
+  function drawShip(x,y){const s=1+(ship.pulse>0?ship.pulse*0.15:0);ship.pulse=Math.max(0,ship.pulse-0.03);
+    ctx.save();ctx.translate(x,y);ctx.scale(s,s);
+    // شعله
+    ctx.fillStyle='#ff9f45';ctx.beginPath();ctx.moveTo(-8,20);ctx.lineTo(0,20+10+Math.random()*6);ctx.lineTo(8,20);ctx.fill();
+    // بدنه
+    ctx.fillStyle='#cfe4ff';ctx.beginPath();ctx.moveTo(0,-26);ctx.quadraticCurveTo(20,0,14,20);ctx.lineTo(-14,20);
+    ctx.quadraticCurveTo(-20,0,0,-26);ctx.fill();
+    ctx.strokeStyle='#7f93c8';ctx.lineWidth=2;ctx.stroke();
+    // پنجره با عدد
+    ctx.fillStyle='#26205a';ctx.beginPath();ctx.roundRect(-20,-6,40,22,8);ctx.fill();
+    ctx.fillStyle='#ffd23f';ctx.font='900 16px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.direction='ltr';ctx.fillText(faD(cur),0,6);ctx.direction='rtl';ctx.textBaseline='alphabetic';
+    ctx.restore();}
   const _rr=CanvasRenderingContext2D.prototype.roundRect;
   if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
     this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
@@ -155,7 +174,7 @@
   function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
     return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
       c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
-  function timeout(){if(state!=='play')return;lives--;sBad();timeLeft=timeMax;cur=R.start;updateHud();
+  function timeout(){if(state!=='play')return;lives--;sBad();timeLeft=timeMax;cur=R.start;rings=[];updateHud();
     if(lives<=0)endGame(false);}
 
   function endGame(won){state='end';const pct=score/(TOTAL*10);
@@ -163,7 +182,7 @@
     for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
     $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
     $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
-    $('em').textContent=won?'جابه‌جاییِ ممیز در ×۱۰ و ÷۱۰ را یاد گرفتی!':'×۱۰ ممیز به راست، ÷۱۰ به چپ 💪';
+    $('em').textContent=won?'×۱۰ ممیز به راست، ÷۱۰ به چپ — یاد گرفتی!':'با کشیدن، حلقه‌ی درست را بگیر 💪';
     $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
     if(window.parent!==window){window.parent.postMessage(
       {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
