@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>کارخانه‌ی جداسازی — طبیعی یا مصنوعی</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:linear-gradient(160deg,#a8ffce 0%,#a0d8ff 55%,#ffe08a 100%);
+    min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(40,80,60,.2)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
+  .qbar{background:#fff;border-radius:16px;padding:8px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(40,80,60,.2)}
+  .qbar b{font-size:16px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(40,80,60,.16)}
+  #prog{height:100%;width:0;background:linear-gradient(90deg,var(--gr),var(--yl));transition:width .2s}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(40,80,60,.3)}
+  canvas{display:block;width:100%;touch-action:none}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.92);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:22px;color:#12a05a}.ov p{margin:0;color:#2f5a44;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#4be0a0,var(--gr));box-shadow:0 8px 20px rgba(34,201,147,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
+  .pill{background:#e6fbef;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:#12a05a;font-size:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
+    <div class="chip"><span class="lbl">ماده</span><span id="round">۱/۱۲</span></div>
+    <div class="grow"></div>
+    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+  </div>
+  <div class="qbar"><b id="q">طبیعی است یا مصنوعی؟</b><div class="s" id="qs">روی سطلِ درست بزن!</div></div>
+  <div class="track"><div id="prog"></div></div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">🏭🌿</div><h1>کارخانه‌ی جداسازی</h1>
+      <p>مادّه‌ها روی نوار می‌آیند!<br>
+      <b>طبیعی</b> = در طبیعت پیدا می‌شود (پشم، چوب، سنگ…).<br>
+      <b>مصنوعی</b> = انسان از موادّ طبیعی می‌سازد (کاغذ، پلاستیک…).<br>
+      هر ماده را در <b>سطلِ درست</b> بینداز! 🌿🏭</p>
+      <button class="btn" id="btnStart">شروع بازی</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="scoreBig">امتیاز: <b id="esc">۰</b></div>
+      <div class="pill" id="em"></div>
+      <button class="btn" id="btnAgain">دوباره</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='sci6-2';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
+  const sCombo=()=>{beep(880,.08,'square',.12);setTimeout(()=>beep(1180,.1,'square',.12),70);};
+  const sBad=()=>beep(150,.3,'sawtooth',.15);
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
+
+  // nat=true طبیعی ، false مصنوعی
+  const ITEMS=[{n:'پشم',e:'🐑',nat:true},{n:'کاغذ',e:'📄',nat:false},{n:'چوب',e:'🪵',nat:true},
+    {n:'پلاستیک',e:'🧴',nat:false},{n:'سنگ',e:'🪨',nat:true},{n:'شیشه',e:'🍶',nat:false},
+    {n:'پنبه',e:'☁️',nat:true},{n:'نایلون',e:'🛍️',nat:false},{n:'نفتِ خام',e:'🛢️',nat:true},
+    {n:'دفتر',e:'📓',nat:false},{n:'ماسه',e:'🏖️',nat:true},{n:'لاستیک',e:'🛞',nat:false}];
+  let ORDER=[];const TOTAL=ITEMS.length;
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(400,Math.min(500,Math.round(W*1.02)));dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+
+  let state='start',ri=0,score=0,lives=3,combo=0,cur,phase,timeLeft,timeMax,item;
+  let itemX,itemY,flyTo=null,confetti=[],floaters=[],shake=0,beltOff=0;
+  const beltY=()=>H*0.40;
+  // سطلِ طبیعی (راست) ، مصنوعی (چپ)
+  function bins(){const w=W*0.40,h=H*0.24,y=H-h-14;
+    return{nat:{x:W-w-10,y,w,h},art:{x:10,y,w,h}};}
+
+  function loadItem(i){ri=i;item=ITEMS[ORDER[i]];phase='move';
+    itemX=-40;itemY=beltY();flyTo=null;
+    timeMax=Math.max(2.6,4.2-i*0.13);timeLeft=timeMax;
+    $('round').textContent=fa((i+1)+'/'+TOTAL);
+    $('q').textContent=item.n+' — طبیعی یا مصنوعی؟';updateHud();}
+  function updateHud(){$('score').textContent=fa(score);
+    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
+    $('prog').style.width=(100*ri/TOTAL)+'%';}
+
+  cv.addEventListener('pointerdown',e=>{if(state!=='play'||phase!=='aim')return;
+    const rc=cv.getBoundingClientRect();const x=(e.clientX-rc.left)*(W/rc.width),y=(e.clientY-rc.top)*(H/rc.height);
+    const B=bins();
+    if(inB(x,y,B.nat)){choose(true,B.nat);return;}
+    if(inB(x,y,B.art)){choose(false,B.art);return;}});
+  function inB(x,y,b){return x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h;}
+  function choose(pickNat,b){const good=(pickNat===item.nat);phase='fly';
+    flyTo={x:b.x+b.w/2,y:b.y+b.h*0.4,good,pickNat};
+    if(good){combo++;const speed=Math.round(clamp(timeLeft,0,4));const gain=10+speed*2+(combo>=2?combo*2:0);
+      score+=gain;combo>=2?sCombo():sOk();
+      floaters.push({x:flyTo.x,y:b.y-10,t:0,txt:'+'+fa(gain)+(combo>=2?' ×'+fa(combo):'')});
+      for(let i=0;i<16;i++)confetti.push(spawnConf(flyTo.x,b.y));updateHud();}
+    else{lives--;combo=0;sBad();shake=1;
+      floaters.push({x:flyTo.x,y:b.y-10,t:0,txt:item.nat?'طبیعی بود!':'مصنوعی بود!'});updateHud();}
+    setTimeout(()=>{if(state!=='play')return;if(!good&&lives<=0){endGame(false);return;}next();},900);}
+  function timeup(){if(phase!=='aim')return;lives--;combo=0;sBad();shake=1;
+    floaters.push({x:itemX,y:beltY()-30,t:0,txt:'دیر شد!'});updateHud();
+    phase='wait';setTimeout(()=>{if(state!=='play')return;if(lives<=0){endGame(false);return;}next();},700);}
+  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadItem(ri+1);}
+
+  function drawBin(b,label,emoji,col){ctx.save();
+    ctx.fillStyle=col;ctx.globalAlpha=.16;ctx.beginPath();ctx.roundRect(b.x,b.y,b.w,b.h,16);ctx.fill();ctx.globalAlpha=1;
+    ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();ctx.roundRect(b.x,b.y,b.w,b.h,16);ctx.stroke();
+    ctx.font='34px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(emoji,b.x+b.w/2,b.y+b.h*0.40);
+    ctx.fillStyle=col;ctx.font='900 17px Vazirmatn';ctx.fillText(label,b.x+b.w/2,b.y+b.h*0.78);ctx.restore();}
+
+  function draw(dt){
+    let sx=0;if(shake>0){sx=(Math.random()-.5)*shake*10;shake-=dt*3;if(shake<0)shake=0;}
+    ctx.save();ctx.translate(sx,0);
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#e7fff2');bg.addColorStop(1,'#eaf6ff');
+    ctx.fillStyle=bg;ctx.fillRect(-20,0,W+40,H);
+    if(state!=='start'){
+      // نوارِ نقّاله
+      const by=beltY();beltOff=(beltOff+dt*60)%28;
+      ctx.fillStyle='#6b7aa8';ctx.beginPath();ctx.roundRect(-10,by+22,W+20,16,8);ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=3;
+      for(let x=-28+beltOff;x<W+20;x+=28){ctx.beginPath();ctx.moveTo(x,by+24);ctx.lineTo(x+10,by+36);ctx.stroke();}
+      // چرخ‌دنده‌ی کارخانه بالا-چپ
+      ctx.fillStyle='rgba(90,107,176,.25)';ctx.font='26px serif';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('🏭',8,8);
+      if(combo>=2){ctx.fillStyle='#c2185b';ctx.font='900 15px Vazirmatn';ctx.textAlign='right';ctx.textBaseline='top';ctx.fillText('🔥 کومبو ×'+fa(combo),W-10,8);}
+      // سطل‌ها
+      const B=bins();drawBin(B.nat,'طبیعی','🌿','#12a05a');drawBin(B.art,'مصنوعی','🏭','#2e6ee0');
+      // حرکتِ ماده
+      if(phase==='move'){itemX+=Math.max(4,(W*0.5-itemX)*Math.min(1,dt*9));if(itemX>=W*0.5-4){itemX=W*0.5;phase='aim';}}
+      if(phase==='aim'){itemY=by+Math.sin(performance.now()/260)*4;
+        timeLeft-=dt;if(timeLeft<=0)timeup();}
+      let ix=itemX,iy=itemY,scale=1;
+      if(phase==='fly'&&flyTo){ix=itemX+(flyTo.x-itemX)*0.18;iy=itemY+(flyTo.y-itemY)*0.18;
+        itemX=ix;itemY=iy;scale=clamp(1-(Math.hypot(flyTo.x-ix,flyTo.y-iy)>4?0:0.3),0.6,1);}
+      // کارتِ ماده
+      if(phase!=='wait'){drawItem(ix,iy,item,scale);}
+      // نشانگرِ تایمر دورِ ماده
+      if(phase==='aim'){const r=34;ctx.strokeStyle='rgba(0,0,0,.1)';ctx.lineWidth=5;
+        ctx.beginPath();ctx.arc(ix,iy,r,0,7);ctx.stroke();
+        ctx.strokeStyle=timeLeft<1?'#ff5d8f':'#22c993';ctx.beginPath();
+        ctx.arc(ix,iy,r,-Math.PI/2,-Math.PI/2+7*clamp(timeLeft/timeMax,0,1));ctx.stroke();}
+    }
+    floaters=floaters.filter(f=>{f.t+=dt;f.y-=26*dt;ctx.globalAlpha=clamp(1-f.t,0,1);
+      ctx.fillStyle=f.txt[0]==='+'?'#0d7a4f':'#ff5d8f';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      ctx.fillText(f.txt,f.x,f.y);ctx.globalAlpha=1;return f.t<1.2;});
+    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
+    ctx.globalAlpha=1;ctx.restore();}
+
+  function drawItem(x,y,it,scale){ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
+    ctx.fillStyle='#fff';ctx.strokeStyle='#ffb057';ctx.lineWidth=3;
+    ctx.beginPath();ctx.roundRect(-42,-40,84,64,14);ctx.fill();ctx.stroke();
+    ctx.font='34px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(it.e,0,-14);
+    ctx.fillStyle='#1a2452';ctx.font='900 14px Vazirmatn';ctx.fillText(it.n,0,12);ctx.restore();}
+
+  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+      c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
+
+  function endGame(won){state='end';const pct=score/(TOTAL*16);
+    const stars=pct>=.8?3:pct>=.55?2:1;
+    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'کارگرِ کارخانه شدی!':'باختی! دوباره تلاش کن';
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
+    $('em').textContent=won?'طبیعی: از طبیعت · مصنوعی: ساخته‌ی انسان':'طبیعی در طبیعت پیدا می‌شود، مصنوعی را می‌سازیم 💪';
+    $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
+
+  function shuffle(){ORDER=ITEMS.map((_,i)=>i);for(let i=ORDER.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[ORDER[i],ORDER[j]]=[ORDER[j],ORDER[i]];}}
+  let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
+    draw(dt);requestAnimationFrame(loop);}
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');shuffle();score=0;lives=3;combo=0;loadItem(0);state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');shuffle();score=0;lives=3;combo=0;confetti=[];loadItem(0);state='play';};
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
