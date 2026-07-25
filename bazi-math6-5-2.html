@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>جعبه‌چین — حجم و جرم</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:linear-gradient(160deg,#ffd59e 0%,#ff9a8b 50%,#c86dd7 100%);
+    min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(80,80,160,.2)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
+  .qbar{background:#fff;border-radius:16px;padding:9px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(80,80,160,.2)}
+  .qbar b{font-size:16px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(80,80,160,.16)}
+  #prog{height:100%;width:0;background:linear-gradient(90deg,var(--or),var(--pk));transition:width .2s}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(80,80,160,.3)}
+  canvas{display:block;width:100%;touch-action:none}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.9);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:23px;color:var(--pk)}.ov p{margin:0;color:#43508f;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#ff9d6b,var(--or));box-shadow:0 8px 20px rgba(255,159,69,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
+  .pill{background:#ffe9f2;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:var(--pk);font-size:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
+    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۸</span></div>
+    <div class="grow"></div>
+    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+  </div>
+  <div class="qbar"><b id="q">جعبه را با مکعب پر کن</b><div class="s" id="qs"></div></div>
+  <div class="track"><div id="prog"></div></div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">📦</div><h1>جعبه‌چین</h1>
+      <p>هر بار که بزنی، یک <b>لایه‌ی مکعب</b> کفِ جعبه اضافه می‌شود.<br>
+      جعبه را تا بالا پر کن و بشمار چند مکعب جا گرفت.<br>
+      این همان <b>حجم = طول × عرض × ارتفاع</b> است! 🎯</p>
+      <button class="btn" id="btnStart">شروع بازی</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="scoreBig">امتیاز: <b id="esc">۰</b></div>
+      <div class="pill" id="em"></div>
+      <button class="btn" id="btnAgain">دوباره</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='math6-5-2';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sPut=()=>{beep(400,.06,'square',.1);setTimeout(()=>beep(560,.06,'square',.09),50);};
+  const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
+  const sBad=()=>beep(160,.28,'sawtooth',.16);
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
+
+  const ROUNDS=[{l:2,w:2,h:2},{l:3,w:2,h:2},{l:2,w:2,h:3},{l:3,w:3,h:2},
+                {l:4,w:2,h:2},{l:3,w:2,h:3},{l:2,w:3,h:3},{l:3,w:3,h:3}];
+  const TOTAL=ROUNDS.length;
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(380,Math.min(470,Math.round(W*0.98)));dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+
+  let state='start',ri=0,score=0,lives=3,R,filled,vol,timeLeft,timeMax,done,confetti=[];
+  let U,V,HZ,Ox,Oy;
+  function setup(){const s=Math.min((W-70)/((R.l+R.w)),(H-150)/((R.l+R.w)*0.5+R.h*0.82+1));
+    const u=s*0.92;U=u;V=u*0.5;HZ=u*0.86;
+    Ox=W/2+((R.w-R.l)*U)/2;Oy=90+R.h*HZ*0;Oy=110+R.h*HZ;}
+  function P(i,j,k){return{x:Ox+(i-j)*U, y:Oy+(i+j)*V - k*HZ};}
+  function loadRound(i){ri=i;R=ROUNDS[i];filled=0;vol=R.l*R.w*R.h;done=false;timeMax=14;timeLeft=timeMax;setup();
+    $('round').textContent=fa((i+1)+'/'+TOTAL);
+    $('qs').textContent='جعبه: '+fa(R.l)+' × '+fa(R.w)+' × '+fa(R.h);updateHud();}
+  function updateHud(){$('score').textContent=fa(score);
+    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
+    $('prog').style.width=(100*ri/TOTAL)+'%';}
+
+  cv.addEventListener('pointerdown',()=>{if(state!=='play'||done)return;
+    if(filled<R.h){filled++;sPut();
+      if(filled>=R.h){done=true;score+=10;sOk();for(let i=0;i<18;i++)confetti.push(spawnConf(W/2,Oy-R.h*HZ));
+        updateHud();setTimeout(next,1200);}}});
+  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
+
+  function quad(a,b,c,d,fill,stroke){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.closePath();
+    if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.2;ctx.stroke();}}
+  function draw(dt){
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#fff2f6');bg.addColorStop(1,'#f6eefc');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    if(state!=='start'&&R){
+      const l=R.l,w=R.w,h=R.h,f=filled;
+      // پرشده: مکعبِ توپُر تا ارتفاعِ f
+      if(f>0){
+        // رویه‌ی بالا
+        quad(P(0,0,f),P(l,0,f),P(l,w,f),P(0,w,f),'#ffd27a','rgba(120,80,20,.5)');
+        // رویه‌ی چپ (j=0)
+        quad(P(0,0,0),P(l,0,0),P(l,0,f),P(0,0,f),'#ff9f45','rgba(120,80,20,.5)');
+        // رویه‌ی راست (i=l)
+        quad(P(l,0,0),P(l,w,0),P(l,w,f),P(l,0,f),'#e07a1e','rgba(120,80,20,.5)');
+        // خطوطِ مکعب‌ها روی سه رویه
+        ctx.strokeStyle='rgba(120,80,20,.35)';ctx.lineWidth=1;
+        for(let k=0;k<=f;k++){line(P(0,0,k),P(l,0,k));line(P(l,0,k),P(l,w,k));}
+        for(let i=0;i<=l;i++)line(P(i,0,0),P(i,0,f));
+        for(let j=0;j<=w;j++)line(P(l,j,0),P(l,j,f));
+        for(let i=0;i<=l;i++)line(P(i,0,f),P(i,w,f));
+        for(let j=0;j<=w;j++)line(P(0,j,f),P(l,j,f));
+      }
+      // قابِ جعبه (تا ارتفاعِ کامل h) به‌صورتِ سیمی
+      ctx.strokeStyle='rgba(90,60,120,.55)';ctx.lineWidth=2;ctx.setLineDash([4,4]);
+      // یال‌های بالا
+      line(P(0,0,h),P(l,0,h));line(P(l,0,h),P(l,w,h));line(P(l,w,h),P(0,w,h));line(P(0,w,h),P(0,0,h));
+      // یال‌های عمودی
+      line(P(0,0,f),P(0,0,h));line(P(l,0,f),P(l,0,h));line(P(l,w,f),P(l,w,h));
+      ctx.setLineDash([]);
+      // شمارنده‌ها
+      ctx.fillStyle='#1a2452';ctx.font='900 16px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      const layerCubes=l*w;
+      ctx.fillText('لایه‌ها: '+fa(filled)+' از '+fa(h)+'   ·   هر لایه '+fa(layerCubes)+' مکعب',W/2,H-56);
+      ctx.font='900 20px Vazirmatn';ctx.fillStyle='#c2185b';
+      ctx.fillText('مکعب‌ها تا الان: '+fa(filled*layerCubes),W/2,H-32);
+      if(done){ctx.fillStyle='#12a06e';ctx.font='900 17px Vazirmatn';
+        ctx.fillText('حجم = '+fa(l)+'×'+fa(w)+'×'+fa(h)+' = '+fa(vol)+' مکعب',W/2,H-10);}
+      else{ctx.fillStyle='rgba(26,36,82,.6)';ctx.font='800 12px Vazirmatn';ctx.fillText('برای افزودنِ یک لایه بزن 👆',W/2,H-10);
+        timeLeft-=dt;if(timeLeft<=0)timeout();}
+    }
+    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
+    ctx.globalAlpha=1;}
+  function line(a,b){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+      c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
+  function timeout(){if(state!=='play'||done)return;lives--;sBad();timeLeft=timeMax;updateHud();
+    if(lives<=0)endGame(false);}
+
+  function endGame(won){state='end';const pct=score/(TOTAL*10);
+    const stars=pct>=.8?3:pct>=.55?2:1;
+    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
+    $('em').textContent=won?'حجم = طول × عرض × ارتفاع را یاد گرفتی!':'حجم = تعدادِ مکعب‌های واحد 💪';
+    $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
+  let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
+    draw(dt);requestAnimationFrame(loop);}
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;loadRound(0);state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;confetti=[];loadRound(0);state='play';};
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
