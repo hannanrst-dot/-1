@@ -3,27 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>بادکنکِ مساحت — مساحت دایره</title>
+<title>مغازه‌ی ترازو — مساحت دایره</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%}
   body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
-    background:linear-gradient(160deg,#8fe3ff 0%,#b19bff 48%,#ffc0e0 100%);
+    background:linear-gradient(160deg,#ffe1a8 0%,#ffb3c8 48%,#c3a0ff 100%);
     min-height:100vh;padding:8px;overflow:hidden;user-select:none}
   .wrap{max-width:440px;margin:0 auto;position:relative}
   .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
   .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(80,80,160,.18)}
   .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
-  .qbar{background:#fff;border-radius:16px;padding:9px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(80,80,160,.18)}
-  .qbar b{font-size:16px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px}
+  .qbar{background:#fff;border-radius:16px;padding:8px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(80,80,160,.18)}
+  .qbar b{font-size:15px;font-weight:900}.qbar .s{color:var(--pu);font-size:13px;margin-top:2px;font-weight:800}
   .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(80,80,160,.14)}
   #prog{height:100%;width:0;background:linear-gradient(90deg,var(--bl),var(--pu));transition:width .2s}
   .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(80,80,160,.25)}
   canvas{display:block;width:100%;touch-action:none}
-  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.88);backdrop-filter:blur(3px);z-index:5}
-  .ov h1{margin:0;font-size:23px;color:var(--pu)}.ov p{margin:0;color:#43508f;font-size:14px;line-height:1.9;font-weight:700}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.9);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:22px;color:var(--pu)}.ov p{margin:0;color:#43508f;font-size:14px;line-height:1.9;font-weight:700}
   .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#b98aff,var(--pu));box-shadow:0 8px 20px rgba(155,108,255,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
   .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
   .pill{background:#f0eaff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
@@ -34,20 +34,20 @@
 <div class="wrap">
   <div class="hud">
     <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
-    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۸</span></div>
+    <div class="chip"><span class="lbl">مشتری</span><span id="round">۱/۸</span></div>
     <div class="grow"></div>
     <div class="chip hearts" id="hearts">❤️❤️❤️</div>
   </div>
-  <div class="qbar"><b id="q">دایره را تا این مساحت باد کن:</b><div class="s" id="qs"></div></div>
+  <div class="qbar"><b id="story">مشتری آمد! وزنِ این جسمِ گِرد را با ترازو پیدا کن</b><div class="s" id="qs"></div></div>
   <div class="track"><div id="prog"></div></div>
   <div class="stage">
     <canvas id="cv"></canvas>
     <div class="ov" id="ovStart">
-      <div class="emoji">🎈</div><h1>بادکنکِ مساحت</h1>
-      <p>مساحتِ دایره تقریباً <b>۳ × شعاع × شعاع</b> است (چون π≈۳).<br>
-      انگشتت را <b>نگه دار</b> تا دایره باد شود؛ مساحتش بالای آن نوشته می‌شود.<br>
-      وقتی مساحت به هدف رسید <b>رها کن</b>. زیادی باد کنی، می‌ترکد! 🎯</p>
-      <button class="btn" id="btnStart">شروع بازی</button>
+      <div class="emoji">⚖️🛒</div><h1>مغازه‌ی ترازو</h1>
+      <p>تو فروشنده‌ای! مشتری‌ها اجسامِ <b>گِرد</b> می‌آورند تا وزنشان کنی.<br>
+      روی کفه‌ی راست <b>مربعِ شعاع</b> بگذار تا ترازو <b>برابر</b> شود (همیشه ≈۳ مربع).<br>
+      پس <b>مساحت = ۳ × شعاع × شعاع</b>. هرچه سریع‌تر، <b>کومبو</b> و امتیازِ بیشتر! ⚡</p>
+      <button class="btn" id="btnStart">بازِ کن مغازه را!</button>
     </div>
     <div class="ov hidden" id="ovEnd">
       <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
@@ -68,97 +68,134 @@
     o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
     g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
     g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sTic=()=>beep(480,.05,'square',.08);
   const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
-  const sPop=()=>{beep(200,.12,'sawtooth',.18);setTimeout(()=>beep(90,.18,'sawtooth',.14),60);};
+  const sCombo=()=>{beep(880,.08,'square',.12);setTimeout(()=>beep(1180,.1,'square',.12),70);};
   const sBad=()=>beep(160,.28,'sawtooth',.16);
   const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
   const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
 
-  // هدف = ۳×r² برای r صحیح
-  const RS=[2,3,4,2,5,3,4,3], TOTAL=RS.length;
-  const area=r=>3*r*r;
+  const RS=[2,3,2,4,3,5,4,3], ITEMS=['🍕','🪙','🍪','⚽','🍩','🎯','🥯','🫓'], TOTAL=RS.length, ANS=3;
   const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
   function layout(){const st=cv.parentElement;W=st.clientWidth;
-    H=Math.max(380,Math.min(470,Math.round(W*1.0)));dpr=Math.min(2,window.devicePixelRatio||1);
+    H=Math.max(410,Math.min(500,Math.round(W*1.06)));dpr=Math.min(2,window.devicePixelRatio||1);
     cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
   layout();window.addEventListener('resize',layout);
 
-  let state='start',ri=0,score=0,lives=3,targetR,targetA,r,holding,popped,pop=[],confetti=[];
-  const RMAX=7, pxPerUnit=()=>Math.min((W-60)/(2*RMAX),(H-150)/(2*RMAX));
-  function loadRound(i){ri=i;targetR=RS[i];targetA=area(targetR);r=0.3;holding=false;popped=false;pop=[];
-    $('round').textContent=fa((i+1)+'/'+TOTAL);$('qs').textContent='مساحتِ هدف ≈ '+fa(targetA)+' واحد مربع';updateHud();}
+  let state='start',ri=0,score=0,lives=3,r,n,tilt,combo=0,item,timeLeft,timeMax,paused,confetti=[],floaters=[];
+  function loadRound(i){ri=i;r=RS[i];n=0;tilt=0;item=ITEMS[i%ITEMS.length];paused=false;
+    timeMax=Math.max(7,13-i*0.8);timeLeft=timeMax;
+    $('round').textContent=fa((i+1)+'/'+TOTAL);
+    $('qs').textContent='شعاع = '+fa(r)+' · مربعِ شعاع = '+fa(r)+'×'+fa(r)+'='+fa(r*r);updateHud();}
   function updateHud(){$('score').textContent=fa(score);
     $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
     $('prog').style.width=(100*ri/TOTAL)+'%';}
 
-  cv.addEventListener('pointerdown',()=>{if(state==='play'&&!popped)holding=true;});
-  cv.addEventListener('pointerup',()=>{if(state==='play'&&!popped&&holding)release();});
-  cv.addEventListener('pointerleave',()=>{if(state==='play'&&!popped&&holding)release();});
-  function release(){holding=false;const a=area(r);
-    if(Math.abs(a-targetA)<=Math.max(2.5,targetA*0.09)){score+=10;sOk();
-      for(let i=0;i<18;i++)confetti.push(spawnConf(W/2,H*0.45));updateHud();setTimeout(next,900);}
-    else{lives--;sBad();updateHud();if(lives<=0){setTimeout(()=>endGame(false),350);return;}
-      setTimeout(()=>{r=0.3;},500);}}
-  function doPop(){popped=true;sPop();lives--;updateHud();
-    for(let i=0;i<24;i++)pop.push({x:W/2,y:H*0.45,a:Math.random()*7,t:0,c:'#ff5d8f'});
-    if(lives<=0){setTimeout(()=>endGame(false),500);return;}
-    setTimeout(()=>{r=0.3;popped=false;},800);}
+  const ppu=()=>Math.min(10,(W*0.15)/5);
+  function buttons(){const y=H-44;return{minus:{x:W*0.24,y,r:25},plus:{x:W*0.5,y,r:25},ok:{x:W*0.78,y,r:29}};}
+  cv.addEventListener('pointerdown',e=>{if(state!=='play'||paused)return;
+    const rc=cv.getBoundingClientRect();const x=(e.clientX-rc.left)*(W/rc.width),y=(e.clientY-rc.top)*(H/rc.height);
+    const b=buttons();
+    if(Math.hypot(x-b.plus.x,y-b.plus.y)<b.plus.r+8){if(n<6){n++;sTic();}}
+    else if(Math.hypot(x-b.minus.x,y-b.minus.y)<b.minus.r+8){if(n>0){n--;sTic();}}
+    else if(Math.hypot(x-b.ok.x,y-b.ok.y)<b.ok.r+8){confirm();}});
+  function confirm(){
+    if(n===ANS){paused=true;const speed=Math.round(clamp(timeLeft,0,10));combo++;
+      const gain=10+speed+(combo>=2?combo*2:0);score+=gain;
+      floaters.push({x:W/2,y:H*0.42,t:0,txt:'+'+fa(gain)+(combo>=2?' ×'+fa(combo):'')});
+      combo>=2?sCombo():sOk();
+      for(let i=0;i<20;i++)confetti.push(spawnConf(W/2,H*0.34));updateHud();setTimeout(next,1300);}
+    else{lives--;combo=0;sBad();updateHud();if(lives<=0)setTimeout(()=>endGame(false),300);}}
+  function timeout(){if(state!=='play'||paused)return;lives--;combo=0;sBad();
+    floaters.push({x:W/2,y:H*0.42,t:0,txt:'دیر شد!'});updateHud();
+    if(lives<=0){endGame(false);return;}timeLeft=timeMax;n=0;}
   function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
 
   function draw(dt){
-    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#eef7ff');bg.addColorStop(1,'#f6eefc');
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#fff4e8');bg.addColorStop(1,'#f6eefc');
     ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
     if(state!=='start'){
-      const cx=W/2,cy=H*0.45,ppu=pxPerUnit();
-      if(state==='play'&&holding&&!popped){r+=1.15*dt;if(area(r)>targetA*1.25)doPop();}
-      const rad=r*ppu;
-      if(!popped){
-        // شبکه‌ی پس‌زمینه (واحد)
-        ctx.strokeStyle='rgba(90,107,176,.12)';ctx.lineWidth=1;
-        for(let g=-RMAX;g<=RMAX;g++){ctx.beginPath();ctx.moveTo(cx+g*ppu,cy-RMAX*ppu);ctx.lineTo(cx+g*ppu,cy+RMAX*ppu);ctx.stroke();
-          ctx.beginPath();ctx.moveTo(cx-RMAX*ppu,cy+g*ppu);ctx.lineTo(cx+RMAX*ppu,cy+g*ppu);ctx.stroke();}
-        // دایره
-        const grd=ctx.createRadialGradient(cx-rad*0.3,cy-rad*0.3,rad*0.1,cx,cy,rad);
-        grd.addColorStop(0,'#ffd0e6');grd.addColorStop(1,'#ff5d8f');
-        ctx.fillStyle=grd;ctx.beginPath();ctx.arc(cx,cy,rad,0,7);ctx.fill();
-        ctx.strokeStyle='#e0324f';ctx.lineWidth=2;ctx.stroke();
-        // شعاع
-        ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+rad,cy);ctx.stroke();
-        ctx.fillStyle='#fff';ctx.font='900 12px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='bottom';
-        ctx.fillText('شعاع '+fa(Math.round(r)),cx+rad/2,cy-3);
-        // مساحتِ فعلی
-        const a=area(r),good=Math.abs(a-targetA)<=Math.max(2,targetA*0.06);
-        ctx.fillStyle=good?'#12a06e':'#1a2452';ctx.font='900 22px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
-        ctx.fillText('مساحت ≈ '+fa(Math.round(a)),cx,cy-rad-14);
-        if(good){ctx.fillStyle='#12a06e';ctx.font='900 15px Vazirmatn';ctx.fillText('حالا رها کن! ✅',cx,cy-rad-34);}
-      }
-      // ذراتِ ترکیدن
-      pop=pop.filter(q=>{q.t+=dt*1.6;q.x+=Math.cos(q.a)*4;q.y+=Math.sin(q.a)*4;ctx.globalAlpha=clamp(1-q.t,0,1);
-        ctx.fillStyle=q.c;ctx.beginPath();ctx.arc(q.x,q.y,4,0,7);ctx.fill();ctx.globalAlpha=1;return q.t<1;});
-      ctx.fillStyle='rgba(26,36,82,.6)';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';
-      ctx.fillText(popped?'ترکید! 💥':'برای باد‌کردن نگه دار ✋',W/2,H-14);
+      // مشتری + جسم
+      ctx.font='26px serif';ctx.textAlign='left';ctx.textBaseline='alphabetic';
+      ctx.fillText('🧑‍🦱',10,40);ctx.font='22px serif';ctx.fillText(item,44,38);
+      // کومبو
+      if(combo>=2){ctx.fillStyle='#ff5d8f';ctx.font='900 16px Vazirmatn';ctx.textAlign='right';
+        ctx.fillText('کومبو ×'+fa(combo)+' 🔥',W-10,34);}
+      const circleW=Math.PI*r*r, sqW=n*r*r;
+      const target=clamp((sqW-circleW)*0.02,-1,1);
+      if(!paused)tilt+=(target-tilt)*Math.min(1,dt*6);
+      const cx=W/2, pivotY=104, beamL=W*0.34, drop=60;
+      ctx.fillStyle='#9b8cd0';ctx.beginPath();ctx.moveTo(cx-24,pivotY+drop+64);ctx.lineTo(cx+24,pivotY+drop+64);ctx.lineTo(cx,pivotY);ctx.closePath();ctx.fill();
+      const lY=pivotY+tilt*38, rY=pivotY-tilt*38;
+      ctx.strokeStyle='#6b5bb0';ctx.lineWidth=6;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(cx-beamL,lY);ctx.lineTo(cx+beamL,rY);ctx.stroke();
+      ctx.fillStyle='#ffd23f';ctx.beginPath();ctx.arc(cx,pivotY,7,0,7);ctx.fill();
+      const lx=cx-beamL, rx=cx+beamL, lpY=lY+drop, rpY=rY+drop;
+      ctx.strokeStyle='#9b8cd0';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(lx,lY);ctx.lineTo(lx,lpY);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(rx,rY);ctx.lineTo(rx,rpY);ctx.stroke();
+      panBase(lx,lpY);
+      const rad=r*ppu()*2.0;
+      const g=ctx.createRadialGradient(lx-rad*0.3,lpY-rad-rad*0.3,rad*0.1,lx,lpY-rad,rad);
+      g.addColorStop(0,'#ffd0e6');g.addColorStop(1,'#ff5d8f');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(lx,lpY-rad-4,rad,0,7);ctx.fill();
+      ctx.strokeStyle='#e0324f';ctx.lineWidth=2;ctx.stroke();
+      ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(lx,lpY-rad-4);ctx.lineTo(lx+rad,lpY-rad-4);ctx.stroke();
+      ctx.fillStyle='#fff';ctx.font='800 10px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText('شعاع '+fa(r),lx+rad/2,lpY-rad-6);
+      panBase(rx,rpY);
+      const side=r*ppu()*2.0*0.9;
+      for(let k=0;k<n;k++){const sxp=rx-side/2, syp=rpY-6-(k+1)*(side*0.62);
+        ctx.fillStyle=['#3aa0ff','#22c993','#ff9f45','#9b6cff','#ffd23f','#ff5d8f'][k%6];
+        ctx.globalAlpha=.92;ctx.fillRect(sxp,syp,side,side*0.9);ctx.globalAlpha=1;
+        ctx.strokeStyle='rgba(0,0,0,.2)';ctx.lineWidth=1.5;ctx.strokeRect(sxp,syp,side,side*0.9);
+        ctx.fillStyle='#fff';ctx.font='800 9px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(fa(r)+'×'+fa(r),rx,syp+side*0.45);}
+      ctx.fillStyle='#1a2452';ctx.font='900 12px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      ctx.fillText('دایره',lx,lpY+20);ctx.fillText('مربعِ شعاع: '+fa(n),rx,rpY+20);
+      const bal=Math.abs(tilt)<0.06;
+      ctx.font='900 16px Vazirmatn';ctx.fillStyle=bal?'#12a06e':'#5b6bb0';ctx.textAlign='center';
+      ctx.fillText(bal?'ترازو برابر شد! ✅':(sqW>circleW?'سنگین شد ⬇️':'هنوز کم است ⬆️'),cx,pivotY-20);
+      if(bal){ctx.fillStyle='#12a06e';ctx.font='900 15px Vazirmatn';
+        ctx.fillText('مساحت ≈ ۳ × ('+fa(r)+'×'+fa(r)+') = '+fa(n*r*r),cx,H-80);}
+      // نوارِ زمان (صبرِ مشتری)
+      if(!paused){timeLeft-=dt;if(timeLeft<=0)timeout();}
+      ctx.fillStyle='rgba(0,0,0,.08)';ctx.beginPath();ctx.roundRect(20,H-14,W-40,7,4);ctx.fill();
+      ctx.fillStyle=timeLeft<3?'#ff5d8f':'#22c993';ctx.beginPath();ctx.roundRect(20,H-14,(W-40)*clamp(timeLeft/timeMax,0,1),7,4);ctx.fill();
+      // دکمه‌ها
+      const b=buttons();rbtn(b.minus,'−','#ff9f45');rbtn(b.plus,'+','#22c993');rbtn(b.ok,'وزن کن!','#3aa0ff',true);
+      // امتیازِ شناور
+      floaters=floaters.filter(f=>{f.t+=dt;f.y-=30*dt;ctx.globalAlpha=clamp(1-f.t,0,1);
+        ctx.fillStyle=f.txt[0]==='+'?'#12a06e':'#ff5d8f';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';
+        ctx.fillText(f.txt,f.x,f.y);ctx.globalAlpha=1;return f.t<1.2;});
     }
     confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
       ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
       ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
     ctx.globalAlpha=1;}
+  function panBase(x,y){ctx.strokeStyle='#9b8cd0';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(x,y,34,8,0,0,7);ctx.stroke();}
+  function rbtn(b,t,col,big){ctx.fillStyle=col;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='900 '+(big?13:24)+'px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(t,b.x,b.y+(big?0:1));ctx.textBaseline='alphabetic';}
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
   function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
     return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
       c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
 
-  function endGame(won){state='end';const pct=score/(TOTAL*10);
+  function endGame(won){state='end';const pct=score/(TOTAL*14);
     const stars=pct>=.8?3:pct>=.55?2:1;
     for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
-    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
+    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'مغازه ترکوند!':'مشتری‌ها رفتند!';
     $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
-    $('em').textContent=won?'مساحتِ دایره ≈ ۳ × شعاع² را یاد گرفتی!':'مساحت ≈ ۳ × شعاع × شعاع 💪';
+    $('em').textContent=won?'یاد گرفتی: مساحتِ دایره ≈ ۳ × شعاع × شعاع':'دایره همیشه ≈ ۳ مربعِ شعاع است 💪';
     $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
     if(window.parent!==window){window.parent.postMessage(
       {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
   let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
     draw(dt);requestAnimationFrame(loop);}
-  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;loadRound(0);state='play';};
-  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;confetti=[];loadRound(0);state='play';};
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;combo=0;loadRound(0);state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;combo=0;confetti=[];loadRound(0);state='play';};
   requestAnimationFrame(loop);
 })();
 </script>
