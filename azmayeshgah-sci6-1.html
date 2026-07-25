@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>آزمایشگاه — کاوشگریِ شهاب‌سنگ</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:linear-gradient(160deg,#9ad0ff 0%,#c9b3ff 55%,#ffd6a0 100%);
+    min-height:100vh;padding:8px;overflow-x:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .top{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:13px;box-shadow:0 4px 12px rgba(40,60,90,.2)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}
+  .title{background:linear-gradient(180deg,#5bb6ff,var(--bl));color:#fff;border-radius:16px;padding:8px 12px;text-align:center;font-weight:900;font-size:16px;box-shadow:0 4px 12px rgba(58,160,255,.35)}
+  .stage{position:relative;border-radius:20px;overflow:hidden;box-shadow:0 8px 24px rgba(40,60,90,.28);margin-top:6px}
+  canvas{display:block;width:100%;touch-action:none}
+  .card{background:#fff;border-radius:16px;padding:10px 12px;margin-top:8px;box-shadow:0 4px 14px rgba(40,60,90,.16)}
+  .row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;justify-content:center}
+  .hbtn{border:2px solid #cfe0ff;background:#eaf3ff;color:#2e6ee0;border-radius:14px;padding:10px 12px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;flex:1;min-width:96px}
+  .hbtn.sel{background:#2e6ee0;color:#fff;border-color:#2e6ee0}
+  .drop{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:17px;color:#fff;padding:12px 22px;border-radius:16px;background:linear-gradient(180deg,#ffb057,var(--or));box-shadow:0 6px 16px rgba(255,159,69,.45);width:100%;margin-top:8px}.drop:active{transform:translateY(2px)}
+  .drop:disabled{opacity:.5}
+  table{width:100%;border-collapse:collapse;margin-top:6px;font-size:13px}
+  th,td{border:1px solid #dfe6f5;padding:6px 4px;text-align:center;font-weight:700}
+  th{background:#eaf3ff;color:#2e6ee0;font-weight:800;font-size:12px}
+  td.avg{background:#fff7e6;color:#e07a1e;font-weight:900}
+  .hint{color:var(--muted);font-size:12px;font-weight:700;text-align:center;margin-top:6px;line-height:1.8}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;gap:10px;background:rgba(255,255,255,.95);backdrop-filter:blur(3px);z-index:9;border-radius:20px;overflow-y:auto}
+  .ov h1{margin:0;font-size:20px;color:#2e6ee0}.ov p{margin:0;color:#3a4a6a;font-size:13.5px;line-height:1.8;font-weight:700}
+  .qbox{background:#f4f8ff;border-radius:14px;padding:10px;width:100%;text-align:right}
+  .qbox .qt{font-weight:900;font-size:13.5px;margin-bottom:6px;color:var(--ink)}
+  .opt{display:block;width:100%;text-align:right;border:2px solid #dfe6f5;background:#fff;border-radius:10px;padding:8px 10px;margin-top:5px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;color:var(--ink)}
+  .opt.ok{background:#e3fbef;border-color:#22c993;color:#0d7a4f}
+  .opt.no{background:#ffe6ee;border-color:#ff5d8f;color:#c2185b}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:17px;color:#fff;padding:13px 30px;border-radius:16px;background:linear-gradient(180deg,#5bb6ff,var(--bl));box-shadow:0 8px 20px rgba(58,160,255,.4);margin-top:6px}.btn:disabled{opacity:.45}
+  .stars{font-size:38px;letter-spacing:6px}.emoji{font-size:42px}.hidden{display:none}
+  .mats{font-size:12px;color:var(--muted);font-weight:700;background:#f4f8ff;border-radius:10px;padding:8px}
+  .barwrap{display:flex;align-items:flex-end;justify-content:space-around;height:120px;margin-top:8px;gap:10px}
+  .bar{width:26%;background:linear-gradient(180deg,#5bb6ff,#2e6ee0);border-radius:8px 8px 0 0;position:relative;transition:height .6s}
+  .bar span{position:absolute;top:-18px;left:0;right:0;text-align:center;font-size:12px;font-weight:900;color:#2e6ee0}
+  .bar em{position:absolute;bottom:-20px;left:0;right:0;text-align:center;font-size:11px;font-weight:800;color:var(--muted);font-style:normal}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="chip"><span class="lbl">اندازه‌گیری</span> <span id="cnt">۰/۹</span></div>
+    <div class="grow"></div>
+    <div class="chip">🔬 آزمایشگاه</div>
+  </div>
+  <div class="title">کاوشگریِ شهاب‌سنگ — گودالِ برخورد</div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <!-- شروع: پرسش‌های کاوشگری -->
+    <div class="ov" id="ovStart">
+      <div class="emoji">☄️🔬</div><h1>کاوشگری کنیم</h1>
+      <p>می‌خواهیم بفهمیم <b>ارتفاعِ رهاکردنِ شهاب‌سنگ</b> چه اثری روی <b>قطرِ گودال</b> دارد.<br>اول به سه پرسشِ کاوشگری پاسخ بده:</p>
+      <div class="qbox" id="q1"><div class="qt">۱) چه چیزی را <b>تغییر</b> می‌دهیم؟</div></div>
+      <div class="qbox" id="q2"><div class="qt">۲) چه چیزی را <b>اندازه</b> می‌گیریم؟</div></div>
+      <div class="qbox" id="q3"><div class="qt">۳) چه چیزهایی را <b>ثابت</b> نگه می‌داریم؟</div></div>
+      <button class="btn" id="btnBegin" disabled>شروعِ آزمایش</button>
+    </div>
+    <!-- پایان -->
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji">🏆</div><h1>آزمایش کامل شد!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <p id="concl"></p>
+      <button class="btn" id="btnAgain">دوباره</button>
+    </div>
+  </div>
+
+  <div class="card" id="ctrl">
+    <div class="hint">۱) ارتفاع را انتخاب کن ← ۲) «رها کن» را بزن (هر ارتفاع ۳ بار)</div>
+    <div class="row" id="hrow">
+      <button class="hbtn sel" data-h="50">نیم متر</button>
+      <button class="hbtn" data-h="100">یک متر</button>
+      <button class="hbtn" data-h="150">یک‌ونیم متر</button>
+    </div>
+    <button class="drop" id="btnDrop">☄️ رها کن</button>
+  </div>
+
+  <div class="card">
+    <div class="hint" style="margin:0 0 4px;font-weight:900;color:var(--ink)">جدولِ اندازه‌گیری — قطرِ گودال (میلی‌متر)</div>
+    <table id="tbl">
+      <tr><th>آزمایش</th><th>نیم متر</th><th>یک متر</th><th>یک‌ونیم متر</th></tr>
+      <tr><th>۱</th><td data-c="0" data-r="0"></td><td data-c="1" data-r="0"></td><td data-c="2" data-r="0"></td></tr>
+      <tr><th>۲</th><td data-c="0" data-r="1"></td><td data-c="1" data-r="1"></td><td data-c="2" data-r="1"></td></tr>
+      <tr><th>۳</th><td data-c="0" data-r="2"></td><td data-c="1" data-r="2"></td><td data-c="2" data-r="2"></td></tr>
+      <tr><th>میانگین</th><td class="avg" id="a0"></td><td class="avg" id="a1"></td><td class="avg" id="a2"></td></tr>
+    </table>
+    <div class="hint" id="chartWrap" style="display:none">
+      <div style="font-weight:900;color:var(--ink);margin-bottom:16px">نمودار: ارتفاع بیشتر ← گودالِ بزرگ‌تر</div>
+      <div class="barwrap" id="bars"></div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='sci6-1-lab';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $=id=>document.getElementById(id);
+  const K=0.4;const HEIGHTS=[50,100,150];
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sBoom=()=>{beep(90,.26,'sawtooth',.18);setTimeout(()=>beep(60,.28,'square',.12),40);};
+  const sOk=()=>{beep(680,.1,'square',.13);setTimeout(()=>beep(940,.12,'square',.12),80)};
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+
+  // پرسش‌های کاوشگری
+  const QS={q1:{a:'ارتفاعِ رهاکردنِ شهاب‌سنگ',opts:['ارتفاعِ رهاکردنِ شهاب‌سنگ','رنگِ شهاب‌سنگ','دمای هوا']},
+            q2:{a:'قطرِ گودال',opts:['قطرِ گودال','وزنِ شهاب‌سنگ','ساعتِ آزمایش']},
+            q3:{a:'نوعِ خاک و اندازه‌ی شهاب‌سنگ',opts:['نوعِ خاک و اندازه‌ی شهاب‌سنگ','ارتفاع','قطرِ گودال']}};
+  let qDone={q1:false,q2:false,q3:false};
+  function buildQ(id){const box=$(id),Q=QS[id];const order=Q.opts.slice().sort(()=>Math.random()-.5);
+    order.forEach(txt=>{const bt=document.createElement('button');bt.className='opt';bt.textContent=txt;
+      bt.onclick=()=>{if(qDone[id])return;
+        if(txt===Q.a){bt.classList.add('ok');qDone[id]=true;sOk();
+          [...box.querySelectorAll('.opt')].forEach(o=>o.disabled=true);
+          if(qDone.q1&&qDone.q2&&qDone.q3)$('btnBegin').disabled=false;}
+        else{bt.classList.add('no');beep(160,.2,'sawtooth',.12);setTimeout(()=>bt.classList.remove('no'),500);}};
+      box.appendChild(bt);});}
+  ['q1','q2','q3'].forEach(buildQ);
+
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(230,Math.min(300,Math.round(W*0.62)));dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+
+  let selH=50,trials=[[],[],[]],count=0,falling=false,ballY=0,craterR=0,craterMax=0,puffs=[],busy=false;
+  const guideX=()=>W*0.5,groundY=()=>H*0.80,topY=()=>H*0.14,pxPerMm=()=>W*0.007;
+  function yForH(h){return groundY()-(h/150)*(groundY()-topY());}
+
+  $('hrow').addEventListener('click',e=>{const b=e.target.closest('.hbtn');if(!b)return;
+    selH=+b.dataset.h;[...$('hrow').children].forEach(c=>c.classList.toggle('sel',c===b));});
+  $('btnDrop').onclick=()=>{if(busy)return;const col=HEIGHTS.indexOf(selH);
+    if(trials[col].length>=3){flash('این ارتفاع کامل است — ارتفاعِ دیگری را امتحان کن');return;}
+    busy=true;falling=true;ballY=yForH(selH);};
+  function flash(msg){$('cnt').textContent=msg;setTimeout(()=>$('cnt').textContent=fa(count)+'/۹',1400);}
+
+  function record(){const col=HEIGHTS.indexOf(selH);const truth=selH*K;
+    const meas=Math.max(4,Math.round(truth+(Math.random()*6-3)));
+    trials[col].push(meas);craterMax=meas*pxPerMm()/2;
+    const r=trials[col].length-1;const cell=document.querySelector('td[data-c="'+col+'"][data-r="'+r+'"]');
+    if(cell)cell.textContent=fa(meas);count++;$('cnt').textContent=fa(count)+'/۹';sBoom();
+    if(trials[col].length===3){const avg=Math.round(trials[col].reduce((a,b)=>a+b,0)/3);
+      $('a'+col).textContent=fa(avg);}
+    if(count>=9)setTimeout(finish,700);}
+
+  function draw(){
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#cfe7ff');bg.addColorStop(1,'#ffe9c9');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    // زمین
+    const gy=groundY();const g=ctx.createLinearGradient(0,gy,0,H);g.addColorStop(0,'#e0a86b');g.addColorStop(1,'#b9793f');
+    ctx.fillStyle=g;ctx.fillRect(0,gy,W,H-gy);
+    // نردبانِ ارتفاع
+    const gx=guideX();ctx.strokeStyle='rgba(46,110,224,.3)';ctx.setLineDash([4,6]);ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(gx,topY());ctx.lineTo(gx,gy);ctx.stroke();ctx.setLineDash([]);
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='700 11px Vazirmatn';
+    const lbl={50:'نیم متر',100:'یک متر',150:'یک‌ونیم متر'};
+    for(const h of HEIGHTS){const y=yForH(h);ctx.strokeStyle=h===selH?'#2e6ee0':'rgba(46,110,224,.45)';
+      ctx.lineWidth=h===selH?3:2;ctx.beginPath();ctx.moveTo(gx-9,y);ctx.lineTo(gx+9,y);ctx.stroke();
+      ctx.fillStyle=h===selH?'#2e6ee0':'#8aa0c5';ctx.textAlign='right';ctx.fillText(lbl[h],gx-16,y);}
+    // گودالِ آخرین برخورد
+    if(craterR>0){ctx.fillStyle='#7a4a22';ctx.beginPath();ctx.ellipse(gx,gy,craterR,craterR*0.32,0,0,7);ctx.fill();
+      ctx.fillStyle='#5c3413';ctx.beginPath();ctx.ellipse(gx,gy+craterR*0.05,craterR*0.7,craterR*0.22,0,0,7);ctx.fill();}
+    // توپ
+    if(falling){ballY+=Math.max(3,(gy-ballY)*0.16);
+      ctx.fillStyle='rgba(255,159,69,.55)';ctx.beginPath();ctx.moveTo(gx-5,ballY-4);ctx.lineTo(gx,ballY-22);ctx.lineTo(gx+5,ballY-4);ctx.fill();
+      drawBall(gx,ballY);
+      if(ballY>=gy-5){falling=false;craterR=0;craterMax=0;sBoom();
+        for(let i=0;i<20;i++)puffs.push({x:gx,y:gy,a:Math.random()*6.28,s:2+Math.random()*4,r:2+Math.random()*4,life:1});
+        record();growing=true;}}
+    else if(!busy){drawBall(gx,yForH(selH));}
+    // رشدِ گودال
+    if(growing){craterR+=(craterMax-craterR)*0.18;if(Math.abs(craterR-craterMax)<0.5){craterR=craterMax;growing=false;busy=false;}}
+    // پاف
+    puffs=puffs.filter(p=>{p.life-=0.03;p.x+=Math.cos(p.a)*p.s;p.y+=Math.sin(p.a)*p.s-0.4;p.s*=0.95;
+      ctx.globalAlpha=Math.max(0,p.life)*0.8;ctx.fillStyle='#c9a06a';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();return p.life>0;});
+    ctx.globalAlpha=1;requestAnimationFrame(draw);}
+  let growing=false;
+  function drawBall(x,y){ctx.fillStyle='#6b5544';ctx.beginPath();ctx.arc(x,y,12,0,7);ctx.fill();
+    ctx.fillStyle='#4e3d30';ctx.beginPath();ctx.arc(x-3,-2+y,3,0,7);ctx.arc(4,3+y,2.5,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.25)';ctx.beginPath();ctx.arc(x-4,y-5,3,0,7);ctx.fill();}
+
+  function finish(){const avgs=HEIGHTS.map((h,c)=>Math.round(trials[c].reduce((a,b)=>a+b,0)/3));
+    // نمودار
+    $('chartWrap').style.display='block';const bars=$('bars');bars.innerHTML='';
+    const mx=Math.max(...avgs,1);const lbl=['نیم متر','یک متر','یک‌ونیم متر'];
+    avgs.forEach((v,i)=>{const d=document.createElement('div');d.className='bar';
+      d.innerHTML='<span>'+fa(v)+'</span><em>'+lbl[i]+'</em>';bars.appendChild(d);
+      setTimeout(()=>d.style.height=(20+80*v/mx)+'px',60);});
+    // ستاره: بر اساسِ افزایشیبودنِ نتیجه (رابطه‌ی درست) + کاملبودن
+    const ok=avgs[0]<avgs[1]&&avgs[1]<avgs[2];const stars=ok?3:2;
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+    $('concl').innerHTML='میانگینِ قطرِ گودال از نیم متر تا یک‌ونیم متر <b>بزرگ‌تر</b> شد.<br>'+
+      '<b>نتیجه:</b> هرچه شهاب‌سنگ از ارتفاعِ بیشتری رها شود (سرعتِ برخورد بیشتر)، گودالِ عمیق‌تر و بزرگ‌تری می‌سازد. ☄️';
+    $('ovEnd').classList.remove('hidden');sWin();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:count*10,stars:stars,gameId:GAMEID},'*');}}
+
+  $('btnBegin').onclick=()=>{ac();$('ovStart').classList.add('hidden');};
+  $('btnAgain').onclick=()=>{location.reload();};
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

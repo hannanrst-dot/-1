@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>کاوشگرِ گودال — زنگ علوم</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:linear-gradient(160deg,#9ad0ff 0%,#c9b3ff 55%,#ffd6a0 100%);
+    min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(40,60,90,.2)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
+  .qbar{background:#fff;border-radius:16px;padding:8px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(40,60,90,.2)}
+  .qbar b{font-size:15px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(40,60,90,.16)}
+  #prog{height:100%;width:0;background:linear-gradient(90deg,var(--gr),var(--yl));transition:width .2s}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(40,60,90,.3)}
+  canvas{display:block;width:100%;touch-action:none}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.92);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:22px;color:#2e6ee0}.ov p{margin:0;color:#3a4a6a;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#5bb6ff,var(--bl));box-shadow:0 8px 20px rgba(58,160,255,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
+  .pill{background:#eaf3ff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:#2e6ee0;font-size:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
+    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۸</span></div>
+    <div class="grow"></div>
+    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+  </div>
+  <div class="qbar"><b id="q">گودال بساز!</b><div class="s" id="qs"></div></div>
+  <div class="track"><div id="prog"></div></div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">☄️🔬</div><h1>کاوشگرِ گودال</h1>
+      <p>مثلِ یک دانشمند <b>کاوشگری</b> کن!<br>
+      شهاب‌سنگ را روی نردبان بالا/پایین بکش تا <b>ارتفاعِ رهاشدن</b> را تنظیم کنی، بعد «رها کن».<br>
+      هرچه <b>بلندتر</b> رها کنی، <b>گودالِ بزرگ‌تری</b> می‌سازی.<br>
+      گودالت را با <b>هدف</b> جور کن! ☄️</p>
+      <button class="btn" id="btnStart">شروع بازی</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="scoreBig">امتیاز: <b id="esc">۰</b></div>
+      <div class="pill" id="em"></div>
+      <button class="btn" id="btnAgain">دوباره</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='sci6-1';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sDrag=()=>beep(420,.03,'sine',.05);
+  const sFall=()=>beep(220,.4,'sawtooth',.06);
+  const sBoom=()=>{beep(90,.28,'sawtooth',.2);setTimeout(()=>beep(60,.3,'square',.14),40);};
+  const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
+  const sCombo=()=>{beep(880,.08,'square',.12);setTimeout(()=>beep(1180,.1,'square',.12),70);};
+  const sBad=()=>beep(150,.3,'sawtooth',.15);
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
+
+  const K=0.4; // قطرِ گودال (میلی‌متر) = K × ارتفاع (سانتی‌متر)
+  const ROUNDS=[{t:40,tol:5},{t:60,tol:5},{t:30,tol:4},{t:70,tol:4},
+                {t:50,tol:3},{t:24,tol:3},{t:76,tol:3},{t:44,tol:2}];
+  const TOTAL=ROUNDS.length;
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(400,Math.min(500,Math.round(W*1.05)));dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+
+  let state='start',ri=0,score=0,lives=3,combo=0,target,tol,phase,dropH=120,drag=false;
+  let meteorY,craterR,puffs=[],confetti=[],floaters=[],stars2=[];
+  const guideX=()=>W*0.5, trackTop=()=>H*0.16, trackBot=()=>H*0.50, groundY=()=>H*0.76;
+  const pxPerMm=()=>W*0.0062;
+  function heightFromY(y){return clamp(50+(trackBot()-y)/(trackBot()-trackTop())*150,50,200);}
+  function yFromHeight(h){return trackBot()-(h-50)/150*(trackBot()-trackTop());}
+  function curHeight(){return Math.round(heightFromY(meteorY));}
+  function okBtn(){return{x:W/2,y:H-40,w:150,h:44};}
+
+  function loadRound(i){ri=i;const R=ROUNDS[i];target=R.t;tol=R.tol;phase='aim';
+    meteorY=yFromHeight(120);craterR=0;puffs=[];
+    $('round').textContent=fa((i+1)+'/'+TOTAL);
+    $('q').textContent='گودالی به قطرِ '+fa(target)+' میلی‌متر بساز';
+    $('qs').textContent='شهاب‌سنگ را بالا/پایین بکش، بعد رها کن';updateHud();}
+  function updateHud(){$('score').textContent=fa(score);
+    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
+    $('prog').style.width=(100*ri/TOTAL)+'%';}
+
+  cv.addEventListener('pointerdown',e=>{if(state!=='play')return;
+    const rc=cv.getBoundingClientRect();const x=(e.clientX-rc.left)*(W/rc.width),y=(e.clientY-rc.top)*(H/rc.height);
+    if(phase==='aim'){
+      if(Math.hypot(x-guideX(),y-meteorY)<40){drag=true;return;}
+      const b=okBtn();if(x>=b.x-b.w/2&&x<=b.x+b.w/2&&y>=b.y-b.h/2&&y<=b.y+b.h/2){dropIt();}}});
+  cv.addEventListener('pointermove',e=>{if(!drag)return;
+    const rc=cv.getBoundingClientRect();const y=(e.clientY-rc.top)*(H/rc.height);
+    const ny=clamp(y,trackTop(),trackBot());if(Math.abs(ny-meteorY)>2)sDrag();meteorY=ny;});
+  cv.addEventListener('pointerup',()=>drag=false);
+  cv.addEventListener('pointercancel',()=>drag=false);
+
+  function dropIt(){if(phase!=='aim')return;dropH=curHeight();phase='fall';drag=false;sFall();}
+  function impact(){phase='form';sBoom();const cd=Math.round(dropH*K);
+    for(let i=0;i<22;i++)puffs.push({x:guideX(),y:groundY(),a:Math.random()*6.28,
+      s:2+Math.random()*4,r:2+Math.random()*4,life:1});
+    craterTarget=cd;craterR=0;}
+  let craterTarget=0;
+  function evaluate(){const cd=Math.round(dropH*K);const err=Math.abs(cd-target);
+    if(err<=tol){combo++;const acc=Math.max(0,tol-err);const speed=0;
+      const gain=12+acc*3+(combo>=2?combo*2:0);score+=gain;combo>=2?sCombo():sOk();
+      floaters.push({x:guideX(),y:groundY()-70,t:0,txt:'+'+fa(gain)+(combo>=2?' ×'+fa(combo):'')});
+      for(let i=0;i<20;i++)confetti.push(spawnConf(guideX(),groundY()-40));updateHud();
+      phase='done';setTimeout(next,1300);}
+    else{lives--;combo=0;sBad();
+      const msg=cd<target?'کوچک بود — کمی بلندتر رها کن ⬆️':'بزرگ بود — کمی کوتاه‌تر رها کن ⬇️';
+      floaters.push({x:guideX(),y:groundY()-70,t:0,txt:cd<target?'کوچک بود!':'بزرگ بود!'});
+      $('qs').textContent=msg;updateHud();
+      if(lives<=0){setTimeout(()=>endGame(false),500);return;}
+      phase='reset';setTimeout(()=>{if(state==='play'){phase='aim';craterR=0;puffs=[];}},1100);}}
+  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
+
+  function drawGround(){const gy=groundY();
+    const g=ctx.createLinearGradient(0,gy,0,H);g.addColorStop(0,'#e0a86b');g.addColorStop(1,'#b9793f');
+    ctx.fillStyle=g;ctx.fillRect(0,gy,W,H-gy);
+    ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(0,gy,W,4);}
+  function drawCrater(){const gy=groundY(),cx=guideX();
+    // هدف (خط‌چین)
+    const tr=target*pxPerMm()/2;ctx.strokeStyle='#2e6ee0';ctx.setLineDash([6,5]);ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.ellipse(cx,gy,tr,tr*0.34,0,0,7);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#2e6ee0';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.fillText('هدف: '+fa(target)+' م‌م',cx,gy-tr*0.34-6);
+    // گودالِ ساخته‌شده
+    if(craterR>0){const rr=craterR;ctx.fillStyle='#7a4a22';ctx.beginPath();ctx.ellipse(cx,gy,rr,rr*0.34,0,0,7);ctx.fill();
+      ctx.fillStyle='#5c3413';ctx.beginPath();ctx.ellipse(cx,gy+rr*0.06,rr*0.72,rr*0.24,0,0,7);ctx.fill();}}
+
+  function draw(dt){
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#bfe0ff');bg.addColorStop(1,'#ffe9c9');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    for(const st of stars2){ctx.globalAlpha=.4+.4*Math.sin(st.tw+performance.now()/500);
+      ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(st.x,st.y,st.r,0,7);ctx.fill();}ctx.globalAlpha=1;
+    drawGround();
+    if(state!=='start'){
+      if(combo>=2){ctx.fillStyle='#c2185b';ctx.font='900 15px Vazirmatn';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('🔥 کومبو ×'+fa(combo),10,8);}
+      // پنلِ متغیرها (هدفِ کتاب: کاوشگری)
+      ctx.textAlign='right';ctx.textBaseline='top';ctx.font='700 10px Vazirmatn';
+      ctx.fillStyle='#2e6ee0';ctx.fillText('🔧 تغییر: ارتفاع',W-8,8);
+      ctx.fillStyle='#c2185b';ctx.fillText('📏 اندازه: قطرِ گودال',W-8,22);
+      ctx.fillStyle='#5b6bb0';ctx.fillText('🔒 ثابت: خاک و شهاب‌سنگ',W-8,36);
+      // نردبانِ ارتفاع
+      const gx=guideX(),tt=trackTop(),tb=trackBot();
+      ctx.strokeStyle='rgba(46,110,224,.35)';ctx.lineWidth=2;ctx.setLineDash([4,6]);
+      ctx.beginPath();ctx.moveTo(gx,tt);ctx.lineTo(gx,groundY());ctx.stroke();ctx.setLineDash([]);
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='700 10px Vazirmatn';ctx.fillStyle='#5b6bb0';
+      for(const h of [50,100,150,200]){const y=yFromHeight(h);
+        ctx.strokeStyle='rgba(46,110,224,.5)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(gx-8,y);ctx.lineTo(gx+8,y);ctx.stroke();
+        ctx.fillText(fa(h),gx-26,y);}
+      // شهاب‌سنگ
+      if(phase==='fall'){meteorY+=Math.max(3,(groundY()-meteorY)*Math.min(1,dt*7));
+        if(meteorY>=groundY()-6){meteorY=groundY()-6;impact();}}
+      const my=(phase==='fall'||phase==='aim'||phase==='reset')?meteorY:groundY()-6;
+      if(phase!=='form'&&phase!=='done'||craterR<=0){drawMeteor(gx,my);}
+      // گودال و هدف
+      drawCrater();
+      if(phase==='form'){craterR+=(craterTarget*pxPerMm()/2-craterR)*Math.min(1,dt*8);
+        if(Math.abs(craterR-craterTarget*pxPerMm()/2)<0.6){craterR=craterTarget*pxPerMm()/2;phase='eval';evaluate();}}
+      // readout ارتفاع
+      if(phase==='aim'||phase==='fall'){ctx.fillStyle='#fff';ctx.strokeStyle='#2e6ee0';ctx.lineWidth=2;
+        ctx.beginPath();ctx.roundRect(gx+18,my-14,96,28,9);ctx.fill();ctx.stroke();
+        ctx.fillStyle='#2e6ee0';ctx.font='900 13px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('ارتفاع: '+fa(curHeight()),gx+66,my);}
+      // دکمه‌ی رها کن
+      if(phase==='aim'){const b=okBtn();ctx.fillStyle='#3aa0ff';ctx.beginPath();ctx.roundRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h,14);ctx.fill();
+        ctx.fillStyle='#fff';ctx.font='900 17px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('☄️ رها کن',b.x,b.y);}
+      // پاف
+      puffs=puffs.filter(p=>{p.life-=dt*1.4;p.x+=Math.cos(p.a)*p.s;p.y+=Math.sin(p.a)*p.s-0.5;p.s*=0.96;
+        ctx.globalAlpha=clamp(p.life,0,1)*0.8;ctx.fillStyle='#c9a06a';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();return p.life>0;});
+      ctx.globalAlpha=1;
+    }
+    floaters=floaters.filter(f=>{f.t+=dt;f.y-=26*dt;ctx.globalAlpha=clamp(1-f.t,0,1);
+      ctx.fillStyle=f.txt[0]==='+'?'#0d7a4f':'#ff5d8f';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      ctx.fillText(f.txt,f.x,f.y);ctx.globalAlpha=1;return f.t<1.2;});
+    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
+    ctx.globalAlpha=1;}
+
+  function drawMeteor(x,y){ctx.save();ctx.translate(x,y);
+    if(phase==='fall'){ctx.fillStyle='rgba(255,159,69,.6)';ctx.beginPath();ctx.moveTo(-6,-4);ctx.lineTo(0,-26);ctx.lineTo(6,-4);ctx.fill();}
+    ctx.fillStyle='#6b5544';ctx.beginPath();ctx.arc(0,0,15,0,7);ctx.fill();
+    ctx.fillStyle='#4e3d30';ctx.beginPath();ctx.arc(-4,-3,4,0,7);ctx.arc(5,4,3,0,7);ctx.arc(3,-6,2.5,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.25)';ctx.beginPath();ctx.arc(-5,-6,4,0,7);ctx.fill();ctx.restore();}
+
+  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+      c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
+  function makeStars(){stars2=[];for(let i=0;i<18;i++)stars2.push({x:Math.random()*W,y:Math.random()*H*0.4,r:1+Math.random()*1.6,tw:Math.random()*6});}
+
+  function endGame(won){state='end';const pct=score/(TOTAL*16);
+    const stars=pct>=.8?3:pct>=.55?2:1;
+    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'کاوشگرِ ماهر شدی!':'باختی! دوباره تلاش کن';
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
+    $('em').textContent=won?'فهمیدی: ارتفاعِ بیشتر ⇐ گودالِ بزرگ‌تر':'با مشاهده، رابطه‌ی ارتفاع و گودال را پیدا کن 💪';
+    $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
+
+  let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
+    draw(dt);requestAnimationFrame(loop);}
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');makeStars();score=0;lives=3;combo=0;loadRound(0);state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');makeStars();score=0;lives=3;combo=0;confetti=[];loadRound(0);state='play';};
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
