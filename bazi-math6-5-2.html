@@ -38,7 +38,7 @@
     <div class="grow"></div>
     <div class="chip hearts" id="hearts">❤️❤️❤️</div>
   </div>
-  <div class="qbar"><b id="q">جعبه را با مکعب پر کن</b><div class="s" id="qs"></div></div>
+  <div class="qbar"><b id="q">📦 سفارشِ باربری! جعبه را پر کن</b><div class="s" id="qs"></div></div>
   <div class="track"><div id="prog"></div></div>
   <div class="stage">
     <canvas id="cv"></canvas>
@@ -70,6 +70,7 @@
     g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
   const sPut=()=>{beep(400,.06,'square',.1);setTimeout(()=>beep(560,.06,'square',.09),50);};
   const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
+  const sCombo=()=>{beep(880,.08,'square',.12);setTimeout(()=>beep(1180,.1,'square',.12),70);};
   const sBad=()=>beep(160,.28,'sawtooth',.16);
   const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
   const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
@@ -83,7 +84,7 @@
     cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
   layout();window.addEventListener('resize',layout);
 
-  let state='start',ri=0,score=0,lives=3,R,filled,vol,timeLeft,timeMax,done,confetti=[];
+  let state='start',ri=0,score=0,lives=3,R,filled,vol,timeLeft,timeMax,done,combo=0,floaters=[],confetti=[];
   let U,V,HZ,Ox,Oy;
   function setup(){const s=Math.min((W-70)/((R.l+R.w)),(H-150)/((R.l+R.w)*0.5+R.h*0.82+1));
     const u=s*0.92;U=u;V=u*0.5;HZ=u*0.86;
@@ -98,8 +99,11 @@
 
   cv.addEventListener('pointerdown',()=>{if(state!=='play'||done)return;
     if(filled<R.h){filled++;sPut();
-      if(filled>=R.h){done=true;score+=10;sOk();for(let i=0;i<18;i++)confetti.push(spawnConf(W/2,Oy-R.h*HZ));
-        updateHud();setTimeout(next,1200);}}});
+      if(filled>=R.h){done=true;const speed=Math.round(clamp(timeLeft,0,10));combo++;
+        const gain=10+speed+(combo>=2?combo*2:0);score+=gain;combo>=2?sCombo():sOk();
+        floaters.push({x:W/2,y:H*0.4,t:0,txt:'+'+fa(gain)+(combo>=2?' ×'+fa(combo):'')});
+        for(let i=0;i<18;i++)confetti.push(spawnConf(W/2,Oy-R.h*HZ));
+        updateHud();setTimeout(next,1300);}}});
   function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
 
   function quad(a,b,c,d,fill,stroke){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.closePath();
@@ -143,6 +147,13 @@
       else{ctx.fillStyle='rgba(26,36,82,.6)';ctx.font='800 12px Vazirmatn';ctx.fillText('برای افزودنِ یک لایه بزن 👆',W/2,H-10);
         timeLeft-=dt;if(timeLeft<=0)timeout();}
     }
+    if(state!=='start'){
+      ctx.font='22px serif';ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillText('📦🚚',8,34);
+      if(combo>=2){ctx.fillStyle='#c2185b';ctx.font='900 15px Vazirmatn';ctx.textAlign='right';ctx.fillText('کومبو ×'+fa(combo)+' 🔥',W-10,30);}
+    }
+    floaters=floaters.filter(f=>{f.t+=dt;f.y-=28*dt;ctx.globalAlpha=clamp(1-f.t,0,1);
+      ctx.fillStyle=f.txt[0]==='+'?'#0d7a4f':'#ff5d8f';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      ctx.fillText(f.txt,f.x,f.y);ctx.globalAlpha=1;return f.t<1.2;});
     confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
       ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
       ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
@@ -151,10 +162,11 @@
   function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
     return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
       c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
-  function timeout(){if(state!=='play'||done)return;lives--;sBad();timeLeft=timeMax;updateHud();
+  function timeout(){if(state!=='play'||done)return;lives--;combo=0;sBad();timeLeft=timeMax;
+    floaters.push({x:W/2,y:H*0.4,t:0,txt:'دیر شد!'});updateHud();
     if(lives<=0)endGame(false);}
 
-  function endGame(won){state='end';const pct=score/(TOTAL*10);
+  function endGame(won){state='end';const pct=score/(TOTAL*14);
     const stars=pct>=.8?3:pct>=.55?2:1;
     for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
     $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
@@ -165,8 +177,8 @@
       {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
   let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
     draw(dt);requestAnimationFrame(loop);}
-  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;loadRound(0);state='play';};
-  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;confetti=[];loadRound(0);state='play';};
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;combo=0;loadRound(0);state="play";};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;combo=0;confetti=[];loadRound(0);state="play";};
   requestAnimationFrame(loop);
 })();
 </script>
