@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>قطع کن — تقریب</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:linear-gradient(160deg,#8fe3ff 0%,#a0d8b0 50%,#ffe08a 100%);
+    min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(40,80,60,.2)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
+  .qbar{background:#fff;border-radius:16px;padding:8px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(40,80,60,.2)}
+  .qbar b{font-size:15px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(40,80,60,.16)}
+  #prog{height:100%;width:0;background:linear-gradient(90deg,var(--gr),var(--yl));transition:width .2s}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(40,80,60,.3)}
+  canvas{display:block;width:100%;touch-action:none}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.92);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:22px;color:#2e9e6a}.ov p{margin:0;color:#3a5a4a;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#5bd7ae,var(--gr));box-shadow:0 8px 20px rgba(34,201,147,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
+  .pill{background:#e6fbef;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:#2e9e6a;font-size:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
+    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۸</span></div>
+    <div class="grow"></div>
+    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+  </div>
+  <div class="qbar"><b id="q">مبلغ را قطع کن!</b><div class="s" id="qs"></div></div>
+  <div class="track"><div id="prog"></div></div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">🧾✂️</div><h1>قطع کن</h1>
+      <p>برای ساده‌شدنِ مبلغِ قبض، آن را <b>تقریب</b> می‌زنیم.<br>
+      روشِ <b>قطع کردن</b>: همه‌ی رقم‌های <b>سمتِ راستِ</b> جایگاهِ خواسته‌شده را <b>صفر</b> کن.<br>
+      روی رقم‌ها بزن تا صفر شوند، بعد <b>تأیید</b>! ✂️</p>
+      <button class="btn" id="btnStart">شروع بازی</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="scoreBig">امتیاز: <b id="esc">۰</b></div>
+      <div class="pill" id="em"></div>
+      <button class="btn" id="btnAgain">دوباره</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='math6-7-1';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const PLACE=['یکان','دهگان','صدگان','هزار','ده‌هزار'];
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sCut=()=>beep(520,.05,'square',.09);
+  const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
+  const sCombo=()=>{beep(880,.08,'square',.12);setTimeout(()=>beep(1180,.1,'square',.12),70);};
+  const sBad=()=>beep(160,.28,'sawtooth',.16);
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
+
+  // n مبلغ ، pl جایگاهِ تقریب (۱ دهگان .. ۳ هزار ..)
+  const ROUNDS=[{n:24865,pl:3},{n:3672,pl:2},{n:846,pl:1},{n:12530,pl:3},
+                {n:7395,pl:2},{n:958,pl:1},{n:63820,pl:3},{n:4270,pl:2}];
+  const TOTAL=ROUNDS.length;
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(380,Math.min(460,Math.round(W*0.95)));dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+
+  let state='start',ri=0,score=0,lives=3,digits,pl,cut,combo=0,timeLeft,timeMax,paused,confetti=[],floaters=[];
+  function loadRound(i){ri=i;const R=ROUNDS[i];digits=(''+R.n).split('').map(Number);pl=R.pl;
+    cut=digits.map(()=>false);paused=false;timeMax=Math.max(10,16-i*0.7);timeLeft=timeMax;
+    $('round').textContent=fa((i+1)+'/'+TOTAL);
+    $('q').textContent='این مبلغ را به «'+PLACE[pl]+'» قطع کن';
+    $('qs').textContent='یعنی رقم‌های سمتِ راستِ '+PLACE[pl]+' را صفر کن';updateHud();}
+  function updateHud(){$('score').textContent=fa(score);
+    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
+    $('prog').style.width=(100*ri/TOTAL)+'%';}
+  function tiles(){const L=digits.length,tw=Math.min(52,(W-40)/L),th=tw*1.15,x0=(W-tw*L)/2,y0=H*0.32;
+    return{L,tw,th,x0,y0};}
+  function okBtn(){return{x:W/2,y:H-56,r:30};}
+
+  cv.addEventListener('pointerdown',e=>{if(state!=='play'||paused)return;
+    const rc=cv.getBoundingClientRect();const x=(e.clientX-rc.left)*(W/rc.width),y=(e.clientY-rc.top)*(H/rc.height);
+    const T=tiles();
+    for(let d=0;d<T.L;d++){const bx=T.x0+d*T.tw;if(x>=bx&&x<=bx+T.tw&&y>=T.y0&&y<=T.y0+T.th){cut[d]=!cut[d];sCut();return;}}
+    const b=okBtn();if(Math.hypot(x-b.x,y-b.y)<b.r+8)confirm();});
+  function confirm(){const L=digits.length;let good=true;
+    for(let d=0;d<L;d++){const posFromRight=L-1-d;const shouldCut=posFromRight<pl;if(cut[d]!==shouldCut)good=false;}
+    if(good){paused=true;const speed=Math.round(clamp(timeLeft,0,10));combo++;
+      const gain=10+speed+(combo>=2?combo*2:0);score+=gain;combo>=2?sCombo():sOk();
+      floaters.push({x:W/2,y:H*0.5,t:0,txt:'+'+fa(gain)+(combo>=2?' ×'+fa(combo):'')});
+      for(let i=0;i<18;i++)confetti.push(spawnConf(W/2,H*0.4));updateHud();setTimeout(next,1300);}
+    else{lives--;combo=0;sBad();floaters.push({x:W/2,y:H*0.5,t:0,txt:'درست نیست!'});updateHud();
+      if(lives<=0)setTimeout(()=>endGame(false),350);}}
+  function timeout(){if(state!=='play'||paused)return;lives--;combo=0;sBad();
+    floaters.push({x:W/2,y:H*0.5,t:0,txt:'دیر شد!'});updateHud();if(lives<=0){endGame(false);return;}timeLeft=timeMax;}
+  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
+
+  function draw(dt){
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#eefaf3');bg.addColorStop(1,'#fffbe8');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    if(state!=='start'&&digits){
+      if(combo>=2){ctx.fillStyle='#c2185b';ctx.font='900 15px Vazirmatn';ctx.textAlign='right';ctx.textBaseline='alphabetic';ctx.fillText('کومبو ×'+fa(combo)+' 🔥',W-10,26);}
+      const T=tiles();
+      for(let d=0;d<T.L;d++){const bx=T.x0+d*T.tw,posFromRight=T.L-1-d,isCut=cut[d];
+        const highlight=(posFromRight===pl);
+        ctx.fillStyle=isCut?'#e6e6ee':'#fff';ctx.strokeStyle=highlight?'#ff9f45':'#9fc7b0';ctx.lineWidth=highlight?3.5:2;
+        ctx.beginPath();ctx.roundRect(bx+3,T.y0,T.tw-6,T.th,10);ctx.fill();ctx.stroke();
+        ctx.fillStyle=isCut?'#b0b0c0':'#1a2452';ctx.font='900 26px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(fa(isCut?0:digits[d]),bx+T.tw/2,T.y0+T.th/2);
+        // برچسبِ جایگاه
+        ctx.fillStyle=highlight?'#e07a1e':'#8aa0b5';ctx.font='700 9px Vazirmatn';ctx.textBaseline='top';
+        ctx.fillText(PLACE[posFromRight]||'',bx+T.tw/2,T.y0+T.th+4);}
+      ctx.textBaseline='alphabetic';
+      // نتیجه‌ی فعلی
+      let val=0;for(let d=0;d<T.L;d++)val=val*10+(cut[d]?0:digits[d]);
+      ctx.fillStyle='#1a2452';ctx.font='900 18px Vazirmatn';ctx.textAlign='center';
+      ctx.fillText('نتیجه: '+fa((''+val).replace(/\B(?=(\d{3})+(?!\d))/g,'٬'))+' ریال',W/2,T.y0+T.th+40);
+      ctx.fillStyle='rgba(26,36,82,.55)';ctx.font='800 12px Vazirmatn';
+      ctx.fillText('روی رقم‌ها بزن تا صفر/برگردند ✂️',W/2,T.y0-14);
+      // دکمه‌ی تأیید
+      const b=okBtn();ctx.fillStyle='#22c993';ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,7);ctx.fill();
+      ctx.fillStyle='#fff';ctx.font='900 15px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('تأیید',b.x,b.y);ctx.textBaseline='alphabetic';
+      if(!paused){timeLeft-=dt;if(timeLeft<=0)timeout();}
+      ctx.fillStyle='rgba(0,0,0,.07)';ctx.beginPath();ctx.roundRect(16,H-14,W-32,6,3);ctx.fill();
+      ctx.fillStyle=timeLeft<4?'#ff5d8f':'#22c993';ctx.beginPath();ctx.roundRect(16,H-14,(W-32)*clamp(timeLeft/timeMax,0,1),6,3);ctx.fill();
+    }
+    floaters=floaters.filter(f=>{f.t+=dt;f.y-=28*dt;ctx.globalAlpha=clamp(1-f.t,0,1);
+      ctx.fillStyle=f.txt[0]==='+'?'#0d7a4f':'#ff5d8f';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      ctx.fillText(f.txt,f.x,f.y);ctx.globalAlpha=1;return f.t<1.2;});
+    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
+    ctx.globalAlpha=1;}
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+      c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
+
+  function endGame(won){state='end';const pct=score/(TOTAL*14);
+    const stars=pct>=.8?3:pct>=.55?2:1;
+    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
+    $('em').textContent=won?'تقریب به روشِ قطع کردن را یاد گرفتی!':'رقم‌های سمتِ راستِ جایگاه را صفر کن 💪';
+    $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
+  let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
+    draw(dt);requestAnimationFrame(loop);}
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;combo=0;loadRound(0);state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;combo=0;confetti=[];loadRound(0);state='play';};
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

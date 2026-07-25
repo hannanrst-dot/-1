@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>موشکِ گرد کن — تقریب</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:linear-gradient(160deg,#8fe3ff 0%,#a0d8b0 50%,#ffe08a 100%);
+    min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(40,80,60,.2)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
+  .qbar{background:#fff;border-radius:16px;padding:8px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(40,80,60,.2)}
+  .qbar b{font-size:15px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(40,80,60,.16)}
+  #prog{height:100%;width:0;background:linear-gradient(90deg,var(--gr),var(--yl));transition:width .2s}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(40,80,60,.3)}
+  canvas{display:block;width:100%;touch-action:none}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.92);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:22px;color:#2e9e6a}.ov p{margin:0;color:#3a5a4a;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#5bd7ae,var(--gr));box-shadow:0 8px 20px rgba(34,201,147,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
+  .pill{background:#e6fbef;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:#2e9e6a;font-size:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
+    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۸</span></div>
+    <div class="grow"></div>
+    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+  </div>
+  <div class="qbar"><b id="q">به نزدیک‌ترین ایستگاه فرود بیا!</b><div class="s" id="qs"></div></div>
+  <div class="track"><div id="prog"></div></div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">🚀🪐</div><h1>موشکِ گرد کن</h1>
+      <p>موشک باید روی <b>نزدیک‌ترین</b> ایستگاه فرود بیاید.<br>
+      رقمِ <b>سمتِ راستِ</b> جایگاه را ببین: اگر <b>۵ یا بیشتر</b> بود به ایستگاهِ <b>بالاتر</b>،
+      وگرنه به <b>پایین‌تر</b> برو.<br>روی ایستگاهِ درست بزن تا موشک فرود بیاید! 🚀</p>
+      <button class="btn" id="btnStart">شروع بازی</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="scoreBig">امتیاز: <b id="esc">۰</b></div>
+      <div class="pill" id="em"></div>
+      <button class="btn" id="btnAgain">دوباره</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='math6-7-2';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const grp=s=>(''+s).replace(/\B(?=(\d{3})+(?!\d))/g,'٬');
+  const faG=n=>fa(grp(n));
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const PLACE=['یکان','دهگان','صدگان','هزار','ده‌هزار'];
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sThr=()=>beep(300,.18,'sawtooth',.08);
+  const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
+  const sCombo=()=>{beep(880,.08,'square',.12);setTimeout(()=>beep(1180,.1,'square',.12),70);};
+  const sBad=()=>beep(150,.3,'sawtooth',.16);
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
+
+  // n عدد ، pl جایگاهِ گرد کردن (۱ دهگان .. ۳ هزار)
+  const ROUNDS=[{n:783,pl:1},{n:87,pl:1},{n:5314,pl:2},{n:1273,pl:2},
+                {n:750,pl:2},{n:14278,pl:1},{n:2348,pl:2},{n:6750,pl:3}];
+  const TOTAL=ROUNDS.length;
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(380,Math.min(470,Math.round(W*0.98)));dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+
+  let state='start',ri=0,score=0,lives=3,combo=0,timeLeft,timeMax,paused;
+  let n,pl,factor,down,up,answer,frac,rocket,phase,target,confetti=[],floaters=[],stars2=[];
+  function loadRound(i){ri=i;const R=ROUNDS[i];n=R.n;pl=R.pl;factor=Math.pow(10,pl);
+    down=Math.floor(n/factor)*factor;up=down+factor;
+    answer=(n-down)>=factor/2?up:down;frac=(n-down)/factor;
+    phase='choose';target=null;paused=false;
+    timeMax=Math.max(9,15-i*0.7);timeLeft=timeMax;
+    rocket={x:lerpX(frac),y:H*0.30,vx:0,vy:0};
+    $('round').textContent=fa((i+1)+'/'+TOTAL);
+    $('q').textContent='عدد '+faG(n)+' را به «'+PLACE[pl]+'» گرد کن';
+    $('qs').textContent='به نزدیک‌ترین ایستگاه برو';updateHud();}
+  function updateHud(){$('score').textContent=fa(score);
+    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
+    $('prog').style.width=(100*ri/TOTAL)+'%';}
+
+  const padX=()=>W*0.17;
+  function lerpX(f){return padX()+(W-2*padX())*f;}
+  const lineY=()=>H*0.66;
+  function stations(){return{L:{x:padX(),y:lineY(),v:down},R:{x:W-padX(),y:lineY(),v:up}};}
+
+  cv.addEventListener('pointerdown',e=>{if(state!=='play'||paused||phase!=='choose')return;
+    const rc=cv.getBoundingClientRect();const x=(e.clientX-rc.left)*(W/rc.width),y=(e.clientY-rc.top)*(H/rc.height);
+    const S=stations();
+    if(Math.hypot(x-S.L.x,y-S.L.y)<52){launch(down,S.L.x);return;}
+    if(Math.hypot(x-S.R.x,y-S.R.y)<52){launch(up,S.R.x);return;}});
+  function launch(val,tx){phase='fly';paused=true;target={val,x:tx};sThr();}
+
+  function resolve(){const good=target.val===answer;
+    if(good){const speed=Math.round(clamp(timeLeft,0,10));combo++;
+      const gain=10+speed+(combo>=2?combo*2:0);score+=gain;combo>=2?sCombo():sOk();
+      floaters.push({x:target.x,y:lineY()-40,t:0,txt:'+'+fa(gain)+(combo>=2?' ×'+fa(combo):'')});
+      for(let i=0;i<20;i++)confetti.push(spawnConf(target.x,lineY()-20));updateHud();
+      phase='done';setTimeout(next,1200);}
+    else{lives--;combo=0;sBad();
+      floaters.push({x:target.x,y:lineY()-40,t:0,txt:'دورتر بود!'});updateHud();
+      phase='crash';rocket.vy=-1;
+      setTimeout(()=>{if(lives<=0){endGame(false);}else{phase='choose';paused=false;
+        rocket={x:lerpX(frac),y:H*0.30,vx:0,vy:0};timeLeft=timeMax;}},1100);}}
+  function timeout(){if(state!=='play'||paused)return;lives--;combo=0;sBad();
+    floaters.push({x:W/2,y:H*0.4,t:0,txt:'دیر شد!'});updateHud();
+    if(lives<=0){endGame(false);return;}timeLeft=timeMax;}
+  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
+
+  function drawNumber(){
+    const s=(''+n).split('');const L=s.length;const idx=L-1-pl;// جایگاهِ گرد کردن
+    ctx.font='900 30px Vazirmatn';ctx.textBaseline='alphabetic';
+    let widths=s.map(ch=>ctx.measureText(fa(ch)).width+6);
+    let tot=widths.reduce((a,b)=>a+b,0);let x=W/2-tot/2;const y=H*0.155;
+    for(let d=0;d<L;d++){const hl=(d===idx);const nb=(d===idx+1);// همسایه‌ی سمتِ راست
+      if(hl){ctx.fillStyle='rgba(255,159,69,.28)';ctx.beginPath();ctx.roundRect(x-1,y-26,widths[d]+2,34,7);ctx.fill();}
+      ctx.fillStyle=hl?'#e07a1e':(nb?'#c2185b':'#1a2452');ctx.font=(hl||nb)?'900 30px Vazirmatn':'800 30px Vazirmatn';
+      ctx.textAlign='center';ctx.fillText(fa(s[d]),x+widths[d]/2,y);x+=widths[d];}
+    // برچسب زیرِ رقمِ همسایه
+    ctx.font='700 11px Vazirmatn';ctx.fillStyle='#c2185b';ctx.textAlign='center';
+    ctx.fillText('این رقم را ببین',W/2,y+22);
+  }
+
+  function drawRocket(rx,ry,ang){ctx.save();ctx.translate(rx,ry);ctx.rotate(ang||0);
+    ctx.fillStyle='#ff5d8f';ctx.beginPath();ctx.moveTo(0,-20);ctx.quadraticCurveTo(11,-4,9,12);
+    ctx.lineTo(-9,12);ctx.quadraticCurveTo(-11,-4,0,-20);ctx.fill();
+    ctx.fillStyle='#3aa0ff';ctx.beginPath();ctx.arc(0,-4,5,0,7);ctx.fill();// پنجره
+    ctx.fillStyle='#ff9f45';ctx.beginPath();ctx.moveTo(-9,8);ctx.lineTo(-16,16);ctx.lineTo(-6,12);ctx.fill();
+    ctx.beginPath();ctx.moveTo(9,8);ctx.lineTo(16,16);ctx.lineTo(6,12);ctx.fill();
+    if(phase==='fly'||phase==='choose'){ctx.fillStyle='rgba(255,210,63,.85)';ctx.beginPath();
+      ctx.moveTo(-5,12);ctx.lineTo(0,20+Math.random()*8);ctx.lineTo(5,12);ctx.fill();}
+    ctx.restore();}
+
+  function drawStation(s,val,near){const {x,y}=s;
+    // سکو
+    ctx.fillStyle=near?'#22c993':'#3aa0ff';ctx.beginPath();ctx.ellipse(x,y,44,15,0,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.ellipse(x,y-3,44,13,0,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(faG(val),x,y);ctx.textBaseline='alphabetic';}
+
+  function draw(dt){
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#dff4ff');bg.addColorStop(1,'#fff6df');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    // ستاره‌های زمینه
+    for(const st of stars2){ctx.globalAlpha=.5+.4*Math.sin(st.tw+performance.now()/500);
+      ctx.fillStyle='#ffd23f';ctx.beginPath();ctx.arc(st.x,st.y,st.r,0,7);ctx.fill();}ctx.globalAlpha=1;
+
+    if(state!=='start'&&n!=null){
+      if(combo>=2){ctx.fillStyle='#c2185b';ctx.font='900 15px Vazirmatn';ctx.textAlign='right';ctx.textBaseline='alphabetic';ctx.fillText('کومبو ×'+fa(combo)+' 🔥',W-10,24);}
+      drawNumber();
+      // خطِ محور
+      const y=lineY();ctx.strokeStyle='#9fc7b0';ctx.lineWidth=4;ctx.beginPath();
+      ctx.moveTo(padX(),y);ctx.lineTo(W-padX(),y);ctx.stroke();
+      // نشانه‌ی وسط (نقطه‌ی گردکردن)
+      const mx=(padX()+(W-padX()))/2;ctx.strokeStyle='#ff9f45';ctx.setLineDash([4,4]);ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(mx,y-16);ctx.lineTo(mx,y+16);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#e07a1e';ctx.font='700 10px Vazirmatn';ctx.textAlign='center';ctx.fillText('وسط',mx,y+28);
+      // ایستگاه‌ها
+      const S=stations();
+      drawStation(S.L,down,phase==='done'&&answer===down);
+      drawStation(S.R,up,phase==='done'&&answer===up);
+      // نشانگرِ جایِ واقعیِ عدد روی محور
+      const nx=lerpX(frac);
+      if(phase==='choose'){ctx.fillStyle='rgba(26,36,82,.7)';ctx.beginPath();ctx.arc(nx,y,5,0,7);ctx.fill();
+        ctx.fillStyle='#1a2452';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';ctx.fillText(faG(n),nx,y+30);}
+
+      // موشک
+      if(phase==='choose'){rocket.x=nx;rocket.y=H*0.30+Math.sin(performance.now()/300)*5;drawRocket(rocket.x,rocket.y,0);
+        ctx.fillStyle='rgba(26,36,82,.55)';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';
+        ctx.fillText('روی ایستگاهِ درست بزن ✋',W/2,y-46);}
+      else if(phase==='fly'){const dx=target.x-rocket.x,dy=(y-14)-rocket.y;
+        rocket.x+=dx*Math.min(1,dt*6);rocket.y+=dy*Math.min(1,dt*6);
+        drawRocket(rocket.x,rocket.y,dx*0.02);
+        if(Math.abs(dx)<3&&Math.abs(dy)<3){resolve();}}
+      else if(phase==='crash'){rocket.vy+=8*dt;rocket.y+=rocket.vy*40*dt;rocket.x+=1;
+        drawRocket(rocket.x,rocket.y,0.5);}
+      else{drawRocket(target.x,y-14,0);}
+
+      // تایمر
+      if(phase==='choose'&&!paused){timeLeft-=dt;if(timeLeft<=0)timeout();}
+      ctx.fillStyle='rgba(0,0,0,.07)';ctx.beginPath();ctx.roundRect(16,H-14,W-32,6,3);ctx.fill();
+      ctx.fillStyle=timeLeft<3.5?'#ff5d8f':'#22c993';ctx.beginPath();ctx.roundRect(16,H-14,(W-32)*clamp(timeLeft/timeMax,0,1),6,3);ctx.fill();
+    }
+    floaters=floaters.filter(f=>{f.t+=dt;f.y-=28*dt;ctx.globalAlpha=clamp(1-f.t,0,1);
+      ctx.fillStyle=f.txt[0]==='+'?'#0d7a4f':'#ff5d8f';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      ctx.fillText(f.txt,f.x,f.y);ctx.globalAlpha=1;return f.t<1.2;});
+    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
+    ctx.globalAlpha=1;}
+
+  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+      c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
+  function makeStars(){stars2=[];for(let i=0;i<16;i++)stars2.push({x:Math.random()*W,y:Math.random()*H*0.5,r:1+Math.random()*2,tw:Math.random()*6});}
+
+  function endGame(won){state='end';const pct=score/(TOTAL*14);
+    const stars=pct>=.8?3:pct>=.55?2:1;
+    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'تمام شد، آفرین!':'باختی! دوباره تلاش کن';
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
+    $('em').textContent=won?'گرد کردن به نزدیک‌ترین عدد را یاد گرفتی!':'رقمِ سمتِ راست ≥ ۵ ⇐ بالا، وگرنه پایین 💪';
+    $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
+
+  let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
+    draw(dt);requestAnimationFrame(loop);}
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');makeStars();score=0;lives=3;combo=0;loadRound(0);state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');makeStars();score=0;lives=3;combo=0;confetti=[];loadRound(0);state='play';};
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
