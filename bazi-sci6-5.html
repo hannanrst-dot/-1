@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>زلزله! جای امن — زمینِ پویا</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:linear-gradient(160deg,#ffe08a 0%,#ff9f7a 50%,#ff6b8a 100%);
+    min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(90,40,40,.2)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
+  .qbar{background:#fff;border-radius:16px;padding:8px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(90,40,40,.2)}
+  .qbar b{font-size:16px;font-weight:900}.qbar .s{color:var(--muted);font-size:12px;margin-top:2px;font-weight:700}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(90,40,40,.16)}
+  #prog{height:100%;width:0;background:linear-gradient(90deg,var(--gr),var(--yl));transition:width .2s}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(90,40,40,.3)}
+  canvas{display:block;width:100%;touch-action:none}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.93);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:22px;color:#e0574e}.ov p{margin:0;color:#4a2f2a;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#ff8a7a,#ff5d6c);box-shadow:0 8px 20px rgba(255,93,108,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
+  .pill{background:#fff0ef;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:#e0574e;font-size:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
+    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۸</span></div>
+    <div class="grow"></div>
+    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+  </div>
+  <div class="qbar"><b id="q">🚨 زلزله! کجا پناه بگیری؟</b><div class="s" id="qs">جای امن را بزن!</div></div>
+  <div class="track"><div id="prog"></div></div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">🚨🏠</div><h1>زلزله! جای امن</h1>
+      <p>وقتی زمین می‌لرزد، باید سریع <b>جای امن</b> پیدا کنی!<br>
+      امن: زیرِ میزِ محکم، کنارِ دیوارِ داخلی، محافظت از سر.<br>
+      خطرناک: کنارِ پنجره و شیشه، زیرِ اشیای آویزان، قفسه‌ی سنگین، آسانسور.<br>
+      گزینه‌ی امن را بزن! 🛡️</p>
+      <button class="btn" id="btnStart">شروع بازی</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="scoreBig">امتیاز: <b id="esc">۰</b></div>
+      <div class="pill" id="em"></div>
+      <button class="btn" id="btnAgain">دوباره</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='sci6-5';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
+  const sCombo=()=>{beep(880,.08,'square',.12);setTimeout(()=>beep(1180,.1,'square',.12),70);};
+  const sBad=()=>beep(150,.3,'sawtooth',.15);
+  const sRumble=()=>beep(60,.5,'sawtooth',.08);
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
+
+  const ROUNDS=[
+    [{e:'🪑',t:'زیرِ میزِ محکم',s:1},{e:'🪟',t:'کنارِ پنجره',s:0},{e:'💡',t:'زیرِ چراغِ آویزان',s:0}],
+    [{e:'🧱',t:'گوشه‌ی دیوارِ داخلی',s:1},{e:'📚',t:'کنارِ قفسه‌ی سنگین',s:0},{e:'🪞',t:'جلوِ آینه',s:0}],
+    [{e:'🪑',t:'زیرِ میزِ تحریر',s:1},{e:'🛗',t:'سوارِ آسانسور',s:0},{e:'🍶',t:'کنارِ ویترینِ شیشه‌ای',s:0}],
+    [{e:'🧱',t:'کنارِ ستونِ محکم',s:1},{e:'🪴',t:'زیرِ گلدانِ طاقچه',s:0},{e:'📺',t:'نزدیکِ تلویزیون',s:0}],
+    [{e:'🪑',t:'زیرِ میزِ ناهارخوری',s:1},{e:'🏃',t:'دویدن در راه‌پله',s:0},{e:'🚪',t:'کنارِ کمدِ بلند',s:0}],
+    [{e:'🙆',t:'گوشه‌ی امن، محافظت از سر',s:1},{e:'🪟',t:'پریدن از پنجره',s:0},{e:'❄️',t:'زیرِ کولرِ آویز',s:0}],
+    [{e:'🪑',t:'زیرِ میز، گرفتنِ پایه',s:1},{e:'🛗',t:'استفاده از آسانسور',s:0},{e:'🗄️',t:'کنارِ قفسه',s:0}],
+    [{e:'🧱',t:'کنارِ دیوارِ داخلی',s:1},{e:'🪟',t:'نزدیکِ شیشه‌ها',s:0},{e:'🏃',t:'دویدن به بیرون',s:0}]];
+  const WHY={'کنارِ پنجره':'شیشه می‌شکند','زیرِ چراغِ آویزان':'ممکن است بیفتد','کنارِ قفسه‌ی سنگین':'قفسه واژگون می‌شود',
+    'جلوِ آینه':'آینه می‌شکند','سوارِ آسانسور':'آسانسور خطرناک است','کنارِ ویترینِ شیشه‌ای':'شیشه می‌شکند',
+    'زیرِ گلدانِ طاقچه':'گلدان می‌افتد','نزدیکِ تلویزیون':'تلویزیون می‌افتد','دویدن در راه‌پله':'ممکن است بیفتی',
+    'کنارِ کمدِ بلند':'کمد واژگون می‌شود','پریدن از پنجره':'خیلی خطرناک است','زیرِ کولرِ آویز':'کولر می‌افتد',
+    'استفاده از آسانسور':'در زلزله ممنوع است','کنارِ قفسه':'قفسه می‌افتد','نزدیکِ شیشه‌ها':'شیشه می‌شکند',
+    'دویدن به بیرون':'هنگامِ لرزش خطرناک است'};
+  const TOTAL=ROUNDS.length;
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(420,Math.min(510,Math.round(W*1.08)));dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+
+  let state='start',ri=0,score=0,lives=3,combo=0,opts,phase,timeLeft,timeMax,pick=-1;
+  let confetti=[],floaters=[],quake=0;
+  function cardRect(i){const x=W*0.07,w=W*0.86,gap=H*0.03,h=(H*0.66-2*gap)/3,y0=H*0.14;
+    return{x,y:y0+i*(h+gap),w,h};}
+
+  function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+  function loadRound(i){ri=i;opts=shuffle(ROUNDS[i]);phase='aim';pick=-1;quake=1;
+    cv.dataset.safe=opts.findIndex(o=>o.s===1);
+    timeMax=Math.max(4,7-i*0.35);timeLeft=timeMax;sRumble();
+    $('round').textContent=fa((i+1)+'/'+TOTAL);
+    $('q').textContent='🚨 زلزله! کجا پناه بگیری؟';$('qs').textContent='جای امن را بزن!';updateHud();}
+  function updateHud(){$('score').textContent=fa(score);
+    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
+    $('prog').style.width=(100*ri/TOTAL)+'%';}
+
+  cv.addEventListener('pointerdown',e=>{if(state!=='play'||phase!=='aim')return;
+    const rc=cv.getBoundingClientRect();const x=(e.clientX-rc.left)*(W/rc.width),y=(e.clientY-rc.top)*(H/rc.height);
+    for(let i=0;i<3;i++){const r=cardRect(i);if(x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h){choose(i);return;}}});
+  function choose(i){pick=i;const good=opts[i].s===1;phase='res';quake=0;
+    if(good){combo++;const speed=Math.round(clamp(timeLeft,0,7));const gain=10+speed*2+(combo>=2?combo*2:0);
+      score+=gain;combo>=2?sCombo():sOk();
+      floaters.push({x:W/2,y:H*0.1,t:0,txt:'+'+fa(gain)+(combo>=2?' ×'+fa(combo):'')});
+      for(let k=0;k<20;k++)confetti.push(spawnConf(W/2,H*0.3));updateHud();setTimeout(next,1250);}
+    else{lives--;combo=0;sBad();
+      floaters.push({x:W/2,y:H*0.1,t:0,txt:'خطرناک بود!'});updateHud();
+      setTimeout(()=>{if(state!=='play')return;if(lives<=0){endGame(false);return;}next();},1400);}}
+  function timeup(){if(phase!=='aim')return;lives--;combo=0;sBad();quake=0;
+    floaters.push({x:W/2,y:H*0.1,t:0,txt:'دیر شد!'});updateHud();phase='wait';
+    setTimeout(()=>{if(state!=='play')return;if(lives<=0){endGame(false);return;}next();},700);}
+  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
+
+  function draw(dt){
+    let sx=0,sy=0;if(quake>0&&phase==='aim'){sx=(Math.random()-.5)*7;sy=(Math.random()-.5)*7;}
+    ctx.save();ctx.translate(sx,sy);
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#fff2e6');bg.addColorStop(1,'#ffe6ea');
+    ctx.fillStyle=bg;ctx.fillRect(-10,-10,W+20,H+20);
+    if(state!=='start'&&opts){
+      if(combo>=2){ctx.fillStyle='#c2185b';ctx.font='900 15px Vazirmatn';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('🔥 کومبو ×'+fa(combo),10,6);}
+      for(let i=0;i<3;i++){const r=cardRect(i);const o=opts[i];
+        const isPick=(phase==='res'&&pick===i);const showSafe=(phase==='res'&&o.s===1);
+        ctx.fillStyle=showSafe?'#e3fbef':(isPick&&o.s===0?'#ffe6ea':'#fff');
+        ctx.strokeStyle=showSafe?'#22c993':(isPick&&o.s===0?'#ff5d6c':'#ffcaa8');ctx.lineWidth=(showSafe||isPick)?4:2.5;
+        ctx.beginPath();ctx.roundRect(r.x,r.y,r.w,r.h,16);ctx.fill();ctx.stroke();
+        ctx.font='34px serif';ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText(o.e,r.x+r.w-18,r.y+r.h/2);
+        ctx.fillStyle='#1a2452';ctx.font='900 16px Vazirmatn';ctx.fillText(o.t,r.x+r.w-58,r.y+r.h/2);
+        if(phase==='res'){if(o.s===1){ctx.font='22px serif';ctx.textAlign='left';ctx.fillText('✅',r.x+14,r.y+r.h/2);}
+          else{ctx.fillStyle='#c2185b';ctx.font='800 11px Vazirmatn';ctx.textAlign='left';ctx.fillText('⚠️ '+(WHY[o.t]||'خطرناک'),r.x+14,r.y+r.h/2);}}}
+      ctx.textBaseline='alphabetic';
+      if(phase==='aim'){timeLeft-=dt;if(timeLeft<=0)timeup();}
+      ctx.fillStyle='rgba(0,0,0,.07)';ctx.beginPath();ctx.roundRect(16,H-12,W-32,6,3);ctx.fill();
+      ctx.fillStyle=timeLeft<2?'#ff5d6c':'#ff9f45';ctx.beginPath();ctx.roundRect(16,H-12,(W-32)*clamp(timeLeft/timeMax,0,1),6,3);ctx.fill();
+    }
+    floaters=floaters.filter(f=>{f.t+=dt;f.y-=24*dt;ctx.globalAlpha=clamp(1-f.t,0,1);
+      ctx.fillStyle=f.txt[0]==='+'?'#0d7a4f':'#ff5d6c';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      ctx.fillText(f.txt,f.x,f.y);ctx.globalAlpha=1;return f.t<1.3;});
+    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
+    ctx.globalAlpha=1;ctx.restore();}
+
+  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+      c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
+
+  function endGame(won){state='end';const pct=score/(TOTAL*16);
+    const stars=pct>=.8?3:pct>=.55?2:1;
+    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    $('ef').textContent=won?'🛡️':'😅';$('et').textContent=won?'قهرمانِ ایمنی شدی!':'باختی! دوباره تلاش کن';
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
+    $('em').textContent=won?'در زلزله: زیرِ میزِ محکم، دور از شیشه و اشیای آویزان':'جای امن = زیرِ میزِ محکم و دور از شیشه 💪';
+    $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
+
+  let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
+    draw(dt);requestAnimationFrame(loop);}
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;combo=0;loadRound(0);state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;combo=0;confetti=[];loadRound(0);state='play';};
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

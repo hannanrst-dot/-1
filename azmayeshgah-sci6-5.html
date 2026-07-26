@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>آزمایشگاهِ کامل — زمینِ پویا</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:linear-gradient(160deg,#ffe08a 0%,#ff9f7a 50%,#ff6b8a 100%);
+    min-height:100vh;padding:8px;overflow-x:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .top{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:13px;box-shadow:0 4px 12px rgba(90,40,40,.2)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}
+  .title{background:linear-gradient(180deg,#ff8a7a,#ff5d6c);color:#fff;border-radius:16px;padding:8px 12px;text-align:center;font-weight:900;font-size:15px;box-shadow:0 4px 12px rgba(255,93,108,.35)}
+  .tabs{display:flex;gap:5px;margin-top:6px}
+  .tab{flex:1;background:#fff;border:2px solid #ffd3c0;border-radius:12px;padding:8px 4px;font-weight:800;font-size:12px;cursor:pointer;color:var(--muted);text-align:center}
+  .tab.on{background:#ff5d6c;color:#fff;border-color:#ff5d6c}
+  .tab .ck{color:#22c993}.tab.on .ck{color:#fff}
+  .stage{position:relative;border-radius:18px;overflow:hidden;box-shadow:0 8px 24px rgba(90,40,40,.25);margin-top:6px}
+  canvas{display:block;width:100%;touch-action:none}
+  .card{background:#fff;border-radius:16px;padding:12px;margin-top:8px;box-shadow:0 4px 14px rgba(90,40,40,.16);text-align:center}
+  .expl{font-weight:900;font-size:14px;margin-bottom:6px}
+  .obs{background:#fff3ea;border-radius:12px;padding:9px 11px;font-size:13px;font-weight:700;color:#5a3a2a;line-height:1.8;min-height:22px;margin-top:8px}
+  .cpanel{display:none}.cpanel.on{display:block}
+  .btns{display:flex;flex-wrap:wrap;gap:7px;justify-content:center}
+  .ab{border:2px solid #ffc59a;background:#fff3ea;color:#a8461e;border-radius:12px;padding:10px 12px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer}
+  .ab:active{transform:translateY(1px)}.ab.done{background:#e3fbef;border-color:#22c993;color:#0d7a4f}
+  .done{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:16px;color:#fff;padding:12px 26px;border-radius:14px;background:linear-gradient(180deg,#5bd7ae,var(--gr));box-shadow:0 6px 16px rgba(34,201,147,.4);margin-top:10px;width:100%}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px;gap:9px;background:rgba(255,255,255,.97);z-index:9;border-radius:18px;overflow-y:auto}
+  .ov h1{margin:0;font-size:20px;color:#e0574e}.ov p{margin:0;color:#5a3a2a;font-size:13px;line-height:1.8;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:17px;color:#fff;padding:12px 28px;border-radius:15px;background:linear-gradient(180deg,#ff8a7a,#ff5d6c);box-shadow:0 8px 20px rgba(255,93,108,.4);margin-top:4px}
+  .stars{font-size:36px;letter-spacing:6px}.emoji{font-size:40px}.hidden{display:none}
+  .sumrow{display:flex;gap:8px;align-items:center;background:#fff3ea;border-radius:12px;padding:8px 10px;width:100%;font-size:12.5px;font-weight:800;text-align:right}
+  .sumrow b{color:#e0574e}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="chip"><span class="lbl">کشف‌شده</span> <span id="cnt">۰/۳</span></div>
+    <div class="grow"></div>
+    <div class="chip">🔬 آزمایشگاهِ کامل</div>
+  </div>
+  <div class="title">زمینِ پویا — همه‌ی آزمایش‌ها</div>
+  <div class="tabs" id="tabs">
+    <div class="tab on" data-s="1">۱ تخم‌مرغِ لایه‌ها <span class="ck hidden">✓</span></div>
+    <div class="tab" data-s="2">۲ چوبِ خشک/تَر <span class="ck hidden">✓</span></div>
+    <div class="tab" data-s="3">۳ آتش‌فشان <span class="ck hidden">✓</span></div>
+  </div>
+  <div class="stage"><canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">🥚🌋</div><h1>آزمایشگاهِ زمینِ پویا</h1>
+      <p>سه آزمایشِ این فصل:<br>
+      <b>۱)</b> تخم‌مرغِ آب‌پز مثلِ لایه‌های زمین.<br>
+      <b>۲)</b> چوبِ خشک می‌شکند، چوبِ تَر خم می‌شود (چرا زلزله؟).<br>
+      <b>۳)</b> آتش‌فشان و موادِ مذاب.<br>از بالا هرکدام را انتخاب کن.</p>
+      <button class="btn" id="btnBegin">شروع</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji">🏆</div><h1>هر سه آزمایش انجام شد!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="sumrow">🥚 <span><b>لایه‌ها:</b></span> تخم‌مرغ سه لایه دارد مثلِ زمین: پوسته، سفیده(گوشته)، زرده(هسته).</div>
+      <div class="sumrow">🪵 <span><b>زلزله:</b></span> سنگ‌کره شکننده است؛ وقتی نیرو زیاد شود می‌شکند و انرژی آزاد می‌شود.</div>
+      <div class="sumrow">🌋 <span><b>آتش‌فشان:</b></span> موادِ مذابِ داغ با فشار از دلِ زمین بیرون می‌زنند.</div>
+      <button class="btn" id="btnAgain">از اول</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="expl" id="expl">—</div>
+    <div class="cpanel on" id="c1"><div class="btns">
+      <button class="ab" data-e="shell">👆 فشارِ پوسته</button>
+      <button class="ab" data-e="white">👆 فشارِ سفیده</button>
+      <button class="ab" data-e="cut">🔪 نصف کن</button>
+    </div></div>
+    <div class="cpanel" id="c2"><div class="btns">
+      <button class="ab" data-w="200">🏋️ وزنه‌ی ۲۰۰ گرم</button>
+      <button class="ab" data-w="300">🏋️ وزنه‌ی ۳۰۰ گرم</button>
+      <button class="ab" data-w="350">🏋️ وزنه‌ی ۳۵۰ گرم</button>
+    </div></div>
+    <div class="cpanel" id="c3"><div class="btns">
+      <button class="ab" data-v="heat">🔥 گرم کن</button>
+      <button class="ab" data-v="reset">↺ دوباره</button>
+    </div></div>
+    <div class="obs" id="obs">…</div>
+    <button class="done" id="btnEnd">دیدنِ نتیجه 🏆</button>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='sci6-5-lab';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sTap=()=>beep(360,.08,'sine',.1);
+  const sCrack=()=>{beep(200,.12,'sawtooth',.14);setTimeout(()=>beep(120,.16,'square',.12),60);};
+  const sErupt=()=>{beep(80,.5,'sawtooth',.14);};
+  const sStep=()=>{beep(480,.06,'square',.1);setTimeout(()=>beep(720,.08,'square',.1),70);};
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+
+  const explored={1:false,2:false,3:false};let station=1;
+  const SNAME={1:'تخم‌مرغِ لایه‌ها',2:'چوبِ خشک/تَر',3:'آتش‌فشان'};
+  const EXPL={1:'آزمایشِ ۱ — تخم‌مرغِ آب‌پز را مثلِ زمین بررسی کن.',
+    2:'آزمایشِ ۲ — به چوبِ خشک و تَر وزنه بیاویز و مقایسه کن.',
+    3:'آزمایشِ ۳ — آتش‌فشان را گرم کن تا موادِ مذاب فوران کند.'};
+
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr,conf=[];
+  function layout(){const st=cv.parentElement;W=st.clientWidth;H=Math.max(240,Math.min(310,Math.round(W*0.64)));
+    dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+  function spawnConf(){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    for(let i=0;i<50;i++)conf.push({x:W/2,y:H*0.4,vx:(Math.random()-.5)*9,vy:-Math.random()*8-3,
+      r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[(Math.random()*cols.length)|0],life:1.5+Math.random()});}
+  function markExplored(n){if(!explored[n]){explored[n]=true;
+    document.querySelector('.tab[data-s="'+n+'"] .ck').classList.remove('hidden');
+    $('cnt').textContent=fa(Object.values(explored).filter(Boolean).length)+'/۳';}}
+
+  /* ===== ۱ تخم‌مرغ ===== */
+  let egg='whole',eggShake=0;
+  $('c1').addEventListener('click',e=>{const b=e.target.closest('.ab');if(!b)return;const a=b.dataset.e;
+    if(a==='shell'){eggShake=1;sTap();$('obs').textContent='🔎 پوسته سفت و شکننده است — مانندِ پوسته‌ی زمین (سنگ‌کره).';}
+    else if(a==='white'){eggShake=0.5;sTap();$('obs').textContent='🔎 سفیده نرم‌تر و کمی فنری است — مانندِ گوشته.';}
+    else{egg='cut';sCrack();$('obs').innerHTML='🔎 سه لایه دیده می‌شود: <b>پوسته</b>↔پوسته، <b>سفیده</b>↔گوشته، <b>زرده</b>↔هسته!';markExplored(1);}});
+
+  /* ===== ۲ چوب ===== */
+  let wgt=0,broke=false;
+  $('c2').addEventListener('click',e=>{const b=e.target.closest('.ab');if(!b)return;wgt=+b.dataset.w;
+    broke=(wgt>=350);broke?sCrack():sTap();
+    $('obs').innerHTML= wgt>=350
+      ? '🔎 چوبِ خشک <b>شکست</b> (شکننده)، ولی چوبِ تَر فقط <b>خم شد</b> (انعطاف‌پذیر). سنگ‌کره هم شکننده است؛ می‌شکند و <b>زلزله</b> می‌شود!'
+      : '🔎 با وزنه‌ی '+fa(wgt)+' گرم، چوبِ تَر بیشتر خم شد و چوبِ خشک کمی خم شد ولی نشکست.';
+    if(wgt>=350)markExplored(2);});
+
+  /* ===== ۳ آتش‌فشان ===== */
+  let heat=0,erupt=false,lava=[];
+  $('c3').addEventListener('click',e=>{const b=e.target.closest('.ab');if(!b)return;
+    if(b.dataset.v==='reset'){heat=0;erupt=false;lava=[];$('obs').textContent='آتش‌فشان سرد شد. دوباره گرم کن.';return;}
+    heat=Math.min(1,heat+0.34);sStep();
+    if(heat>=1&&!erupt){erupt=true;sErupt();for(let i=0;i<40;i++)lava.push({x:W/2,y:H*0.34,vx:(Math.random()-.5)*7,vy:-Math.random()*9-4,life:1.4});
+      $('obs').innerHTML='🌋 <b>فوران!</b> موادِ مذابِ داغ با فشار از دهانه بیرون زد — مثلِ موادِ مذابِ درونِ زمین.';markExplored(3);}
+    else if(!erupt)$('obs').textContent='🔥 داغ‌تر می‌شود… بازهم گرم کن تا فوران کند!';});
+
+  /* ===== ترسیم ===== */
+  function draw(){requestAnimationFrame(draw);
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#fff4ea');bg.addColorStop(1,'#ffe9ec');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    if(station===1)drawEgg();else if(station===2)drawWood();else drawVolcano();
+    conf=conf.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=Math.max(0,Math.min(1,c.life));
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});ctx.globalAlpha=1;}
+
+  function drawEgg(){const cx=W/2,cy=H*0.48;let sx=0;if(eggShake>0){sx=(Math.random()-.5)*eggShake*8;eggShake-=0.03;}
+    ctx.save();ctx.translate(cx+sx,cy);
+    if(egg!=='cut'){ctx.fillStyle='#fdf3e0';ctx.strokeStyle='#e6d3b3';ctx.lineWidth=3;
+      ctx.beginPath();ctx.ellipse(0,0,52,66,0,0,7);ctx.fill();ctx.stroke();
+      ctx.fillStyle='#fff8ef';ctx.beginPath();ctx.ellipse(-14,-18,16,20,0,0,7);ctx.fill();
+      ctx.fillStyle='#8a7a5a';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';ctx.fillText('تخم‌مرغِ آب‌پز',0,90);}
+    else{// نصف‌شده: لایه‌ها
+      ctx.strokeStyle='#e6d3b3';ctx.lineWidth=4;ctx.fillStyle='#fdf3e0';
+      ctx.beginPath();ctx.ellipse(0,0,54,68,0,0,7);ctx.fill();ctx.stroke();// پوسته
+      ctx.fillStyle='#fffdf5';ctx.beginPath();ctx.ellipse(0,0,46,60,0,0,7);ctx.fill();// سفیده
+      ctx.fillStyle='#ffcf3b';ctx.beginPath();ctx.arc(0,4,24,0,7);ctx.fill();// زرده
+      // برچسب‌ها
+      ctx.fillStyle='#8a6a2a';ctx.font='900 12px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('زرده = هسته',0,4);
+      ctx.fillStyle='#6a5a2a';ctx.fillText('سفیده = گوشته',0,-44);
+      ctx.fillStyle='#8a6a4a';ctx.fillText('پوسته',0,-62);}
+    ctx.restore();}
+
+  function drawWood(){const tableX=W*0.16,y=H*0.30,len=W*0.6;
+    // میز
+    ctx.fillStyle='#b58a55';ctx.fillRect(0,y-10,tableX,H);
+    // دو تیرِ چوب از لبه‌ی میز
+    function beam(yy,wet){const droop=wet?clamp(wgt/350,0,1)*40:(broke?0:clamp(wgt/350,0,1)*8);
+      ctx.strokeStyle=wet?'#7a9a4a':'#c8963c';ctx.lineWidth=9;ctx.lineCap='round';
+      if(!wet&&broke){// شکسته
+        ctx.beginPath();ctx.moveTo(tableX,yy);ctx.lineTo(tableX+len*0.55,yy+6);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(tableX+len*0.62,yy+40);ctx.lineTo(tableX+len,yy+70);ctx.stroke();
+        ctx.font='20px serif';ctx.fillText('💥',tableX+len*0.58,yy-6);}
+      else{ctx.beginPath();ctx.moveTo(tableX,yy);ctx.quadraticCurveTo(tableX+len/2,yy+droop*0.6,tableX+len,yy+droop);ctx.stroke();
+        if(wgt){ctx.font='18px serif';ctx.textAlign='center';ctx.fillText('🏋️',tableX+len,yy+droop+14);}}
+      ctx.fillStyle=wet?'#4a7a2a':'#a8701e';ctx.font='800 12px Vazirmatn';ctx.textAlign='right';ctx.textBaseline='middle';
+      ctx.fillText(wet?'چوبِ تَر':'چوبِ خشک',tableX-4,yy);}
+    beam(y+20,false);beam(y+120,true);
+    ctx.fillStyle='#8a5a2a';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.fillText(wgt?('وزنه: '+fa(wgt)+' گرم'):'یک وزنه انتخاب کن',W/2,H*0.94);}
+
+  function drawVolcano(){const cx=W/2,base=H*0.86;
+    // کوه
+    ctx.fillStyle='#7a5a3a';ctx.beginPath();ctx.moveTo(cx-90,base);ctx.lineTo(cx-24,H*0.34);ctx.lineTo(cx+24,H*0.34);ctx.lineTo(cx+90,base);ctx.closePath();ctx.fill();
+    // دهانه با گدازه (رنگ بر اساسِ heat)
+    const hot=Math.round(255),g2=Math.round(90+120*(1-heat));
+    ctx.fillStyle='rgb(255,'+Math.round(200-heat*160)+',40)';ctx.beginPath();ctx.ellipse(cx,H*0.34,24,8,0,0,7);ctx.fill();
+    // درخششِ گرما
+    if(heat>0){ctx.save();ctx.globalAlpha=heat*0.5;ctx.fillStyle='#ff5d3d';ctx.beginPath();ctx.arc(cx,H*0.34,20+heat*10,0,7);ctx.fill();ctx.restore();}
+    // گدازه‌ی فوران
+    lava=lava.filter(p=>{p.vy+=0.35;p.x+=p.vx;p.y+=p.vy;p.life-=0.02;
+      ctx.globalAlpha=clamp(p.life,0,1);ctx.fillStyle=Math.random()<0.5?'#ff5d3d':'#ffb03a';
+      ctx.beginPath();ctx.arc(p.x,p.y,3+Math.random()*2,0,7);ctx.fill();return p.life>0&&p.y<H;});ctx.globalAlpha=1;
+    // دماسنج
+    ctx.fillStyle='rgba(0,0,0,.1)';ctx.beginPath();ctx.roundRect(W-30,H*0.2,12,H*0.5,6);ctx.fill();
+    ctx.fillStyle='#ff5d3d';ctx.beginPath();ctx.roundRect(W-30,H*0.2+(H*0.5)*(1-heat),12,(H*0.5)*heat,6);ctx.fill();
+    ctx.fillStyle='#a8461e';ctx.font='800 11px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.fillText(erupt?'🌋 فوران!':'گرما',W-24,H*0.16);}
+
+  function switchStation(n){station=n;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',+t.dataset.s===n));
+    for(let i=1;i<=3;i++)$('c'+i).classList.toggle('on',i===n);
+    $('expl').textContent=EXPL[n];
+    $('obs').textContent=({1:'یکی از دکمه‌ها را بزن (فشار بده یا نصف کن).',
+      2:'یک وزنه را انتخاب کن.',3:'برای فوران، چند بار «گرم کن» را بزن.'})[n];}
+  $('tabs').addEventListener('click',e=>{const t=e.target.closest('.tab');if(t)switchStation(+t.dataset.s);});
+
+  function finish(){const c=Object.values(explored).filter(Boolean).length;
+    if(c<3){const rem=[1,2,3].filter(n=>!explored[n]).map(n=>SNAME[n]);
+      $('obs').innerHTML='⏳ هنوز مانده: <b>'+rem.join('، ')+'</b>.';beep(200,.2,'sawtooth',.1);return;}
+    $('es').textContent='⭐⭐⭐';$('ovEnd').classList.remove('hidden');sWin();spawnConf();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:60,stars:3,gameId:GAMEID},'*');}}
+  $('btnEnd').onclick=finish;
+  $('btnBegin').onclick=()=>{ac();$('ovStart').classList.add('hidden');switchStation(1);};
+  $('btnAgain').onclick=()=>{location.reload();};
+  switchStation(1);requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
