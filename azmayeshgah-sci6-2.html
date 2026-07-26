@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>آزمایشگاه — تغییرِ فیزیکی یا شیمیایی</title>
+<title>آزمایشگاهِ کامل — سرگذشتِ دفترِ من</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;--red:#ff5d6c;}
@@ -16,83 +16,93 @@
   .top{display:flex;gap:8px;align-items:center;margin-bottom:6px}
   .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:13px;box-shadow:0 4px 12px rgba(60,40,90,.2)}
   .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}
-  .title{background:linear-gradient(180deg,#a97bff,#7b5cff);color:#fff;border-radius:16px;padding:8px 12px;text-align:center;font-weight:900;font-size:16px;box-shadow:0 4px 12px rgba(123,92,255,.35)}
-  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin:6px 0;box-shadow:0 2px 8px rgba(60,40,90,.16)}
-  #prog{height:100%;width:0;background:linear-gradient(90deg,var(--pu),var(--pk));transition:width .3s}
-  .stage{position:relative;background:#fff;border-radius:22px;padding:16px 14px;box-shadow:0 10px 30px rgba(60,40,90,.25);min-height:430px;text-align:center;overflow:hidden}
-  .specName{font-weight:900;font-size:18px;margin-top:2px}
-  .bench{display:flex;align-items:center;justify-content:center;gap:6px;margin:14px 0 6px;min-height:110px}
-  .spec{font-size:74px;line-height:1;transition:transform .3s}
-  .spec.shake{animation:sk .5s}
-  @keyframes sk{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px) rotate(-6deg)}40%{transform:translateX(8px) rotate(6deg)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
-  .arrow{font-size:30px;color:var(--muted)}
-  .obs{background:#f4f0ff;border-radius:14px;padding:10px 12px;font-size:14px;font-weight:700;color:#3a2f5a;line-height:1.9;min-height:20px}
-  .qask{font-weight:900;font-size:15px;margin:12px 0 4px}
-  .act{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 30px;border-radius:16px;background:linear-gradient(180deg,#ffb057,var(--or));box-shadow:0 6px 16px rgba(255,159,69,.45);margin-top:10px}
-  .act:active{transform:translateY(2px)}
+  .title{background:linear-gradient(180deg,#a97bff,#7b5cff);color:#fff;border-radius:16px;padding:8px 12px;text-align:center;font-weight:900;font-size:15px;box-shadow:0 4px 12px rgba(123,92,255,.35)}
+  .tabs{display:flex;gap:6px;margin-top:6px}
+  .tab{flex:1;background:#fff;border:2px solid #e4d7ff;border-radius:12px;padding:8px 6px;font-weight:800;font-size:13px;cursor:pointer;color:var(--muted);text-align:center}
+  .tab.on{background:#7b5cff;color:#fff;border-color:#7b5cff}
+  .tab .ck{color:#22c993}.tab.on .ck{color:#fff}
+  .stage{position:relative;border-radius:18px;overflow:hidden;box-shadow:0 8px 24px rgba(60,40,90,.25);margin-top:6px}
+  canvas{display:block;width:100%;touch-action:none;background:#fff}
+  .card{background:#fff;border-radius:16px;padding:12px;margin-top:8px;box-shadow:0 4px 14px rgba(60,40,90,.16);text-align:center}
+  .expl{font-weight:900;font-size:14px;margin-bottom:6px}
+  .obs{background:#f4f0ff;border-radius:12px;padding:9px 11px;font-size:13px;font-weight:700;color:#3a2f5a;line-height:1.8;min-height:22px;margin-top:8px}
+  .cpanel{display:none}.cpanel.on{display:block}
+  .act{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:17px;color:#fff;padding:12px 26px;border-radius:14px;background:linear-gradient(180deg,#ffb057,var(--or));box-shadow:0 6px 16px rgba(255,159,69,.45);margin-top:4px}
+  .act:active{transform:translateY(2px)}.act:disabled{opacity:.5}
   .choices{display:flex;gap:10px;margin-top:10px}
-  .ch{flex:1;border:2px solid;border-radius:16px;padding:14px 8px;font-family:inherit;font-weight:900;font-size:15px;cursor:pointer;background:#fff;line-height:1.5}
+  .ch{flex:1;border:2px solid;border-radius:16px;padding:13px 8px;font-family:inherit;font-weight:900;font-size:15px;cursor:pointer;background:#fff;line-height:1.4}
   .ch.phys{border-color:var(--bl);color:var(--bl)}.ch.chem{border-color:var(--red);color:var(--red)}
   .ch small{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-top:3px}
-  .ch.okp{background:#e9f4ff}.ch.okc{background:#ffecef}
   .ch:disabled{opacity:.55}
-  .fb{margin-top:12px;border-radius:14px;padding:10px 12px;font-weight:800;font-size:13.5px;line-height:1.8;display:none}
-  .fb.good{background:#e3fbef;color:#0d7a4f}.fb.bad{background:#fff0f3;color:#c2185b}
-  .next{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:16px;color:#fff;padding:12px 26px;border-radius:14px;background:linear-gradient(180deg,#a97bff,#7b5cff);box-shadow:0 6px 16px rgba(123,92,255,.4);margin-top:12px;display:none}
-  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:10px;background:rgba(255,255,255,.96);z-index:9;border-radius:22px}
-  .ov h1{margin:0;font-size:21px;color:#7b5cff}.ov p{margin:0;color:#3a2f5a;font-size:13.5px;line-height:1.9;font-weight:700}
-  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:17px;color:#fff;padding:13px 30px;border-radius:16px;background:linear-gradient(180deg,#a97bff,#7b5cff);box-shadow:0 8px 20px rgba(123,92,255,.4);margin-top:6px}
-  .stars{font-size:38px;letter-spacing:6px}.emoji{font-size:42px}.hidden{display:none}
-  .legend{font-size:11.5px;color:var(--muted);font-weight:700;background:#f6f4ff;border-radius:12px;padding:8px;line-height:1.8;text-align:right}
-  canvas#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:8}
+  .steps{display:flex;flex-wrap:wrap;gap:7px;justify-content:center}
+  .sb{border:2px solid #cdbcff;background:#f4f0ff;color:#5b3fb0;border-radius:12px;padding:9px 11px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer}
+  .sb.done{background:#e3fbef;border-color:#22c993;color:#0d7a4f}
+  .sb.now{background:#7b5cff;color:#fff;border-color:#7b5cff}
+  .sb:disabled{opacity:.55}
+  .next{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:15px;color:#fff;padding:11px 24px;border-radius:14px;background:linear-gradient(180deg,#a97bff,#7b5cff);box-shadow:0 6px 16px rgba(123,92,255,.4);margin-top:10px;display:none}
+  .done{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:16px;color:#fff;padding:12px 26px;border-radius:14px;background:linear-gradient(180deg,#5bd7ae,var(--gr));box-shadow:0 6px 16px rgba(34,201,147,.4);margin-top:10px;width:100%}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px;gap:9px;background:rgba(255,255,255,.97);z-index:9;border-radius:18px;overflow-y:auto}
+  .ov h1{margin:0;font-size:20px;color:#7b5cff}.ov p{margin:0;color:#3a2f5a;font-size:13px;line-height:1.8;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:17px;color:#fff;padding:12px 28px;border-radius:15px;background:linear-gradient(180deg,#a97bff,#7b5cff);box-shadow:0 8px 20px rgba(123,92,255,.4);margin-top:4px}
+  .stars{font-size:36px;letter-spacing:6px}.emoji{font-size:40px}.hidden{display:none}
+  .sumrow{display:flex;gap:8px;align-items:center;background:#f6f4ff;border-radius:12px;padding:8px 10px;width:100%;font-size:12.5px;font-weight:800;text-align:right}
+  .sumrow b{color:#7b5cff}
+  canvas#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:8;background:transparent}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="top">
-    <div class="chip"><span class="lbl">آزمایش</span> <span id="cnt">۰/۶</span></div>
-    <div class="chip"><span class="lbl">درست</span> <span id="ok">۰</span></div>
+    <div class="chip"><span class="lbl">کشف‌شده</span> <span id="cnt">۰/۲</span></div>
     <div class="grow"></div>
-    <div class="chip">🔬 آزمایشگاه</div>
+    <div class="chip">🔬 آزمایشگاهِ کامل</div>
   </div>
-  <div class="title">تغییرِ فیزیکی یا شیمیایی؟</div>
-  <div class="track"><div id="prog"></div></div>
-  <div class="stage">
-    <canvas id="fx"></canvas>
-    <div class="chip" style="display:inline-block;background:#f6f4ff;color:var(--muted)">آزمایشِ <span id="specName">۱</span></div>
-    <div class="specName" id="title2">—</div>
-    <div class="bench"><span class="spec" id="spec">📄</span><span class="arrow hidden" id="arrow">⟵</span><span class="spec hidden" id="spec2">✂️</span></div>
-    <div class="obs" id="obs">دکمه را بزن تا تغییر را ببینی…</div>
-    <button class="act" id="btnAct">🧪 انجام بده</button>
-    <div class="qask hidden" id="qask">آیا <b>ماده‌ی نو</b> ساخته شد؟</div>
-    <div class="choices hidden" id="choices">
-      <button class="ch phys" id="chPhys">تغییرِ فیزیکی<small>ماده‌ی نو ساخته نشد</small></button>
-      <button class="ch chem" id="chChem">تغییرِ شیمیایی<small>ماده‌ی نو ساخته شد</small></button>
-    </div>
-    <div class="fb" id="fb"></div>
-    <button class="next" id="btnNext">آزمایشِ بعدی ⟵</button>
-
+  <div class="title">سرگذشتِ دفترِ من — همه‌ی آزمایش‌ها</div>
+  <div class="tabs" id="tabs">
+    <div class="tab on" data-s="1">۱ تغییرِ ماده <span class="ck hidden">✓</span></div>
+    <div class="tab" data-s="2">۲ بازیافتِ کاغذ <span class="ck hidden">✓</span></div>
+  </div>
+  <div class="stage"><canvas id="cv"></canvas><canvas id="fx"></canvas>
     <div class="ov" id="ovStart">
-      <div class="emoji">🧪🔬</div><h1>آزمایشگاهِ تغییرها</h1>
-      <p>هر تغییر را انجام بده و خوب <b>مشاهده</b> کن:<br>
-      اگر <b>ماده‌ی نو</b> ساخته شد ← تغییرِ <b>شیمیایی</b> 🔴<br>
-      اگر همان ماده ماند (فقط شکل/حالت عوض شد) ← تغییرِ <b>فیزیکی</b> 🔵</p>
-      <div class="legend">مثال: پاره‌کردنِ کاغذ = فیزیکی (هنوز کاغذ است) · سوزاندنِ کاغذ = شیمیایی (خاکستر، ماده‌ی نو)</div>
-      <button class="btn" id="btnBegin">شروعِ آزمایش</button>
+      <div class="emoji">🧪♻️</div><h1>آزمایشگاهِ دفتر</h1>
+      <p>دو آزمایشِ این فصل اینجاست:<br>
+      <b>۱) تغییرِ ماده</b> — فیزیکی است یا شیمیایی؟<br>
+      <b>۲) بازیافتِ کاغذ</b> — از روزنامه‌ی باطله کاغذِ نو بساز!<br>
+      از بالا هر کدام را انتخاب کن. 🧪</p>
+      <button class="btn" id="btnBegin">شروع</button>
     </div>
     <div class="ov hidden" id="ovEnd">
-      <div class="emoji">🏆</div><h1>آزمایش کامل شد!</h1>
-      <div class="stars" id="es">⭐⭐⭐</div>
-      <p id="concl"></p>
-      <button class="btn" id="btnAgain">دوباره</button>
+      <div class="emoji">🏆</div><h1>هر دو آزمایش انجام شد!</h1>
+      <div class="stars" id="es">⭐⭐</div>
+      <div class="sumrow">🧪 <span><b>تغییرِ ماده:</b></span> اگر ماده‌ی نو ساخته شود شیمیایی، وگرنه فیزیکی است.</div>
+      <div class="sumrow">♻️ <span><b>بازیافت:</b></span> با بازیافتِ کاغذ، درختِ کمتری قطع می‌شود و محیط‌زیست حفظ می‌شود.</div>
+      <button class="btn" id="btnAgain">از اول</button>
     </div>
+  </div>
+  <div class="card">
+    <div class="expl" id="expl">—</div>
+    <!-- ۱ تغییرِ ماده -->
+    <div class="cpanel on" id="c1">
+      <button class="act" id="btnAct">🧪 انجام بده</button>
+      <div class="choices hidden" id="choices">
+        <button class="ch phys" id="chPhys">تغییرِ فیزیکی<small>ماده‌ی نو ساخته نشد</small></button>
+        <button class="ch chem" id="chChem">تغییرِ شیمیایی<small>ماده‌ی نو ساخته شد</small></button>
+      </div>
+      <button class="next" id="btnNext">تغییرِ بعدی ⟵</button>
+    </div>
+    <!-- ۲ بازیافتِ کاغذ -->
+    <div class="cpanel" id="c2">
+      <div class="steps" id="steps"></div>
+    </div>
+    <div class="obs" id="obs">…</div>
+    <button class="done" id="btnEnd">دیدنِ نتیجه 🏆</button>
   </div>
 </div>
 <script>
 (function(){"use strict";
   const GAMEID='sci6-2-lab';
   const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
-  const $=id=>document.getElementById(id);
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
   function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
     o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
@@ -101,73 +111,147 @@
   const sDo=()=>beep(300,.2,'sawtooth',.1);
   const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
   const sBad=()=>beep(150,.3,'sawtooth',.14);
+  const sStep=()=>{beep(500,.06,'square',.1);setTimeout(()=>beep(760,.08,'square',.1),70);};
   const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
 
-  // chem=true شیمیایی (ماده‌ی نو)
+  const explored={1:false,2:false};let station=1;
+  const SNAME={1:'تغییرِ ماده',2:'بازیافتِ کاغذ'};
+  const EXPL={1:'آزمایشِ ۱ — تغییرِ ماده: تغییر را انجام بده و ببین ماده‌ی نو ساخته شد یا نه.',
+              2:'آزمایشِ ۲ — بازیافتِ کاغذ: مرحله‌به‌مرحله از روزنامه‌ی باطله کاغذِ نو بساز.'};
+
+  const cv=$('cv'),ctx=cv.getContext('2d');const fx=$('fx'),fxc=fx.getContext('2d');let W,H,dpr,conf=[];
+  function layout(){const st=cv.parentElement;W=st.clientWidth;H=Math.max(220,Math.min(280,Math.round(W*0.60)));
+    dpr=Math.min(2,window.devicePixelRatio||1);[cv,fx].forEach(c=>{c.width=W*dpr;c.height=H*dpr;c.style.height=H+'px';});
+    ctx.setTransform(dpr,0,0,dpr,0,0);fxc.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+  function spawnConf(){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    for(let i=0;i<50;i++)conf.push({x:W/2,y:H*0.4,vx:(Math.random()-.5)*9,vy:-Math.random()*8-3,
+      r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[(Math.random()*cols.length)|0],life:1.5+Math.random()});}
+  function fxLoop(){fxc.clearRect(0,0,W,H);conf=conf.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+    fxc.save();fxc.translate(c.x,c.y);fxc.rotate(c.r);fxc.globalAlpha=Math.max(0,Math.min(1,c.life));
+    fxc.fillStyle=c.c;fxc.fillRect(-4,-3,8,5);fxc.restore();return c.life>0&&c.y<H+20;});requestAnimationFrame(fxLoop);}
+
+  function markExplored(n){if(!explored[n]){explored[n]=true;
+    document.querySelector('.tab[data-s="'+n+'"] .ck').classList.remove('hidden');
+    $('cnt').textContent=fa(Object.values(explored).filter(Boolean).length)+'/۲';}}
+
+  /* ===== ایستگاه ۱ — تغییرِ ماده ===== */
   const EXP=[
     {t:'پاره‌کردنِ کاغذ',a:'📄',b:'🗞️',obs:'کاغذ به تکّه‌های کوچک‌تر تبدیل شد، ولی هنوز «کاغذ» است.',chem:false,why:'ماده‌ی نو ساخته نشد؛ فقط شکلش عوض شد.'},
     {t:'سوزاندنِ کاغذ',a:'📄',b:'🔥',obs:'کاغذ سوخت و به خاکستر و دود تبدیل شد.',chem:true,why:'خاکستر ماده‌ی تازه‌ای است و دیگر کاغذ نیست.'},
-    {t:'ذوب‌شدنِ یخ',a:'🧊',b:'💧',obs:'یخ آب شد.',chem:false,why:'هنوز همان آب است؛ فقط حالتش از جامد به مایع رفت.'},
-    {t:'زنگ‌زدنِ آهن',a:'🔩',b:'🟤',obs:'آهن در هوای مرطوب زنگ زد.',chem:true,why:'زنگِ آهن ماده‌ی تازه‌ای است که رنگ و خاصیتش فرق دارد.'},
-    {t:'حل‌شدنِ شکر در آب',a:'🍬',b:'💧',obs:'شکر در آب حل شد و ناپدید شد.',chem:false,why:'هنوز شکر و آب‌اند؛ با تبخیرِ آب می‌شود دوباره شکر را گرفت.'},
-    {t:'پختنِ تخم‌مرغ',a:'🥚',b:'🍳',obs:'تخم‌مرغِ خام پخت و سفت شد.',chem:true,why:'تخم‌مرغِ پخته ماده‌ی تازه‌ای است و به حالتِ خام برنمی‌گردد.'}];
-  const TOTAL=EXP.length;
-  let idx=0,okCount=0,answered=false;
-
-  const fx=$('fx'),ctx=fx.getContext('2d');let W,H,dpr,conf=[];
-  function layout(){const st=fx.parentElement;W=st.clientWidth;H=st.clientHeight;
-    dpr=Math.min(2,window.devicePixelRatio||1);fx.width=W*dpr;fx.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
-  function spawnConf(){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
-    for(let i=0;i<60;i++)conf.push({x:W/2,y:H*0.35,vx:(Math.random()-.5)*9,vy:-Math.random()*8-3,
-      r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[(Math.random()*cols.length)|0],life:1.5+Math.random()});}
-  function fxLoop(){ctx.clearRect(0,0,W,H);conf=conf.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
-    ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=Math.max(0,Math.min(1,c.life));
-    ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});requestAnimationFrame(fxLoop);}
-
-  function load(i){idx=i;const e=EXP[i];answered=false;
-    $('specName').textContent=fa(i+1);$('title2').textContent=e.t;
-    $('spec').textContent=e.a;$('spec').classList.remove('shake','hidden');
-    $('spec2').textContent=e.b;$('spec2').classList.add('hidden');$('arrow').classList.add('hidden');
-    $('obs').textContent='دکمه را بزن تا تغییر را ببینی…';
+    {t:'ذوب‌شدنِ یخ',a:'🧊',b:'💧',obs:'یخ آب شد.',chem:false,why:'هنوز همان آب است؛ فقط حالتش عوض شد.'},
+    {t:'زنگ‌زدنِ آهن',a:'🔩',b:'🟤',obs:'آهن در هوای مرطوب زنگ زد.',chem:true,why:'زنگِ آهن ماده‌ی تازه‌ای است.'},
+    {t:'حل‌شدنِ شکر در آب',a:'🍬',b:'💧',obs:'شکر در آب حل شد.',chem:false,why:'هنوز شکر و آب‌اند؛ با تبخیر دوباره شکر را می‌گیریم.'},
+    {t:'پختنِ تخم‌مرغ',a:'🥚',b:'🍳',obs:'تخم‌مرغِ خام پخت و سفت شد.',chem:true,why:'تخم‌مرغِ پخته ماده‌ی تازه‌ای است و برنمی‌گردد.'}];
+  let ci=0,cphase='before',canswered=false,c1done=false;
+  function loadChange(i){ci=i;cphase='before';canswered=false;
     $('btnAct').classList.remove('hidden');$('btnAct').disabled=false;
-    $('qask').classList.add('hidden');$('choices').classList.add('hidden');
-    $('chPhys').disabled=false;$('chChem').disabled=false;
-    $('chPhys').classList.remove('okp');$('chChem').classList.remove('okc');
-    $('fb').style.display='none';$('btnNext').style.display='none';
-    $('cnt').textContent=fa(i)+'/'+fa(TOTAL);$('prog').style.width=(100*i/TOTAL)+'%';}
-
-  $('btnAct').onclick=()=>{const e=EXP[idx];sDo();$('spec').classList.add('shake');$('btnAct').disabled=true;
-    setTimeout(()=>{$('arrow').classList.remove('hidden');$('spec2').classList.remove('hidden');
-      $('obs').textContent='🔎 '+e.obs;$('btnAct').classList.add('hidden');
-      $('qask').classList.remove('hidden');$('choices').classList.remove('hidden');},650);};
-
-  function answer(pickChem){if(answered)return;answered=true;const e=EXP[idx];const good=(pickChem===e.chem);
+    $('choices').classList.add('hidden');$('chPhys').disabled=false;$('chChem').disabled=false;
+    $('btnNext').style.display='none';$('obs').textContent='آزمایشِ '+fa(i+1)+' از ۶: «'+EXP[i].t+'» — دکمه را بزن.';}
+  $('btnAct').onclick=()=>{const e=EXP[ci];sDo();$('btnAct').disabled=true;cphase='after';
+    setTimeout(()=>{$('obs').textContent='🔎 '+e.obs;$('btnAct').classList.add('hidden');
+      $('choices').classList.remove('hidden');},500);};
+  function answerChange(pickChem){if(canswered)return;canswered=true;const e=EXP[ci];const good=(pickChem===e.chem);
     $('chPhys').disabled=true;$('chChem').disabled=true;
-    (e.chem?$('chChem'):$('chPhys')).classList.add(e.chem?'okc':'okp');
-    const fb=$('fb');fb.style.display='block';
-    if(good){okCount++;$('ok').textContent=fa(okCount);sOk();spawnConf();
-      fb.className='fb good';fb.innerHTML='✅ درست! '+(e.chem?'<b>شیمیایی</b>':'<b>فیزیکی</b>')+' — '+e.why;}
-    else{sBad();fb.className='fb bad';
-      fb.innerHTML='❌ نه. این تغییر <b>'+(e.chem?'شیمیایی':'فیزیکی')+'</b> است — '+e.why;}
-    $('cnt').textContent=fa(idx+1)+'/'+fa(TOTAL);$('prog').style.width=(100*(idx+1)/TOTAL)+'%';
+    if(good){sOk();spawnConf();$('obs').innerHTML='✅ درست! این تغییر <b>'+(e.chem?'شیمیایی':'فیزیکی')+'</b> است — '+e.why;}
+    else{sBad();$('obs').innerHTML='❌ نه. این تغییر <b>'+(e.chem?'شیمیایی':'فیزیکی')+'</b> است — '+e.why;}
     $('btnNext').style.display='inline-block';
-    $('btnNext').textContent=(idx>=TOTAL-1)?'دیدنِ نتیجه 🏆':'آزمایشِ بعدی ⟵';}
-  $('chPhys').onclick=()=>answer(false);
-  $('chChem').onclick=()=>answer(true);
-  $('btnNext').onclick=()=>{if(idx>=TOTAL-1)finish();else load(idx+1);};
+    $('btnNext').textContent=(ci>=EXP.length-1)?'پایانِ این آزمایش ✓':'تغییرِ بعدی ⟵';}
+  $('chPhys').onclick=()=>answerChange(false);
+  $('chChem').onclick=()=>answerChange(true);
+  $('btnNext').onclick=()=>{if(ci>=EXP.length-1){c1done=true;markExplored(1);
+      $('obs').innerHTML='✅ همه‌ی ۶ تغییر را بررسی کردی! می‌توانی به آزمایشِ بعدی بروی.';
+      $('btnNext').style.display='none';}
+    else loadChange(ci+1);};
 
-  function finish(){const stars=okCount>=6?3:okCount>=4?2:1;
-    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
-    $('concl').innerHTML='از '+fa(TOTAL)+' آزمایش، <b>'+fa(okCount)+'</b> تا را درست تشخیص دادی.<br>'+
-      '<b>نتیجه:</b> اگر بعد از تغییر <b>ماده‌ی نو</b> ساخته شود، تغییر <b>شیمیایی</b> است؛ '+
-      'اگر همان ماده بماند و فقط شکل یا حالتش عوض شود، تغییر <b>فیزیکی</b> است. 🧪';
-    $('ovEnd').classList.remove('hidden');sWin();spawnConf();
+  /* ===== ایستگاه ۲ — بازیافتِ کاغذ ===== */
+  const STEPS=[
+    {b:'✂️ خرد کردن',obs:'روزنامه‌ی باطله را با قیچی به تکّه‌های ریز بریدیم.'},
+    {b:'💧 آب و همزن',obs:'تکّه‌ها را در آب ریختیم و هم زدیم تا «خمیرِ کاغذ» درست شد.'},
+    {b:'🧺 پهن‌کردن روی الک',obs:'خمیر را روی الک/توری پهن کردیم تا آبش گرفته شود.'},
+    {b:'🧽 فشار و آبگیری',obs:'با طلق فشار دادیم تا آبِ اضافه بیرون برود.'},
+    {b:'☀️ خشک‌کردن',obs:'گذاشتیم خشک شود؛ کاغذِ نو آماده شد! ♻️'}];
+  let rStep=0,rAnim=0;
+  function buildSteps(){const box=$('steps');box.innerHTML='';STEPS.forEach((s,i)=>{
+    const bt=document.createElement('button');bt.className='sb'+(i<rStep?' done':(i===rStep?' now':''));
+    bt.textContent=fa(i+1)+') '+s.b;bt.disabled=(i!==rStep);
+    bt.onclick=()=>{if(i!==rStep)return;rStep++;rAnim=0;sStep();$('obs').textContent='🔎 '+s.obs;
+      if(rStep>=STEPS.length){markExplored(2);spawnConf();}buildSteps();};
+    box.appendChild(bt);});}
+
+  /* ===== ترسیمِ کنواس ===== */
+  function draw(){requestAnimationFrame(draw);ctx.clearRect(0,0,W,H);
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#faf7ff');bg.addColorStop(1,'#fff');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    if(station===1)drawChange();else drawRecycle();}
+
+  function drawChange(){const cx=W/2,cy=H*0.46,e=EXP[ci];
+    ctx.font='60px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    if(cphase==='before'){ctx.fillText(e.a,cx,cy);}
+    else{ctx.fillText(e.a,cx-70,cy);ctx.fillStyle='#8a7fb0';ctx.font='30px serif';ctx.fillText('⟵',cx,cy);
+      ctx.font='60px serif';ctx.fillStyle='#000';ctx.fillText(e.b,cx+70,cy);}
+    ctx.fillStyle='#1a2452';ctx.font='900 16px Vazirmatn';ctx.textBaseline='alphabetic';ctx.fillText(e.t,cx,H*0.86);}
+
+  function drawRecycle(){const cx=W/2,cy=H*0.44;rAnim=Math.min(1,rAnim+0.05);
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    // مرحله‌ی فعلیِ نمایش = rStep (۰ تا ۵)
+    if(rStep===0){ // روزنامه‌ی سالم
+      ctx.fillStyle='#d8d8d8';ctx.beginPath();ctx.roundRect(cx-55,cy-38,110,76,6);ctx.fill();
+      ctx.strokeStyle='#9a9a9a';ctx.lineWidth=2;for(let i=0;i<6;i++){ctx.beginPath();ctx.moveTo(cx-46,cy-26+i*11);ctx.lineTo(cx+46,cy-26+i*11);ctx.stroke();}
+      ctx.font='26px serif';ctx.fillStyle='#000';ctx.fillText('📰',cx,cy-52);}
+    else if(rStep===1){ // تکّه‌های ریز
+      for(let i=0;i<22;i++){const a=i*1.7,r=18+((i*13)%40);ctx.fillStyle=i%2?'#dcdcdc':'#cfcfcf';
+        ctx.save();ctx.translate(cx+Math.cos(a)*r,cy+Math.sin(a)*r*0.7);ctx.rotate(a);ctx.fillRect(-6,-4,12,8);ctx.restore();}
+      ctx.font='24px serif';ctx.fillText('✂️',cx,cy-56);}
+    else if(rStep===2){ // خمیر در آب
+      ctx.strokeStyle='#9fb6d6';ctx.lineWidth=3;ctx.beginPath();ctx.roundRect(cx-60,cy-30,120,72,10);ctx.stroke();
+      ctx.fillStyle='rgba(120,170,220,.3)';ctx.fillRect(cx-57,cy,114,40);
+      ctx.fillStyle='#c8c2b0';for(let i=0;i<14;i++){const a=i*2.1;ctx.beginPath();ctx.arc(cx+Math.cos(a)*34,cy+16+Math.sin(a)*12,5,0,7);ctx.fill();}
+      ctx.font='24px serif';ctx.fillStyle='#000';ctx.fillText('💧',cx,cy-52);}
+    else if(rStep===3){ // روی الک
+      ctx.strokeStyle='#8a6a3a';ctx.lineWidth=3;ctx.strokeRect(cx-60,cy-18,120,40);
+      ctx.strokeStyle='#b58f5a';ctx.lineWidth=1;for(let x=cx-56;x<cx+60;x+=8){ctx.beginPath();ctx.moveTo(x,cy-18);ctx.lineTo(x,cy+22);ctx.stroke();}
+      ctx.fillStyle='rgba(210,205,190,.85)';ctx.fillRect(cx-56,cy-14,112,20);
+      ctx.font='22px serif';ctx.fillStyle='#000';ctx.fillText('🧺',cx,cy-46);
+      ctx.fillStyle='#5bb0e6';ctx.font='700 11px Vazirmatn';ctx.fillText('💧 آب می‌چکد',cx,cy+40);}
+    else if(rStep===4){ // فشرده
+      ctx.fillStyle='#e6e2d6';ctx.beginPath();ctx.roundRect(cx-58,cy-14,116,26,5);ctx.fill();
+      ctx.strokeStyle='#b0a89a';ctx.lineWidth=2;ctx.strokeRect(cx-58,cy-14,116,26);
+      ctx.font='22px serif';ctx.fillStyle='#000';ctx.fillText('🧽',cx,cy-46);
+      ctx.fillStyle='#7a6a4a';ctx.font='700 11px Vazirmatn';ctx.fillText('فشار…',cx,cy+38);}
+    else{ // کاغذِ نو
+      ctx.save();ctx.shadowColor='rgba(0,0,0,.15)';ctx.shadowBlur=12;ctx.fillStyle='#fff';
+      ctx.beginPath();ctx.roundRect(cx-52,cy-40,104,80,6);ctx.fill();ctx.restore();
+      ctx.strokeStyle='#e0dccf';ctx.lineWidth=2;ctx.strokeRect(cx-52,cy-40,104,80);
+      ctx.font='30px serif';ctx.fillStyle='#000';ctx.fillText('♻️',cx,cy-58);
+      ctx.fillStyle='#0d7a4f';ctx.font='900 14px Vazirmatn';ctx.fillText('کاغذِ نو!',cx,cy);}
+    // پیشرفت
+    ctx.fillStyle='#7b5cff';ctx.font='800 12px Vazirmatn';ctx.textBaseline='alphabetic';
+    ctx.fillText('مرحله '+fa(Math.min(rStep+ (rStep<STEPS.length?1:0),STEPS.length))+' از '+fa(STEPS.length),cx,H*0.93);}
+
+  /* ===== سوییچ و پایان ===== */
+  function switchStation(n){station=n;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',+t.dataset.s===n));
+    $('c1').classList.toggle('on',n===1);$('c2').classList.toggle('on',n===2);
+    $('expl').textContent=EXPL[n];
+    if(n===1){if(!c1done)loadChange(ci);else $('obs').innerHTML='✅ همه‌ی ۶ تغییر را بررسی کردی.';}
+    else{buildSteps();$('obs').textContent=rStep>=STEPS.length?'✅ کاغذِ نو ساختی!':'دکمه‌ی مرحله‌ی ۱ را بزن تا شروع کنی.';}}
+  $('tabs').addEventListener('click',e=>{const t=e.target.closest('.tab');if(t)switchStation(+t.dataset.s);});
+
+  function finish(){const c=Object.values(explored).filter(Boolean).length;
+    if(c<2){const rem=[1,2].filter(n=>!explored[n]).map(n=>SNAME[n]);
+      $('obs').innerHTML='⏳ هنوز مانده: <b>'+rem.join('، ')+'</b>. آن را هم کامل کن!';beep(200,.2,'sawtooth',.1);return;}
+    const stars=3;$('es').textContent='⭐⭐⭐';$('ovEnd').classList.remove('hidden');sWin();spawnConf();
     if(window.parent!==window){window.parent.postMessage(
-      {type:'setareh_game',event:'complete',score:okCount*10,stars:stars,gameId:GAMEID},'*');}}
-
-  $('btnBegin').onclick=()=>{ac();$('ovStart').classList.add('hidden');layout();load(0);};
+      {type:'setareh_game',event:'complete',score:60,stars:stars,gameId:GAMEID},'*');}}
+  $('btnEnd').onclick=finish;
+  $('btnBegin').onclick=()=>{ac();$('ovStart').classList.add('hidden');switchStation(1);};
   $('btnAgain').onclick=()=>{location.reload();};
-  window.addEventListener('resize',layout);layout();fxLoop();
+  loadChange(0);switchStation(1);requestAnimationFrame(draw);fxLoop();
 })();
 </script>
 </body>
