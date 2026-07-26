@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>آزمایشگاهِ کامل — آهن، فلزها و اسیدها</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:linear-gradient(160deg,#ffe6a8 0%,#ffc9a0 45%,#a9c7ff 100%);
+    min-height:100vh;padding:8px;overflow-x:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .top{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:13px;box-shadow:0 4px 12px rgba(90,70,20,.2)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}
+  .title{background:linear-gradient(180deg,#ffcf5b,#f2a800);color:#5a3a00;border-radius:16px;padding:8px 12px;text-align:center;font-weight:900;font-size:15px;box-shadow:0 4px 12px rgba(242,168,0,.35)}
+  .tabs{display:flex;gap:5px;margin-top:6px;overflow-x:auto;padding-bottom:2px}
+  .tab{flex:0 0 auto;background:#fff;border:2px solid #ffe3a8;border-radius:12px;padding:6px 9px;font-weight:800;font-size:12px;cursor:pointer;color:var(--muted);white-space:nowrap}
+  .tab.on{background:#f2a800;color:#fff;border-color:#f2a800}
+  .tab .ck{color:#22c993}.tab.on .ck{color:#fff}
+  .stage{position:relative;border-radius:18px;overflow:hidden;box-shadow:0 8px 24px rgba(90,70,20,.25);margin-top:6px}
+  canvas{display:block;width:100%;touch-action:none}
+  .card{background:#fff;border-radius:16px;padding:10px;margin-top:8px;box-shadow:0 4px 14px rgba(90,70,20,.16)}
+  .expl{font-weight:900;font-size:14px;text-align:center;margin-bottom:6px;color:var(--ink)}
+  .btns{display:flex;flex-wrap:wrap;gap:7px;justify-content:center}
+  .ab{border:2px solid #ffcf5b;background:#fff8e6;color:#8a5a00;border-radius:12px;padding:9px 12px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer}
+  .ab:active{transform:translateY(1px)}.ab.warn{border-color:#ff8098;background:#fff0f3;color:#c2185b}
+  .obs{background:#f4f8ff;border-radius:12px;padding:9px 11px;margin-top:8px;font-size:13px;font-weight:700;color:#2f3a5a;line-height:1.8;min-height:22px;text-align:center}
+  .cpanel{display:none}.cpanel.on{display:block}
+  .done{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:16px;color:#fff;padding:12px 26px;border-radius:14px;background:linear-gradient(180deg,#5bd7ae,var(--gr));box-shadow:0 6px 16px rgba(34,201,147,.4);margin-top:10px;width:100%}
+  .done:disabled{opacity:.45}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px;gap:9px;background:rgba(255,255,255,.97);z-index:9;border-radius:18px;overflow-y:auto}
+  .ov h1{margin:0;font-size:20px;color:#e08a00}.ov p{margin:0;color:#5a4a2a;font-size:13px;line-height:1.8;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:17px;color:#5a3a00;padding:12px 28px;border-radius:15px;background:linear-gradient(180deg,#ffcf5b,#f2a800);box-shadow:0 8px 20px rgba(242,168,0,.4);margin-top:4px}
+  .stars{font-size:36px;letter-spacing:6px}.emoji{font-size:40px}.hidden{display:none}
+  .sumrow{display:flex;gap:8px;align-items:center;background:#fff8e6;border-radius:12px;padding:8px 10px;width:100%;font-size:12.5px;font-weight:800;text-align:right}
+  .sumrow b{color:#e08a00}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="chip"><span class="lbl">کشف‌شده</span> <span id="cnt">۰/۵</span></div>
+    <div class="grow"></div>
+    <div class="chip">🔬 آزمایشگاهِ کامل</div>
+  </div>
+  <div class="title">آهن، فلزها و اسیدها — همه‌ی آزمایش‌ها</div>
+  <div class="tabs" id="tabs">
+    <div class="tab on" data-s="1">۱ شناوری <span class="ck hidden">✓</span></div>
+    <div class="tab" data-s="2">۲ ترازو <span class="ck hidden">✓</span></div>
+    <div class="tab" data-s="3">۳ سختی <span class="ck hidden">✓</span></div>
+    <div class="tab" data-s="4">۴ رسانایی <span class="ck hidden">✓</span></div>
+    <div class="tab" data-s="5">۵ اسیدها <span class="ck hidden">✓</span></div>
+  </div>
+  <div class="stage"><canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">🔬🧲</div><h1>آزمایشگاهِ فلزها و اسیدها</h1>
+      <p>همه‌ی آزمایش‌های این فصلِ کتاب اینجاست!<br>
+      از بالا هر آزمایش را انتخاب کن، دکمه‌ها را بزن، <b>مشاهده</b> کن و ویژگی را کشف کن.<br>
+      وقتی هر ۵ آزمایش را انجام دادی، نتیجه را ببین. 🧪</p>
+      <button class="btn" id="btnBegin">شروع</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji">🏆</div><h1>همه‌ی آزمایش‌ها انجام شد!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="sumrow">🔩 <span>ته‌نشینی:</span> فلزها سنگین‌ترند و در آب فرو می‌روند.</div>
+      <div class="sumrow">⚖️ <span>چگالی:</span> فلزها از چوب و پلاستیک سنگین‌ترند.</div>
+      <div class="sumrow">💪 <span>سختی:</span> فلزها سخت‌اند و بقیه را خراش می‌دهند.</div>
+      <div class="sumrow">💡 <span>رسانایی:</span> فلزها برق را عبور می‌دهند.</div>
+      <div class="sumrow">🧪 <span>اسیدها:</span> مزه‌ی ترش دارند و کاغذ pH را قرمز می‌کنند (صنعتی‌ها سمّی‌اند).</div>
+      <button class="btn" id="btnAgain">از اول</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="expl" id="expl">—</div>
+    <!-- ۱ شناوری -->
+    <div class="cpanel on" id="c1"><div class="btns">
+      <button class="ab" data-f="چوب">🪵 چوب</button>
+      <button class="ab" data-f="پنبه">☁️ پنبه</button>
+      <button class="ab" data-f="روغن">🫗 روغن</button>
+      <button class="ab" data-f="آهن">🔩 آهن</button>
+    </div></div>
+    <!-- ۲ ترازو -->
+    <div class="cpanel" id="c2"><div class="btns">
+      <button class="ab" data-cmp="چوب,آهن">🪵 چوب ⚖️ آهن 🔩</button>
+      <button class="ab" data-cmp="پلاستیک,آهن">🧊 پلاستیک ⚖️ آهن 🔩</button>
+      <button class="ab" data-cmp="چوب,پلاستیک">🪵 چوب ⚖️ پلاستیک 🧊</button>
+    </div></div>
+    <!-- ۳ سختی -->
+    <div class="cpanel" id="c3"><div class="btns">
+      <button class="ab" data-sc="fe">🔩 با آهن، چوب را خراش بده</button>
+      <button class="ab" data-sc="wood">🪵 با چوب، آهن را خراش بده</button>
+    </div></div>
+    <!-- ۴ رسانایی -->
+    <div class="cpanel" id="c4"><div class="btns">
+      <button class="ab" data-cd="1">🥄 قاشقِ فلزی</button>
+      <button class="ab" data-cd="0">✏️ مدادِ چوبی</button>
+      <button class="ab" data-cd="1b">🪙 سکه</button>
+      <button class="ab" data-cd="0b">🥤 پلاستیک</button>
+    </div></div>
+    <!-- ۵ اسیدها -->
+    <div class="cpanel" id="c5"><div class="btns">
+      <button class="ab" data-ac="lemon">🍋 لیموترش</button>
+      <button class="ab" data-ac="orange">🍊 پرتقال</button>
+      <button class="ab" data-ac="vinegar">🧴 سرکه</button>
+      <button class="ab" data-ac="water">💧 آب</button>
+      <button class="ab warn" data-ac="acid">⚠️ جوهرنمک</button>
+    </div></div>
+    <div class="obs" id="obs">یک دکمه را بزن…</div>
+    <button class="done" id="btnEnd">دیدنِ نتیجه 🏆</button>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='sci6-3-lab';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sPlop=()=>beep(240,.14,'sine',.12);
+  const sLight=()=>{beep(660,.1,'square',.13);setTimeout(()=>beep(990,.14,'square',.12),90);};
+  const sBuzz=()=>beep(260,.2,'sawtooth',.09);
+  const sDisc=()=>{beep(720,.09,'square',.12);setTimeout(()=>beep(1040,.12,'square',.12),80);};
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+
+  const EXPL={1:'آزمایشِ ۱ — شناوری: هر چیز را در آب بینداز و ببین شناور می‌شود یا فرو می‌رود.',
+    2:'آزمایشِ ۲ — ترازو: مکعب‌های هم‌اندازه را وزن کن و سنگین‌تر را پیدا کن.',
+    3:'آزمایشِ ۳ — سختی: امتحان کن کدام دیگری را خراش می‌دهد.',
+    4:'آزمایشِ ۴ — رسانایی: هر جسم را در مدار بگذار؛ رسانا لامپ را روشن می‌کند.',
+    5:'آزمایشِ ۵ — اسیدها: کاغذ pH را در هر مایع بزن؛ اسید آن را قرمز می‌کند.'};
+  const explored={1:false,2:false,3:false,4:false,5:false};
+  let station=1;
+
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(230,Math.min(290,Math.round(W*0.60)));dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+
+  // ---- وضعیتِ هر ایستگاه ----
+  let floats=[]; // {e,x,y,ty,vy}
+  let bal={l:null,r:null,tilt:0,ttilt:0};
+  let scratch={mode:null,prog:0};
+  let cond={obj:null,lit:0,flow:0};
+  let acid={item:null,color:'#8ec63f',t:0};
+
+  const SNAME={1:'شناوری',2:'ترازو',3:'سختی',4:'رسانایی',5:'اسیدها'};
+  function markExplored(n){if(!explored[n]){explored[n]=true;
+    document.querySelector('.tab[data-s="'+n+'"] .ck').classList.remove('hidden');
+    const c=Object.values(explored).filter(Boolean).length;$('cnt').textContent=fa(c)+'/۵';}}
+
+  // ---- کنترل‌ها ----
+  $('c1').addEventListener('click',e=>{const b=e.target.closest('.ab');if(!b)return;const f=b.dataset.f;sPlop();
+    const map={'چوب':{e:'🪵',sink:false},'پنبه':{e:'☁️',sink:false},'روغن':{e:'🫗',sink:false,oil:true},'آهن':{e:'🔩',sink:true}};
+    const m=map[f];const gx=W/2+(Math.random()*80-40);
+    floats.push({e:m.e,n:f,x:gx,y:H*0.15,ty:m.sink?H*0.72:(m.oil?H*0.40:H*0.46),vy:0,oil:m.oil});
+    $('obs').textContent=f==='آهن'?'🔎 آهن فوراً ته‌نشین شد؛ چون سنگین‌تر (چگال‌تر) از آب است.':
+      (m.oil?'🔎 روغن روی آب ماند؛ سبک‌تر از آب است و با آن مخلوط نمی‌شود.':'🔎 '+f+' روی آب شناور ماند؛ سبک‌تر از آب است.');
+    if(f==='آهن')markExplored(1);});
+  $('c2').addEventListener('click',e=>{const b=e.target.closest('.ab');if(!b)return;
+    const [a,c]=b.dataset.cmp.split(',');const wt={'چوب':1,'پلاستیک':2,'آهن':5};const em={'چوب':'🪵','پلاستیک':'🧊','آهن':'🔩'};
+    bal.l={n:a,e:em[a],w:wt[a]};bal.r={n:c,e:em[c],w:wt[c]};
+    bal.ttilt=clamp((wt[c]-wt[a])*0.06,-0.32,0.32);sPlop();
+    const heavy=wt[a]>wt[c]?a:c;$('obs').textContent='🔎 '+heavy+' سنگین‌تر است. '+(heavy==='آهن'?'فلزها چگالیِ بیشتری دارند.':'');
+    if(a==='آهن'||c==='آهن')markExplored(2);});
+  $('c3').addEventListener('click',e=>{const b=e.target.closest('.ab');if(!b)return;const m=b.dataset.sc;
+    scratch={mode:m,prog:0};sBuzz();
+    $('obs').textContent=m==='fe'?'🔎 میخِ آهنی روی چوب خط انداخت! فلز سخت‌تر است.':
+      '🔎 چوب نتوانست روی آهن خراش بیندازد؛ آهن سخت‌تر است.';markExplored(3);});
+  $('c4').addEventListener('click',e=>{const b=e.target.closest('.ab');if(!b)return;const v=b.dataset.cd;
+    const on=v[0]==='1';const em={'1':'🥄','0':'✏️','1b':'🪙','0b':'🥤'}[v];
+    const nm={'1':'قاشقِ فلزی','0':'مدادِ چوبی','1b':'سکه','0b':'پلاستیک'}[v];
+    cond={obj:em,name:nm,lit:0,flow:0,target:on?1:0};on?sLight():sBuzz();
+    $('obs').textContent=on?'🔎 جسمِ فلزی رساناست؛ لامپ روشن شد. 💡':'🔎 جسمِ نافلز نارساناست؛ لامپ خاموش ماند. 🌑';
+    markExplored(4);});
+  $('c5').addEventListener('click',e=>{const b=e.target.closest('.ab');if(!b)return;const it=b.dataset.ac;
+    const info={lemon:{c:'#ff5d5d',t:'اسید',e:'🍋',n:'لیموترش'},orange:{c:'#ff9f45',t:'اسید',e:'🍊',n:'پرتقال'},
+      vinegar:{c:'#ff7a5d',t:'اسید',e:'🧴',n:'سرکه'},water:{c:'#8ec63f',t:'خنثی',e:'💧',n:'آب'},
+      acid:{c:'#e03030',t:'اسیدِ قوی',e:'⚠️',n:'جوهرنمک'}};
+    const o=info[it];acid={item:o.e,color:o.c,name:o.n,t:0};sDisc();
+    $('obs').innerHTML=o.t==='خنثی'?'🔎 آب خنثی است؛ کاغذ pH سبز ماند.':
+      (it==='acid'?'🔎 جوهرنمک اسیدِ صنعتیِ قویِ سمّی است؛ کاغذ pH قرمزِ تند شد. ⚠️ نباید لمس یا مزه شود!':
+       '🔎 '+o.n+' اسیدِ خوراکی است (مزه‌ی ترش)؛ کاغذ pH قرمز شد.');
+    markExplored(5);});
+
+  function switchStation(n){station=n;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',+t.dataset.s===n));
+    for(let i=1;i<=5;i++)$('c'+i).classList.toggle('on',i===n);
+    $('expl').textContent=EXPL[n];$('obs').textContent='یک دکمه را بزن…';}
+  $('tabs').addEventListener('click',e=>{const t=e.target.closest('.tab');if(t)switchStation(+t.dataset.s);});
+
+  // ---- ترسیم ----
+  function draw(){requestAnimationFrame(draw);
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#f7fbff');bg.addColorStop(1,'#eef3fb');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    if(station===1)drawFloat();else if(station===2)drawBal();else if(station===3)drawScratch();
+    else if(station===4)drawCond();else if(station===5)drawAcid();}
+
+  function drawFloat(){const gx=W/2,gw=W*0.5,gy0=H*0.30,gy1=H*0.86,wtop=H*0.42;
+    // لیوان
+    ctx.strokeStyle='#9fb6d6';ctx.lineWidth=4;
+    ctx.beginPath();ctx.moveTo(gx-gw/2,gy0);ctx.lineTo(gx-gw/2+6,gy1);ctx.lineTo(gx+gw/2-6,gy1);ctx.lineTo(gx+gw/2,gy0);ctx.stroke();
+    // آب
+    ctx.save();ctx.beginPath();ctx.moveTo(gx-gw/2+3,wtop);ctx.lineTo(gx-gw/2+6,gy1-3);ctx.lineTo(gx+gw/2-6,gy1-3);ctx.lineTo(gx+gw/2-3,wtop);ctx.closePath();ctx.clip();
+    ctx.fillStyle='rgba(90,180,255,.35)';ctx.fillRect(gx-gw/2,wtop,gw,gy1-wtop);ctx.restore();
+    ctx.fillStyle='#5bb0e6';ctx.font='700 11px Vazirmatn';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText('آب',gx-gw/2+8,wtop+14);
+    // اجسام
+    floats.forEach(o=>{if(o.y<o.ty){o.vy+=0.5;o.y=Math.min(o.ty,o.y+o.vy);}else{o.y+=Math.sin(performance.now()/300+o.x)*0.3;}
+      ctx.font='24px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(o.e,o.x,o.y);
+      ctx.fillStyle='#1a2452';ctx.font='800 10px Vazirmatn';ctx.fillText(o.n,o.x,o.y+18);});
+    ctx.fillStyle='#7a8aa8';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.fillText('دکمه‌ها را بزن تا اجسام را در آب بیندازی',W/2,H*0.14);}
+
+  function drawBal(){const cx=W/2,py=H*0.30,pl=H*0.20;bal.tilt+=(bal.ttilt-bal.tilt)*0.12;
+    // پایه
+    ctx.strokeStyle='#8a6a3a';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(cx,py);ctx.lineTo(cx,H*0.86);ctx.stroke();
+    // میله
+    const dx=Math.cos(bal.tilt)*W*0.32,dy=Math.sin(bal.tilt)*W*0.32;
+    ctx.strokeStyle='#c8792e';ctx.lineWidth=6;ctx.beginPath();
+    ctx.moveTo(cx-dx,py-dy);ctx.lineTo(cx+dx,py+dy);ctx.stroke();
+    ctx.fillStyle='#8a6a3a';ctx.beginPath();ctx.arc(cx,py,7,0,7);ctx.fill();
+    function pan(px,py,item){ctx.strokeStyle='#9fb6d6';ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px,py+22);ctx.stroke();
+      ctx.beginPath();ctx.ellipse(px,py+30,26,8,0,0,7);ctx.strokeStyle='#7a8aa8';ctx.stroke();
+      if(item){ctx.font='24px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(item.e,px,py+22);
+        ctx.fillStyle='#1a2452';ctx.font='800 11px Vazirmatn';ctx.fillText(item.n,px,py+46);}}
+    pan(cx-dx,py-dy,bal.l);pan(cx+dx,py+dy,bal.r);
+    if(!bal.l){ctx.fillStyle='#7a8aa8';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText('یک مقایسه را انتخاب کن',W/2,H*0.16);}}
+
+  function drawScratch(){const cx=W/2,y=H*0.55;
+    // دو جسم
+    ctx.font='40px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    if(scratch.mode==='fe'){ctx.fillText('🪵',cx-60,y);ctx.fillText('🔩',cx+40,y-20);
+      scratch.prog=Math.min(1,scratch.prog+0.03);
+      ctx.strokeStyle='#7a4a22';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx-80,y+6);ctx.lineTo(cx-80+40*scratch.prog,y+6);ctx.stroke();
+      ctx.fillStyle='#1a2452';ctx.font='800 11px Vazirmatn';ctx.fillText('چوب',cx-60,y+52);ctx.fillText('آهن',cx+40,y+30);
+      ctx.fillStyle='#0d7a4f';ctx.font='800 13px Vazirmatn';ctx.fillText('خط افتاد ✓',cx-60,y+34);}
+    else if(scratch.mode==='wood'){ctx.fillText('🔩',cx-60,y);ctx.fillText('🪵',cx+40,y-20);
+      ctx.fillStyle='#1a2452';ctx.font='800 11px Vazirmatn';ctx.fillText('آهن',cx-60,y+52);ctx.fillText('چوب',cx+40,y+30);
+      ctx.fillStyle='#c2185b';ctx.font='800 13px Vazirmatn';ctx.fillText('خط نیفتاد ✗',cx-60,y+34);}
+    else{ctx.fillStyle='#7a8aa8';ctx.font='800 13px Vazirmatn';ctx.fillText('یک آزمایشِ خراش را انتخاب کن',cx,y);}
+    ctx.textBaseline='alphabetic';}
+
+  function drawCond(){const cx=W/2,by=H*0.78,ty=H*0.30,lx=W*0.18,rx=W*0.82;
+    if(cond.target){cond.lit=Math.min(1,cond.lit+0.06);}else cond.lit=Math.max(0,cond.lit-0.1);
+    ctx.strokeStyle='#6b7280';ctx.lineWidth=5;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(lx,by);ctx.lineTo(lx,ty);ctx.lineTo(cx-55,ty);
+    ctx.moveTo(cx+55,ty);ctx.lineTo(rx,ty);ctx.lineTo(rx,by);
+    ctx.moveTo(lx,by);ctx.lineTo(cx-38,by);ctx.moveTo(cx+38,by);ctx.lineTo(rx,by);ctx.stroke();
+    ctx.font='20px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🔋',lx,by);
+    if(cond.lit>0.3){cond.flow=(cond.flow+0.02)%0.12;ctx.fillStyle='#ffcf3b';
+      for(let p=cond.flow;p<1;p+=0.12){ctx.beginPath();ctx.arc(lx+(rx-lx)*p,ty,3,0,7);ctx.fill();}}
+    ctx.save();ctx.translate(cx,ty);if(cond.lit>0.3){ctx.shadowColor='rgba(255,210,60,'+cond.lit+')';ctx.shadowBlur=35;
+      ctx.fillStyle='rgba(255,230,120,'+(0.5*cond.lit)+')';ctx.beginPath();ctx.arc(0,0,40,0,7);ctx.fill();ctx.shadowBlur=0;}
+    ctx.font='40px serif';ctx.fillText(cond.lit>0.3?'💡':'🔦',0,-2);ctx.restore();
+    ctx.strokeStyle='#f2a800';ctx.setLineDash([5,4]);ctx.lineWidth=2;ctx.strokeRect(cx-38,by-26,76,46);ctx.setLineDash([]);
+    if(cond.obj){ctx.font='28px serif';ctx.fillText(cond.obj,cx,by-6);
+      ctx.fillStyle='#1a2452';ctx.font='800 11px Vazirmatn';ctx.fillText(cond.name||'',cx,by+30);}
+    else{ctx.fillStyle='#7a8aa8';ctx.font='800 12px Vazirmatn';ctx.fillText('یک جسم را انتخاب کن',cx,by-2);}}
+
+  function drawAcid(){const cx=W/2;acid.t=Math.min(1,acid.t+0.05);
+    // بشر مایع
+    ctx.strokeStyle='#9fb6d6';ctx.lineWidth=3;ctx.beginPath();ctx.roundRect(cx-46,H*0.42,92,H*0.40,8);ctx.stroke();
+    ctx.fillStyle=acid.item?'rgba(150,200,120,.25)':'rgba(200,215,235,.3)';ctx.fillRect(cx-44,H*0.55,88,H*0.40-14);
+    if(acid.item){ctx.font='30px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(acid.item,cx,H*0.36);
+      ctx.fillStyle='#1a2452';ctx.font='800 12px Vazirmatn';ctx.fillText(acid.name||'',cx,H*0.90);}
+    // کاغذ pH
+    const startC=[142,198,63];const target=hexRGB(acid.color);
+    const col=acid.item?mix(startC,target,acid.t):startC;
+    ctx.fillStyle='rgb('+col.join(',')+')';ctx.beginPath();ctx.roundRect(cx+30,H*0.30,16,H*0.32,4);ctx.fill();
+    ctx.fillStyle='#5b6bb0';ctx.font='700 10px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText('کاغذ pH',cx+38,H*0.28);
+    if(!acid.item){ctx.fillStyle='#7a8aa8';ctx.font='800 12px Vazirmatn';ctx.fillText('یک مایع را انتخاب کن',W/2,H*0.20);}}
+  function hexRGB(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+  function mix(a,b,t){return a.map((v,i)=>Math.round(v+(b[i]-v)*t));}
+
+  function finish(){const c=Object.values(explored).filter(Boolean).length;
+    if(c<5){const rem=[1,2,3,4,5].filter(n=>!explored[n]).map(n=>SNAME[n]);
+      $('obs').innerHTML='⏳ هنوز مانده: <b>'+rem.join('، ')+'</b>. آن‌ها را هم انجام بده!';
+      beep(200,.2,'sawtooth',.1);return;}
+    const stars=3;
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+    $('ovEnd').classList.remove('hidden');sWin();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:c*20,stars:stars,gameId:GAMEID},'*');}}
+  $('btnEnd').onclick=finish;
+  $('btnBegin').onclick=()=>{ac();$('ovStart').classList.add('hidden');switchStation(1);};
+  $('btnAgain').onclick=()=>{location.reload();};
+  switchStation(1);requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>

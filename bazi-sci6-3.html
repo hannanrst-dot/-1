@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>مهندسِ فلزکار — فلزها</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
+    background:linear-gradient(160deg,#ffd9a8 0%,#a9c7ff 55%,#c9f0d8 100%);
+    min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  .wrap{max-width:440px;margin:0 auto;position:relative}
+  .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(60,60,90,.2)}
+  .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
+  .qbar{background:#fff;border-radius:16px;padding:8px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(60,60,90,.2)}
+  .qbar b{font-size:16px;font-weight:900}.qbar .s{color:var(--or);font-size:13px;margin-top:2px;font-weight:800}
+  .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(60,60,90,.16)}
+  #prog{height:100%;width:0;background:linear-gradient(90deg,var(--gr),var(--yl));transition:width .2s}
+  .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(60,60,90,.3)}
+  canvas{display:block;width:100%;touch-action:none}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;gap:12px;background:rgba(255,255,255,.93);backdrop-filter:blur(3px);z-index:5}
+  .ov h1{margin:0;font-size:22px;color:#e07a1e}.ov p{margin:0;color:#4a3a2a;font-size:14px;line-height:1.9;font-weight:700}
+  .btn{border:0;cursor:pointer;font-family:inherit;font-weight:900;font-size:18px;color:#fff;padding:14px 34px;border-radius:18px;background:linear-gradient(180deg,#ffbf6b,var(--or));box-shadow:0 8px 20px rgba(255,159,69,.45);margin-top:4px}.btn:active{transform:translateY(2px)}
+  .stars{font-size:40px;letter-spacing:6px}.emoji{font-size:46px}.hidden{display:none}
+  .pill{background:#fff3e2;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--muted)}
+  .scoreBig{font-size:15px;font-weight:800}.scoreBig b{color:#e07a1e;font-size:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
+    <div class="chip"><span class="lbl">سفارش</span><span id="round">۱/۸</span></div>
+    <div class="grow"></div>
+    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+  </div>
+  <div class="qbar"><b id="q">کدام فلز؟</b><div class="s" id="qs"></div></div>
+  <div class="track"><div id="prog"></div></div>
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="ov" id="ovStart">
+      <div class="emoji">🛠️⚙️</div><h1>مهندسِ فلزکار</h1>
+      <p>در کارخانه، برای ساختِ هر وسیله باید <b>فلزِ مناسب</b> را انتخاب کنی!<br>
+      به <b>نیازِ</b> هر سفارش نگاه کن و فلزی را بزن که آن ویژگی را دارد:<br>
+      ⚡ رسانا = مس · 🪶 سبک = آلومینیم · ✨ بی‌زنگ = طلا · 💪 محکم = آهن</p>
+      <button class="btn" id="btnStart">شروع بازی</button>
+    </div>
+    <div class="ov hidden" id="ovEnd">
+      <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
+      <div class="stars" id="es">⭐⭐⭐</div>
+      <div class="scoreBig">امتیاز: <b id="esc">۰</b></div>
+      <div class="pill" id="em"></div>
+      <button class="btn" id="btnAgain">دوباره</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){"use strict";
+  const GAMEID='sci6-3';
+  const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+  const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
+    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
+    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
+  const sCombo=()=>{beep(880,.08,'square',.12);setTimeout(()=>beep(1180,.1,'square',.12),70);};
+  const sBad=()=>beep(150,.3,'sawtooth',.15);
+  const sBuild=()=>{beep(400,.06,'square',.1);setTimeout(()=>beep(600,.08,'square',.1),70);setTimeout(()=>beep(880,.1,'square',.11),150);};
+  const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
+  const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
+
+  const METALS=[{k:'مس',e:'🟠',c:'#c8792e',ic:'⚡',tr:'رسانای برق'},
+                {k:'آلومینیم',e:'⚪',c:'#aab4c0',ic:'🪶',tr:'سبک'},
+                {k:'طلا',e:'🟡',c:'#f2c11e',ic:'✨',tr:'بی‌زنگ و براق'},
+                {k:'آهن',e:'⬛',c:'#6b7280',ic:'💪',tr:'محکم و ارزان'}];
+  const ROUNDS=[{o:'سیمِ برق',e:'🔌',need:'⚡ باید برق را عبور دهد',m:'مس'},
+                {o:'زرورقِ آشپزی',e:'🥡',need:'🪶 باید خیلی سبک باشد',m:'آلومینیم'},
+                {o:'انگشترِ گران‌بها',e:'💍',need:'✨ نباید زنگ بزند و براق بماند',m:'طلا'},
+                {o:'ریلِ قطار',e:'🛤️',need:'💪 باید محکم و ارزان باشد',m:'آهن'},
+                {o:'بدنه‌ی هواپیما',e:'✈️',need:'🪶 باید سبک باشد تا پرواز کند',m:'آلومینیم'},
+                {o:'جامِ قهرمانی',e:'🏆',need:'✨ باید براق و بی‌زنگ باشد',m:'طلا'},
+                {o:'تیرِ ساختمان',e:'🏗️',need:'💪 باید محکم و ارزان باشد',m:'آهن'},
+                {o:'سیمِ داخلِ کابل',e:'🔋',need:'⚡ باید رسانای برق باشد',m:'مس'}];
+  const TOTAL=ROUNDS.length;
+  const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
+  function layout(){const st=cv.parentElement;W=st.clientWidth;
+    H=Math.max(410,Math.min(510,Math.round(W*1.06)));dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  layout();window.addEventListener('resize',layout);
+  const _rr=CanvasRenderingContext2D.prototype.roundRect;
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+
+  let state='start',ri=0,score=0,lives=3,combo=0,cur,phase,timeLeft,timeMax,pick=-1;
+  let confetti=[],floaters=[],sparks=[],itemPop=0;
+  function cards(){const cols=2,rows=2,gap=10,cw=(W-gap*3)/2,ch=(H*0.42-gap)/2,y0=H*0.54;
+    return METALS.map((m,i)=>{const c=i%2,r=(i/2)|0;return{...m,x:gap+c*(cw+gap),y:y0+r*(ch+gap),w:cw,h:ch,i};});}
+
+  function loadRound(i){ri=i;cur=ROUNDS[i];phase='aim';pick=-1;itemPop=0;
+    timeMax=Math.max(4,7-i*0.35);timeLeft=timeMax;
+    $('round').textContent=fa((i+1)+'/'+TOTAL);
+    $('q').textContent='برای «'+cur.o+'» کدام فلز؟';
+    $('qs').textContent='نیاز: '+cur.need;updateHud();}
+  function updateHud(){$('score').textContent=fa(score);
+    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));
+    $('prog').style.width=(100*ri/TOTAL)+'%';}
+
+  cv.addEventListener('pointerdown',e=>{if(state!=='play'||phase!=='aim')return;
+    const rc=cv.getBoundingClientRect();const x=(e.clientX-rc.left)*(W/rc.width),y=(e.clientY-rc.top)*(H/rc.height);
+    const C=cards();for(const c of C){if(x>=c.x&&x<=c.x+c.w&&y>=c.y&&y<=c.y+c.h){choose(c);return;}}});
+  function choose(c){const good=(c.k===cur.m);pick=c.i;
+    if(good){phase='built';combo++;const speed=Math.round(clamp(timeLeft,0,6));
+      const gain=10+speed*2+(combo>=2?combo*2:0);score+=gain;combo>=2?sCombo():sBuild();itemPop=1;
+      floaters.push({x:W/2,y:H*0.34,t:0,txt:'+'+fa(gain)+(combo>=2?' ×'+fa(combo):'')});
+      for(let i=0;i<20;i++){sparks.push({x:c.x+c.w/2,y:c.y+c.h/2,a:Math.random()*6.28,s:2+Math.random()*4,life:1});}
+      for(let i=0;i<18;i++)confetti.push(spawnConf(W/2,H*0.3));updateHud();
+      setTimeout(next,1200);}
+    else{lives--;combo=0;sBad();phase='wrong';
+      floaters.push({x:c.x+c.w/2,y:c.y,t:0,txt:'مناسب نیست!'});updateHud();
+      setTimeout(()=>{if(state!=='play')return;if(lives<=0){endGame(false);return;}phase='aim';pick=-1;},900);}}
+  function timeup(){if(phase!=='aim')return;lives--;combo=0;sBad();
+    floaters.push({x:W/2,y:H*0.3,t:0,txt:'دیر شد!'});updateHud();phase='wait';
+    setTimeout(()=>{if(state!=='play')return;if(lives<=0){endGame(false);return;}next();},700);}
+  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
+
+  function draw(dt){
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#fff4e2');bg.addColorStop(1,'#eaf1ff');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    if(state!=='start'&&cur){
+      // آهن‌آلاتِ زمینه
+      ctx.fillStyle='rgba(107,114,128,.12)';ctx.font='22px serif';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('⚙️',8,8);
+      if(combo>=2){ctx.fillStyle='#c2185b';ctx.font='900 15px Vazirmatn';ctx.textAlign='right';ctx.textBaseline='top';ctx.fillText('🔥 کومبو ×'+fa(combo),W-10,8);}
+      // سکّوی سفارش
+      const iy=H*0.28;
+      ctx.fillStyle='#fff';ctx.strokeStyle='#ffbf6b';ctx.lineWidth=3;
+      ctx.beginPath();ctx.roundRect(W/2-90,iy-70,180,120,18);ctx.fill();ctx.stroke();
+      const pop=phase==='built'?(1+0.12*Math.sin(itemPop*10)):1;itemPop=Math.max(0,itemPop-dt*2);
+      ctx.save();ctx.translate(W/2,iy-18);ctx.scale(pop,pop);
+      ctx.font='54px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(cur.e,0,0);ctx.restore();
+      ctx.fillStyle='#1a2452';ctx.font='900 16px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(cur.o,W/2,iy+30);
+      if(phase==='built'){ctx.font='26px serif';ctx.fillText('✅',W/2+70,iy-52);}
+      // کارت‌های فلز
+      const C=cards();for(const c of C){
+        const sel=(pick===c.i);const isWrongPick=(phase==='wrong'&&sel);const isGoodPick=(phase==='built'&&sel);
+        ctx.save();ctx.globalAlpha=.20;ctx.fillStyle=c.c;ctx.beginPath();ctx.roundRect(c.x,c.y,c.w,c.h,14);ctx.fill();ctx.restore();
+        ctx.strokeStyle=isWrongPick?'#ff5d8f':(isGoodPick?'#22c993':c.c);ctx.lineWidth=isGoodPick||isWrongPick?4:3;
+        ctx.beginPath();ctx.roundRect(c.x,c.y,c.w,c.h,14);ctx.stroke();
+        ctx.font='30px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(c.e,c.x+c.w/2,c.y+c.h*0.32);
+        ctx.fillStyle='#1a2452';ctx.font='900 16px Vazirmatn';ctx.fillText(c.k,c.x+c.w/2,c.y+c.h*0.64);
+        ctx.fillStyle=c.c;ctx.font='800 12px Vazirmatn';ctx.fillText(c.ic+' '+c.tr,c.x+c.w/2,c.y+c.h*0.85);}
+      ctx.textBaseline='alphabetic';
+      // تایمر
+      if(phase==='aim'){timeLeft-=dt;if(timeLeft<=0)timeup();}
+      ctx.fillStyle='rgba(0,0,0,.07)';ctx.beginPath();ctx.roundRect(16,H-12,W-32,6,3);ctx.fill();
+      ctx.fillStyle=timeLeft<2?'#ff5d8f':'#ff9f45';ctx.beginPath();ctx.roundRect(16,H-12,(W-32)*clamp(timeLeft/timeMax,0,1),6,3);ctx.fill();
+    }
+    sparks=sparks.filter(s=>{s.life-=dt*2;s.x+=Math.cos(s.a)*s.s;s.y+=Math.sin(s.a)*s.s;s.s*=0.94;
+      ctx.globalAlpha=clamp(s.life,0,1);ctx.fillStyle='#ffd23f';ctx.beginPath();ctx.arc(s.x,s.y,2.5,0,7);ctx.fill();return s.life>0;});
+    ctx.globalAlpha=1;
+    floaters=floaters.filter(f=>{f.t+=dt;f.y-=26*dt;ctx.globalAlpha=clamp(1-f.t,0,1);
+      ctx.fillStyle=f.txt[0]==='+'?'#0d7a4f':'#ff5d8f';ctx.font='900 20px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      ctx.fillText(f.txt,f.x,f.y);ctx.globalAlpha=1;return f.t<1.2;});
+    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);ctx.globalAlpha=clamp(c.life,0,1);
+      ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
+    ctx.globalAlpha=1;}
+
+  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
+    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,
+      c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
+
+  function endGame(won){state='end';const pct=score/(TOTAL*18);
+    const stars=pct>=.8?3:pct>=.55?2:1;
+    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
+    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'مهندسِ فلزکارِ ماهر!':'باختی! دوباره تلاش کن';
+    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
+    $('em').textContent=won?'هر فلز ویژگیِ خودش را دارد و برای کاری مناسب است':'به ویژگیِ فلز نگاه کن: رسانا، سبک، بی‌زنگ، محکم 💪';
+    $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
+    if(window.parent!==window){window.parent.postMessage(
+      {type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
+
+  let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);
+    draw(dt);requestAnimationFrame(loop);}
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;combo=0;loadRound(0);state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;combo=0;confetti=[];loadRound(0);state='play';};
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
