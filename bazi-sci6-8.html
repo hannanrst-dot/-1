@@ -3,20 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>مهندسِ طراح — طرّاحی کنیم و بسازیم</title>
+<title>گلایدر — طرّاحی کنیم و بسازیم</title>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;--pu:#9b6cff;}
+  :root{--ink:#1a2452;--muted:#5b6bb0;--pk:#ff5d8f;--or:#ff9f45;--yl:#ffd23f;--gr:#22c993;--bl:#3aa0ff;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%}
-  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);
-    background:linear-gradient(160deg,#8fd3ff 0%,#c6f0a8 55%,#ffe08a 100%);min-height:100vh;padding:8px;overflow:hidden;user-select:none}
+  body{font-family:'Vazirmatn',sans-serif;color:var(--ink);background:linear-gradient(160deg,#8fd3ff 0%,#c6f0a8 55%,#ffe08a 100%);min-height:100vh;padding:8px;overflow:hidden;user-select:none}
   .wrap{max-width:440px;margin:0 auto;position:relative}
   .hud{display:flex;gap:8px;align-items:center;margin-bottom:6px}
   .chip{background:#fff;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;display:flex;gap:6px;align-items:center;box-shadow:0 4px 12px rgba(40,60,90,.2)}
   .chip .lbl{color:var(--muted);font-size:11px;font-weight:700}.grow{flex:1}.hearts{font-size:15px}
   .qbar{background:#fff;border-radius:16px;padding:8px 12px;text-align:center;margin-bottom:6px;box-shadow:0 4px 12px rgba(40,60,90,.2)}
-  .qbar b{font-size:15px;font-weight:900}.qbar .s{color:var(--or);font-size:13px;margin-top:2px;font-weight:800}
+  .qbar b{font-size:15px;font-weight:900}.qbar .s{color:var(--or);font-size:12px;margin-top:2px;font-weight:800}
   .track{height:9px;background:#fff;border-radius:6px;overflow:hidden;margin-bottom:6px;box-shadow:0 2px 8px rgba(40,60,90,.16)}
   #prog{height:100%;width:0;background:linear-gradient(90deg,var(--gr),var(--yl));transition:width .2s}
   .stage{position:relative;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px rgba(40,60,90,.3)}
@@ -33,25 +32,24 @@
 <div class="wrap">
   <div class="hud">
     <div class="chip"><span class="lbl">امتیاز</span><span id="score">۰</span></div>
-    <div class="chip"><span class="lbl">مرحله</span><span id="round">۱/۸</span></div>
-    <div class="grow"></div>
-    <div class="chip hearts" id="hearts">❤️❤️❤️</div>
+    <div class="chip"><span class="lbl">هدف</span><span id="goal">۰/۱۰</span></div>
+    <div class="grow"></div><div class="chip hearts" id="hearts">❤️❤️❤️</div>
   </div>
-  <div class="qbar"><b id="q">بهترین طراحی؟</b><div class="s" id="qs"></div></div>
+  <div class="qbar"><b id="q">ضربه بزن تا بالا بروی!</b><div class="s" id="qs">بالابری بالا می‌بَرَد · گرانش پایین می‌کشد</div></div>
   <div class="track"><div id="prog"></div></div>
   <div class="stage">
     <canvas id="cv"></canvas>
     <div class="ov" id="ovStart">
-      <div class="emoji">🛠️🚀</div><h1>مهندسِ طراح</h1>
-      <p>مثلِ یک مهندس، برای هر چالش <b>بهترین طراحی</b> را انتخاب کن!<br>
-      شکل و طراحیِ درست، مقاومتِ هوا و اصطکاک را کم می‌کند و کار را بهتر انجام می‌دهد.<br>
-      روی طرحِ بهتر بزن! 🏎️</p>
+      <div class="emoji">🛩️☁️</div><h1>گلایدر</h1>
+      <p>روی صفحه <b>ضربه بزن</b> تا گلایدر با نیروی <b>بالابری</b> اوج بگیرد؛ اگر ضربه نزنی، <b>گرانش</b> آن را پایین می‌کشد.<br>
+      از لای ابرها <b>رد شو</b> و به زمین یا ابر نخور!<br>
+      شکلِ باریکِ گلایدر مقاومتِ هوا را کم می‌کند. ✈️</p>
       <button class="btn" id="btnStart">شروع بازی</button>
     </div>
     <div class="ov hidden" id="ovEnd">
       <div class="emoji" id="ef">🎉</div><h1 id="et">آفرین!</h1>
       <div class="stars" id="es">⭐⭐⭐</div>
-      <div class="scoreBig">امتیاز: <b id="esc">۰</b></div>
+      <div class="scoreBig">ابرهای ردشده: <b id="esc">۰</b></div>
       <div class="pill" id="em"></div>
       <button class="btn" id="btnAgain">دوباره</button>
     </div>
@@ -63,105 +61,64 @@
   const fa=s=>(''+s).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
   const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   let AC=null;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
-  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();
-    o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;
-    g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);
-    g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
-  const sOk=()=>{beep(680,.1,'square',.14);setTimeout(()=>beep(940,.12,'square',.13),80)};
-  const sCombo=()=>{beep(880,.08,'square',.12);setTimeout(()=>beep(1180,.1,'square',.12),70);};
-  const sBad=()=>beep(150,.3,'sawtooth',.15);const sZoom=()=>beep(300,.3,'sawtooth',.08);
+  function beep(f,d,t,v){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.type=t||'sine';o.frequency.value=f;o.connect(g);g.connect(c.destination);const n=c.currentTime;g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(v||.16,n+.01);g.gain.exponentialRampToValueAtTime(.0001,n+(d||.15));o.start(n);o.stop(n+(d||.15)+.02);}
+  const sFlap=()=>beep(520,.06,'sine',.08);const sPass=()=>{beep(680,.08,'square',.12);setTimeout(()=>beep(990,.1,'square',.11),60);};
+  const sHit=()=>beep(150,.3,'sawtooth',.15);
   const sWin=()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,'square',.15),i*110));
   const sLose=()=>[392,330,262].forEach((f,i)=>setTimeout(()=>beep(f,.2,'sawtooth',.14),i*140));
-
-  // هر مرحله: چالش + دو طرح ؛ good=اندیسِ درست
-  const ROUNDS=[
-    {q:'کدام در هوا سریع‌تر حرکت می‌کند؟',A:{e:'🏎️',t:'بدنه‌ی قطره‌ای'},B:{e:'🚌',t:'بدنه‌ی جعبه‌ای'},good:0,why:'شکلِ قطره‌ای مقاومتِ هوا را کم می‌کند.'},
-    {q:'برای جابه‌جاییِ بارِ سنگین با اصطکاکِ کم؟',A:{e:'📦',t:'کشیدنِ ساده'},B:{e:'🛒',t:'روی چرخ/غلتک'},good:1,why:'چرخ و غلتک اصطکاک را خیلی کم می‌کنند.'},
-    {q:'برای فرودِ آرام از آسمان؟',A:{e:'🪂',t:'با چترِ نجات'},B:{e:'🧍',t:'بدونِ چتر'},good:0,why:'چتر مقاومتِ هوا را زیاد و سقوط را آرام می‌کند.'},
-    {q:'کدام موشک صاف‌تر و سریع‌تر پرواز می‌کند؟',A:{e:'🚀',t:'نوکِ تیز'},B:{e:'🧊',t:'سرِ پهن'},good:0,why:'نوکِ تیز هوا را می‌شکافد و مقاومت کم می‌شود.'},
-    {q:'دوچرخه‌سوار برای سرعتِ بیشتر چه‌کار کند؟',A:{e:'🧍',t:'صاف بنشیند'},B:{e:'🚴',t:'خم شود'},good:1,why:'خم‌شدن سطحِ روبه‌روی باد را کم می‌کند.'},
-    {q:'برای بالا ماندنِ هواپیما کدام لازم است؟',A:{e:'🪽',t:'بال (نیروی بالابری)'},B:{e:'🪨',t:'وزنه‌ی سنگین'},good:0,why:'بال نیروی بالابری می‌سازد و هواپیما را بالا نگه می‌دارد.'},
-    {q:'کدام سطح ماشین را دورتر می‌بَرَد؟',A:{e:'🧊',t:'سطحِ صاف'},B:{e:'🧶',t:'سطحِ زبر'},good:0,why:'سطحِ صاف اصطکاکِ کمتری دارد.'},
-    {q:'برای قایقِ تندرو کدام بدنه بهتر است؟',A:{e:'🛥️',t:'باریک و کشیده'},B:{e:'🛟',t:'گِرد و پهن'},good:0,why:'بدنه‌ی باریک مقاومتِ آب را کم می‌کند.'}];
-  const TOTAL=ROUNDS.length;
+  const GOAL=10;
   const cv=$('cv'),ctx=cv.getContext('2d');let W,H,dpr;
-  function layout(){const st=cv.parentElement;W=st.clientWidth;H=Math.max(420,Math.min(520,Math.round(W*1.06)));
-    dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
+  function layout(){const st=cv.parentElement;W=st.clientWidth;H=Math.max(440,Math.min(540,Math.round(W*1.12)));dpr=Math.min(2,window.devicePixelRatio||1);cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0);}
   layout();window.addEventListener('resize',layout);
   const _rr=CanvasRenderingContext2D.prototype.roundRect;
-  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();
-    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
-
-  let state='start',ri=0,score=0,lives=3,combo=0,cur,phase,timeLeft,timeMax,pick=-1,zoom=0;
-  let confetti=[],floaters=[];
-  function cardRect(i){const gap=12,w=(W-gap*3)/2,h=H*0.26,y0=H*0.46;return{x:gap+i*(w+gap),y:y0,w,h};}
-  function loadRound(i){ri=i;cur=ROUNDS[i];phase='aim';pick=-1;zoom=0;timeMax=Math.max(4,7-i*0.3);timeLeft=timeMax;
-    $('round').textContent=fa((i+1)+'/'+TOTAL);$('q').textContent='بهترین طراحی کدام است؟';$('qs').textContent=cur.q;updateHud();}
-  function updateHud(){$('score').textContent=fa(score);
-    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));$('prog').style.width=(100*ri/TOTAL)+'%';}
-  cv.addEventListener('pointerdown',e=>{if(state!=='play'||phase!=='aim')return;
-    const rc=cv.getBoundingClientRect();const x=(e.clientX-rc.left)*(W/rc.width),y=(e.clientY-rc.top)*(H/rc.height);
-    for(let i=0;i<2;i++){const r=cardRect(i);if(x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h){choose(i);return;}}});
-  function choose(i){pick=i;const good=(i===cur.good);phase='res';zoom=0;sZoom();
-    if(good){combo++;const sp=Math.round(clamp(timeLeft,0,7));const g=10+sp*2+(combo>=2?combo*2:0);score+=g;combo>=2?sCombo():sOk();
-      floaters.push({x:W/2,y:H*0.12,t:0,txt:'+'+fa(g)+(combo>=2?' ×'+fa(combo):'')});
-      for(let k=0;k<18;k++)confetti.push(spawnConf(W/2,H*0.2));updateHud();setTimeout(next,1500);}
-    else{lives--;combo=0;sBad();floaters.push({x:W/2,y:H*0.12,t:0,txt:'طرحِ بهتری بود!'});updateHud();
-      setTimeout(()=>{if(state!=='play')return;if(lives<=0){endGame(false);return;}next();},1600);}}
-  function timeup(){if(phase!=='aim')return;lives--;combo=0;sBad();floaters.push({x:W/2,y:H*0.12,t:0,txt:'دیر شد!'});updateHud();phase='wait';
-    setTimeout(()=>{if(state!=='play')return;if(lives<=0){endGame(false);return;}next();},700);}
-  function next(){if(ri>=TOTAL-1){endGame(true);return;}loadRound(ri+1);}
-
-  function draw(dt){
-    if(BG.complete&&BG.naturalWidth)ctx.drawImage(BG,0,0,W,H);
-    else{const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#bfe8ff');bg.addColorStop(1,'#eaf6d0');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);}
-    if(state!=='start'&&cur){
-      if(combo>=2){ctx.fillStyle='#c2185b';ctx.font='900 14px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText('🔥 کومبو ×'+fa(combo),W/2,H*0.04);}
-      // مسیرِ مسابقه (بالا) + انیمیشنِ برنده
-      ctx.fillStyle='rgba(255,255,255,.7)';ctx.beginPath();ctx.roundRect(W*0.06,H*0.11,W*0.88,H*0.26,16);ctx.fill();
-      ctx.strokeStyle='rgba(0,0,0,.08)';ctx.setLineDash([6,6]);ctx.beginPath();ctx.moveTo(W*0.1,H*0.24);ctx.lineTo(W*0.9,H*0.24);ctx.stroke();ctx.setLineDash([]);
-      if(phase==='res'){zoom=Math.min(1,zoom+dt*0.9);const gx=W*0.12+zoom*W*0.72;
-        ctx.font='34px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(cur[['A','B'][cur.good]].e,gx,H*0.24);
-        ctx.fillStyle='#0d7a4f';ctx.font='900 13px Vazirmatn';ctx.fillText('طرحِ برنده! 🏁',W/2,H*0.16);}
-      else{ctx.font='30px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🏁',W*0.88,H*0.24);
-        ctx.fillStyle='#5b6bb0';ctx.font='800 13px Vazirmatn';ctx.fillText('کدام طرح این چالش را بهتر انجام می‌دهد؟',W/2,H*0.16);}
-      // دو کارت
-      for(let i=0;i<2;i++){const r=cardRect(i),o=cur[['A','B'][i]];const good=(phase==='res'&&i===cur.good),bad=(phase==='res'&&pick===i&&i!==cur.good);
-        ctx.fillStyle=good?'#e3fbef':(bad?'#ffe6ea':'#fff');ctx.strokeStyle=good?'#22c993':(bad?'#ff5d6c':'#3aa0ff');ctx.lineWidth=(good||bad)?4:3;
-        ctx.beginPath();ctx.roundRect(r.x,r.y,r.w,r.h,16);ctx.fill();ctx.stroke();
-        ctx.font='40px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(o.e,r.x+r.w/2,r.y+r.h*0.36);
-        ctx.fillStyle='#1a2452';ctx.font='900 14px Vazirmatn';ctx.fillText(o.t,r.x+r.w/2,r.y+r.h*0.74);
-        if(good){ctx.font='20px serif';ctx.fillText('✅',r.x+r.w/2,r.y+16);}}
-      // توضیح
-      if(phase==='res'){ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.roundRect(W*0.06,H*0.76,W*0.88,H*0.14,12);ctx.fill();
-        ctx.fillStyle='#0d7a4f';ctx.font='800 13px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='middle';
-        wrap(cur.why,W/2,H*0.83,W*0.8,17);}
-      ctx.textBaseline='alphabetic';
-      if(phase==='aim'){timeLeft-=dt;if(timeLeft<=0)timeup();}
-      ctx.fillStyle='rgba(0,0,0,.08)';ctx.beginPath();ctx.roundRect(16,H-10,W-32,5,3);ctx.fill();
-      ctx.fillStyle=timeLeft<2?'#ff5d6c':'#3aa0ff';ctx.beginPath();ctx.roundRect(16,H-10,(W-32)*clamp(timeLeft/timeMax,0,1),5,3);ctx.fill();
-    }
-    floaters=floaters.filter(f=>{f.t+=dt;f.y-=24*dt;ctx.globalAlpha=clamp(1-f.t,0,1);
-      ctx.fillStyle=f.txt[0]==='+'?'#0d7a4f':'#ff5d6c';ctx.font='900 19px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';
-      ctx.fillText(f.txt,f.x,f.y);ctx.globalAlpha=1;return f.t<1.3;});
-    confetti=confetti.filter(c=>{c.vy+=.35;c.x+=c.vx;c.y+=c.vy;c.r+=c.vr;c.life-=.02;ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.r);
-      ctx.globalAlpha=clamp(c.life,0,1);ctx.fillStyle=c.c;ctx.fillRect(-4,-3,8,5);ctx.restore();return c.life>0&&c.y<H+20;});
-    ctx.globalAlpha=1;}
-  function wrap(txt,cx,cy,maxw,lh){const words=txt.split(' ');let line='',lines=[];
-    for(const w of words){const test=line?line+' '+w:w;if(ctx.measureText(test).width>maxw&&line){lines.push(line);line=w;}else line=test;}
-    if(line)lines.push(line);const y0=cy-(lines.length-1)*lh/2;lines.forEach((l,i)=>ctx.fillText(l,cx,y0+i*lh));}
-  function spawnConf(x,y){const cols=['#ffd23f','#ff5d8f','#3aa0ff','#22c993','#9b6cff','#ff9f45'];
-    return{x,y,vx:(Math.random()-.5)*8,vy:-Math.random()*7-2,r:Math.random()*6,vr:(Math.random()-.5)*.4,c:cols[(Math.random()*cols.length)|0],life:1.4+Math.random()};}
-  function endGame(won){state='end';const pct=score/(TOTAL*16);const stars=pct>=.8?3:pct>=.55?2:1;
-    for(let i=0;i<70;i++)confetti.push(spawnConf(Math.random()*W,-Math.random()*30));
-    $('ef').textContent=won?'🎉':'😅';$('et').textContent=won?'مهندسِ طراحِ ماهر!':'باختی! دوباره تلاش کن';
-    $('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(score);
-    $('em').textContent=won?'طراحیِ خوب اصطکاک و مقاومتِ هوا را کم می‌کند':'به شکل و طراحی فکر کن 💪';
-    $('prog').style.width='100%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
-    if(window.parent!==window){window.parent.postMessage({type:'setareh_game',event:'complete',score:score,stars:stars,gameId:GAMEID},'*');}}
+  if(!_rr)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){this.beginPath();this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
+  let state='start',passed=0,lives=3,birdY,birdV,obstacles=[],scroll=110,parts=[],invuln=0;
+  const birdX=()=>W*0.28;
+  function reset(){passed=0;lives=3;birdY=H*0.4;birdV=0;obstacles=[];scroll=110;parts=[];invuln=0;updateHud();spawnObs(W*0.95);spawnObs(W*1.55);}
+  function updateHud(){$('score').textContent=fa(passed);$('goal').textContent=fa(passed)+'/'+fa(GOAL);
+    $('hearts').textContent='❤️'.repeat(Math.max(0,lives))+'🤍'.repeat(Math.max(0,3-lives));$('prog').style.width=(100*clamp(passed,0,GOAL)/GOAL)+'%';}
+  function spawnObs(x){const gap=H*0.36,gy=H*0.20+Math.random()*(H*0.46-gap);obstacles.push({x,gy,gap,passed:false});}
+  function flap(){if(state!=='play')return;birdV=-2.9;sFlap();}
+  cv.addEventListener('pointerdown',flap);
   let last=0;function loop(ts){if(!last)last=ts;let dt=(ts-last)/1000;last=ts;dt=Math.min(dt,.05);draw(dt);requestAnimationFrame(loop);}
-  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');score=0;lives=3;combo=0;loadRound(0);state='play';};
-  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');score=0;lives=3;combo=0;confetti=[];loadRound(0);state='play';};
+  function draw(dt){
+    if(BG.complete&&BG.naturalWidth)ctx.drawImage(BG,0,0,W,H);else{const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#bfe8ff');bg.addColorStop(1,'#eaf6d0');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);}
+    const gy=H*0.94;ctx.fillStyle='rgba(120,160,70,.5)';ctx.fillRect(0,gy,W,H-gy);
+    if(state==='play'){
+      birdV+=8.4*dt;birdY+=birdV;if(invuln>0)invuln-=dt;
+      const sp=(scroll+passed*4);
+      for(const o of obstacles)o.x-=sp*dt;
+      if(obstacles.length&&obstacles[obstacles.length-1].x<W*0.66)spawnObs(obstacles[obstacles.length-1].x+W*0.62);
+      obstacles=obstacles.filter(o=>o.x>-60);
+      const bx=birdX();
+      for(const o of obstacles){
+        ctx.fillStyle='rgba(255,255,255,.92)';ctx.strokeStyle='rgba(170,195,230,.9)';ctx.lineWidth=2;
+        ctx.beginPath();ctx.roundRect(o.x,-10,46,o.gy+10,16);ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.roundRect(o.x,o.gy+o.gap,46,H-(o.gy+o.gap)+10,16);ctx.fill();ctx.stroke();
+        if(!o.passed&&o.x+46<bx){o.passed=true;passed++;sPass();updateHud();if(passed>=GOAL){endGame(true);return;}}
+        if(invuln<=0&&bx+13>o.x&&bx-13<o.x+46&&(birdY-11<o.gy||birdY+11>o.gy+o.gap)){hit();}
+      }
+      if(invuln<=0&&(birdY>gy-11||birdY<8)){hit();}
+      drawBird(bx,birdY,birdV);
+      ctx.fillStyle='rgba(26,36,82,.5)';ctx.font='800 12px Vazirmatn';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText('ضربه بزن = بالابری ⬆️ · گرانش ⬇️',W/2,H*0.06);
+    } else if(state==='start'){drawBird(birdX(),H*0.4,0);}
+    parts=parts.filter(p=>{p.vy+=.25;p.x+=p.vx;p.y+=p.vy;p.life-=.03;ctx.globalAlpha=clamp(p.life,0,1);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,3,0,7);ctx.fill();return p.life>0;});ctx.globalAlpha=1;
+  }
+  function hit(){if(invuln>0)return;lives--;sHit();invuln=1.3;birdV=-1.6;for(let k=0;k<12;k++)parts.push({x:birdX(),y:birdY,vx:(Math.random()-.5)*6,vy:-Math.random()*4,life:1,c:'#ff5d6c'});updateHud();if(lives<=0)endGame(false);}
+  function drawBird(x,y,v){ctx.save();ctx.translate(x,y);ctx.rotate(clamp(v*0.05,-0.5,0.6));
+    if(invuln>0&&((performance.now()/100|0)%2))ctx.globalAlpha=0.4;
+    ctx.fillStyle='#ff7a45';ctx.beginPath();ctx.moveTo(18,0);ctx.lineTo(-16,-11);ctx.lineTo(-8,0);ctx.lineTo(-16,11);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#ffb07a';ctx.beginPath();ctx.moveTo(-6,-2);ctx.lineTo(-18,-14);ctx.lineTo(-4,-4);ctx.closePath();ctx.fill();
+    ctx.restore();}
+  function endGame(won){state='end';const stars=won?(lives>=3?3:lives>=2?2:1):1;
+    for(let k=0;k<70;k++)parts.push({x:Math.random()*W,y:-Math.random()*30,vx:(Math.random()-.5)*6,vy:Math.random()*3,life:2,c:['#ffd23f','#ff5d8f','#3aa0ff','#22c993'][(Math.random()*4)|0]});
+    $('ef').textContent=won?'🛩️':'😅';$('et').textContent=won?'خلبانِ ماهر شدی!':'گلایدر افتاد!';$('es').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);$('esc').textContent=fa(passed);
+    $('em').textContent=won?'بالابری بالا می‌بَرَد و گرانش پایین می‌کشد':'با ضربه نیروی بالابری بساز تا نیفتی 💪';
+    $('prog').style.width=(100*clamp(passed,0,GOAL)/GOAL)+'%';$('ovEnd').classList.remove('hidden');won?sWin():sLose();
+    if(window.parent!==window){window.parent.postMessage({type:'setareh_game',event:'complete',score:passed*10,stars:stars,gameId:GAMEID},'*');}}
+  $('btnStart').onclick=()=>{ac();$('ovStart').classList.add('hidden');reset();state='play';};
+  $('btnAgain').onclick=()=>{$('ovEnd').classList.add('hidden');reset();state='play';};
+  window.__fly={flap,get state(){return state;},get y(){return birdY;},get v(){return birdV;},get obs(){return obstacles;},get H(){return H;},get bx(){return birdX();}};
   requestAnimationFrame(loop);
 })();
 </script>
