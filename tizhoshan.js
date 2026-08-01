@@ -905,6 +905,72 @@
   function genQuestionM4(rng, level) { return rng.pick(poolForM4(level))(rng, level || 1); }
 
   /* ====================================================================
+   * مبحث ۵: ویژگیِ مشابه (نوع ۲) — A/B با ۵ گزینه؛ ویژگی‌های شمارشی/ترکیبی
+   * ================================================================== */
+  function arcAt(g, cx, cy, ang) { var gg = s('g', { transform: 'rotate(' + ang + ' ' + cx + ' ' + cy + ')' }); gg.appendChild(s('path', merge(DEF, { 'stroke-width': 2.8, d: 'M' + (cx - 11) + ' ' + (cy + 6) + ' Q' + cx + ' ' + (cy - 15) + ' ' + (cx + 11) + ' ' + (cy + 6) }))); g.appendChild(gg); }
+  function lineAt(g, cx, cy, ang) { var gg = s('g', { transform: 'rotate(' + ang + ' ' + cx + ' ' + cy + ')' }); gg.appendChild(s('line', merge(DEF, { 'stroke-width': 2.8, x1: cx - 12, y1: cy, x2: cx + 12, y2: cy }))); g.appendChild(gg); }
+  function arrowAt(g, cx, cy, ang) { var gg = s('g', { transform: 'rotate(' + ang + ' ' + cx + ' ' + cy + ')' }); gg.appendChild(s('line', merge(DEF, { 'stroke-width': 2.8, x1: cx, y1: cy + 9, x2: cx, y2: cy - 6 }))); gg.appendChild(s('polygon', { points: cx + ',' + (cy - 11) + ' ' + (cx - 4.5) + ',' + (cy - 3) + ' ' + (cx + 4.5) + ',' + (cy - 3), fill: PAL.line })); g.appendChild(gg); }
+  var SCATTER = [[32, 34], [68, 34], [32, 68], [68, 68], [50, 50], [50, 28]];
+
+  // ترکیبِ منحنی و خطِ راست — q114/q122
+  function m5_curveLineMix(rng) {
+    var mixes = [[1, 2], [2, 1], [0, 3], [3, 0], [2, 2], [1, 3], [3, 1]];
+    var cm = rng.pick(mixes), others = mixes.filter(function (m) { return m[0] !== cm[0] || m[1] !== cm[1]; }), dsel = rng.sample(others, 4);
+    function draw(nc, nl, seed) {
+      var rr = new RNG(seed), slots = rr.shuffle(SCATTER), items = [], k = 0, i;
+      for (i = 0; i < nc; i++) items.push({ t: 'a', c: slots[k++], g: rr.pick([0, 40, 90, 140]) });
+      for (i = 0; i < nl; i++) items.push({ t: 'l', c: slots[k++], g: rr.pick([0, 45, 90, 135]) });
+      return function (g) { items.forEach(function (it) { (it.t === 'a' ? arcAt : lineAt)(g, it.c[0], it.c[1], it.g); }); };
+    }
+    var refs = [refFig(draw(cm[0], cm[1], 7)), refFig(draw(cm[0], cm[1], 19))], correct = draw(cm[0], cm[1], 33), dists = [];
+    for (var i = 0; i < 4; i++) dists.push(draw(dsel[i][0], dsel[i][1], 51 + i * 13));
+    return matchQuestion(rng, refs, correct, dists, 'در A و B، تعدادِ منحنی‌ها و خط‌های راست مشخص است. کدام گزینه همان ترکیب را دارد؟', 'منحنی و خط', 'در گزینه‌ی درست، تعدادِ منحنی‌ها و خط‌های راست دقیقاً مثلِ A و B است؛ اما در بقیه این ترکیب فرق دارد. هرکدام را جدا بشمار!');
+  }
+  // شمارشِ فلش‌ها (جهت‌ها فرق دارند، فقط تعداد مهم است) — q113
+  function m5_arrowCount(rng) {
+    var k = rng.int(3, 5), cs = [2, 3, 4, 5, 6].filter(function (x) { return x !== k; });
+    function draw(count, seed) { var rr = new RNG(seed), pos = rr.shuffle(SCATTER), items = []; for (var i = 0; i < count; i++) items.push({ c: pos[i], a: rr.pick([0, 45, 90, 135, 180, 225, 270, 315]) }); return function (g) { items.forEach(function (it) { arrowAt(g, it.c[0], it.c[1], it.a); }); }; }
+    var refs = [refFig(draw(k, 8)), refFig(draw(k, 22))], correct = draw(k, 44), dists = [];
+    for (var i = 0; i < 4; i++) dists.push(draw(cs[i], 60 + i * 13));
+    return matchQuestion(rng, refs, correct, dists, 'در A و B، تعدادِ فلش‌ها یکسان است (جهتشان مهم نیست). کدام گزینه همان تعداد فلش دارد؟', 'شمارشِ فلش', 'گزینه‌ی درست همان تعدادِ فلش را دارد که A و B دارند؛ جهتِ فلش‌ها مهم نیست، فقط تعدادشان. بشمار!');
+  }
+  // هر سه شکل با هم (دایره + مربع + مثلث)
+  function m5_containsTrio(rng) {
+    function comp(ks) { return function (g) { for (var i = 0; i < 3; i++) blob(g, ks[i], COMPPOS[i][0], COMPPOS[i][1], 11, false); }; }
+    function trio(seed) { return comp(new RNG(seed).shuffle(['circle', 'square', 'triangle'])); }
+    function miss(seed) { var rr = new RNG(seed), drop = rr.pick(['circle', 'square', 'triangle']), pool = ['circle', 'square', 'triangle', 'diamond'].filter(function (k) { return k !== drop; }); return comp([rr.pick(pool), rr.pick(pool), rr.pick(pool)]); }
+    var refs = [refFig(trio(9)), refFig(trio(21))], correct = trio(41), dists = [];
+    for (var i = 0; i < 4; i++) dists.push(miss(60 + i * 13));
+    return matchQuestion(rng, refs, correct, dists, 'در A و B هم دایره هست، هم مربع، هم مثلث. کدام گزینه هم هر سه را دارد؟', 'هر سه شکل', 'گزینه‌ی درست هر سه شکل (دایره، مربع، مثلث) را دارد مثلِ A و B؛ اما در بقیه یکی از این سه نیست.');
+  }
+  // تقارن (۵ گزینه)
+  function m5_symmetryPair5(rng) {
+    var rn = rng.sample([4, 5, 6, 7, 8], 2), refs = [refFig(regDraw(rn[0], -90)), refFig(regDraw(rn[1], -50))];
+    var correct = regDraw(rng.pick([4, 5, 6, 7, 8]), rng.pick([-90, -45, 0])), dists = [];
+    for (var i = 0; i < 4; i++) dists.push(irrDraw(411 + i * 97 + rng.int(0, 40)));
+    return matchQuestion(rng, refs, correct, dists, 'A و B هر دو خطِ تقارن دارند. کدام گزینه هم خطِ تقارن دارد؟', 'تقارن', 'گزینه‌ی درست منتظم است و خطِ تقارن دارد (مثلِ A و B)؛ اما بقیه نامتقارن‌اند.');
+  }
+  // هم‌دستیِ صحنه (۵ گزینه، حرفه‌ای)
+  function m5_chiralScene5(rng) {
+    var spec = makeScene(rng, 3);
+    var refs = [function () { return figure(drawScene(spec), { rot: 0, size: 62 }); }, function () { return figure(drawScene(spec), { rot: rng.pick([90, 180, 270]), size: 62 }); }];
+    var mir = rng.next() < 0.5 ? 'v' : 'h', oA = rng.shuffle([0, 90, 180, 270]);
+    var opts = [{ mir: false, rot: oA[0] }]; for (var i = 0; i < 4; i++) opts.push({ mir: true, rot: oA[i % 4] });
+    var order = rng.shuffle(opts);
+    return {
+      prompt: 'A و B یک صحنه‌اند که چرخیده‌اند. کدام گزینه هم از همین خانواده (هم‌دست) است؟', tag: 'هم‌دستیِ صحنه',
+      refs: refs, options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(drawScene(spec), { rot: o.rot, mirror: o.mir ? mir : null, size: 96 }); },
+      why: 'A و B یک صحنه‌اند که فقط چرخیده‌اند (هم‌دست). گزینه‌ی درست هم با چرخش روی آن‌ها می‌افتد؛ اما بقیه «قرینه (آینه)» شده‌اند.'
+    };
+  }
+  var M5_EASY = [m5_arrowCount, m5_containsTrio, m5_symmetryPair5];
+  var M5_MED = [m5_curveLineMix, m5_arrowCount, m5_containsTrio, m5_symmetryPair5];
+  var M5_HARD = [m5_chiralScene5, m5_curveLineMix, m5_containsTrio, m5_symmetryPair5];
+  function poolForM5(level) { return level >= 3 ? M5_HARD : level === 2 ? M5_MED : M5_EASY; }
+  function genQuestionM5(rng, level) { return rng.pick(poolForM5(level))(rng, level || 1); }
+
+  /* ====================================================================
    * ۴) درسنامه‌ی کاملِ مبحث ۱ — متنِ اورجینال، آموزشِ ۵ سرنخ + تکنیک‌ها
    * ================================================================== */
   function artRow(makers) { var w = h('div', { class: 'tz-artrow' }); makers.forEach(function (m) { w.appendChild(m()); }); return w; }
@@ -1020,6 +1086,27 @@
     ];
   }
 
+  function lessonM5() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(gen) { return function () { return buildInteractive(toInter(gen(new RNG(seed++)))); }; }
+    return [
+      { title: 'ماموریتِ شباهت — سطحِ ۲! 🎖',
+        body: 'این‌جا هم مثلِ قبل دو تصویرِ A و B داری، ولی این‌بار ۵ گزینه! و ویژگی‌ها بیشتر «شمارشی»‌اند: چند منحنی؟ چند خطِ راست؟ چند فلش؟ چه شکل‌هایی با هم؟ پس چشمِ کارآگاهی‌ات را تیز کن و بشمار.',
+        art: function () { var w = h('div', { class: 'tz-artrow' }); [7, 19].forEach(function () { w.appendChild(figure(function (g) { arcAt(g, 40, 44, 20); lineAt(g, 64, 44, 60); lineAt(g, 50, 68, 120); }, { size: 72 })); }); return w; } },
+      { title: 'جدا بشمار! 🔢',
+        body: 'رازِ این مبحث: چیزها را جدا بشمار. مثلاً «۱ منحنی و ۲ خطِ راست». نگاهِ کلی گولت می‌زند؛ فقط شمردنِ دقیقِ هر نوع، جوابِ درست را نشان می‌دهد.',
+        art: function () { return figure(mZig, { size: 92, frame: false }); } },
+      { title: 'تمرین: منحنی و خط', interactive: ex(m5_curveLineMix) },
+      { title: 'همه با هم! 🔺⚫◼',
+        body: 'گاهی ویژگی این است که «هر سه شکل با هم باشند» یا «تعدادِ فلش‌ها برابر باشد». به کلِ مجموعه نگاه کن، نه فقط یک شکل. اول ویژگیِ مشترکِ A و B را کشف کن، بعد گزینه بزن.',
+        art: function () { var w = h('div', { class: 'tz-artrow' }); [9, 21].forEach(function (sd) { w.appendChild(figure(function (g) { var ks = new RNG(sd).shuffle(['circle', 'square', 'triangle']); for (var i = 0; i < 3; i++) blob(g, ks[i], COMPPOS[i][0], COMPPOS[i][1], 11, false); }, { size: 72 })); }); return w; } },
+      { title: 'تمرین: هر سه شکل', interactive: ex(m5_containsTrio) },
+      { title: 'آماده‌ای! 🌟',
+        body: 'حالا قهرمانِ شباهت‌های شمارشی شده‌ای. در «تمرین» بی‌نهایت سؤالِ تازه با ۳ سطحِ سختی هست و در «آزمون» خودت را محک بزن. موفق باشی کارآگاه!',
+        art: function () { return figure(mHook, { size: 100, frame: false }); } }
+    ];
+  }
+
   function lessonM3() {
     var seed = (Date.now() & 0xffff) | 1;
     function ex(gen) { return function () { return buildInteractive(toInter(gen(new RNG(seed++)))); }; }
@@ -1056,7 +1143,7 @@
     { id: 'motafavet2', n: 2, title: 'تصویرِ متفاوت (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🧩', color: PAL.lilac, ready: true, lesson: lessonM2, gen: genQuestionM2, pool: poolForM2 },
     { id: 'monaseb', n: 3, title: 'تصویرِ مناسب', sub: 'کدام مناسب است؟', icon: '🎯', color: PAL.gold, ready: true, lesson: lessonM3, gen: genQuestionM3, pool: poolForM3 },
     { id: 'moshabeh1', n: 4, title: 'ویژگیِ مشابه (نوع ۱)', sub: 'شبیه‌ترین گزینه', icon: '🔗', color: PAL.teal, ready: true, lesson: lessonM4, gen: genQuestionM4, pool: poolForM4 },
-    { id: 'moshabeh2', n: 5, title: 'ویژگیِ مشابه (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🪞', color: PAL.lilac, ready: false },
+    { id: 'moshabeh2', n: 5, title: 'ویژگیِ مشابه (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🪞', color: PAL.lilac, ready: true, lesson: lessonM5, gen: genQuestionM5, pool: poolForM5 },
     { id: 'ejraye_qaede', n: 6, title: 'اجرای قاعده', sub: 'قاعده را ادامه بده', icon: '⚙️', color: PAL.gold, ready: false },
     { id: 'dastebandi', n: 7, title: 'دسته‌بندیِ شکل‌ها', sub: 'گروه‌بندیِ درست', icon: '🗂️', color: PAL.teal, ready: false }
   ];
@@ -1449,6 +1536,7 @@
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
-        m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair } };
+        m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
+        m5_curveLineMix: m5_curveLineMix, m5_arrowCount: m5_arrowCount, m5_containsTrio: m5_containsTrio, m5_symmetryPair5: m5_symmetryPair5, m5_chiralScene5: m5_chiralScene5 } };
   }
 })();
