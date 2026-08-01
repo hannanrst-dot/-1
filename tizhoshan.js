@@ -1068,6 +1068,47 @@
   function mountRoot() { ROOT = document.getElementById('sec-tizhoshan'); if (!ROOT) return null; ROOT.classList.add('tz-root'); ROOT.setAttribute('dir', 'rtl'); return ROOT; }
   function backBtn(fn, label) { return h('button', { class: 'tz-back', onclick: fn }, '→ ' + (label || 'بازگشت')); }
 
+  /* ---- شخصیتِ راهنما «تیز» + پاداش‌ها (حسِ ماموریتی) ---- */
+  function tzMascot(mood, size) {
+    mood = mood || 'hi'; size = size || 92;
+    var svg = s('svg', { viewBox: '0 0 120 124', width: size, height: size, class: 'tz-mascot' });
+    var defs = s('defs', {}); var g = s('linearGradient', { id: 'tzmg', x1: '0', y1: '0', x2: '0', y2: '1' });
+    g.appendChild(s('stop', { offset: '0', 'stop-color': PAL.teal })); g.appendChild(s('stop', { offset: '1', 'stop-color': PAL.tealD }));
+    defs.appendChild(g); svg.appendChild(defs);
+    if (mood === 'wow' || mood === 'happy') { // پرتوهای شادی
+      [30, 90].forEach(function (x) { var st = s('path', { d: 'M' + x + ' 12 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z', fill: PAL.gold, opacity: '.9' }); svg.appendChild(st); });
+    }
+    svg.appendChild(s('ellipse', { cx: 60, cy: 112, rx: 30, ry: 6, fill: 'rgba(35,37,68,.10)' })); // سایه
+    svg.appendChild(s('rect', { x: 26, y: 30, width: 68, height: 70, rx: 30, fill: 'url(#tzmg)' })); // بدن
+    // گوش‌ها/شاخک
+    svg.appendChild(s('circle', { cx: 60, cy: 24, r: 5, fill: PAL.gold }));
+    svg.appendChild(s('line', { x1: 60, y1: 30, x2: 60, y2: 24, stroke: PAL.tealD, 'stroke-width': 3 }));
+    var eyeY = 58;
+    [46, 74].forEach(function (ex) { svg.appendChild(s('circle', { cx: ex, cy: eyeY, r: 12, fill: '#fff' })); });
+    var px = mood === 'think' ? 3 : 0, py = mood === 'wow' ? -3 : 2;
+    [46, 74].forEach(function (ex) { svg.appendChild(s('circle', { cx: ex + px, cy: eyeY + py, r: 5.5, fill: PAL.ink })); svg.appendChild(s('circle', { cx: ex + px - 2, cy: eyeY + py - 2.5, r: 1.9, fill: '#fff' })); });
+    [40, 80].forEach(function (cx) { svg.appendChild(s('circle', { cx: cx, cy: 74, r: 5, fill: 'rgba(255,255,255,.32)' })); });
+    if (mood === 'wow') svg.appendChild(s('ellipse', { cx: 60, cy: 82, rx: 7, ry: 9, fill: '#fff' }));
+    else if (mood === 'think') svg.appendChild(s('path', { d: 'M52 84 H68', fill: 'none', stroke: '#fff', 'stroke-width': 4, 'stroke-linecap': 'round' }));
+    else svg.appendChild(s('path', { d: 'M49 80 Q60 92 71 80', fill: 'none', stroke: '#fff', 'stroke-width': 4, 'stroke-linecap': 'round' }));
+    // ذره‌بینِ کارآگاهی
+    svg.appendChild(s('circle', { cx: 98, cy: 92, r: 11, fill: 'none', stroke: PAL.gold, 'stroke-width': 5 }));
+    svg.appendChild(s('line', { x1: 106, y1: 100, x2: 115, y2: 111, stroke: PAL.gold, 'stroke-width': 5, 'stroke-linecap': 'round' }));
+    return svg;
+  }
+  function guideRow(mood, bodyText, cls) {
+    return h('div', { class: 'tz-guide' + (cls ? ' ' + cls : '') },
+      h('div', { class: 'tz-guide-av' }, tzMascot(mood, 84)),
+      h('div', { class: 'tz-speech' }, h('span', { class: 'tz-guide-name' }, 'تیز، کارآگاهِ شکل‌ها'), h('p', { class: 'tz-speech-b' }, bodyText)));
+  }
+  function starRow(n, max) { var w = h('div', { class: 'tz-stars' }); max = max || 3; for (var i = 0; i < max; i++) w.appendChild(h('span', { class: 'tz-star' + (i < n ? ' on' : '') }, i < n ? '★' : '☆')); return w; }
+  function starsFor(pct) { return pct >= 85 ? 3 : pct >= 55 ? 2 : pct > 0 ? 1 : 0; }
+  function tzConfetti(host) {
+    var c = h('div', { class: 'tz-confetti' }); var cols = [PAL.teal, PAL.lilac, PAL.gold, PAL.ok, '#ff8fb1'];
+    for (var i = 0; i < 30; i++) { var b = document.createElement('i'); b.style.left = (Math.random() * 100) + '%'; b.style.background = cols[i % cols.length]; b.style.animationDelay = (Math.random() * 0.5).toFixed(2) + 's'; b.style.setProperty('--tzr', Math.floor(Math.random() * 360) + 'deg'); c.appendChild(b); }
+    host.appendChild(c); setTimeout(function () { if (c.parentNode) c.parentNode.removeChild(c); }, 2800);
+  }
+
   function renderHub() {
     if (!ROOT) return; clear(ROOT);
     ROOT.appendChild(h('div', { class: 'tz-hero' },
@@ -1077,12 +1118,13 @@
     var grid = h('div', { class: 'tz-grid' });
     MABAHETH.forEach(function (m) {
       var cl = m.color === PAL.teal ? PAL.tealL : m.color === PAL.lilac ? PAL.lilacL : PAL.goldL;
+      var best = 0; try { var c = cur(); if (c && c.activities && c.activities['tz_' + m.id]) best = c.activities['tz_' + m.id].bestScore || 0; } catch (e) {}
       grid.appendChild(h('button', { class: 'tz-card' + (m.ready ? '' : ' tz-card-soon'), style: { '--tz-c': m.color, '--tz-cl': cl }, onclick: function () { if (m.ready) openMabhath(m); } },
         h('span', { class: 'tz-card-ic' }, m.icon),
         h('span', { class: 'tz-card-n' }, 'مبحثِ ' + toFa(m.n)),
         h('span', { class: 'tz-card-t' }, m.title),
         h('span', { class: 'tz-card-s' }, m.sub),
-        m.ready ? null : h('span', { class: 'tz-soon' }, 'به‌زودی')));
+        m.ready ? starRow(starsFor(best), 3) : h('span', { class: 'tz-soon' }, 'به‌زودی')));
     });
     ROOT.appendChild(grid);
   }
@@ -1106,24 +1148,47 @@
     runLesson(m, stage);
   }
 
-  /* ---- درسنامه ---- */
+  /* ---- درسنامه (ماموریتِ مرحله‌ای با راهنما) ---- */
   function runLesson(m, stage) {
     clear(stage);
     var pages = m.lesson ? m.lesson() : []; var idx = 0;
-    var card = h('div', { class: 'tz-lesson' }); var dots = h('div', { class: 'tz-dots' });
-    stage.appendChild(card); stage.appendChild(dots);
+    var card = h('div', { class: 'tz-lesson' });
+    stage.appendChild(card);
+    var moods = ['hi', 'think', 'happy'];
+    function stepTrack() {
+      var t = h('div', { class: 'tz-steptrack' });
+      pages.forEach(function (_, i) {
+        if (i > 0) t.appendChild(h('span', { class: 'tz-stepbar' + (i <= idx ? ' done' : '') }));
+        t.appendChild(h('span', { class: 'tz-step' + (i === idx ? ' on' : i < idx ? ' done' : '') }, i < idx ? '✓' : toFa(i + 1)));
+      });
+      return t;
+    }
     function draw() {
-      clear(card); clear(dots);
-      var p = pages[idx];
-      card.appendChild(h('h3', { class: 'tz-lt' }, p.title));
-      if (p.interactive) card.appendChild(p.interactive());
-      else { if (p.art) { var a = h('div', { class: 'tz-lart' }); a.appendChild(typeof p.art === 'function' ? p.art() : p.art); card.appendChild(a); } card.appendChild(h('p', { class: 'tz-lb' }, p.body)); }
-      pages.forEach(function (_, i) { dots.appendChild(h('span', { class: 'tz-dot' + (i === idx ? ' on' : '') })); });
+      clear(card);
+      var p = pages[idx], last = idx === pages.length - 1;
+      card.appendChild(h('div', { class: 'tz-mission' }, '🎯 ماموریت: ' + m.title));
+      card.appendChild(stepTrack());
+      if (last) {
+        card.appendChild(h('div', { class: 'tz-celebrate' },
+          tzMascot('wow', 116),
+          h('h3', { class: 'tz-lt' }, p.title),
+          h('div', { class: 'tz-badge' }, '🎖 نشانِ «کارآگاهِ ' + m.title + '» را گرفتی!'),
+          h('p', { class: 'tz-lb' }, p.body)));
+        setTimeout(function () { tzConfetti(stage); }, 120);
+      } else if (p.interactive) {
+        card.appendChild(h('h3', { class: 'tz-lt' }, p.title));
+        card.appendChild(guideRow('think', 'حالا با هم حل کنیم! خوب فکر کن و جوابت را بزن.', 'tz-guide-sm'));
+        card.appendChild(p.interactive());
+      } else {
+        card.appendChild(h('h3', { class: 'tz-lt' }, p.title));
+        if (p.art) { var a = h('div', { class: 'tz-lart' }); a.appendChild(typeof p.art === 'function' ? p.art() : p.art); card.appendChild(a); }
+        card.appendChild(guideRow(moods[idx % moods.length], p.body));
+      }
       card.appendChild(h('div', { class: 'tz-lnav' },
         idx > 0 ? h('button', { class: 'tz-btn ghost', onclick: function () { idx--; draw(); } }, 'قبلی') : h('span'),
-        h('span', { class: 'tz-lpage' }, toFa(idx + 1) + ' / ' + toFa(pages.length)),
-        idx < pages.length - 1 ? h('button', { class: 'tz-btn', onclick: function () { idx++; draw(); } }, 'بعدی ←')
-          : h('button', { class: 'tz-btn', onclick: function () { runPractice(m, stage); } }, 'برویم تمرین! 🎨')));
+        h('span', { class: 'tz-lpage' }, 'مرحله ' + toFa(idx + 1) + ' از ' + toFa(pages.length)),
+        idx < pages.length - 1 ? h('button', { class: 'tz-btn', onclick: function () { idx++; draw(); } }, 'مرحله‌ی بعد ←')
+          : h('button', { class: 'tz-btn', onclick: function () { runPractice(m, stage); } }, 'شروعِ ماموریت! 🚀')));
     }
     draw();
   }
@@ -1237,17 +1302,21 @@
     }
     function finish() {
       bar.firstChild.style.width = '100%'; clear(box);
-      var pct = Math.round(correct / total * 100);
+      var pct = Math.round(correct / total * 100), st = starsFor(pct);
       saveBest(m.id, pct, true, wrong);
-      var msg = pct >= 80 ? 'عالی بود! کارآگاهِ حرفه‌ای شدی 🌟' : pct >= 50 ? 'خوب بود، با کمی تمرین عالی می‌شوی 💪' : 'اشکال ندارد، دوباره تمرین کن؛ حتماً بهتر می‌شوی 🌱';
-      box.appendChild(h('div', { class: 'tz-report' },
+      var mood = pct >= 70 ? 'wow' : pct >= 40 ? 'happy' : 'hi';
+      var msg = st === 3 ? 'فوق‌العاده بود! کارآگاهِ حرفه‌ای شدی 🌟' : st === 2 ? 'آفرین! خیلی خوب بود، یک قدم تا عالی 💪' : st === 1 ? 'شروعِ خوبی بود! با تمرین قوی‌تر می‌شوی 🌱' : 'اشکال ندارد قهرمان، دوباره تلاش کن؛ حتماً بهتر می‌شوی 🌱';
+      box.appendChild(h('div', { class: 'tz-report tz-celebrate' },
+        tzMascot(mood, 110),
+        starRow(st, 3),
         h('div', { class: 'tz-score' }, toFa(correct) + ' / ' + toFa(total)),
-        h('div', { class: 'tz-pct' }, '٪' + toFa(pct)),
+        h('div', { class: 'tz-badge' }, '🎖 نشانِ «' + m.title + '»'),
         h('p', { class: 'tz-msg' }, msg),
         wrong.length ? h('p', { class: 'tz-wrong' }, 'سؤال‌های اشتباه: ' + wrong.map(toFa).join('، ')) : null,
         h('div', { class: 'tz-lnav' },
           h('button', { class: 'tz-btn ghost', onclick: function () { runPractice(m, stage); } }, 'رفتن به تمرین'),
           h('button', { class: 'tz-btn', onclick: function () { runQuizIntro(m, stage); } }, 'آزمونِ تازه 🔁'))));
+      if (pct >= 40) tzConfetti(stage);
     }
     draw();
   }
@@ -1286,7 +1355,33 @@
       '.tz-tabs{display:flex;gap:6px;background:#e9ebf8;padding:5px;border-radius:16px;margin-bottom:16px}',
       '.tz-tab{flex:1;min-width:92px;cursor:pointer;border:none;background:transparent;border-radius:12px;padding:11px 8px;font-family:inherit;font-size:.92rem;font-weight:700;color:' + PAL.inkSoft + ';transition:.18s}',
       '.tz-tab.on{background:' + PAL.paper + ';color:' + PAL.teal + ';box-shadow:0 3px 10px rgba(35,37,68,.12)}',
-      '.tz-stage{background:' + PAL.paper + ';border-radius:22px;padding:22px;box-shadow:' + SH + ';border:1px solid ' + PAL.border + '}',
+      '.tz-stage{position:relative;overflow:hidden;background:' + PAL.paper + ';border-radius:22px;padding:22px;box-shadow:' + SH + ';border:1px solid ' + PAL.border + '}',
+      // mission / guide / steps
+      '.tz-mission{text-align:center;font-weight:700;color:' + PAL.teal + ';font-size:.92rem;background:' + PAL.tealL + ';display:inline-block;margin:0 auto 4px;padding:4px 16px;border-radius:999px;width:auto}',
+      '.tz-lesson{text-align:center;display:flex;flex-direction:column;align-items:center}',
+      '.tz-steptrack{display:flex;align-items:center;justify-content:center;gap:0;margin:10px 0 16px;flex-wrap:wrap}',
+      '.tz-step{width:27px;height:27px;border-radius:50%;background:#e8e9f6;color:' + PAL.inkSoft + ';display:flex;align-items:center;justify-content:center;font-size:.76rem;font-weight:700;flex:none}',
+      '.tz-step.on{background:' + PAL.teal + ';color:#fff;box-shadow:0 0 0 4px ' + PAL.tealL + '}.tz-step.done{background:' + PAL.ok + ';color:#fff}',
+      '.tz-stepbar{width:15px;height:3px;background:#e8e9f6}.tz-stepbar.done{background:' + PAL.ok + '}',
+      '.tz-guide{display:flex;gap:12px;align-items:center;text-align:right;width:100%;margin-top:4px}',
+      '.tz-guide-sm{margin-bottom:12px}.tz-guide-av{flex:none}',
+      '.tz-mascot{display:block;animation:tzbob 3s ease-in-out infinite}',
+      '@keyframes tzbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}',
+      '.tz-speech{position:relative;flex:1;background:linear-gradient(135deg,' + PAL.tealL + ',#f4f4fe);border:1px solid #e9e8fb;border-radius:16px;border-top-right-radius:4px;padding:12px 16px;text-align:justify}',
+      '.tz-guide-name{display:block;font-size:.76rem;color:' + PAL.teal + ';font-weight:700;margin-bottom:3px}',
+      '.tz-speech-b{margin:0;font-size:1.01rem;color:' + PAL.ink + ';line-height:1.9}',
+      // celebration / stars / badge
+      '.tz-celebrate{text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}',
+      '.tz-stars{display:flex;gap:5px;justify-content:center}',
+      '.tz-star{color:#d8dbec;font-size:1.5rem;line-height:1}.tz-star.on{color:' + PAL.gold + ';animation:tzpop .4s ease}',
+      '.tz-card .tz-stars{margin-top:7px}.tz-card .tz-star{font-size:.92rem}',
+      '.tz-badge{display:inline-flex;align-items:center;gap:6px;background:' + PAL.goldL + ';color:#b9791a;padding:7px 16px;border-radius:999px;font-weight:700;font-size:.92rem}',
+      '@keyframes tzpop{0%{transform:scale(.6)}55%{transform:scale(1.25)}100%{transform:scale(1)}}',
+      '.tz-opt.ok{animation:tzpop .4s ease}',
+      '.tz-confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:6}',
+      '.tz-confetti i{position:absolute;top:-14px;width:9px;height:14px;border-radius:2px;animation:tzfall 2.6s linear forwards}',
+      '@keyframes tzfall{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(560px) rotate(var(--tzr,360deg));opacity:.15}}',
+      '@media(prefers-reduced-motion:reduce){.tz-mascot,.tz-opt.ok,.tz-star.on{animation:none}.tz-confetti{display:none}}',
       // lesson
       '.tz-lesson{text-align:center}',
       '.tz-lt{font-family:"Lalezar","Estedad",sans-serif;font-weight:400;margin:0 0 12px;font-size:1.45rem;color:' + PAL.teal + '}',
