@@ -1031,6 +1031,48 @@
   function genQuestionM6(rng, level) { return rng.pick(poolForM6(level))(rng, level || 1); }
 
   /* ====================================================================
+   * مبحث ۷: دسته‌بندیِ شکل‌ها — ۹ شکلِ شماره‌دار؛ کدام گزینه درست گروه‌بندی کرده
+   * ================================================================== */
+  function gridPanel(figs) {
+    var box = h('div', { class: 'tz-grid9' }, h('div', { class: 'tz-refs-lbl' }, 'این ۹ شکل را در ذهنت به ۳ گروهِ هم‌ویژگی تقسیم کن:'));
+    var g = h('div', { class: 'tz-grid9-cells' });
+    figs.forEach(function (f, i) { g.appendChild(h('div', { class: 'tz-g9cell' }, f(), h('span', { class: 'tz-g9n' }, toFa(i + 1)))); });
+    box.appendChild(g); return box;
+  }
+  function fmtGroups(groups) { return groups.map(function (t) { return '(' + t.map(function (n) { return toFa(n); }).join('، ') + ')'; }).join('   '); }
+  function m7Question(rng, catFig, prompt, why) {
+    var cats = rng.shuffle([0, 0, 0, 1, 1, 1, 2, 2, 2]);
+    var grid = cats.map(function (c, i) { var d = catFig(c, i * 7 + 3); return function () { return figure(d, { size: 46 }); }; });
+    var byCat = [[], [], []]; cats.forEach(function (c, i) { byCat[c].push(i + 1); });
+    var correct = { groups: byCat };
+    function key(groups) { return groups.map(function (t) { return t.slice().sort(function (a, b) { return a - b; }).join(','); }).sort().join('|'); }
+    var seen = {}; seen[key(byCat)] = 1; var dists = [], guard = 0;
+    while (dists.length < 3 && guard++ < 300) { var pm = rng.shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]); var gp = [[pm[0], pm[1], pm[2]], [pm[3], pm[4], pm[5]], [pm[6], pm[7], pm[8]]]; var k = key(gp); if (!seen[k]) { seen[k] = 1; dists.push({ groups: gp }); } }
+    var opts = [correct].concat(dists); var order = rng.shuffle(opts);
+    return {
+      prompt: prompt, tag: 'دسته‌بندی', grid: grid, wide: true, options: order, answer: order.indexOf(correct),
+      render: function (o) { return h('div', { class: 'tz-groups' }, fmtGroups(o.groups)); }, why: why
+    };
+  }
+  function m7_bySides(rng) {
+    function fig(cat, seed) { var n = [3, 4, 5][cat], rr = new RNG(seed), st = rr.pick([-90, -60, -30, 0]); return function (g) { drawPoly(g, n, { r: 30, start: st }); }; }
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «تعدادِ ضلع» درست دسته‌بندی شده‌اند؟', 'در گزینه‌ی درست، هر گروه شکل‌های هم‌ضلع است (سه مثلث، سه چهارضلعی، سه پنج‌ضلعی)؛ اما در بقیه، گروه‌ها قاطیِ هم‌اند. ضلع‌ها را بشمار!');
+  }
+  function m7_byInner(rng) {
+    function fig(cat, seed) { var inner = ['circle', 'square', 'triangle'][cat], rr = new RNG(seed), n = rr.pick([4, 5, 6]), st = rr.pick([-90, -45]); return function (g) { drawPoly(g, n, { r: 34, start: st }); smallShape(g, inner, 50, 50, 10); }; }
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «شکلِ داخلی» درست دسته‌بندی شده‌اند؟', 'شکلِ بیرونی مهم نیست؛ در گزینه‌ی درست، هر گروه شکل‌هایی است که داخلشان یکی است (دایره/مربع/مثلث). در بقیه قاطی‌اند.');
+  }
+  function m7_byFill(rng) {
+    function fig(cat, seed) { var rr = new RNG(seed), n = rr.pick([4, 5, 6]), st = rr.pick([-90, -45]); return function (g) { if (cat === 0) drawPoly(g, n, { r: 32, start: st, fill: 'solid' }); else if (cat === 1) drawPoly(g, n, { r: 32, start: st }); else { function shp(t, k) { var p = polyPts(n, 32, 50, 50, st); if (k) add(t, 'polygon', merge(DEF, { points: ptsStr(p) })); else add(t, 'polygon', { points: ptsStr(p) }); } hatchInto(g, shp, 45, 7, 1.6); } }; }
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «جنسِ پُری» (توپُر / توخالی / هاشور) درست دسته‌بندی شده‌اند؟', 'در گزینه‌ی درست، هر گروه یک‌جور است: سه شکلِ توپُر، سه توخالی، سه هاشوردار. در بقیه گروه‌ها قاطی‌اند.');
+  }
+  var M7_EASY = [m7_bySides, m7_byInner];
+  var M7_MED = [m7_bySides, m7_byInner, m7_byFill];
+  var M7_HARD = [m7_byInner, m7_byFill, m7_bySides];
+  function poolForM7(level) { return level >= 3 ? M7_HARD : level === 2 ? M7_MED : M7_EASY; }
+  function genQuestionM7(rng, level) { return rng.pick(poolForM7(level))(rng, level || 1); }
+
+  /* ====================================================================
    * ۴) درسنامه‌ی کاملِ مبحث ۱ — متنِ اورجینال، آموزشِ ۵ سرنخ + تکنیک‌ها
    * ================================================================== */
   function artRow(makers) { var w = h('div', { class: 'tz-artrow' }); makers.forEach(function (m) { w.appendChild(m()); }); return w; }
@@ -1146,6 +1188,27 @@
     ];
   }
 
+  function lessonM7() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(gen) { return function () { return buildInteractive(toInter(gen(new RNG(seed++)))); }; }
+    return [
+      { title: 'ماموریتِ گروه‌بندی 🗂️',
+        body: 'آخرین ماموریت! این‌بار ۹ شکلِ شماره‌دار می‌بینی که باید در ذهنت آن‌ها را به ۳ گروهِ سه‌تایی تقسیم کنی، طوری که اعضای هر گروه یک ویژگیِ مشترک داشته باشند. بعد گزینه‌ای را انتخاب کن که همین گروه‌بندیِ درست را نشان می‌دهد.',
+        art: function () { var w = h('div', { class: 'tz-artrow' }); [3, 4, 5].forEach(function (n) { w.appendChild(figure(function (g) { drawPoly(g, n, { r: 28 }); }, { size: 60 })); }); return w; } },
+      { title: 'اول ویژگی را پیدا کن 🔍',
+        body: 'به ۹ شکل نگاه کن و بپرس: این‌ها چند دسته‌اند؟ شاید بر اساسِ تعدادِ ضلع (مثلث، چهارضلعی، پنج‌ضلعی)، شاید بر اساسِ شکلِ داخلی، یا جنسِ پُری (توپُر/توخالی/هاشور). وقتی ویژگی را فهمیدی، سه‌تاییِ هر گروه را پیدا کن.',
+        art: function () { var w = h('div', { class: 'tz-artrow' }); ['circle', 'square', 'triangle'].forEach(function (k) { w.appendChild(figure(function (g) { drawPoly(g, 5, { r: 30 }); smallShape(g, k, 50, 50, 10); }, { size: 60 })); }); return w; } },
+      { title: 'تمرین: گروه‌بندی', interactive: ex(m7_byInner) },
+      { title: 'گزینه را با شماره‌ها بخوان 🔢',
+        body: 'هر گزینه سه گروهِ سه‌تایی است، مثلِ (۱،۳،۹) (۲،۵،۸) (۴،۶،۷). برای هر گروه چک کن: آیا این سه شماره واقعاً هم‌ویژگی‌اند؟ فقط یک گزینه هست که هر سه گروهش درست است.',
+        art: function () { return figure(mFlag, { size: 92, frame: false }); } },
+      { title: 'تمرین: بر اساسِ ضلع', interactive: ex(m7_bySides) },
+      { title: 'فصلِ تحلیل کامل شد! 🏆',
+        body: 'آفرین قهرمان! تو هر هفت ماموریتِ فصلِ تحلیل را یاد گرفتی: تصویرِ متفاوت، مناسب، ویژگیِ مشابه، اجرای قاعده و دسته‌بندی. حالا یک کارآگاهِ کاملِ شکل‌ها هستی. در «تمرین» و «آزمون» تمرین کن تا استادِ تیزهوشان شوی!',
+        art: function () { return figure(circleSplit(28, 5), { size: 96, frame: false }); } }
+    ];
+  }
+
   function lessonM6() {
     var seed = (Date.now() & 0xffff) | 1;
     function ex(gen) { return function () { return buildInteractive(toInter(gen(new RNG(seed++)))); }; }
@@ -1226,7 +1289,7 @@
     { id: 'moshabeh1', n: 4, title: 'ویژگیِ مشابه (نوع ۱)', sub: 'شبیه‌ترین گزینه', icon: '🔗', color: PAL.teal, ready: true, lesson: lessonM4, gen: genQuestionM4, pool: poolForM4 },
     { id: 'moshabeh2', n: 5, title: 'ویژگیِ مشابه (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🪞', color: PAL.lilac, ready: true, lesson: lessonM5, gen: genQuestionM5, pool: poolForM5 },
     { id: 'ejraye_qaede', n: 6, title: 'اجرای قاعده', sub: 'قاعده را ادامه بده', icon: '⚙️', color: PAL.gold, ready: true, lesson: lessonM6, gen: genQuestionM6, pool: poolForM6 },
-    { id: 'dastebandi', n: 7, title: 'دسته‌بندیِ شکل‌ها', sub: 'گروه‌بندیِ درست', icon: '🗂️', color: PAL.teal, ready: false }
+    { id: 'dastebandi', n: 7, title: 'دسته‌بندیِ شکل‌ها', sub: 'گروه‌بندیِ درست', icon: '🗂️', color: PAL.teal, ready: true, lesson: lessonM7, gen: genQuestionM7, pool: poolForM7 }
   ];
 
   /* ====================================================================
@@ -1365,6 +1428,7 @@
     var wrap = h('div', { class: 'tz-inter' });
     wrap.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
     if (q.refs) wrap.appendChild(refsPanel(q.refs));
+    if (q.grid) wrap.appendChild(gridPanel(q.grid));
     var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var figs = q.build(); var done = false;
     figs.forEach(function (fig, i) {
       var b = h('button', { class: 'tz-opt', onclick: function () {
@@ -1402,6 +1466,7 @@
       box.appendChild(h('div', { class: 'tz-tagline' }, 'سرنخ: ' + q.tag));
       box.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
       if (q.refs) box.appendChild(refsPanel(q.refs));
+      if (q.grid) box.appendChild(gridPanel(q.grid));
       var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
@@ -1455,6 +1520,7 @@
       box.appendChild(h('div', { class: 'tz-qcount' }, 'سؤالِ ' + toFa(idx + 1) + ' از ' + toFa(total) + ' — امتیاز: ' + toFa(correct)));
       box.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
       if (q.refs) box.appendChild(refsPanel(q.refs));
+      if (q.grid) box.appendChild(gridPanel(q.grid));
       var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
@@ -1575,6 +1641,11 @@
       '.tz-opts.wide{grid-template-columns:1fr;gap:11px}',
       '.tz-seq{display:flex;direction:ltr;align-items:center;justify-content:center;gap:3px;flex-wrap:nowrap}',
       '.tz-seq-arrow{color:#b6b9d6;font-size:.8rem;flex:none}',
+      '.tz-grid9{background:linear-gradient(135deg,' + PAL.tealL + ',#f3f4fe);border:2px dashed #c8c6f2;border-radius:18px;padding:12px 10px;margin-bottom:16px}',
+      '.tz-grid9-cells{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-width:270px;margin:8px auto 0}',
+      '.tz-g9cell{background:#fff;border-radius:10px;padding:3px 3px 1px;display:flex;flex-direction:column;align-items:center;box-shadow:0 2px 6px rgba(35,37,68,.06)}',
+      '.tz-g9n{font-size:.72rem;color:' + PAL.inkSoft + ';font-weight:700}',
+      '.tz-groups{font-weight:700;font-size:1.06rem;letter-spacing:.5px;color:' + PAL.ink + ';font-variant-numeric:tabular-nums;text-align:center;padding:6px 2px;width:100%}',
       '.tz-fb{margin-top:16px;padding:14px 16px;border-radius:16px;font-size:.97rem;text-align:justify;border-inline-start:5px solid}',
       '.tz-fb.ok{background:' + PAL.okL + ';color:#0f7a58;border-color:' + PAL.ok + '}',
       '.tz-fb.bad{background:' + PAL.badL + ';color:#c0344a;border-color:' + PAL.bad + '}',
@@ -1622,6 +1693,7 @@
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
         m5_curveLineMix: m5_curveLineMix, m5_arrowCount: m5_arrowCount, m5_containsTrio: m5_containsTrio, m5_symmetryPair5: m5_symmetryPair5, m5_chiralScene5: m5_chiralScene5 },
-      m6: { m6_growDots: m6_growDots, m6_rotateStep: m6_rotateStep, m6_complexity: m6_complexity, m6_shrinkSplit: m6_shrinkSplit, m6_arcClose: m6_arcClose } };
+      m6: { m6_growDots: m6_growDots, m6_rotateStep: m6_rotateStep, m6_complexity: m6_complexity, m6_shrinkSplit: m6_shrinkSplit, m6_arcClose: m6_arcClose },
+      m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill } };
   }
 })();
