@@ -672,9 +672,57 @@
     };
   }
 
-  var GENS_EASY = [oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrow, oddSides, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
-  var GENS_MED = [oddChirality, oddGlyph, oddDots, oddSides, oddInner, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
+  // نوعِ پیکان (سرپیکان + بدنه) — سبکِ کتاب. جهت و بدنه فقط برای گمراهی؛ سرنخ «خانواده‌ی سرپیکان» است.
+  var HEADNAME = { solid: 'توپُر', open: 'باز', diamond: 'لوزی', square: 'مربع', circle: 'دایره' };
+  function oddArrowType(rng, level, count) {
+    count = count || 4; level = level || 1;
+    var heads = ['solid', 'open', 'diamond', 'square', 'circle'];
+    var shafts = level >= 2 ? ['straight', 'wavy', 'zigzag', 'double', 'feather'] : ['straight', 'wavy'];
+    var base = rng.pick(heads), odd = rng.pick(heads.filter(function (h) { return h !== base; }));
+    // جهت‌های متمایز تا هیچ دو گزینه‌ای یکسان نشوند
+    var dirPool = level >= 2 ? [0, 45, 90, 135, 180, 225, 270, 315] : [0, 90, 180, 270];
+    var dirs = rng.sample(dirPool, count);
+    // در سطح ۳ بدنه‌ی هر گزینه هم فرق می‌کند تا فقط «سرپیکان» سرنخ بماند
+    var shList = level >= 3 ? rng.sample(shafts, count) : (function () { var one = rng.pick(shafts); var a = []; for (var i = 0; i < count; i++) a.push(one); return a; })();
+    var same = sameList(count, function (i) { return { head: base, shaft: shList[i], ang: dirs[i] }; });
+    var pa = placeAnswer(rng, same, { head: odd, shaft: shList[count - 1], ang: dirs[count - 1] }, count);
+    return {
+      prompt: 'کدام پیکان با بقیه فرق دارد؟', tag: 'نوعِ پیکان',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(bkArrow(o.head, o.shaft, o.ang), { size: 96 }); },
+      why: 'جهت و بدنه‌ی پیکان‌ها مهم نیست؛ سرِ سه پیکان از نوعِ «' + HEADNAME[base] + '» است، اما سرِ این یکی «' + HEADNAME[odd] + '» است.'
+    };
+  }
+
+  // ترکیبِ دو شکلِ روی‌هم با بافت‌های متفاوت — سبکِ کتاب (q15). چرخشِ کل فقط برای گمراهی؛ سرنخ «جفتِ بافت‌ها» است.
+  function drawCombo(g, tl, tr) {
+    var r = 21, cy = 52, dx = 15;
+    fillTexture(g, function (t, st) { if (st) add(t, 'circle', merge(DEF, { cx: 50 - dx, cy: cy, r: r })); else add(t, 'circle', { cx: 50 - dx, cy: cy, r: r }); }, tl);
+    fillTexture(g, function (t, st) { if (st) add(t, 'circle', merge(DEF, { cx: 50 + dx, cy: cy, r: r })); else add(t, 'circle', { cx: 50 + dx, cy: cy, r: r }); }, tr);
+  }
+  function oddCombo(rng, level, count) {
+    count = count || 4; level = level || 1;
+    var texs = ['gray', 'dots', 'checker', 'hatch', 'vhatch', 'solid'];
+    var pair = rng.sample(texs, 2);
+    var t3 = rng.pick(texs.filter(function (t) { return t !== pair[0] && t !== pair[1]; }));
+    var oddPair = rng.next() < 0.5 ? [pair[0], t3] : [t3, pair[1]];
+    // چرخش‌های متمایز برای همه‌ی گزینه‌ها تا هم متمایز باشند هم چرخش سرنخ نباشد
+    var rots = []; for (var i = 0; i < count; i++) rots.push(Math.round(i * 360 / count));
+    rots = rng.sample(rots, count);
+    // در سه گزینه‌ی هم‌گروه، ترتیبِ چپ/راستِ جفت‌بافت هم عوض می‌شود (گمراهی بیشتر)
+    var same = sameList(count, function (i) { var flip = level >= 2 && (i % 2 === 1); return { l: flip ? pair[1] : pair[0], r: flip ? pair[0] : pair[1], rot: rots[i] }; });
+    var pa = placeAnswer(rng, same, { l: oddPair[0], r: oddPair[1], rot: rots[count - 1] }, count);
+    return {
+      prompt: 'کدام شکلِ ترکیبی با بقیه فرق دارد؟', tag: 'ترکیبِ بافت',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(function (g) { drawCombo(g, o.l, o.r); }, { size: 96, rot: o.rot }); },
+      why: 'چرخشِ کلِ شکل مهم نیست؛ در سه شکل، دو بافتِ روی‌هم «' + texName(pair[0]) + '» و «' + texName(pair[1]) + '» هستند، اما در این یکی یکی از بافت‌ها به «' + texName(t3) + '» تغییر کرده است.'
+    };
+  }
+
+  var GENS_EASY = [oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
+  var GENS_MED = [oddChirality, oddGlyph, oddDots, oddSides, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
+  var GENS_HARD = [sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, oddArrowType, oddCombo, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -1772,7 +1820,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
