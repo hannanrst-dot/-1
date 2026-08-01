@@ -366,15 +366,25 @@
     else { add(g, 'line', merge(DEF, { x1: x2.toFixed(1), y1: y2.toFixed(1), x2: p1[0], y2: p1[1] })); add(g, 'line', merge(DEF, { x1: x2.toFixed(1), y1: y2.toFixed(1), x2: p2[0], y2: p2[1] })); }
   }
   function makeScene(rng, level) {
-    return { n: rng.pick([4, 5, 6]), theta: 23 * rng.int(1, 7), inner: rng.pick(['triangle', 'square', 'circle', 'diamond']), head: rng.next() < 0.5 ? 'solid' : 'open', dot: level >= 3 };
+    level = level || 1;
+    var kinds = ['triangle', 'square', 'circle', 'diamond'];
+    var inner = rng.pick(kinds);
+    return {
+      n: rng.pick([4, 5, 6]), theta: 23 * rng.int(1, 7), inner: inner,
+      inner2: level >= 3 ? rng.pick(kinds.filter(function (k) { return k !== inner; })) : null,
+      head: rng.next() < 0.5 ? 'solid' : 'open',
+      dot: level >= 2, notch: level >= 3
+    };
   }
   function drawScene(spec) {
     return function (g) {
       drawPoly(g, spec.n, { r: 31, start: -90 });
       drawRay(g, spec.theta, 6, 42, spec.head);
       var ia = (spec.theta + 90) * Math.PI / 180;
-      smallShape(g, spec.inner, 50 + 15 * Math.cos(ia), 50 + 15 * Math.sin(ia), 8);
+      smallShape(g, spec.inner, 50 + 15 * Math.cos(ia), 50 + 15 * Math.sin(ia), 7.5);
+      if (spec.inner2) { var i2 = (spec.theta + 210) * Math.PI / 180; smallShape(g, spec.inner2, 50 + 15 * Math.cos(i2), 50 + 15 * Math.sin(i2), 7.5); }
       if (spec.dot) { var da = (spec.theta - 90) * Math.PI / 180; drawDot(g, 50 + 15 * Math.cos(da), 50 + 15 * Math.sin(da), 3.2); }
+      if (spec.notch) { var na = (spec.theta + 45) * Math.PI / 180, b1 = [50 + 31 * Math.cos(na), 50 + 31 * Math.sin(na)], b2 = [50 + 41 * Math.cos(na), 50 + 41 * Math.sin(na)]; add(g, 'line', merge(DEF, { x1: b1[0].toFixed(1), y1: b1[1].toFixed(1), x2: b2[0].toFixed(1), y2: b2[1].toFixed(1), 'stroke-width': 2.6 })); }
     };
   }
   var KIND_FA = { triangle: 'مثلث', square: 'مربع', circle: 'دایره', diamond: 'لوزی' };
