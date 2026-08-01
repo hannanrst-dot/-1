@@ -109,6 +109,49 @@
     buildShape(g, true);
   }
   function texName(k) { return { solid: 'توپُر', gray: 'خاکستری', dots: 'نقطه‌ای', checker: 'شطرنجی', hatch: 'هاشورِ مورب', vhatch: 'هاشورِ عمودی', none: 'ساده' }[k] || k; }
+
+  /* ==== فیگورهای «سبکِ کتاب» (باجزئیات) — نمونه‌ی کیفیتِ هدف ==== */
+  // خانه + خط‌کشِ هاشوردار (مثلِ q11)
+  function bkHouse(roofTex) {
+    return function (g) {
+      add(g, 'polygon', merge(DEF, { points: '30,53 70,53 73,80 27,80' }));                 // بدنه
+      var roof = '28,53 72,53 50,31';
+      fillTexture(g, function (t, st) { if (st) add(t, 'polygon', merge(DEF, { points: roof })); else add(t, 'polygon', { points: roof }); }, roofTex || 'none');
+      add(g, 'rect', merge(DEF, { x: 45, y: 64, width: 11, height: 16, 'stroke-width': 2.8 })); // در
+      add(g, 'rect', merge(DEF, { x: 23, y: 84, width: 54, height: 8, 'stroke-width': 2.8 }));  // خط‌کش
+      for (var x = 27; x < 77; x += 5) add(g, 'line', merge(DEF, { x1: x, y1: 84, x2: x, y2: 88, 'stroke-width': 1.7 }));
+    };
+  }
+  // پیکانِ خمیده‌ی راه‌راه + نقطه (مثلِ q19)
+  function bkBentArrow(g) {
+    var d = 'M26 44 H58 V32 L80 50 L58 68 V56 H40 V74 H26 Z';
+    fillTexture(g, function (t, st) { if (st) add(t, 'path', merge(DEF, { d: d })); else add(t, 'path', { d: d }); }, 'hatch');
+    add(g, 'circle', merge(DEF, { cx: 31, cy: 69, r: 3.4, fill: PAL.line }));
+  }
+  // دو دایره‌ی روی‌هم با بافت‌های متفاوت (مثلِ q15)
+  function bkTwoCircles(g) {
+    fillTexture(g, function (t, st) { if (st) add(t, 'circle', merge(DEF, { cx: 40, cy: 52, r: 22 })); else add(t, 'circle', { cx: 40, cy: 52, r: 22 }); }, 'dots');
+    fillTexture(g, function (t, st) { if (st) add(t, 'circle', merge(DEF, { cx: 62, cy: 52, r: 22 })); else add(t, 'circle', { cx: 62, cy: 52, r: 22 }); }, 'hatch');
+  }
+  // پیکان با سرپیکان و بدنه‌ی دلخواه — کتابخانه‌ی انواع پیکان
+  function bkArrow(head, shaft, ang) {
+    return function (g) {
+      var gg = s('g', ang ? { transform: 'rotate(' + ang + ' 50 50)' } : {});
+      var x0 = 22, x1 = 66, y = 50;
+      if (shaft === 'straight') gg.appendChild(s('line', merge(DEF, { x1: x0, y1: y, x2: x1, y2: y })));
+      else if (shaft === 'wavy') gg.appendChild(s('path', merge(DEF, { d: 'M22 50 q6 -8 12 0 t12 0 t12 0' })));
+      else if (shaft === 'zigzag') gg.appendChild(s('path', merge(DEF, { d: 'M22 50 l6 -7 6 14 6 -14 6 14 6 -7' })));
+      else if (shaft === 'double') { gg.appendChild(s('line', merge(DEF, { x1: x0, y1: y - 3, x2: x1, y2: y - 3, 'stroke-width': 2.6 }))); gg.appendChild(s('line', merge(DEF, { x1: x0, y1: y + 3, x2: x1, y2: y + 3, 'stroke-width': 2.6 }))); }
+      else if (shaft === 'feather') { gg.appendChild(s('line', merge(DEF, { x1: x0, y1: y, x2: x1, y2: y }))); for (var i = 0; i < 3; i++) { var fx = x0 + 4 + i * 7; gg.appendChild(s('line', merge(DEF, { x1: fx, y1: y - 6, x2: fx + 5, y2: y, 'stroke-width': 2.4 }))); gg.appendChild(s('line', merge(DEF, { x1: fx, y1: y + 6, x2: fx + 5, y2: y, 'stroke-width': 2.4 }))); } }
+      // سرپیکان
+      if (head === 'solid') gg.appendChild(s('polygon', { points: '80,50 64,42 64,58', fill: PAL.line }));
+      else if (head === 'open') { gg.appendChild(s('line', merge(DEF, { x1: 80, y1: 50, x2: 65, y2: 42 }))); gg.appendChild(s('line', merge(DEF, { x1: 80, y1: 50, x2: 65, y2: 58 }))); }
+      else if (head === 'diamond') gg.appendChild(s('polygon', merge(DEF, { points: '80,50 71,44 62,50 71,56', fill: '#fff' })));
+      else if (head === 'square') gg.appendChild(s('rect', merge(DEF, { x: 66, y: 43, width: 14, height: 14, fill: '#fff' })));
+      else if (head === 'circle') gg.appendChild(s('circle', merge(DEF, { cx: 73, cy: 50, r: 7, fill: '#fff' })));
+      g.appendChild(gg);
+    };
+  }
   function merge(a, b) { var o = {}; for (var k in a) o[k] = a[k]; if (b) for (var j in b) o[j] = b[j]; return o; }
 
   /** جعبه‌ی ۱۰۰×۱۰۰، مرکز (۵۰،۵۰). چرخش/آینه با ترنسفورمِ دقیق. */
@@ -1735,6 +1778,7 @@
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
         m5_curveLineMix: m5_curveLineMix, m5_arrowCount: m5_arrowCount, m5_containsTrio: m5_containsTrio, m5_symmetryPair5: m5_symmetryPair5, m5_chiralScene5: m5_chiralScene5 },
       m6: { m6_growDots: m6_growDots, m6_rotateStep: m6_rotateStep, m6_complexity: m6_complexity, m6_shrinkSplit: m6_shrinkSplit, m6_arcClose: m6_arcClose },
-      m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill } };
+      m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill },
+      book: { bkHouse: bkHouse, bkBentArrow: bkBentArrow, bkTwoCircles: bkTwoCircles, bkArrow: bkArrow } };
   }
 })();
