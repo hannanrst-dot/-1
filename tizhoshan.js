@@ -1331,9 +1331,17 @@
     function fig(cat, seed) { var rr = new RNG(seed), n = rr.pick([4, 5, 6]), st = rr.pick([-90, -45]); return function (g) { if (cat === 0) drawPoly(g, n, { r: 32, start: st, fill: 'solid' }); else if (cat === 1) drawPoly(g, n, { r: 32, start: st }); else { function shp(t, k) { var p = polyPts(n, 32, 50, 50, st); if (k) add(t, 'polygon', merge(DEF, { points: ptsStr(p) })); else add(t, 'polygon', { points: ptsStr(p) }); } hatchInto(g, shp, 45, 7, 1.6); } }; }
     return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «جنسِ پُری» (توپُر / توخالی / هاشور) درست دسته‌بندی شده‌اند؟', 'در گزینه‌ی درست، هر گروه یک‌جور است: سه شکلِ توپُر، سه توخالی، سه هاشوردار. در بقیه گروه‌ها قاطی‌اند.');
   }
+  // دسته‌بندی بر اساسِ «جهتِ هاشور» — جزئیاتِ ریز؛ باید به زاویه‌ی خط‌های داخل دقت کرد.
+  function m7_byHatchDir(rng) {
+    function fig(cat, seed) {
+      var rr = new RNG(seed), n = rr.pick([4, 5, 6]), st = rr.pick([-90, -45]), ang = [0, 45, 90][cat];
+      return function (g) { function shp(t, k) { var p = polyPts(n, 32, 50, 50, st); if (k) add(t, 'polygon', merge(DEF, { points: ptsStr(p) })); else add(t, 'polygon', { points: ptsStr(p) }); } hatchInto(g, shp, ang, 7, 1.7); };
+    }
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «جهتِ هاشور» درست دسته‌بندی شده‌اند؟', 'شکلِ بیرونی مهم نیست؛ در گزینه‌ی درست هر گروه یک جهتِ هاشور دارد: عمودی، مورب، یا افقی. به زاویه‌ی خط‌های داخل خوب دقت کن.');
+  }
   var M7_EASY = [m7_bySides, m7_byInner];
   var M7_MED = [m7_bySides, m7_byInner, m7_byFill];
-  var M7_HARD = [m7_byInner, m7_byFill, m7_bySides];
+  var M7_HARD = [m7_byInner, m7_byFill, m7_byHatchDir, m7_bySides];
   function poolForM7(level) { return level >= 3 ? M7_HARD : level === 2 ? M7_MED : M7_EASY; }
   function genQuestionM7(rng, level) { return rng.pick(poolForM7(level))(rng, level || 1); }
 
@@ -1959,7 +1967,7 @@
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
         m5_curveLineMix: m5_curveLineMix, m5_arrowCount: m5_arrowCount, m5_containsTrio: m5_containsTrio, m5_symmetryPair5: m5_symmetryPair5, m5_chiralScene5: m5_chiralScene5 },
       m6: { m6_growDots: m6_growDots, m6_rotateStep: m6_rotateStep, m6_complexity: m6_complexity, m6_shrinkSplit: m6_shrinkSplit, m6_arcClose: m6_arcClose },
-      m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill },
+      m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill, m7_byHatchDir: m7_byHatchDir },
       book: { bkHouse: bkHouse, bkBentArrow: bkBentArrow, bkTwoCircles: bkTwoCircles, bkArrow: bkArrow } };
   }
 })();
