@@ -186,6 +186,8 @@
     for (var i = 0; i < n; i++) arr.push(i === idx ? oddOpt : opts[j++]);
     return { options: arr, answer: idx };
   }
+  // فهرستِ (count-1) گزینه‌ی «هم‌گروه» برای پشتیبانی از ۴ یا ۵ گزینه‌ای
+  function sameList(count, fn) { var a = []; for (var i = 0; i < count - 1; i++) a.push(fn(i)); return a; }
 
   // ۱) دوران/آینه (دست‌دار) — همیشه گام‌های ۹۰° و موتیف‌های خوش‌سیلوئت (قابلِ ردیابی)
   function oddChirality(rng, level) {
@@ -579,6 +581,114 @@
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
   /* ====================================================================
+   * مبحث ۲: انتخابِ تصویرِ متفاوت (۵ گزینه‌ای) — با کمکِ کتاب
+   * ================================================================== */
+  function chiralQuestion(rng, count, drawFn, tag, why) {
+    var angles = rng.shuffle([0, 90, 180, 270]);
+    var mir = rng.next() < 0.5 ? 'v' : 'h';
+    var same = sameList(count, function (i) { return { rot: angles[i % 4] }; });
+    var pa = placeAnswer(rng, same, { rot: angles[0], mirror: mir }, count);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: tag, options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(drawFn, { rot: o.rot, mirror: o.mirror || null, size: 96 }); }, why: why
+    };
+  }
+  function m2_motif(rng) { return chiralQuestion(rng, 5, rng.pick([mFlag, mEll, mBoot, mZig, mHook]), 'دوران و آینه', 'چهار شکل فقط چرخیده‌اند؛ اما این یکی «آینه» شده و با هیچ چرخشی مثلِ بقیه نمی‌شود (شکلِ دست‌دار).'); }
+  function m2_glyph(rng) { return chiralQuestion(rng, 5, rng.pick(GLYPHS), 'دوران و آینه (حرف‌نما)', 'چهار شکل فقط چرخیده‌اند؛ اما این یکی آینه (برعکس) شده — مثلِ حرفی که در آینه وارونه می‌شود.'); }
+  function m2_scene(rng) { return chiralQuestion(rng, 5, drawScene(makeScene(rng, 3)), 'دوران و آینه (ترکیبی)', 'چهار تصویر فقط چرخیده‌اند و روی هم می‌افتند؛ اما این یکی «قرینه (آینه)» شده و جهتِ فلش نسبت به جزءِ داخلی برعکس است.'); }
+
+  function m2_sceneSwap(rng) {
+    var spec = makeScene(rng, 3);
+    var oddKind = rng.pick(['triangle', 'square', 'circle', 'diamond'].filter(function (k) { return k !== spec.inner; }));
+    var oddSpec = merge(spec, { inner: oddKind });
+    var angles = rng.shuffle([0, 90, 180, 270]);
+    var same = sameList(5, function (i) { return { rot: angles[i % 4], sp: spec }; });
+    var pa = placeAnswer(rng, same, { rot: angles[0], sp: oddSpec }, 5);
+    return {
+      prompt: 'کدام تصویر با بقیه فرق دارد؟', tag: 'جزءِ متفاوت (ترکیبی)', options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(drawScene(o.sp), { rot: o.rot, size: 96 }); },
+      why: 'همه چرخیده‌اند و یک ' + KIND_FA[spec.inner] + 'ِ کوچک دارند؛ اما جزءِ داخلیِ این یکی ' + KIND_FA[oddKind] + ' است.'
+    };
+  }
+  function m2_count(rng) {
+    var n = rng.pick([5, 6]); var k = rng.int(3, 6); var oddK = rng.next() < 0.5 ? k + 1 : Math.max(2, k - 1);
+    var rots = rng.sample([0, 13, 27, 41, 54, 68], 5);
+    var same = sameList(5, function (i) { return { c: k, rot: rots[i] }; });
+    var pa = placeAnswer(rng, same, { c: oddK, rot: rots[4] }, 5);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'شمارش', options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(function (g) { drawPoly(g, n, { r: 33, start: -90 }); dotRing(g, o.c, 15, -72); }, { rot: o.rot, size: 96 }); },
+      why: 'همه ' + toFa(k) + ' نقطه دارند، اما این یکی ' + toFa(oddK) + ' نقطه دارد.'
+    };
+  }
+  function m2_sides(rng) {
+    var n = rng.pick([5, 6, 7]); var oddN = rng.next() < 0.5 ? n + 1 : n - 1;
+    var starts = rng.sample([-90, -63, -36, -9, 18, 45], 5);
+    function draw(sides, st) { return function (g) { drawPoly(g, sides, { r: 34, start: st }); var p = polyPts(sides, 34, 50, 50, st); drawDot(g, p[0][0], p[0][1], 3.6); }; }
+    var same = sameList(5, function (i) { return { sides: n, s: starts[i] }; });
+    var pa = placeAnswer(rng, same, { sides: oddN, s: starts[4] }, 5);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'شمارشِ ضلع', options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(draw(o.sides, o.s), { size: 96 }); },
+      why: 'بقیه ' + toFa(n) + '‌ضلعی‌اند، اما این یکی ' + toFa(oddN) + '‌ضلعی است.'
+    };
+  }
+  function m2_lineStyle(rng) {
+    var styles = ['solid', 'dashed', 'dotted']; var base = rng.pick(styles); var oddS = rng.pick(styles.filter(function (x) { return x !== base; }));
+    var shapes = rng.sample([3, 4, 5, 6, 7, 8], 5); var starts = [-90, -66, -42, -18, 6];
+    var nm = { solid: 'خطِ صاف', dashed: 'خط‌چین', dotted: 'نقطه‌چین' };
+    var same = sameList(5, function (i) { return { n: shapes[i], s: starts[i], dash: base }; });
+    var pa = placeAnswer(rng, same, { n: shapes[4], s: starts[4], dash: oddS }, 5);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'جنسِ خط', options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(function (g) { drawPoly(g, o.n, { r: 33, start: o.s, dash: o.dash, sw: o.dash === 'dotted' ? 3.4 : 3 }); }, { size: 96 }); },
+      why: 'بقیه با ' + nm[base] + ' رسم شده‌اند، اما خطِ این یکی ' + nm[oddS] + ' است.'
+    };
+  }
+  function m2_dotsIO(rng) {
+    var angs = rng.sample([0, 45, 90, 140, 200, 250, 300], 5);
+    var same = sameList(5, function (i) { return { ang: angs[i], out: false }; });
+    var pa = placeAnswer(rng, same, { ang: angs[4], out: true }, 5);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'داخل/بیرون', options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(function (g) { drawCircle(g, { r: 22 }); var a = o.ang * Math.PI / 180; var r = o.out ? 33 : 11; drawDot(g, 50 + r * Math.cos(a), 50 + r * Math.sin(a), 4.2); }, { size: 96 }); },
+      why: 'در بقیه، نقطه داخلِ دایره است؛ اما در این یکی نقطه بیرونِ دایره قرار دارد.'
+    };
+  }
+  function m2_overlap(rng) {
+    var gaps = rng.sample([15, 17, 19, 21, 23], 5);
+    var same = sameList(5, function (i) { return { mode: 'lens', gap: gaps[i] }; });
+    var pa = placeAnswer(rng, same, { mode: 'side', gap: gaps[4] }, 5);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'ناحیه‌ی مشترک', options: pa.options, answer: pa.answer,
+      render: function (o) {
+        return figure(function (g) {
+          var r = 19, ca = 50 - o.gap / 2, cb = 50 + o.gap / 2;
+          if (o.mode === 'lens') { var id = 'tzov' + (++_clip); var cp = s('clipPath', { id: id }); cp.appendChild(s('circle', { cx: ca, cy: 50, r: r })); g.appendChild(cp); var gg = s('g', { 'clip-path': 'url(#' + id + ')' }); gg.appendChild(s('circle', { cx: cb, cy: 50, r: r, fill: PAL.line })); g.appendChild(gg); }
+          else { g.appendChild(s('circle', { cx: ca, cy: 50, r: r, fill: PAL.line })); g.appendChild(s('circle', { cx: cb, cy: 50, r: r, fill: '#ffffff' })); }
+          add(g, 'circle', merge(DEF, { cx: ca, cy: 50, r: r })); add(g, 'circle', merge(DEF, { cx: cb, cy: 50, r: r }));
+        }, { size: 96 });
+      },
+      why: 'در بقیه فقط «ناحیه‌ی مشترکِ» دو دایره (وسط) رنگی است؛ اما در این یکی ناحیه‌ی دیگری رنگ شده است.'
+    };
+  }
+  function m2_symmetry(rng) {
+    var regs = rng.sample([4, 5, 6, 7, 8], 4); var starts = [-90, -68, -46, -24];
+    var irr = (function () { var p = []; var pull = rng.int(0, 4); for (var i = 0; i < 5; i++) { var ang = (-90 + i * 72 + rng.int(-16, 16)) * Math.PI / 180; var rad = 24 + (i === pull ? 12 : rng.int(-5, 5)); p.push([50 + rad * Math.cos(ang), 50 + rad * Math.sin(ang)]); } return ptsStr(p); })();
+    var same = sameList(5, function (i) { return { kind: 'reg', n: regs[i], s: starts[i] }; });
+    var pa = placeAnswer(rng, same, { kind: 'irr' }, 5);
+    return {
+      prompt: 'کدام شکل خطِ تقارن ندارد؟', tag: 'تقارن', options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(function (g) { if (o.kind === 'reg') drawPoly(g, o.n, { r: 34, start: o.s }); else add(g, 'polygon', merge(DEF, { points: irr })); }, { size: 96 }); },
+      why: 'بقیه‌ی شکل‌ها منتظم‌اند و خطِ تقارن دارند؛ اما این یکی نامنتظم است و هیچ خطِ تقارنی ندارد.'
+    };
+  }
+  var M2_EASY = [m2_motif, m2_count, m2_sides, m2_lineStyle, m2_dotsIO];
+  var M2_MED = [m2_glyph, m2_scene, m2_sceneSwap, m2_dotsIO, m2_overlap, m2_symmetry, m2_count, m2_lineStyle];
+  var M2_HARD = [m2_scene, m2_scene, m2_glyph, m2_sceneSwap, m2_overlap, m2_symmetry, m2_sides];
+  function genQuestionM2(rng, level) { var pool = level >= 3 ? M2_HARD : level === 2 ? M2_MED : M2_EASY; return rng.pick(pool)(rng, level || 1); }
+
+  /* ====================================================================
    * ۴) درسنامه‌ی کاملِ مبحث ۱ — متنِ اورجینال، آموزشِ ۵ سرنخ + تکنیک‌ها
    * ================================================================== */
   function artRow(makers) { var w = h('div', { class: 'tz-artrow' }); makers.forEach(function (m) { w.appendChild(m()); }); return w; }
@@ -638,12 +748,38 @@
 
   function toInter(q) { return { prompt: q.prompt, why: q.why, answer: q.answer, build: function () { return q.options.map(function (o) { return q.render(o); }); } }; }
 
+  function lessonM2() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(gen) { return function () { return buildInteractive(toInter(gen(new RNG(seed++)))); }; }
+    return [
+      { title: 'حالا پنج گزینه! 🖐️',
+        body: 'در این مبحث دقیقاً همان کارِ قبلی را می‌کنیم — پیداکردنِ شکلِ متفاوت — اما این‌بار از بینِ ۵ گزینه. یک گزینه‌ی بیشتر یعنی باید دقیق‌تر و صبورتر نگاه کنی. همان پنج سرنخِ قبلی (شمردن، خط و هاشور، فلش، اجزای داخلی، دوران و آینه) این‌جا هم کار می‌کنند.',
+        art: function () { return figure(drawScene(makeScene(new RNG(7), 2)), { size: 118, frame: false }); } },
+      { title: 'تکنیکِ حذف، این‌جا طلاست ✂️',
+        body: 'با ۵ گزینه، بهترین روش «حذف» است: هر گزینه‌ای که مطمئنی مثلِ یکی دیگر است (فقط چرخیده) را کنار بگذار. آخرین گزینه‌ای که با هیچ‌کدام جفت نمی‌شود، همان جوابِ توست.',
+        art: function () { return figure(rng4Glyph(), { size: 100, frame: false }); } },
+      { title: 'تمرین: قرینه را پیدا کن 🪞', interactive: ex(m2_scene) },
+      { title: 'سرنخِ تازه: داخل یا بیرون؟ 🎯',
+        body: 'در بعضی سؤال‌ها یک نقطه یا نشانه‌ی کوچک هست؛ خوب نگاه کن ببین آن نقطه «داخلِ» شکل است یا «بیرونِ» آن. گاهی تنها تفاوت همین است!',
+        art: function () { var w = h('div', { class: 'tz-artrow' }); [11, 11, 33].forEach(function (r, i) { w.appendChild(figure(function (g) { drawCircle(g, { r: 22 }); drawDot(g, 50 + r * Math.cos(i), 50 + r * Math.sin(i), 4.2); }, { size: 72 })); }); return w; } },
+      { title: 'تمرین: داخل/بیرون 🎯', interactive: ex(m2_dotsIO) },
+      { title: 'سرنخِ تازه: ناحیه‌ی مشترک ⭕',
+        body: 'وقتی دو دایره روی هم می‌افتند، سه ناحیه می‌سازند: چپ، وسط (مشترک)، و راست. دقت کن کدام ناحیه رنگی شده — گاهی همه وسط را رنگ کرده‌اند و فقط یکی جای دیگری را.',
+        art: function () { return figure(function (g) { var id = 'lp'; var cp = s('clipPath', { id: id }); cp.appendChild(s('circle', { cx: 42, cy: 50, r: 19 })); g.appendChild(cp); var gg = s('g', { 'clip-path': 'url(#' + id + ')' }); gg.appendChild(s('circle', { cx: 58, cy: 50, r: 19, fill: PAL.line })); g.appendChild(gg); add(g, 'circle', merge(DEF, { cx: 42, cy: 50, r: 19 })); add(g, 'circle', merge(DEF, { cx: 58, cy: 50, r: 19 })); }, { size: 100, frame: false }); } },
+      { title: 'تمرین: ناحیه‌ی مشترک ⭕', interactive: ex(m2_overlap) },
+      { title: 'آماده‌ای! 🌟',
+        body: 'حالا با ۵ گزینه هم راحتی. در «تمرین» بی‌نهایت سؤالِ تازه با ۳ سطحِ سختی هست و در «آزمون» خودت را محک بزن. یادت باشد: صبور باش و گزینه‌ها را یکی‌یکی حذف کن.',
+        art: function () { return figure(mZig, { size: 104, frame: false }); } }
+    ];
+    function rng4Glyph() { return GLYPHS[(seed + 3) % GLYPHS.length]; }
+  }
+
   /* ====================================================================
    * ۵) داده‌ی مبحث‌ها
    * ================================================================== */
   var MABAHETH = [
     { id: 'motafavet1', n: 1, title: 'تصویرِ متفاوت', sub: 'یکی با بقیه فرق دارد', icon: '🔍', color: PAL.teal, ready: true, lesson: lessonM1, gen: genQuestion },
-    { id: 'motafavet2', n: 2, title: 'تصویرِ متفاوت (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🧩', color: PAL.lilac, ready: false },
+    { id: 'motafavet2', n: 2, title: 'تصویرِ متفاوت (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🧩', color: PAL.lilac, ready: true, lesson: lessonM2, gen: genQuestionM2 },
     { id: 'monaseb', n: 3, title: 'تصویرِ مناسب', sub: 'کدام مناسب است؟', icon: '🎯', color: PAL.gold, ready: false },
     { id: 'moshabeh1', n: 4, title: 'ویژگیِ مشابه (نوع ۱)', sub: 'شبیه‌ترین گزینه', icon: '🔗', color: PAL.teal, ready: false },
     { id: 'moshabeh2', n: 5, title: 'ویژگیِ مشابه (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🪞', color: PAL.lilac, ready: false },
@@ -899,6 +1035,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead } };
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+        m2_motif: m2_motif, m2_glyph: m2_glyph, m2_scene: m2_scene, m2_sceneSwap: m2_sceneSwap, m2_count: m2_count, m2_sides: m2_sides, m2_lineStyle: m2_lineStyle, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap, m2_symmetry: m2_symmetry } };
   }
 })();
