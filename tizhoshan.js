@@ -711,6 +711,91 @@
   function genQuestionM2(rng, level) { var pool = level >= 3 ? M2_HARD : level === 2 ? M2_MED : M2_EASY; return rng.pick(pool)(rng, level || 1); }
 
   /* ====================================================================
+   * مبحث ۳: انتخابِ تصویرِ مناسب — «کدام گزینه هم‌ویژگیِ گروهِ مرجع است؟»
+   *   خروجی: {prompt, tag, refs:[۴ تابعِ رندر], options, answer, render, why}
+   * ================================================================== */
+  function refFig(drawFn) { return function () { return figure(drawFn, { size: 62 }); }; }
+  function matchQuestion(rng, refs, correctDraw, distractorDraws, prompt, tag, why) {
+    var opts = [{ draw: correctDraw }];
+    distractorDraws.forEach(function (d) { opts.push({ draw: d }); });
+    var order = rng.shuffle(opts);
+    return {
+      prompt: prompt, tag: tag, refs: refs, options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(o.draw, { size: 96 }); }, why: why
+    };
+  }
+  function regDraw(n, start, r) { return function (g) { drawPoly(g, n, { r: r || 33, start: start }); }; }
+  function irrDraw(seed) {
+    var rr = new RNG(seed), p = [], pull = rr.int(0, 4);
+    for (var i = 0; i < 5; i++) { var ang = (-90 + i * 72 + rr.int(-18, 18)) * Math.PI / 180, rad = 24 + (i === pull ? 12 : rr.int(-6, 6)); p.push([50 + rad * Math.cos(ang), 50 + rad * Math.sin(ang)]); }
+    var pts = ptsStr(p); return function (g) { add(g, 'polygon', merge(DEF, { points: pts })); };
+  }
+  function bigShape(g, t, r) { if (t === 'circle') drawCircle(g, { r: r }); else if (t === 'triangle') drawPoly(g, 3, { r: r, start: -90 }); else if (t === 'square') drawPoly(g, 4, { r: r, start: -45 }); else drawPoly(g, 4, { r: r, start: -90 }); }
+  function nestDraw(outerT, innerT) { return function (g) { bigShape(g, outerT, 36); smallShape(g, innerT, 50, 50, 10); }; }
+  function dotShapeDraw(n, count, start) { return function (g) { drawPoly(g, n, { r: 33, start: -90 }); dotRing(g, count, 15, start); }; }
+
+  // خانواده‌ی چرخش: مرجع‌ها هم‌دست‌اند؛ گزینه‌ی درست هم‌دست، بقیه آینه
+  function m3_rotationFamily(rng) {
+    var motif = rng.pick([mFlag, mEll, mBoot, mZig, mHook]);
+    var rA = rng.shuffle([0, 90, 180, 270]);
+    var refs = rA.map(function (a) { return function () { return figure(motif, { rot: a, size: 62 }); }; });
+    var mir = rng.next() < 0.5 ? 'v' : 'h';
+    var oA = rng.shuffle([0, 90, 180, 270]);
+    var opts = [{ mir: false, rot: oA[0] }];
+    for (var i = 0; i < 4; i++) opts.push({ mir: true, rot: oA[i] });
+    var order = rng.shuffle(opts);
+    return {
+      prompt: 'شکل‌های بالا با چرخش به هم تبدیل می‌شوند. کدام گزینه هم از همین خانواده است؟', tag: 'خانواده‌ی چرخش',
+      refs: refs, options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(motif, { rot: o.rot, mirror: o.mir ? mir : null, size: 96 }); },
+      why: 'شکل‌های بالا همگی یک شکل‌اند که فقط چرخیده‌اند (هم‌دست). گزینه‌ی درست هم با چرخش روی آن‌ها می‌افتد؛ اما بقیه «آینه (قرینه)» شده‌اند و با هیچ چرخشی روی آن‌ها نمی‌افتند.'
+    };
+  }
+  // تقارن: مرجع‌ها منتظم (متقارن)؛ گزینه‌ی درست متقارن، بقیه نامتقارن
+  function m3_symmetry(rng) {
+    var refN = rng.sample([4, 5, 6, 7, 8], 4), refS = [-90, -60, -30, 0];
+    var refs = refN.map(function (n, i) { return refFig(regDraw(n, refS[i])); });
+    var correct = regDraw(rng.pick([4, 5, 6, 7, 8]), rng.pick([-90, -45, 0]));
+    var dists = []; for (var i = 0; i < 4; i++) dists.push(irrDraw(211 + i * 97 + rng.int(0, 40)));
+    return matchQuestion(rng, refs, correct, dists, 'همه‌ی شکل‌های بالا خطِ تقارن دارند (منتظم‌اند). کدام گزینه هم خطِ تقارن دارد؟', 'تقارن', 'گزینه‌ی درست منتظم است و خطِ تقارن دارد؛ اما بقیه نامنتظم‌اند و هیچ خطِ تقارنی ندارند.');
+  }
+  // زوج/فرد: مرجع‌ها تعدادِ زوج نقطه؛ گزینه‌ی درست زوج، بقیه فرد
+  function m3_evenCount(rng) {
+    var n = rng.pick([5, 6]);
+    var refStarts = [-72, -20, 30, 80], odds = [3, 5, 7], evens = [2, 4, 6];
+    var refs = refStarts.map(function (st) { return refFig(dotShapeDraw(n, rng.pick(evens), st)); });
+    var correct = dotShapeDraw(n, rng.pick(evens), 10);
+    var dst = [-50, 0, 50, 100], dists = [];
+    for (var i = 0; i < 4; i++) dists.push(dotShapeDraw(n, rng.pick(odds), dst[i]));
+    return matchQuestion(rng, refs, correct, dists, 'همه‌ی شکل‌های بالا تعدادِ «زوج» نقطه دارند. کدام گزینه هم تعدادِ زوج نقطه دارد؟', 'زوج/فرد', 'گزینه‌ی درست تعدادِ زوج نقطه دارد (مثلِ بالایی‌ها)؛ اما بقیه تعدادِ فرد نقطه دارند. بشمار!');
+  }
+  // شکلِ داخلی = بیرونی
+  function m3_innerMatch(rng) {
+    var types = ['triangle', 'square', 'circle', 'diamond'];
+    var refTypes = rng.sample(types, 4);
+    var refs = refTypes.map(function (t) { return refFig(nestDraw(t, t)); });
+    var ct = rng.pick(types), correct = nestDraw(ct, ct);
+    var dt = rng.sample(types, 4), dists = [];
+    for (var i = 0; i < 4; i++) { var ot = dt[i], it = rng.pick(types.filter(function (x) { return x !== ot; })); dists.push(nestDraw(ot, it)); }
+    return matchQuestion(rng, refs, correct, dists, 'در همه‌ی شکل‌های بالا، شکلِ داخلی از جنسِ شکلِ بیرونی است. کدام گزینه؟', 'داخلی = بیرونی', 'در گزینه‌ی درست، شکلِ داخلی مثلِ شکلِ بیرونی است؛ اما در بقیه، داخلی و بیرونی از دو جنسِ متفاوت‌اند.');
+  }
+  // هم‌نوع: همه یک تعداد ضلع
+  function m3_sameType(rng) {
+    var type = rng.pick([5, 6, 7]);
+    var rs = [-90, -55, -20, 20], rr = [34, 30, 32, 28];
+    var refs = rs.map(function (st, i) { return refFig(regDraw(type, st, rr[i])); });
+    var correct = regDraw(type, rng.pick([-90, -45, 0]), 33);
+    var others = [3, 4, 5, 6, 8].filter(function (x) { return x !== type; });
+    var dsel = rng.sample(others, 4), dst = [-90, -50, -10, 30], dists = [];
+    for (var i = 0; i < 4; i++) dists.push(regDraw(dsel[i], dst[i], 33));
+    return matchQuestion(rng, refs, correct, dists, 'همه‌ی شکل‌های بالا یک نوع‌اند (تعدادِ ضلعِ یکسان). کدام گزینه هم از همان نوع است؟', 'هم‌نوع', 'گزینه‌ی درست همان تعدادِ ضلع را دارد؛ اما بقیه تعدادِ ضلعِ متفاوتی دارند.');
+  }
+  var M3_EASY = [m3_sameType, m3_evenCount, m3_symmetry];
+  var M3_MED = [m3_symmetry, m3_innerMatch, m3_evenCount, m3_rotationFamily];
+  var M3_HARD = [m3_rotationFamily, m3_innerMatch, m3_symmetry];
+  function genQuestionM3(rng, level) { var pool = level >= 3 ? M3_HARD : level === 2 ? M3_MED : M3_EASY; return rng.pick(pool)(rng, level || 1); }
+
+  /* ====================================================================
    * ۴) درسنامه‌ی کاملِ مبحث ۱ — متنِ اورجینال، آموزشِ ۵ سرنخ + تکنیک‌ها
    * ================================================================== */
   function artRow(makers) { var w = h('div', { class: 'tz-artrow' }); makers.forEach(function (m) { w.appendChild(m()); }); return w; }
@@ -768,7 +853,16 @@
     function artFn(list, maker) { return function () { var w = h('div', { class: 'tz-artrow' }); list.forEach(function (n) { w.appendChild(maker(n)); }); return w; }; }
   }
 
-  function toInter(q) { return { prompt: q.prompt, why: q.why, answer: q.answer, build: function () { return q.options.map(function (o) { return q.render(o); }); } }; }
+  function toInter(q) { return { prompt: q.prompt, why: q.why, answer: q.answer, refs: q.refs, build: function () { return q.options.map(function (o) { return q.render(o); }); } }; }
+
+  // پنلِ تصویرهای مرجع (مبحث ۳ و بعد از آن)
+  function refsPanel(refs) {
+    var box = h('div', { class: 'tz-refs' }, h('div', { class: 'tz-refs-lbl' }, 'ویژگیِ مشترکِ این‌ها را پیدا کن:'));
+    var row = h('div', { class: 'tz-refs-row' });
+    refs.forEach(function (f) { row.appendChild(h('div', { class: 'tz-ref' }, f())); });
+    box.appendChild(row);
+    return box;
+  }
 
   function lessonM2() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -796,13 +890,34 @@
     function rng4Glyph() { return GLYPHS[(seed + 3) % GLYPHS.length]; }
   }
 
+  function lessonM3() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(gen) { return function () { return buildInteractive(toInter(gen(new RNG(seed++)))); }; }
+    return [
+      { title: 'بازیِ تازه: عضوِ گروه کیست؟ 🎯',
+        body: 'این‌بار کارمان فرق دارد! بالای هر سؤال چند شکل می‌بینی که همه یک «ویژگیِ پنهانِ مشترک» دارند. اول باید کشف کنی آن ویژگی چیست، بعد از بینِ گزینه‌ها همانی را انتخاب کنی که همان ویژگی را دارد. مثلِ پیداکردنِ عضوِ گمشده‌ی یک خانواده!',
+        art: function () { return figure(regDraw(6, -90), { size: 110, frame: false }); } },
+      { title: 'چطور ویژگی را پیدا کنم؟ 🔍',
+        body: 'به شکل‌های بالا نگاه کن و بپرس: چه چیزی در همه‌شان مشترک است؟ شاید همه خطِ تقارن دارند، شاید همه یک‌جور چرخیده‌اند (هم‌دست‌اند)، شاید تعدادِ زوج نقطه دارند، یا شکلِ داخلی‌شان مثلِ بیرونی است. همان پنج سرنخِ قبلی این‌جا هم به کارت می‌آیند.',
+        art: function () { var w = h('div', { class: 'tz-artrow' }); [4, 6, 8].forEach(function (n) { w.appendChild(figure(regDraw(n, -90), { size: 66 })); }); return w; } },
+      { title: 'تمرین: تقارن', interactive: ex(m3_symmetry) },
+      { title: 'ویژگیِ حرفه‌ای: هم‌دستی 🖐️',
+        body: 'گاهی همه‌ی شکل‌های بالا یک شکل‌اند که فقط چرخیده‌اند (هم‌دست‌اند). گزینه‌ی درست هم با چرخش روی آن‌ها می‌افتد؛ اما مراقب باش — بعضی گزینه‌ها «آینه» شده‌اند و هرچه بچرخانی روی گروه نمی‌افتند. آن‌ها عضوِ گروه نیستند!',
+        art: function () { var w = h('div', { class: 'tz-artrow' }); [0, 90, 180].forEach(function (a) { w.appendChild(figure(mBoot, { rot: a, size: 66 })); }); w.appendChild(figure(mBoot, { mirror: 'v', size: 66 })); return w; } },
+      { title: 'تمرین: خانواده‌ی چرخش', interactive: ex(m3_rotationFamily) },
+      { title: 'آماده‌ای! 🌟',
+        body: 'حالا بلدی عضوِ گمشده‌ی هر گروه را پیدا کنی. در «تمرین» بی‌نهایت سؤالِ تازه با ۳ سطحِ سختی هست و در «آزمون» خودت را محک بزن. اول ویژگیِ مشترک را پیدا کن، بعد گزینه بزن!',
+        art: function () { return figure(nestDraw('triangle', 'triangle'), { size: 104, frame: false }); } }
+    ];
+  }
+
   /* ====================================================================
    * ۵) داده‌ی مبحث‌ها
    * ================================================================== */
   var MABAHETH = [
     { id: 'motafavet1', n: 1, title: 'تصویرِ متفاوت', sub: 'یکی با بقیه فرق دارد', icon: '🔍', color: PAL.teal, ready: true, lesson: lessonM1, gen: genQuestion },
     { id: 'motafavet2', n: 2, title: 'تصویرِ متفاوت (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🧩', color: PAL.lilac, ready: true, lesson: lessonM2, gen: genQuestionM2 },
-    { id: 'monaseb', n: 3, title: 'تصویرِ مناسب', sub: 'کدام مناسب است؟', icon: '🎯', color: PAL.gold, ready: false },
+    { id: 'monaseb', n: 3, title: 'تصویرِ مناسب', sub: 'کدام مناسب است؟', icon: '🎯', color: PAL.gold, ready: true, lesson: lessonM3, gen: genQuestionM3 },
     { id: 'moshabeh1', n: 4, title: 'ویژگیِ مشابه (نوع ۱)', sub: 'شبیه‌ترین گزینه', icon: '🔗', color: PAL.teal, ready: false },
     { id: 'moshabeh2', n: 5, title: 'ویژگیِ مشابه (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🪞', color: PAL.lilac, ready: false },
     { id: 'ejraye_qaede', n: 6, title: 'اجرای قاعده', sub: 'قاعده را ادامه بده', icon: '⚙️', color: PAL.gold, ready: false },
@@ -878,6 +993,7 @@
   function buildInteractive(q) {
     var wrap = h('div', { class: 'tz-inter' });
     wrap.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
+    if (q.refs) wrap.appendChild(refsPanel(q.refs));
     var opts = h('div', { class: 'tz-opts' }); var figs = q.build(); var done = false;
     figs.forEach(function (fig, i) {
       var b = h('button', { class: 'tz-opt', onclick: function () {
@@ -914,6 +1030,7 @@
       var q = nextGen()(new RNG(seed++), level);
       box.appendChild(h('div', { class: 'tz-tagline' }, 'سرنخ: ' + q.tag));
       box.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
+      if (q.refs) box.appendChild(refsPanel(q.refs));
       var opts = h('div', { class: 'tz-opts' }); var done = false;
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
@@ -956,6 +1073,7 @@
       var q = qs[idx];
       box.appendChild(h('div', { class: 'tz-qcount' }, 'سؤالِ ' + toFa(idx + 1) + ' از ' + toFa(total) + ' — امتیاز: ' + toFa(correct)));
       box.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
+      if (q.refs) box.appendChild(refsPanel(q.refs));
       var opts = h('div', { class: 'tz-opts' }); var done = false;
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
@@ -1039,6 +1157,10 @@
       '.tz-pill{cursor:pointer;border:2px solid #e3e0d6;background:#fff;border-radius:999px;padding:6px 16px;font-family:inherit;font-size:.9rem;color:' + PAL.inkSoft + '}',
       '.tz-pill.on{background:' + PAL.lilac + ';color:#fff;border-color:' + PAL.lilac + '}',
       '.tz-solved{margin-inline-start:auto;font-size:.85rem;color:' + PAL.tealD + ';font-weight:700}',
+      '.tz-refs{background:' + PAL.lilacL + ';border:2px dashed ' + PAL.lilac + ';border-radius:14px;padding:10px 8px;margin-bottom:14px}',
+      '.tz-refs-lbl{font-size:.82rem;color:' + PAL.lilac + ';font-weight:700;text-align:center;margin-bottom:6px}',
+      '.tz-refs-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}',
+      '.tz-ref{background:#fff;border-radius:10px;padding:2px;display:flex}',
       '@media(max-width:480px){.tz-root{padding:12px}.tz-hero-title{font-size:1.25rem}.tz-tab{min-width:46%}}'
     ].join('\n');
     var st = document.createElement('style'); st.id = 'tz-styles'; st.textContent = css; document.head.appendChild(st);
@@ -1058,6 +1180,7 @@
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
-        m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap } };
+        m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
+        m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType } };
   }
 })();
