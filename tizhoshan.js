@@ -168,6 +168,14 @@
   function mBoot(g) { add(g, 'path', merge(DEF, { d: 'M38 24 H56 V58 H72 V72 H38 Z' })); drawDot(g, 47, 34, 3.2); }
   function mZig(g) { add(g, 'path', merge(DEF, { d: 'M28 30 H62 L44 50 H70 L48 74' })); drawDot(g, 62, 30, 3.2); }
   var MOTIFS = [mFlag, mEll, mHook, mTri, mBoot, mZig];
+  // موتیف‌های «حرف‌نما» — دست‌داریِ بسیار خوانا (مثلِ حرف در آینه). بدونِ تقارنِ چرخشی.
+  function glF(g) { add(g, 'path', merge(DEF, { 'stroke-width': 6, d: 'M40 26 V74 M40 26 H64 M40 50 H60' })); }
+  function glL(g) { add(g, 'path', merge(DEF, { 'stroke-width': 6, d: 'M42 26 V74 H68' })); }
+  function glP(g) { add(g, 'path', merge(DEF, { 'stroke-width': 6, d: 'M40 74 V26 H58 A12 12 0 0 1 58 50 H40' })); }
+  function glR(g) { add(g, 'path', merge(DEF, { 'stroke-width': 6, d: 'M40 74 V26 H57 A12 12 0 0 1 57 50 H40 M50 50 L66 74' })); }
+  function glJ(g) { add(g, 'path', merge(DEF, { 'stroke-width': 6, d: 'M62 26 V60 A13 13 0 0 1 36 60' })); }
+  function glG(g) { add(g, 'path', merge(DEF, { 'stroke-width': 6, d: 'M66 40 A22 22 0 1 0 68 62 H54 V52' })); }
+  var GLYPHS = [glF, glL, glP, glR, glJ, glG];
 
   /* ====================================================================
    * ۳) مولدهای سؤالِ «تصویرِ متفاوت» (۹ نوع، همه بی‌ابهام)
@@ -179,11 +187,10 @@
     return { options: arr, answer: idx };
   }
 
-  // ۱) دوران/آینه (دست‌دار)
+  // ۱) دوران/آینه (دست‌دار) — همیشه گام‌های ۹۰° و موتیف‌های خوش‌سیلوئت (قابلِ ردیابی)
   function oddChirality(rng, level) {
-    var motif = rng.pick(MOTIFS);
-    var angleSet = level >= 3 ? [0, 45, 135, 225] : [0, 90, 180, 270];
-    var angles = rng.shuffle(angleSet);
+    var motif = rng.pick([mFlag, mEll, mBoot, mZig, mHook]);
+    var angles = rng.shuffle([0, 90, 180, 270]);
     var mir = rng.next() < 0.5 ? 'v' : 'h';
     var same = [{ rot: angles[0] }, { rot: angles[1] }, { rot: angles[2] }];
     var odd = { rot: angles[3], mirror: mir };
@@ -415,9 +422,159 @@
     };
   }
 
-  var GENS_EASY = [oddChirality, oddDots, oddFill, oddLineStyle, oddArrow, oddSides, oddLineCount];
-  var GENS_MED = [oddChirality, oddDots, oddSides, oddInner, oddArrow, oddHatch, oddSize, oddLineCount, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, oddChirality, oddInner, oddSize, oddHatch];
+  // ۱۱) حرف‌نما: ۳ چرخش + ۱ آینه (دست‌داریِ بسیار خوانا)
+  function oddGlyph(rng, level) {
+    var gl = rng.pick(GLYPHS);
+    var angles = rng.shuffle([0, 90, 180, 270]);
+    var mir = rng.next() < 0.5 ? 'v' : 'h';
+    var same = [{ rot: angles[0] }, { rot: angles[1] }, { rot: angles[2] }];
+    var pa = placeAnswer(rng, same, { rot: angles[3], mirror: mir });
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'دوران و آینه (حرف‌نما)',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(gl, { rot: o.rot, mirror: o.mirror || null, size: 96 }); },
+      why: 'سه شکل فقط چرخیده‌اند؛ اما این یکی «آینه (برعکس)» شده — مثلِ حرفی که در آینه وارونه می‌شود و با هیچ چرخشی صاف نمی‌شود.'
+    };
+  }
+
+  // ۱۲) تاس: شمارشِ خال‌ها روی صفحه‌ی مربعی
+  function oddDice(rng, level) {
+    var cells = []; for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) cells.push([36 + c * 14, 36 + r * 14]);
+    var k = rng.int(3, level >= 2 ? 6 : 5);
+    var oddK = rng.next() < 0.5 ? k + 1 : Math.max(2, k - 1);
+    function draw(count, seed2) {
+      var rr = new RNG(seed2);
+      var pick = rr.sample(cells, count);
+      return function (g) {
+        add(g, 'rect', merge(DEF, { x: 26, y: 26, width: 48, height: 48, rx: 6 }));
+        pick.forEach(function (p) { drawDot(g, p[0], p[1], 3.6); });
+      };
+    }
+    var seeds = rng.sample([11, 23, 37, 51, 67, 83], 4);
+    var same = [{ c: k, s: seeds[0] }, { c: k, s: seeds[1] }, { c: k, s: seeds[2] }];
+    var pa = placeAnswer(rng, same, { c: oddK, s: seeds[3] });
+    return {
+      prompt: 'کدام تاس با بقیه فرق دارد؟', tag: 'شمارشِ خال',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(draw(o.c, o.s), { size: 96 }); },
+      why: 'همه ' + toFa(k) + ' خال دارند، اما این یکی ' + toFa(oddK) + ' خال دارد. جای خال‌ها مهم نیست، تعدادشان مهم است.'
+    };
+  }
+
+  // ۱۳) تودرتو: چند شکلِ هم‌مرکز؛ جزءِ درونی متفاوت
+  function oddNested(rng, level) {
+    var outers = rng.sample([3, 4, 5, 6], 4);
+    var kinds = ['triangle', 'square', 'circle', 'diamond'];
+    var base = rng.pick(kinds);
+    var odd = rng.pick(kinds.filter(function (k) { return k !== base; }));
+    var starts = [-90, -60, -30, 0];
+    var same = [];
+    for (var i = 0; i < 3; i++) same.push({ n: outers[i], s: starts[i], inner: base });
+    var pa = placeAnswer(rng, same, { n: outers[3], s: starts[3], inner: odd });
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'تودرتو',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(function (g) { drawPoly(g, o.n, { r: 40, start: o.s }); drawCircle(g, { r: 24 }); smallShape(g, o.inner, 50, 50, 9); }, { size: 96 }); },
+      why: 'شکلِ بیرونی و حلقه‌ی میانی مهم نیستند؛ در سه شکل هسته‌ی درونی ' + KIND_FA[base] + ' است، اما در این یکی ' + KIND_FA[odd] + '.'
+    };
+  }
+
+  // ۱۴) فلشِ پَردار: شمارشِ پرها
+  function oddBeadArrow(rng, level) {
+    var k = rng.int(3, 5);
+    var oddK = rng.next() < 0.5 ? k + 1 : k - 1;
+    var dirs = rng.sample([0, 45, 90, 135, 180, 225, 270, 315], 4);
+    function draw(count) {
+      return function (g) {
+        add(g, 'line', merge(DEF, { x1: 24, y1: 50, x2: 66, y2: 50 }));
+        add(g, 'polygon', { points: '74,50 62,44 62,56', fill: PAL.line });
+        var step = 26 / (count + 1);
+        for (var i = 1; i <= count; i++) { var x = 28 + i * step; add(g, 'line', merge(DEF, { x1: x, y1: 44, x2: x, y2: 56, 'stroke-width': 2.4 })); }
+      };
+    }
+    var same = [{ c: k, d: dirs[0] }, { c: k, d: dirs[1] }, { c: k, d: dirs[2] }];
+    var pa = placeAnswer(rng, same, { c: oddK, d: dirs[3] });
+    return {
+      prompt: 'کدام فلش با بقیه فرق دارد؟', tag: 'شمارشِ پَر',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(draw(o.c), { rot: o.d, size: 96 }); },
+      why: 'جهتِ فلش‌ها مهم نیست؛ همه ' + toFa(k) + ' پَر دارند، اما این یکی ' + toFa(oddK) + ' پَر دارد.'
+    };
+  }
+
+  // ۱۵) تقارن: کدام شکل خطِ تقارن ندارد (منتظم در برابرِ نامنتظم)
+  function oddSymmetry(rng, level) {
+    var regs = rng.sample([4, 5, 6, 7, 8], 3);
+    var starts = [-90, -66, -42];
+    var irrPts = (function () {
+      var p = []; var pull = rng.int(0, 4);
+      for (var i = 0; i < 5; i++) { var ang = (-90 + i * 72 + rng.int(-16, 16)) * Math.PI / 180; var rad = 24 + (i === pull ? 12 : rng.int(-5, 5)); p.push([50 + rad * Math.cos(ang), 50 + rad * Math.sin(ang)]); }
+      return ptsStr(p);
+    })();
+    var same = [{ kind: 'reg', n: regs[0], s: starts[0] }, { kind: 'reg', n: regs[1], s: starts[1] }, { kind: 'reg', n: regs[2], s: starts[2] }];
+    var pa = placeAnswer(rng, same, { kind: 'irr' });
+    return {
+      prompt: 'کدام شکل خطِ تقارن ندارد؟', tag: 'تقارن',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(function (g) { if (o.kind === 'reg') drawPoly(g, o.n, { r: 34, start: o.s }); else add(g, 'polygon', merge(DEF, { points: irrPts })); }, { size: 96 }); },
+      why: 'سه شکل منتظم‌اند و خطِ تقارن دارند (می‌شود تا زد و دو نیمه روی هم می‌افتند)؛ اما این یکی نامنتظم است و هیچ خطِ تقارنی ندارد.'
+    };
+  }
+
+  // شکل با شکافِ واضح در وسطِ یک ضلع (برای «باز») یا کاملاً بسته
+  function drawMaybeOpen(g, n, r, start, open) {
+    var p = polyPts(n, r, 50, 50, start);
+    if (!open) { add(g, 'polygon', merge(DEF, { points: ptsStr(p) })); return; }
+    var a = p[0], b = p[1];
+    var g1 = [a[0] + (b[0] - a[0]) * 0.32, a[1] + (b[1] - a[1]) * 0.32];
+    var g2 = [a[0] + (b[0] - a[0]) * 0.68, a[1] + (b[1] - a[1]) * 0.68];
+    var d = 'M' + g1[0].toFixed(1) + ' ' + g1[1].toFixed(1) + ' L' + a[0].toFixed(1) + ' ' + a[1].toFixed(1);
+    for (var i = n - 1; i >= 1; i--) d += ' L' + p[i][0].toFixed(1) + ' ' + p[i][1].toFixed(1);
+    d += ' L' + g2[0].toFixed(1) + ' ' + g2[1].toFixed(1);
+    add(g, 'path', merge(DEF, { d: d }));
+  }
+
+  // ۱۶) باز/بسته: کدام شکل «باز» است (شکافِ واضح دارد)
+  function oddOpenClosed(rng, level) {
+    var shapes = rng.sample([3, 4, 5, 6], 4);
+    var starts = [-90, -60, -30, 0];
+    var openMost = rng.next() < 0.5;
+    var same = [];
+    for (var i = 0; i < 3; i++) same.push({ n: shapes[i], s: starts[i], open: openMost });
+    var pa = placeAnswer(rng, same, { n: shapes[3], s: starts[3], open: !openMost });
+    return {
+      prompt: openMost ? 'کدام شکل «بسته» است؟' : 'کدام شکل «باز» است؟', tag: 'باز و بسته',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(function (g) { drawMaybeOpen(g, o.n, 34, o.s, o.open); }, { size: 96 }); },
+      why: openMost ? 'سه شکل باز‌اند و یک شکاف دارند؛ اما این یکی کاملاً بسته است.' : 'سه شکل بسته‌اند و دورشان کامل است؛ اما این یکی «باز» است و یک شکاف دارد.'
+    };
+  }
+
+  // ۱۷) رابطه‌ای (خلاقانه): فلش به‌سمتِ نقطه یا خلافِ آن
+  function oddRelation(rng, level) {
+    var n = rng.pick([4, 5, 6]);
+    var phi = 23 * rng.int(1, 7);
+    var rots = rng.sample([0, 40, 80, 130, 170, 220, 260], 4);
+    function draw(toward) {
+      return function (g) {
+        drawPoly(g, n, { r: 34, start: -90 });
+        var da = phi * Math.PI / 180; drawDot(g, 50 + 27 * Math.cos(da), 50 + 27 * Math.sin(da), 5);
+        drawRay(g, toward ? phi : phi + 180, 2, 21, 'solid');
+      };
+    }
+    var same = [{ t: true, rot: rots[0] }, { t: true, rot: rots[1] }, { t: true, rot: rots[2] }];
+    var pa = placeAnswer(rng, same, { t: false, rot: rots[3] });
+    return {
+      prompt: 'کدام تصویر با بقیه فرق دارد؟', tag: 'رابطه‌ی فلش و نقطه',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(draw(o.t), { rot: o.rot, size: 96 }); },
+      why: 'در سه تصویر، فلش دقیقاً به‌سمتِ نقطه اشاره می‌کند؛ اما در این یکی فلش خلافِ جهتِ نقطه (به بیرون) است. جهتِ کلیِ تصویر مهم نیست، رابطه‌ی فلش و نقطه مهم است.'
+    };
+  }
+
+  var GENS_EASY = [oddChirality, oddDots, oddFill, oddLineStyle, oddArrow, oddSides, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
+  var GENS_MED = [oddChirality, oddGlyph, oddDots, oddSides, oddInner, oddArrow, oddHatch, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
+  var GENS_HARD = [sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -741,6 +898,7 @@
 
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead } };
+      GLYPHS: GLYPHS,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead } };
   }
 })();
