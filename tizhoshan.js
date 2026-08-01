@@ -830,6 +830,81 @@
   function genQuestionM3(rng, level) { return rng.pick(poolForM3(level))(rng, level || 1); }
 
   /* ====================================================================
+   * مبحث ۴: ویژگیِ مشابه (نوع ۱) — «کدام گزینه شبیه‌ترین به A و B است؟»
+   *   چیدمان: دو مرجعِ A,B + ۴ گزینه. ویژگی‌ها ترکیبی‌اند.
+   * ================================================================== */
+  function blob(g, kind, cx, cy, r, filled) {
+    var o = merge(DEF, { 'stroke-width': 2.4 }); if (filled) o.fill = PAL.line;
+    if (kind === 'circle') add(g, 'circle', merge(o, { cx: cx, cy: cy, r: r }));
+    else if (kind === 'square') add(g, 'rect', merge(o, { x: cx - r, y: cy - r, width: 2 * r, height: 2 * r }));
+    else if (kind === 'triangle') add(g, 'polygon', merge(o, { points: ptsStr(polyPts(3, r * 1.15, cx, cy, -90)) }));
+    else add(g, 'polygon', merge(o, { points: ptsStr(polyPts(4, r * 1.15, cx, cy, -90)) }));
+  }
+  var COMPPOS = [[36, 40], [64, 40], [50, 68]];
+
+  // فقط یک شکل رنگی (توپُر) — q83
+  function m4_oneShaded(rng) {
+    var kinds = ['circle', 'square', 'triangle', 'diamond'];
+    function comp(shadedCount, seed) {
+      var rr = new RNG(seed), ks = [rr.pick(kinds), rr.pick(kinds), rr.pick(kinds)], idx = rr.shuffle([0, 1, 2]).slice(0, shadedCount);
+      return function (g) { for (var i = 0; i < 3; i++) blob(g, ks[i], COMPPOS[i][0], COMPPOS[i][1], 11, idx.indexOf(i) >= 0); };
+    }
+    var refs = [refFig(comp(1, 11)), refFig(comp(1, 29))];
+    var correct = comp(1, 47);
+    var dc = rng.shuffle([0, 2, 3]).concat([rng.pick([0, 2, 3])]), dists = [];
+    for (var i = 0; i < 3; i++) dists.push(comp(dc[i], 61 + i * 17));
+    return matchQuestion(rng, refs, correct, dists, 'در A و B فقط «یک» شکل رنگی (توپُر) است. کدام گزینه هم دقیقاً یک شکلِ رنگی دارد؟', 'یک شکلِ رنگی', 'گزینه‌ی درست هم مثلِ A و B فقط یک شکلِ توپُر دارد؛ اما بقیه صفر یا بیش از یکی شکلِ رنگی دارند. بشمار!');
+  }
+  // تعداد خط‌های داخل = تعداد ضلع — q96
+  function m4_sidesEqLines(rng) {
+    function fig2(n, k, start) { return function (g) { drawPoly(g, n, { r: 33, start: start }); polyPts(k, 30, 50, 50, start + 8).forEach(function (p) { add(g, 'line', merge(DEF, { x1: 50, y1: 50, x2: p[0].toFixed(1), y2: p[1].toFixed(1), 'stroke-width': 2 })); }); }; }
+    var rn = rng.sample([4, 5, 6], 2);
+    var refs = [refFig(fig2(rn[0], rn[0], -90)), refFig(fig2(rn[1], rn[1], -55))];
+    var cn = rng.pick([4, 5, 6]), correct = fig2(cn, cn, -90);
+    var dists = [], st = [-90, -55, -20];
+    for (var i = 0; i < 3; i++) { var n = rng.pick([4, 5, 6]), k; do { k = rng.pick([3, 4, 5, 6, 7]); } while (k === n); dists.push(fig2(n, k, st[i])); }
+    return matchQuestion(rng, refs, correct, dists, 'در A و B، تعدادِ خط‌های داخلِ شکل با تعدادِ ضلع‌های آن برابر است. کدام گزینه همین رابطه را دارد؟', 'ضلع = خطِ داخل', 'در گزینه‌ی درست، تعدادِ خط‌های داخل با تعدادِ ضلع برابر است (مثلِ A و B)؛ اما در بقیه این دو عدد برابر نیستند.');
+  }
+  // هم دایره هم مثلث دارد
+  function m4_containsBoth(rng) {
+    var extra = ['square', 'diamond', 'circle', 'triangle'];
+    function comp(ks, seed) { var kk = ks.slice(); return function (g) { for (var i = 0; i < 3; i++) blob(g, kk[i], COMPPOS[i][0], COMPPOS[i][1], 11, false); }; }
+    function withBoth(seed) { var rr = new RNG(seed); return comp(rr.shuffle(['circle', 'triangle', rr.pick(extra)]), seed); }
+    function without(seed) { var rr = new RNG(seed); var keep = rr.next() < 0.5 ? 'circle' : 'triangle'; var pool = ['square', 'diamond', keep]; return comp([rr.pick(pool), rr.pick(pool), rr.pick(pool)], seed); }
+    var refs = [refFig(withBoth(13)), refFig(withBoth(31))];
+    var correct = withBoth(53), dists = [];
+    for (var i = 0; i < 3; i++) dists.push(without(70 + i * 19));
+    return matchQuestion(rng, refs, correct, dists, 'در A و B، هم یک «دایره» هست و هم یک «مثلث». کدام گزینه هم هم دایره دارد و هم مثلث؟', 'دایره و مثلث', 'گزینه‌ی درست هم دایره دارد و هم مثلث (مثلِ A و B)؛ اما در بقیه یکی از این دو نیست.');
+  }
+  // تقارن (منتظم در برابر نامنتظم)
+  function m4_symmetryPair(rng) {
+    var rn = rng.sample([4, 5, 6, 7, 8], 2);
+    var refs = [refFig(regDraw(rn[0], -90)), refFig(regDraw(rn[1], -50))];
+    var correct = regDraw(rng.pick([4, 5, 6, 7, 8]), rng.pick([-90, -45, 0])), dists = [];
+    for (var i = 0; i < 3; i++) dists.push(irrDraw(311 + i * 97 + rng.int(0, 40)));
+    return matchQuestion(rng, refs, correct, dists, 'A و B هر دو خطِ تقارن دارند (منتظم‌اند). کدام گزینه هم خطِ تقارن دارد؟', 'تقارن', 'گزینه‌ی درست منتظم است و خطِ تقارن دارد (مثلِ A و B)؛ اما بقیه نامتقارن‌اند.');
+  }
+  // هم‌دستیِ صحنه (حرفه‌ای) — A,B چرخش یک صحنه؛ درست هم‌دست، بقیه آینه
+  function m4_chiralPair(rng) {
+    var spec = makeScene(rng, 3);
+    var refs = [function () { return figure(drawScene(spec), { rot: 0, size: 62 }); }, function () { return figure(drawScene(spec), { rot: rng.pick([90, 180, 270]), size: 62 }); }];
+    var mir = rng.next() < 0.5 ? 'v' : 'h', oA = rng.shuffle([0, 90, 180, 270]);
+    var opts = [{ mir: false, rot: oA[0] }]; for (var i = 0; i < 3; i++) opts.push({ mir: true, rot: oA[i] });
+    var order = rng.shuffle(opts);
+    return {
+      prompt: 'A و B یک صحنه‌اند که چرخیده‌اند. کدام گزینه هم از همین خانواده (هم‌دست) است؟', tag: 'هم‌دستیِ صحنه',
+      refs: refs, options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(drawScene(spec), { rot: o.rot, mirror: o.mir ? mir : null, size: 96 }); },
+      why: 'A و B یک صحنه‌اند که فقط چرخیده‌اند (هم‌دست). گزینه‌ی درست هم با چرخش روی آن‌ها می‌افتد؛ اما بقیه «قرینه (آینه)» شده‌اند.'
+    };
+  }
+  var M4_EASY = [m4_oneShaded, m4_containsBoth, m4_symmetryPair];
+  var M4_MED = [m4_sidesEqLines, m4_oneShaded, m4_containsBoth, m4_symmetryPair];
+  var M4_HARD = [m4_chiralPair, m4_sidesEqLines, m4_containsBoth, m4_symmetryPair];
+  function poolForM4(level) { return level >= 3 ? M4_HARD : level === 2 ? M4_MED : M4_EASY; }
+  function genQuestionM4(rng, level) { return rng.pick(poolForM4(level))(rng, level || 1); }
+
+  /* ====================================================================
    * ۴) درسنامه‌ی کاملِ مبحث ۱ — متنِ اورجینال، آموزشِ ۵ سرنخ + تکنیک‌ها
    * ================================================================== */
   function artRow(makers) { var w = h('div', { class: 'tz-artrow' }); makers.forEach(function (m) { w.appendChild(m()); }); return w; }
@@ -891,9 +966,9 @@
 
   // پنلِ تصویرهای مرجع (مبحث ۳ و بعد از آن)
   function refsPanel(refs) {
-    var box = h('div', { class: 'tz-refs' }, h('div', { class: 'tz-refs-lbl' }, 'ویژگیِ مشترکِ این‌ها را پیدا کن:'));
+    var box = h('div', { class: 'tz-refs' }, h('div', { class: 'tz-refs-lbl' }, (refs.length <= 2 ? 'ویژگیِ مشترکِ A و B را پیدا کن:' : 'ویژگیِ مشترکِ این‌ها را پیدا کن:')));
     var row = h('div', { class: 'tz-refs-row' });
-    refs.forEach(function (f) { row.appendChild(h('div', { class: 'tz-ref' }, f())); });
+    refs.forEach(function (f, i) { row.appendChild(h('div', { class: 'tz-ref' }, f(), h('span', { class: 'tz-ref-l' }, String.fromCharCode(65 + i)))); });
     box.appendChild(row);
     return box;
   }
@@ -922,6 +997,27 @@
         art: function () { return figure(mZig, { size: 104, frame: false }); } }
     ];
     function rng4Glyph() { return GLYPHS[(seed + 3) % GLYPHS.length]; }
+  }
+
+  function lessonM4() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(gen) { return function () { return buildInteractive(toInter(gen(new RNG(seed++)))); }; }
+    return [
+      { title: 'دو دوست: A و B 👯',
+        body: 'در این مبحث، دو تصویرِ A و B می‌بینی که یک «ویژگیِ مشترکِ پنهان» دارند. باید از بینِ گزینه‌ها، شبیه‌ترین را انتخاب کنی — یعنی همانی که همان ویژگی را دارد. اول کشف کن A و B چه چیزِ مشترکی دارند، بعد گزینه بزن.',
+        art: function () { var w = h('div', { class: 'tz-artrow' }); [11, 29].forEach(function (sd) { w.appendChild(figure(function (g) { var rr = new RNG(sd), ks = ['circle', 'square', 'triangle'], idx = rr.int(0, 2); for (var i = 0; i < 3; i++) blob(g, ks[i], COMPPOS[i][0], COMPPOS[i][1], 11, i === idx); }, { size: 72 })); }); return w; } },
+      { title: 'ویژگی‌های ترکیبی 🧩',
+        body: 'این‌جا ویژگی‌ها کمی پیچیده‌ترند: شاید «فقط یک شکل رنگی باشد»، شاید «هم دایره باشد هم مثلث»، یا حتی یک رابطه مثلِ «تعدادِ خط‌های داخل برابرِ تعدادِ ضلع‌ها». پس فقط به ظاهر نگاه نکن؛ بشمار و رابطه‌ها را پیدا کن.',
+        art: function () { var w = h('div', { class: 'tz-artrow' }); [[5, 5], [6, 6]].forEach(function (nk) { w.appendChild(figure(function (g) { drawPoly(g, nk[0], { r: 30 }); polyPts(nk[1], 27, 50, 50, -82).forEach(function (p) { add(g, 'line', merge(DEF, { x1: 50, y1: 50, x2: p[0].toFixed(1), y2: p[1].toFixed(1), 'stroke-width': 2 })); }); }, { size: 72 })); }); return w; } },
+      { title: 'تمرین: یک شکلِ رنگی', interactive: ex(m4_oneShaded) },
+      { title: 'مراقبِ فریب باش! 🕵️',
+        body: 'گاهی گزینه‌ها طوری طراحی شده‌اند که تو را گول بزنند: ظاهرشان شبیهِ A و B است ولی ویژگیِ اصلی را ندارند. همیشه ویژگیِ دقیق را چک کن، نه فقط شکلِ کلی را. و یادت باشد ترتیب: بشمار، رابطه پیدا کن، تقارن و هم‌دستی را بررسی کن.',
+        art: function () { return figure(mBoot, { size: 96, frame: false }); } },
+      { title: 'تمرین: رابطه‌ی ضلع و خط', interactive: ex(m4_sidesEqLines) },
+      { title: 'آماده‌ای! 🌟',
+        body: 'حالا می‌توانی «شبیه‌ترین» را هم پیدا کنی. در «تمرین» بی‌نهایت سؤالِ تازه با ۳ سطحِ سختی هست (سطحِ سخت با صحنه‌های هم‌دستِ چالشی) و در «آزمون» خودت را محک بزن. موفق باشی!',
+        art: function () { return figure(mFlag, { size: 100, frame: false }); } }
+    ];
   }
 
   function lessonM3() {
@@ -959,7 +1055,7 @@
     { id: 'motafavet1', n: 1, title: 'تصویرِ متفاوت', sub: 'یکی با بقیه فرق دارد', icon: '🔍', color: PAL.teal, ready: true, lesson: lessonM1, gen: genQuestion, pool: poolFor },
     { id: 'motafavet2', n: 2, title: 'تصویرِ متفاوت (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🧩', color: PAL.lilac, ready: true, lesson: lessonM2, gen: genQuestionM2, pool: poolForM2 },
     { id: 'monaseb', n: 3, title: 'تصویرِ مناسب', sub: 'کدام مناسب است؟', icon: '🎯', color: PAL.gold, ready: true, lesson: lessonM3, gen: genQuestionM3, pool: poolForM3 },
-    { id: 'moshabeh1', n: 4, title: 'ویژگیِ مشابه (نوع ۱)', sub: 'شبیه‌ترین گزینه', icon: '🔗', color: PAL.teal, ready: false },
+    { id: 'moshabeh1', n: 4, title: 'ویژگیِ مشابه (نوع ۱)', sub: 'شبیه‌ترین گزینه', icon: '🔗', color: PAL.teal, ready: true, lesson: lessonM4, gen: genQuestionM4, pool: poolForM4 },
     { id: 'moshabeh2', n: 5, title: 'ویژگیِ مشابه (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🪞', color: PAL.lilac, ready: false },
     { id: 'ejraye_qaede', n: 6, title: 'اجرای قاعده', sub: 'قاعده را ادامه بده', icon: '⚙️', color: PAL.gold, ready: false },
     { id: 'dastebandi', n: 7, title: 'دسته‌بندیِ شکل‌ها', sub: 'گروه‌بندیِ درست', icon: '🗂️', color: PAL.teal, ready: false }
@@ -1235,7 +1331,8 @@
       '.tz-refs{background:linear-gradient(135deg,' + PAL.tealL + ',#f3f4fe);border:2px dashed #c8c6f2;border-radius:18px;padding:12px 10px;margin-bottom:16px}',
       '.tz-refs-lbl{font-size:.82rem;color:' + PAL.teal + ';font-weight:700;text-align:center;margin-bottom:8px}',
       '.tz-refs-row{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}',
-      '.tz-ref{background:#fff;border-radius:12px;padding:3px;display:flex;box-shadow:0 2px 6px rgba(35,37,68,.06)}',
+      '.tz-ref{background:#fff;border-radius:12px;padding:3px;display:flex;flex-direction:column;align-items:center;box-shadow:0 2px 6px rgba(35,37,68,.06)}',
+      '.tz-ref-l{font-size:.72rem;font-weight:700;color:' + PAL.teal + ';margin-top:1px}',
       '@media(max-width:480px){.tz-root{padding:13px;border-radius:20px}.tz-hero-title{font-size:1.6rem}.tz-tab{min-width:0;font-size:.82rem;padding:9px 4px}.tz-stage{padding:15px}}'
     ].join('\n');
     var st = document.createElement('style'); st.id = 'tz-styles'; st.textContent = css; document.head.appendChild(st);
@@ -1256,6 +1353,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
-        m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily } };
+        m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
+        m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair } };
   }
 })();
