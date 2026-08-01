@@ -330,13 +330,96 @@
     };
   }
 
-  var GENS_EASY = [oddChirality, oddDots, oddFill, oddLineStyle, oddArrow, oddSides];
-  var GENS_MED = [oddChirality, oddDots, oddSides, oddInner, oddArrow, oddHatch, oddLineStyle, oddSize];
-  var GENS_HARD = [oddChirality, oddInner, oddSize, oddHatch, oddDots, oddSides];
-  function genQuestion(rng, level) {
-    var pool = level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY;
-    return rng.pick(pool)(rng, level || 1);
+  // ۱۰) شمارشِ خط (دسته‌خطوطِ موازی)
+  function oddLineCount(rng, level) {
+    var k = rng.int(3, level >= 2 ? 5 : 4);
+    var oddK = rng.next() < 0.5 ? k + 1 : Math.max(2, k - 1);
+    var rots = rng.sample([0, 25, 50, 75, 110, 140], 4);
+    function draw(count) { return function (g) { var w = (count - 1) * 8; for (var i = 0; i < count; i++) { var x = 50 - w / 2 + i * 8; add(g, 'line', merge(DEF, { x1: x, y1: 28, x2: x, y2: 72 })); } }; }
+    var same = [{ c: k, rot: rots[0] }, { c: k, rot: rots[1] }, { c: k, rot: rots[2] }];
+    var pa = placeAnswer(rng, same, { c: oddK, rot: rots[3] });
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'شمارشِ خط',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(draw(o.c), { rot: o.rot, size: 96 }); },
+      why: 'همه ' + toFa(k) + ' خط دارند، اما این یکی ' + toFa(oddK) + ' خط دارد.'
+    };
   }
+
+  /* ---- صحنه‌ی ترکیبی (سطحِ آزمونِ حرفه‌ای) ---- */
+  function drawRay(g, angle, r1, r2, head) {
+    var a = angle * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), px = -uy, py = ux;
+    var x1 = 50 + r1 * ux, y1 = 50 + r1 * uy, x2 = 50 + r2 * ux, y2 = 50 + r2 * uy;
+    add(g, 'line', merge(DEF, { x1: x1.toFixed(1), y1: y1.toFixed(1), x2: x2.toFixed(1), y2: y2.toFixed(1) }));
+    var bx = x2 - 9 * ux, by = y2 - 9 * uy;
+    var p1 = [(bx + 5 * px).toFixed(1), (by + 5 * py).toFixed(1)], p2 = [(bx - 5 * px).toFixed(1), (by - 5 * py).toFixed(1)];
+    if (head === 'solid') add(g, 'polygon', { points: x2.toFixed(1) + ',' + y2.toFixed(1) + ' ' + p1.join(',') + ' ' + p2.join(','), fill: PAL.line });
+    else { add(g, 'line', merge(DEF, { x1: x2.toFixed(1), y1: y2.toFixed(1), x2: p1[0], y2: p1[1] })); add(g, 'line', merge(DEF, { x1: x2.toFixed(1), y1: y2.toFixed(1), x2: p2[0], y2: p2[1] })); }
+  }
+  function makeScene(rng, level) {
+    return { n: rng.pick([4, 5, 6]), theta: 23 * rng.int(1, 7), inner: rng.pick(['triangle', 'square', 'circle', 'diamond']), head: rng.next() < 0.5 ? 'solid' : 'open', dot: level >= 3 };
+  }
+  function drawScene(spec) {
+    return function (g) {
+      drawPoly(g, spec.n, { r: 31, start: -90 });
+      drawRay(g, spec.theta, 6, 42, spec.head);
+      var ia = (spec.theta + 90) * Math.PI / 180;
+      smallShape(g, spec.inner, 50 + 15 * Math.cos(ia), 50 + 15 * Math.sin(ia), 8);
+      if (spec.dot) { var da = (spec.theta - 90) * Math.PI / 180; drawDot(g, 50 + 15 * Math.cos(da), 50 + 15 * Math.sin(da), 3.2); }
+    };
+  }
+  var KIND_FA = { triangle: 'مثلث', square: 'مربع', circle: 'دایره', diamond: 'لوزی' };
+
+  // A) صحنه: ۳ چرخش + ۱ قرینه (آینه) — حرفه‌ای
+  function sceneChirality(rng, level) {
+    var spec = makeScene(rng, level);
+    var angles = rng.shuffle([0, 90, 180, 270]);
+    var mir = rng.next() < 0.5 ? 'v' : 'h';
+    var same = [{ rot: angles[0] }, { rot: angles[1] }, { rot: angles[2] }];
+    var pa = placeAnswer(rng, same, { rot: angles[3], mirror: mir });
+    return {
+      prompt: 'کدام تصویر با بقیه فرق دارد؟', tag: 'دوران و آینه (ترکیبی)',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(drawScene(spec), { rot: o.rot, mirror: o.mirror || null, size: 96 }); },
+      why: 'سه تصویر فقط چرخیده‌اند و کاملاً روی هم می‌افتند؛ اما این یکی «آینه (قرینه)» شده — جهتِ فلش نسبت به جای شکلِ داخلی برعکس شده و با هیچ چرخشی مثلِ بقیه نمی‌شود.'
+    };
+  }
+  // B) صحنه: جزءِ داخلی متفاوت (بین چرخش‌ها)
+  function sceneInnerSwap(rng, level) {
+    var spec = makeScene(rng, level);
+    var oddKind = rng.pick(['triangle', 'square', 'circle', 'diamond'].filter(function (k) { return k !== spec.inner; }));
+    var oddSpec = merge(spec, { inner: oddKind });
+    var angles = rng.shuffle([0, 90, 180, 270]);
+    var same = [{ rot: angles[0], sp: spec }, { rot: angles[1], sp: spec }, { rot: angles[2], sp: spec }];
+    var pa = placeAnswer(rng, same, { rot: angles[3], sp: oddSpec });
+    return {
+      prompt: 'کدام تصویر با بقیه فرق دارد؟', tag: 'جزءِ متفاوت (ترکیبی)',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(drawScene(o.sp), { rot: o.rot, size: 96 }); },
+      why: 'تصویرها فقط چرخیده‌اند و همه یک ' + KIND_FA[spec.inner] + 'ِ کوچک دارند؛ اما جزءِ داخلیِ این یکی ' + KIND_FA[oddKind] + ' است.'
+    };
+  }
+  // C) صحنه: نوکِ فلش متفاوت (بین چرخش‌ها)
+  function sceneArrowHead(rng, level) {
+    var spec = makeScene(rng, level);
+    var oddHead = spec.head === 'solid' ? 'open' : 'solid';
+    var oddSpec = merge(spec, { head: oddHead });
+    var angles = rng.shuffle([0, 90, 180, 270]);
+    var same = [{ rot: angles[0], sp: spec }, { rot: angles[1], sp: spec }, { rot: angles[2], sp: spec }];
+    var pa = placeAnswer(rng, same, { rot: angles[3], sp: oddSpec });
+    return {
+      prompt: 'کدام تصویر با بقیه فرق دارد؟', tag: 'نوکِ فلش (ترکیبی)',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(drawScene(o.sp), { rot: o.rot, size: 96 }); },
+      why: 'همه چرخیده‌اند و نوکِ فلششان ' + (spec.head === 'solid' ? 'توپُر' : 'توخالی') + ' است؛ اما نوکِ فلشِ این یکی ' + (oddHead === 'solid' ? 'توپُر' : 'توخالی') + ' است.'
+    };
+  }
+
+  var GENS_EASY = [oddChirality, oddDots, oddFill, oddLineStyle, oddArrow, oddSides, oddLineCount];
+  var GENS_MED = [oddChirality, oddDots, oddSides, oddInner, oddArrow, oddHatch, oddSize, oddLineCount, sceneArrowHead, sceneInnerSwap];
+  var GENS_HARD = [sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, oddChirality, oddInner, oddSize, oddHatch];
+  function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
+  function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
   /* ====================================================================
    * ۴) درسنامه‌ی کاملِ مبحث ۱ — متنِ اورجینال، آموزشِ ۵ سرنخ + تکنیک‌ها
@@ -466,7 +549,7 @@
       var p = pages[idx];
       card.appendChild(h('h3', { class: 'tz-lt' }, p.title));
       if (p.interactive) card.appendChild(p.interactive());
-      else { if (p.art) { var a = h('div', { class: 'tz-lart' }); a.appendChild(p.art()); card.appendChild(a); } card.appendChild(h('p', { class: 'tz-lb' }, p.body)); }
+      else { if (p.art) { var a = h('div', { class: 'tz-lart' }); a.appendChild(typeof p.art === 'function' ? p.art() : p.art); card.appendChild(a); } card.appendChild(h('p', { class: 'tz-lb' }, p.body)); }
       pages.forEach(function (_, i) { dots.appendChild(h('span', { class: 'tz-dot' + (i === idx ? ' on' : '') })); });
       card.appendChild(h('div', { class: 'tz-lnav' },
         idx > 0 ? h('button', { class: 'tz-btn ghost', onclick: function () { idx--; draw(); } }, 'قبلی') : h('span'),
@@ -508,10 +591,12 @@
     head.appendChild(h('span', { class: 'tz-lbl' }, 'سختی:')); head.appendChild(pills); head.appendChild(counter);
     var box = h('div', {});
     stage.appendChild(head); stage.appendChild(box);
+    var bag = [];
+    function nextGen() { if (!bag.length) bag = new RNG(seed++).shuffle(poolFor(level)); return bag.pop(); }
     function next() {
       counter.textContent = 'حل‌شده: ' + toFa(solved);
       clear(box);
-      var q = m.gen(new RNG(seed++), level);
+      var q = nextGen()(new RNG(seed++), level);
       box.appendChild(h('div', { class: 'tz-tagline' }, 'سرنخ: ' + q.tag));
       box.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
       var opts = h('div', { class: 'tz-opts' }); var done = false;
@@ -656,6 +741,6 @@
 
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch } };
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead } };
   }
 })();
