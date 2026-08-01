@@ -593,58 +593,81 @@
       render: function (o) { return figure(drawFn, { rot: o.rot, mirror: o.mirror || null, size: 96 }); }, why: why
     };
   }
-  function m2_motif(rng) { return chiralQuestion(rng, 5, rng.pick([mFlag, mEll, mBoot, mZig, mHook]), 'دوران و آینه', 'چهار شکل فقط چرخیده‌اند؛ اما این یکی «آینه» شده و با هیچ چرخشی مثلِ بقیه نمی‌شود (شکلِ دست‌دار).'); }
-  function m2_glyph(rng) { return chiralQuestion(rng, 5, rng.pick(GLYPHS), 'دوران و آینه (حرف‌نما)', 'چهار شکل فقط چرخیده‌اند؛ اما این یکی آینه (برعکس) شده — مثلِ حرفی که در آینه وارونه می‌شود.'); }
-  function m2_scene(rng) { return chiralQuestion(rng, 5, drawScene(makeScene(rng, 3)), 'دوران و آینه (ترکیبی)', 'چهار تصویر فقط چرخیده‌اند و روی هم می‌افتند؛ اما این یکی «قرینه (آینه)» شده و جهتِ فلش نسبت به جزءِ داخلی برعکس است.'); }
+  // فرفره: پره‌های خمیده؛ ۴ چرخش + ۱ قرینه (پره‌ها به سمتِ مخالف خم)
+  function drawPinwheel(cw) {
+    return function (g) {
+      for (var i = 0; i < 4; i++) {
+        var ang = i * 90, a = ang * Math.PI / 180;
+        var tip = [50 + 34 * Math.cos(a), 50 + 34 * Math.sin(a)];
+        var ca = (ang + (cw ? 48 : -48)) * Math.PI / 180;
+        var ctrl = [50 + 27 * Math.cos(ca), 50 + 27 * Math.sin(ca)];
+        add(g, 'path', merge(DEF, { d: 'M50 50 Q' + ctrl[0].toFixed(1) + ' ' + ctrl[1].toFixed(1) + ' ' + tip[0].toFixed(1) + ' ' + tip[1].toFixed(1) }));
+        if (i === 0) drawDot(g, tip[0], tip[1], 4);
+      }
+    };
+  }
+  function m2_pinwheel(rng) { return chiralQuestion(rng, 5, drawPinwheel(true), 'فرفره', 'چهار فرفره فقط چرخیده‌اند و پره‌هایشان به یک سمت خم شده‌اند؛ اما پره‌های این یکی به سمتِ مخالف خم شده‌اند (قرینه شده).'); }
 
-  function m2_sceneSwap(rng) {
-    var spec = makeScene(rng, 3);
-    var oddKind = rng.pick(['triangle', 'square', 'circle', 'diamond'].filter(function (k) { return k !== spec.inner; }));
-    var oddSpec = merge(spec, { inner: oddKind });
-    var angles = rng.shuffle([0, 90, 180, 270]);
-    var same = sameList(5, function (i) { return { rot: angles[i % 4], sp: spec }; });
-    var pa = placeAnswer(rng, same, { rot: angles[0], sp: oddSpec }, 5);
+  // سوزن: نوکِ سوزن روی وسطِ ضلع (بقیه) یا روی رأس (متفاوت) — از درسنامه‌ی کتاب
+  function m2_needle(rng) {
+    var n = rng.pick([5, 6]); var start = -90, R = 32, apo = R * Math.cos(Math.PI / n);
+    var edge = [], vert = [];
+    for (var k = 0; k < n; k++) { edge.push(start + 180 / n + k * 360 / n); vert.push(start + k * 360 / n); }
+    var eSel = rng.sample(edge, 4), vSel = rng.pick(vert);
+    function draw(mode, ang) { return function (g) { drawPoly(g, n, { r: R, start: start }); var r = mode === 'v' ? R : apo, a = ang * Math.PI / 180, tx = 50 + r * Math.cos(a), ty = 50 + r * Math.sin(a); add(g, 'line', merge(DEF, { x1: 50, y1: 50, x2: tx.toFixed(1), y2: ty.toFixed(1) })); drawDot(g, tx, ty, 4); }; }
+    var same = sameList(5, function (i) { return { mode: 'e', ang: eSel[i] }; });
+    var pa = placeAnswer(rng, same, { mode: 'v', ang: vSel }, 5);
     return {
-      prompt: 'کدام تصویر با بقیه فرق دارد؟', tag: 'جزءِ متفاوت (ترکیبی)', options: pa.options, answer: pa.answer,
-      render: function (o) { return figure(drawScene(o.sp), { rot: o.rot, size: 96 }); },
-      why: 'همه چرخیده‌اند و یک ' + KIND_FA[spec.inner] + 'ِ کوچک دارند؛ اما جزءِ داخلیِ این یکی ' + KIND_FA[oddKind] + ' است.'
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'سوزن (رأس یا ضلع)', options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(draw(o.mode, o.ang), { size: 96 }); },
+      why: 'در بقیه، نوکِ سوزن وسطِ یک ضلع را نشان می‌دهد؛ اما در این یکی نوکِ سوزن دقیقاً روی یک رأس (گوشه) است.'
     };
   }
-  function m2_count(rng) {
-    var n = rng.pick([5, 6]); var k = rng.int(3, 6); var oddK = rng.next() < 0.5 ? k + 1 : Math.max(2, k - 1);
-    var rots = rng.sample([0, 13, 27, 41, 54, 68], 5);
-    var same = sameList(5, function (i) { return { c: k, rot: rots[i] }; });
-    var pa = placeAnswer(rng, same, { c: oddK, rot: rots[4] }, 5);
-    return {
-      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'شمارش', options: pa.options, answer: pa.answer,
-      render: function (o) { return figure(function (g) { drawPoly(g, n, { r: 33, start: -90 }); dotRing(g, o.c, 15, -72); }, { rot: o.rot, size: 96 }); },
-      why: 'همه ' + toFa(k) + ' نقطه دارند، اما این یکی ' + toFa(oddK) + ' نقطه دارد.'
+
+  // کدام شکل «رو» است: دو شکلِ روی‌هم‌افتاده؛ یکی جلوتر است
+  function drawLayers(topA) {
+    return function (g) {
+      var cx = 43, cy = 50, rC = 16, sx = 49, sy = 38, sw = 23;
+      if (topA) {
+        add(g, 'rect', merge(DEF, { x: sx, y: sy, width: sw, height: sw }));
+        add(g, 'circle', { cx: cx, cy: cy, r: rC, fill: '#ffffff' });
+        add(g, 'circle', merge(DEF, { cx: cx, cy: cy, r: rC }));
+      } else {
+        add(g, 'circle', merge(DEF, { cx: cx, cy: cy, r: rC }));
+        add(g, 'rect', { x: sx, y: sy, width: sw, height: sw, fill: '#ffffff' });
+        add(g, 'rect', merge(DEF, { x: sx, y: sy, width: sw, height: sw }));
+      }
     };
   }
-  function m2_sides(rng) {
-    var n = rng.pick([5, 6, 7]); var oddN = rng.next() < 0.5 ? n + 1 : n - 1;
-    var starts = rng.sample([-90, -63, -36, -9, 18, 45], 5);
-    function draw(sides, st) { return function (g) { drawPoly(g, sides, { r: 34, start: st }); var p = polyPts(sides, 34, 50, 50, st); drawDot(g, p[0][0], p[0][1], 3.6); }; }
-    var same = sameList(5, function (i) { return { sides: n, s: starts[i] }; });
-    var pa = placeAnswer(rng, same, { sides: oddN, s: starts[4] }, 5);
+  function m2_layers(rng) {
+    var angs = rng.sample([0, 35, 70, 110, 150, 200], 5);
+    var same = sameList(5, function (i) { return { top: true, rot: angs[i] }; });
+    var pa = placeAnswer(rng, same, { top: false, rot: angs[4] }, 5);
     return {
-      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'شمارشِ ضلع', options: pa.options, answer: pa.answer,
-      render: function (o) { return figure(draw(o.sides, o.s), { size: 96 }); },
-      why: 'بقیه ' + toFa(n) + '‌ضلعی‌اند، اما این یکی ' + toFa(oddN) + '‌ضلعی است.'
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'کدام رو است؟', options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(drawLayers(o.top), { rot: o.rot, size: 96 }); },
+      why: 'در بقیه، دایره روی مربع است (جلوتر افتاده)؛ اما در این یکی مربع روی دایره است. ببین خطِ دورِ کدام شکل کامل و بدونِ بریدگی است.'
     };
   }
-  function m2_lineStyle(rng) {
-    var styles = ['solid', 'dashed', 'dotted']; var base = rng.pick(styles); var oddS = rng.pick(styles.filter(function (x) { return x !== base; }));
-    var shapes = rng.sample([3, 4, 5, 6, 7, 8], 5); var starts = [-90, -66, -42, -18, 6];
-    var nm = { solid: 'خطِ صاف', dashed: 'خط‌چین', dotted: 'نقطه‌چین' };
-    var same = sameList(5, function (i) { return { n: shapes[i], s: starts[i], dash: base }; });
-    var pa = placeAnswer(rng, same, { n: shapes[4], s: starts[4], dash: oddS }, 5);
+
+  // خطِ روان: خمِ پیچ‌دار؛ ۴ چرخش + ۱ قرینه
+  function drawFlow(g) { add(g, 'path', merge(DEF, { 'stroke-width': 5, d: 'M30 38 C42 22 62 26 64 44 C66 60 44 58 46 74' })); drawDot(g, 30, 38, 3.6); }
+  function m2_flow(rng) { return chiralQuestion(rng, 5, drawFlow, 'خطِ روان', 'چهار خمِ روان فقط چرخیده‌اند؛ اما این یکی آینه (قرینه) شده و پیچ‌وتابش برعکس است.'); }
+
+  // مماس یا برخورد: خط بر دایره مماس است (بقیه) یا از آن می‌گذرد (متفاوت)
+  function m2_tangent(rng) {
+    var angs = rng.sample([10, 55, 100, 150, 200, 250, 300], 5);
+    function draw(d, ang) { return function (g) { drawCircle(g, { r: 20 }); var a = ang * Math.PI / 180, px = Math.cos(a), py = Math.sin(a), tx = -py, ty = px, cx = 50 + d * px, cy = 50 + d * py, L = 27; add(g, 'line', merge(DEF, { x1: (cx - L * tx).toFixed(1), y1: (cy - L * ty).toFixed(1), x2: (cx + L * tx).toFixed(1), y2: (cy + L * ty).toFixed(1) })); }; }
+    var same = sameList(5, function (i) { return { d: 20, ang: angs[i] }; });
+    var pa = placeAnswer(rng, same, { d: 7, ang: angs[4] }, 5);
     return {
-      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'جنسِ خط', options: pa.options, answer: pa.answer,
-      render: function (o) { return figure(function (g) { drawPoly(g, o.n, { r: 33, start: o.s, dash: o.dash, sw: o.dash === 'dotted' ? 3.4 : 3 }); }, { size: 96 }); },
-      why: 'بقیه با ' + nm[base] + ' رسم شده‌اند، اما خطِ این یکی ' + nm[oddS] + ' است.'
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'مماس یا برخورد', options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(draw(o.d, o.ang), { size: 96 }); },
+      why: 'در بقیه، خط فقط بر دایره مماس است و آن را در یک نقطه لمس می‌کند؛ اما در این یکی خط از داخلِ دایره می‌گذرد و آن را می‌بُرد.'
     };
   }
+  function m2_scene(rng) { return chiralQuestion(rng, 5, drawScene(makeScene(rng, 3)), 'صحنه‌ی ترکیبی (قرینه)', 'چهار تصویر فقط چرخیده‌اند و روی هم می‌افتند؛ اما این یکی «قرینه (آینه)» شده و جهتِ فلش نسبت به جزءِ داخلی برعکس است.'); }
+
   function m2_dotsIO(rng) {
     var angs = rng.sample([0, 45, 90, 140, 200, 250, 300], 5);
     var same = sameList(5, function (i) { return { ang: angs[i], out: false }; });
@@ -672,20 +695,9 @@
       why: 'در بقیه فقط «ناحیه‌ی مشترکِ» دو دایره (وسط) رنگی است؛ اما در این یکی ناحیه‌ی دیگری رنگ شده است.'
     };
   }
-  function m2_symmetry(rng) {
-    var regs = rng.sample([4, 5, 6, 7, 8], 4); var starts = [-90, -68, -46, -24];
-    var irr = (function () { var p = []; var pull = rng.int(0, 4); for (var i = 0; i < 5; i++) { var ang = (-90 + i * 72 + rng.int(-16, 16)) * Math.PI / 180; var rad = 24 + (i === pull ? 12 : rng.int(-5, 5)); p.push([50 + rad * Math.cos(ang), 50 + rad * Math.sin(ang)]); } return ptsStr(p); })();
-    var same = sameList(5, function (i) { return { kind: 'reg', n: regs[i], s: starts[i] }; });
-    var pa = placeAnswer(rng, same, { kind: 'irr' }, 5);
-    return {
-      prompt: 'کدام شکل خطِ تقارن ندارد؟', tag: 'تقارن', options: pa.options, answer: pa.answer,
-      render: function (o) { return figure(function (g) { if (o.kind === 'reg') drawPoly(g, o.n, { r: 34, start: o.s }); else add(g, 'polygon', merge(DEF, { points: irr })); }, { size: 96 }); },
-      why: 'بقیه‌ی شکل‌ها منتظم‌اند و خطِ تقارن دارند؛ اما این یکی نامنتظم است و هیچ خطِ تقارنی ندارد.'
-    };
-  }
-  var M2_EASY = [m2_motif, m2_count, m2_sides, m2_lineStyle, m2_dotsIO];
-  var M2_MED = [m2_glyph, m2_scene, m2_sceneSwap, m2_dotsIO, m2_overlap, m2_symmetry, m2_count, m2_lineStyle];
-  var M2_HARD = [m2_scene, m2_scene, m2_glyph, m2_sceneSwap, m2_overlap, m2_symmetry, m2_sides];
+  var M2_EASY = [m2_needle, m2_dotsIO, m2_tangent, m2_layers, m2_pinwheel];
+  var M2_MED = [m2_pinwheel, m2_needle, m2_layers, m2_flow, m2_dotsIO, m2_overlap, m2_tangent];
+  var M2_HARD = [m2_scene, m2_pinwheel, m2_needle, m2_flow, m2_overlap, m2_layers, m2_tangent];
   function genQuestionM2(rng, level) { var pool = level >= 3 ? M2_HARD : level === 2 ? M2_MED : M2_EASY; return rng.pick(pool)(rng, level || 1); }
 
   /* ====================================================================
@@ -1036,6 +1048,6 @@
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
-        m2_motif: m2_motif, m2_glyph: m2_glyph, m2_scene: m2_scene, m2_sceneSwap: m2_sceneSwap, m2_count: m2_count, m2_sides: m2_sides, m2_lineStyle: m2_lineStyle, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap, m2_symmetry: m2_symmetry } };
+        m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap } };
   }
 })();
