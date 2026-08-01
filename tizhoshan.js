@@ -971,6 +971,66 @@
   function genQuestionM5(rng, level) { return rng.pick(poolForM5(level))(rng, level || 1); }
 
   /* ====================================================================
+   * مبحث ۶: اجرای قاعده — قاعده گفته می‌شود؛ کدام «دنباله» از آن پیروی می‌کند
+   * ================================================================== */
+  function miniFig(draw) { return figure(draw, { size: 42 }); }
+  function seqRow(draws) {
+    var row = h('div', { class: 'tz-seq' });
+    draws.forEach(function (d, i) { if (i > 0) row.appendChild(h('span', { class: 'tz-seq-arrow' }, '→')); row.appendChild(miniFig(d)); });
+    return row;
+  }
+  function seqQuestion(rng, correctSteps, distractors, prompt, tag, why) {
+    var opts = [{ steps: correctSteps }]; distractors.forEach(function (s) { opts.push({ steps: s }); });
+    var order = rng.shuffle(opts);
+    return { prompt: prompt, tag: tag, wide: true, options: order, answer: order.indexOf(opts[0]), render: function (o) { return seqRow(o.steps); }, why: why };
+  }
+  function rotated(draw, ang, mir) { return function (g) { var t = ''; if (mir === 'v') t = 'translate(100 0) scale(-1 1)'; if (ang) t = 'rotate(' + ang + ' 50 50) ' + t; var gg = s('g', t ? { transform: t.trim() } : {}); draw(gg); g.appendChild(gg); }; }
+  function dotsBox(count) { return function (g) { add(g, 'rect', merge(DEF, { x: 22, y: 22, width: 56, height: 56, rx: 9 })); var cells = [[38, 38], [62, 38], [38, 62], [62, 62], [50, 50], [50, 30]]; for (var i = 0; i < count; i++) drawDot(g, cells[i][0], cells[i][1], 4.5); }; }
+  function polyLines(n, k) { return function (g) { drawPoly(g, n, { r: 30, start: -90 }); polyPts(k, 27, 50, 50, -82).forEach(function (p) { add(g, 'line', merge(DEF, { x1: 50, y1: 50, x2: p[0].toFixed(1), y2: p[1].toFixed(1), 'stroke-width': 2 })); }); }; }
+  function circleSplit(r, sec) { return function (g) { drawCircle(g, { r: r }); for (var i = 0; i < sec; i++) { var a = (-90 + i * 360 / sec) * Math.PI / 180; add(g, 'line', merge(DEF, { x1: 50, y1: 50, x2: (50 + r * Math.cos(a)).toFixed(1), y2: (50 + r * Math.sin(a)).toFixed(1), 'stroke-width': 2 })); } }; }
+  function arcFrac(frac) { return function (g) { var r = 28, a0 = -90, a1 = -90 + 359.9 * frac, p0 = [50 + r * Math.cos(a0 * Math.PI / 180), 50 + r * Math.sin(a0 * Math.PI / 180)], p1 = [50 + r * Math.cos(a1 * Math.PI / 180), 50 + r * Math.sin(a1 * Math.PI / 180)]; add(g, 'path', merge(DEF, { d: 'M' + p0[0].toFixed(1) + ' ' + p0[1].toFixed(1) + ' A' + r + ' ' + r + ' 0 ' + (frac > 0.5 ? 1 : 0) + ' 1 ' + p1[0].toFixed(1) + ' ' + p1[1].toFixed(1) })); }; }
+
+  function m6_growDots(rng) {
+    var s0 = rng.int(1, 3), row = function (arr) { return arr.map(dotsBox); };
+    var correct = row([s0, s0 + 1, s0 + 2, s0 + 3]);
+    var dists = [row([s0 + 1, s0, s0 + 2, s0 + 3]), row([s0, s0 + 2, s0 + 1, s0 + 3]), row([s0 + 3, s0 + 2, s0 + 1, s0])];
+    return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، هر بار یک نقطه اضافه می‌شود. شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'دنباله‌ی نقطه', 'در گزینه‌ی درست، تعدادِ نقطه‌ها منظم و یکی‌یکی زیاد می‌شود؛ اما در بقیه جایی از ترتیب کم می‌شود یا به‌هم می‌ریزد.');
+  }
+  function m6_rotateStep(rng) {
+    var motif = rng.pick([mFlag, mEll, mBoot, mZig]), step = rng.pick([45, 90]), A = [0, step, 2 * step, 3 * step];
+    var correct = A.map(function (a) { return rotated(motif, a); });
+    var dists = [
+      [0, step, step, 2 * step].map(function (a) { return rotated(motif, a); }),
+      [0, step, 2 * step, 2 * step].map(function (a) { return rotated(motif, a); }),
+      A.map(function (a, i) { return i === 3 ? rotated(motif, a, 'v') : rotated(motif, a); })
+    ];
+    return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکل هر بار دقیقاً به یک اندازه می‌چرخد. شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'چرخشِ پله‌ای', 'در گزینه‌ی درست، شکل هر بار به یک اندازه می‌چرخد و آینه نمی‌شود؛ اما در بقیه یا اندازه‌ی چرخش ناهماهنگ است یا شکل قرینه شده.');
+  }
+  function m6_complexity(rng) {
+    var n = rng.pick([5, 6]), row = function (arr) { return arr.map(function (k) { return polyLines(n, k); }); };
+    var correct = row([1, 2, 3, 4]);
+    var dists = [row([1, 3, 2, 4]), row([2, 1, 3, 4]), row([4, 3, 2, 1])];
+    return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکل‌ها پیچیده‌تر می‌شوند (خط‌های داخلشان بیشتر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'پیچیده‌تر شدن', 'در گزینه‌ی درست، تعدادِ خط‌های داخل مرتب زیاد می‌شود؛ اما در بقیه جایی کم می‌شود و پیچیدگی به‌هم می‌ریزد.');
+  }
+  function m6_shrinkSplit(rng) {
+    var row = function (arr) { return arr.map(function (p) { return circleSplit(p[0], p[1]); }); };
+    var correct = row([[32, 2], [27, 3], [22, 4], [17, 5]]);
+    var dists = [row([[17, 2], [22, 3], [27, 4], [32, 5]]), row([[32, 3], [27, 3], [22, 3], [17, 3]]), row([[24, 4], [30, 2], [18, 5], [27, 3]])];
+    return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، دایره کوچک‌تر می‌شود و تعدادِ بخش‌هایش بیشتر. شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'کوچک‌تر و پرتقسیم‌تر', 'در گزینه‌ی درست هم‌زمان دایره کوچک‌تر و بخش‌هایش بیشتر می‌شود؛ اما در بقیه یکی از این دو رعایت نشده.');
+  }
+  function m6_arcClose(rng) {
+    var row = function (arr) { return arr.map(arcFrac); };
+    var correct = row([0.32, 0.56, 0.8, 1]);
+    var dists = [row([1, 0.8, 0.56, 0.32]), row([0.32, 0.7, 0.5, 1]), row([0.5, 0.5, 0.78, 0.78])];
+    return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکلِ باز به‌تدریج بسته می‌شود (شکاف کم‌کم پر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'بسته‌شدنِ تدریجی', 'در گزینه‌ی درست، شکاف مرتب کوچک‌تر می‌شود تا دایره کامل و بسته شود؛ اما در بقیه این روند منظم نیست.');
+  }
+  var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose];
+  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep];
+  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, m6_arcClose];
+  function poolForM6(level) { return level >= 3 ? M6_HARD : level === 2 ? M6_MED : M6_EASY; }
+  function genQuestionM6(rng, level) { return rng.pick(poolForM6(level))(rng, level || 1); }
+
+  /* ====================================================================
    * ۴) درسنامه‌ی کاملِ مبحث ۱ — متنِ اورجینال، آموزشِ ۵ سرنخ + تکنیک‌ها
    * ================================================================== */
   function artRow(makers) { var w = h('div', { class: 'tz-artrow' }); makers.forEach(function (m) { w.appendChild(m()); }); return w; }
@@ -1086,6 +1146,27 @@
     ];
   }
 
+  function lessonM6() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(gen) { return function () { return buildInteractive(toInter(gen(new RNG(seed++)))); }; }
+    return [
+      { title: 'ماموریتِ کارآگاهِ قاعده‌ها 🔎',
+        body: 'این‌بار یک «قاعده» به تو می‌گویم و چند دنباله‌ی شکل نشانت می‌دهم. باید پیدا کنی شکل‌های کدام دنباله دقیقاً از آن قاعده پیروی می‌کنند. مثلِ یک کارآگاه که قانونِ پنهانِ یک ماجرا را کشف می‌کند!',
+        art: function () { return figure(circleSplit(28, 4), { size: 100, frame: false }); } },
+      { title: 'دنباله را بخوان ➡️',
+        body: 'هر دنباله را از چپ به راست دنبال کن و بپرس: از این شکل به شکلِ بعدی، چه چیزی عوض شد؟ آیا همان تغییری است که قاعده می‌گوید؟ کافی است یک قدم قاعده را نقض کند تا آن گزینه غلط شود.',
+        art: function () { var w = h('div', { class: 'tz-artrow', style: 'direction:ltr' }); [1, 2, 3, 4].forEach(function (k) { w.appendChild(figure(polyLines(6, k), { size: 52 })); }); return w; } },
+      { title: 'تمرین: پیچیده‌تر شدن', interactive: ex(m6_complexity) },
+      { title: 'مراقبِ قدمِ خراب باش! 🕵️',
+        body: 'گاهی یک دنباله اولش درست پیش می‌رود ولی وسطش قاعده را می‌شکند. پس تا آخرِ دنباله را چک کن، نه فقط اول را. همه‌ی قدم‌ها باید قاعده را رعایت کنند.',
+        art: function () { return figure(mBoot, { size: 92, frame: false }); } },
+      { title: 'تمرین: چرخشِ پله‌ای', interactive: ex(m6_rotateStep) },
+      { title: 'آماده‌ای! 🌟',
+        body: 'حالا کارآگاهِ قاعده‌ها شده‌ای. در «تمرین» بی‌نهایت قاعده‌ی تازه با ۳ سطحِ سختی هست و در «آزمون» خودت را محک بزن. قانون‌ها منتظرِ تواند!',
+        art: function () { return figure(arcFrac(1), { size: 96, frame: false }); } }
+    ];
+  }
+
   function lessonM5() {
     var seed = (Date.now() & 0xffff) | 1;
     function ex(gen) { return function () { return buildInteractive(toInter(gen(new RNG(seed++)))); }; }
@@ -1144,7 +1225,7 @@
     { id: 'monaseb', n: 3, title: 'تصویرِ مناسب', sub: 'کدام مناسب است؟', icon: '🎯', color: PAL.gold, ready: true, lesson: lessonM3, gen: genQuestionM3, pool: poolForM3 },
     { id: 'moshabeh1', n: 4, title: 'ویژگیِ مشابه (نوع ۱)', sub: 'شبیه‌ترین گزینه', icon: '🔗', color: PAL.teal, ready: true, lesson: lessonM4, gen: genQuestionM4, pool: poolForM4 },
     { id: 'moshabeh2', n: 5, title: 'ویژگیِ مشابه (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🪞', color: PAL.lilac, ready: true, lesson: lessonM5, gen: genQuestionM5, pool: poolForM5 },
-    { id: 'ejraye_qaede', n: 6, title: 'اجرای قاعده', sub: 'قاعده را ادامه بده', icon: '⚙️', color: PAL.gold, ready: false },
+    { id: 'ejraye_qaede', n: 6, title: 'اجرای قاعده', sub: 'قاعده را ادامه بده', icon: '⚙️', color: PAL.gold, ready: true, lesson: lessonM6, gen: genQuestionM6, pool: poolForM6 },
     { id: 'dastebandi', n: 7, title: 'دسته‌بندیِ شکل‌ها', sub: 'گروه‌بندیِ درست', icon: '🗂️', color: PAL.teal, ready: false }
   ];
 
@@ -1284,7 +1365,7 @@
     var wrap = h('div', { class: 'tz-inter' });
     wrap.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
     if (q.refs) wrap.appendChild(refsPanel(q.refs));
-    var opts = h('div', { class: 'tz-opts' }); var figs = q.build(); var done = false;
+    var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var figs = q.build(); var done = false;
     figs.forEach(function (fig, i) {
       var b = h('button', { class: 'tz-opt', onclick: function () {
         if (done) return; done = true;
@@ -1321,7 +1402,7 @@
       box.appendChild(h('div', { class: 'tz-tagline' }, 'سرنخ: ' + q.tag));
       box.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
       if (q.refs) box.appendChild(refsPanel(q.refs));
-      var opts = h('div', { class: 'tz-opts' }); var done = false;
+      var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
           if (done) return; done = true;
@@ -1374,7 +1455,7 @@
       box.appendChild(h('div', { class: 'tz-qcount' }, 'سؤالِ ' + toFa(idx + 1) + ' از ' + toFa(total) + ' — امتیاز: ' + toFa(correct)));
       box.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
       if (q.refs) box.appendChild(refsPanel(q.refs));
-      var opts = h('div', { class: 'tz-opts' }); var done = false;
+      var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
           if (done) return; done = true;
@@ -1491,6 +1572,9 @@
       '.tz-opt.ok{border-color:' + PAL.ok + ';background:' + PAL.okL + ';box-shadow:0 0 0 3px ' + PAL.okL + '}',
       '.tz-opt.bad{border-color:' + PAL.bad + ';background:' + PAL.badL + '}',
       '.tz-opt-n{margin-top:5px;font-size:.85rem;color:' + PAL.inkSoft + ';font-weight:700}',
+      '.tz-opts.wide{grid-template-columns:1fr;gap:11px}',
+      '.tz-seq{display:flex;direction:ltr;align-items:center;justify-content:center;gap:3px;flex-wrap:nowrap}',
+      '.tz-seq-arrow{color:#b6b9d6;font-size:.8rem;flex:none}',
       '.tz-fb{margin-top:16px;padding:14px 16px;border-radius:16px;font-size:.97rem;text-align:justify;border-inline-start:5px solid}',
       '.tz-fb.ok{background:' + PAL.okL + ';color:#0f7a58;border-color:' + PAL.ok + '}',
       '.tz-fb.bad{background:' + PAL.badL + ';color:#c0344a;border-color:' + PAL.bad + '}',
@@ -1537,6 +1621,7 @@
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
-        m5_curveLineMix: m5_curveLineMix, m5_arrowCount: m5_arrowCount, m5_containsTrio: m5_containsTrio, m5_symmetryPair5: m5_symmetryPair5, m5_chiralScene5: m5_chiralScene5 } };
+        m5_curveLineMix: m5_curveLineMix, m5_arrowCount: m5_arrowCount, m5_containsTrio: m5_containsTrio, m5_symmetryPair5: m5_symmetryPair5, m5_chiralScene5: m5_chiralScene5 },
+      m6: { m6_growDots: m6_growDots, m6_rotateStep: m6_rotateStep, m6_complexity: m6_complexity, m6_shrinkSplit: m6_shrinkSplit, m6_arcClose: m6_arcClose } };
   }
 })();
