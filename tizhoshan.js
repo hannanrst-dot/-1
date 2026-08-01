@@ -436,7 +436,12 @@
       n: rng.pick([4, 5, 6]), theta: 23 * rng.int(1, 7), inner: inner,
       inner2: level >= 3 ? rng.pick(kinds.filter(function (k) { return k !== inner; })) : null,
       head: rng.next() < 0.5 ? 'solid' : 'open',
-      dot: level >= 2, notch: level >= 3
+      dot: level >= 2, notch: level >= 3,
+      // جزئیاتِ ریزِ سطحِ سخت — همه نسبت به theta چیده می‌شوند تا با دوران/آینه هماهنگ بمانند
+      ticks: level >= 3 ? rng.int(2, 4) : 0,     // دندانه‌های ریز روی مرزِ بیرونی
+      pip: level >= 3 ? rng.next() < 0.6 : false,  // نقطه‌ی ریزِ توپُر داخلِ شکلِ اصلی
+      tail: level >= 3,                            // خطِ کوچکِ عمود کنارِ تهِ فلش
+      tipMark: null                                // نشانه‌ی ریزِ نوکِ فلش (برای سؤالِ جزئیاتِ ریز)
     };
   }
   function drawScene(spec) {
@@ -444,10 +449,32 @@
       drawPoly(g, spec.n, { r: 31, start: -90 });
       drawRay(g, spec.theta, 6, 42, spec.head);
       var ia = (spec.theta + 90) * Math.PI / 180;
-      smallShape(g, spec.inner, 50 + 15 * Math.cos(ia), 50 + 15 * Math.sin(ia), 7.5);
+      var icx = 50 + 15 * Math.cos(ia), icy = 50 + 15 * Math.sin(ia);
+      smallShape(g, spec.inner, icx, icy, 7.5);
+      if (spec.pip) add(g, 'circle', { cx: icx.toFixed(1), cy: icy.toFixed(1), r: 1.9, fill: PAL.line });
       if (spec.inner2) { var i2 = (spec.theta + 210) * Math.PI / 180; smallShape(g, spec.inner2, 50 + 15 * Math.cos(i2), 50 + 15 * Math.sin(i2), 7.5); }
       if (spec.dot) { var da = (spec.theta - 90) * Math.PI / 180; drawDot(g, 50 + 15 * Math.cos(da), 50 + 15 * Math.sin(da), 3.2); }
       if (spec.notch) { var na = (spec.theta + 45) * Math.PI / 180, b1 = [50 + 31 * Math.cos(na), 50 + 31 * Math.sin(na)], b2 = [50 + 41 * Math.cos(na), 50 + 41 * Math.sin(na)]; add(g, 'line', merge(DEF, { x1: b1[0].toFixed(1), y1: b1[1].toFixed(1), x2: b2[0].toFixed(1), y2: b2[1].toFixed(1), 'stroke-width': 2.6 })); }
+      // دندانه‌های ریز روی چند ضلعِ بیرونی
+      if (spec.ticks) {
+        var pv = polyPts(spec.n, 31, 50, 50, -90);
+        for (var e = 0; e < spec.ticks && e < spec.n; e++) {
+          var A = pv[e], B = pv[(e + 1) % spec.n], mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2;
+          var dx = mx - 50, dy = my - 50, L = Math.sqrt(dx * dx + dy * dy) || 1;
+          add(g, 'line', merge(DEF, { x1: mx.toFixed(1), y1: my.toFixed(1), x2: (mx + dx / L * 5).toFixed(1), y2: (my + dy / L * 5).toFixed(1), 'stroke-width': 1.7 }));
+        }
+      }
+      // خطِ کوچکِ عمود کنارِ تهِ فلش (پَر)
+      if (spec.tail) {
+        var ta = spec.theta * Math.PI / 180, bx = 50 + 8 * Math.cos(ta), by = 50 + 8 * Math.sin(ta);
+        var px = -Math.sin(ta), py = Math.cos(ta);
+        add(g, 'line', merge(DEF, { x1: (bx - px * 4).toFixed(1), y1: (by - py * 4).toFixed(1), x2: (bx + px * 4).toFixed(1), y2: (by + py * 4).toFixed(1), 'stroke-width': 1.8 }));
+      }
+      // نشانه‌ی ریزِ نوکِ فلش: دایره‌ی توپُر یا باز
+      if (spec.tipMark) {
+        var pa2 = spec.theta * Math.PI / 180, tx = 50 + 44 * Math.cos(pa2), ty = 50 + 44 * Math.sin(pa2);
+        add(g, 'circle', merge(DEF, { cx: tx.toFixed(1), cy: ty.toFixed(1), r: 2.6, 'stroke-width': 1.8, fill: spec.tipMark === 'solid' ? PAL.line : '#fff' }));
+      }
     };
   }
   var KIND_FA = { triangle: 'مثلث', square: 'مربع', circle: 'دایره', diamond: 'لوزی' };
@@ -494,6 +521,23 @@
       options: pa.options, answer: pa.answer,
       render: function (o) { return figure(drawScene(o.sp), { rot: o.rot, size: 96 }); },
       why: 'همه چرخیده‌اند و نوکِ فلششان ' + (spec.head === 'solid' ? 'توپُر' : 'توخالی') + ' است؛ اما نوکِ فلشِ این یکی ' + (oddHead === 'solid' ? 'توپُر' : 'توخالی') + ' است.'
+    };
+  }
+  // D) صحنه: جزئیاتِ بسیار ریز — نشانه‌ی نوکِ فلش (توپُر/باز). نیازمندِ دقتِ بالا.
+  function sceneFineDetail(rng, level) {
+    var spec = makeScene(rng, 3);                 // همیشه پُرجزئیات
+    var baseMark = rng.next() < 0.5 ? 'open' : 'solid';
+    var oddMark = baseMark === 'open' ? 'solid' : 'open';
+    var same = merge(spec, { tipMark: baseMark });
+    var oddS = merge(spec, { tipMark: oddMark });
+    var angles = rng.shuffle([0, 90, 180, 270]);
+    var sames = [{ rot: angles[0], sp: same }, { rot: angles[1], sp: same }, { rot: angles[2], sp: same }];
+    var pa = placeAnswer(rng, sames, { rot: angles[3], sp: oddS });
+    return {
+      prompt: 'کدام تصویر با بقیه فرق دارد؟ (به جزئیاتِ ریز دقت کن)', tag: 'جزئیاتِ ریز',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(drawScene(o.sp), { rot: o.rot, size: 96 }); },
+      why: 'تصویرها فقط چرخیده‌اند و همه‌چیزشان یکی است؛ تنها تفاوت در نشانه‌ی ریزِ نوکِ فلش است: در سه تصویر ' + (baseMark === 'solid' ? 'توپُر' : 'باز (توخالی)') + ' و در این یکی ' + (oddMark === 'solid' ? 'توپُر' : 'باز (توخالی)') + '.'
     };
   }
 
@@ -811,7 +855,7 @@
 
   var GENS_EASY = [oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
   var GENS_MED = [oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
+  var GENS_HARD = [sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -1909,7 +1953,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
