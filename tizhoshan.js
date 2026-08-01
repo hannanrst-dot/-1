@@ -720,9 +720,98 @@
     };
   }
 
-  var GENS_EASY = [oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
-  var GENS_MED = [oddChirality, oddGlyph, oddDots, oddSides, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, oddArrowType, oddCombo, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
+  // شبکه‌ی ۳×۳ با تقارنِ آینه‌ای — سه شبکه نسبت به خطِ عمودیِ وسط قرینه‌اند، یکی نیست.
+  function grid3(g, cells) {
+    var x0 = 21, step = 19.5, sz = 15.5;
+    for (var i = 0; i < 9; i++) {
+      var r = (i / 3) | 0, c = i % 3, x = x0 + c * step, y = x0 + r * step;
+      if (cells[i]) add(g, 'rect', { x: x, y: y, width: sz, height: sz, rx: 2.5, fill: PAL.line });
+      else add(g, 'rect', merge(DEF, { x: x, y: y, width: sz, height: sz, rx: 2.5, 'stroke-width': 1.9, fill: 'none' }));
+    }
+  }
+  function isVsym(c) { for (var r = 0; r < 3; r++) if (!!c[r * 3] !== !!c[r * 3 + 2]) return false; return true; }
+  function keyOf(c) { return c.map(function (b) { return b ? 1 : 0; }).join(''); }
+  function oddGridSym(rng, level, count) {
+    count = count || 4;
+    function symPat() { var c = [], tries = 0; do { c = []; for (var r = 0; r < 3; r++) { var a = rng.next() < 0.62; c[r * 3] = c[r * 3 + 2] = a; c[r * 3 + 1] = rng.next() < 0.5; } tries++; } while ((cnt(c) < 3 || cnt(c) > 8) && tries < 30); return c; }
+    function asymPat() { var c, tries = 0; do { c = []; for (var i = 0; i < 9; i++) c[i] = rng.next() < 0.45; tries++; } while ((isVsym(c) || cnt(c) < 3 || cnt(c) > 7) && tries < 40); if (isVsym(c)) { c[0] = !c[0]; } return c; }
+    function cnt(c) { var n = 0; for (var i = 0; i < 9; i++) if (c[i]) n++; return n; }
+    var used = {}, same = [];
+    for (var k = 0; k < count - 1; k++) { var p, t = 0; do { p = symPat(); t++; } while (used[keyOf(p)] && t < 40); used[keyOf(p)] = 1; same.push({ c: p }); }
+    var odd; var t2 = 0; do { odd = asymPat(); t2++; } while (used[keyOf(odd)] && t2 < 40);
+    var pa = placeAnswer(rng, same, { c: odd }, count);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'تقارنِ شبکه', grid: false,
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(function (g) { grid3(g, o.c); }, { size: 96 }); },
+      why: 'سه شبکه نسبت به خطِ عمودیِ وسط قرینه (متقارن) هستند؛ اگر از وسط تا بزنی، دو نیمه روی‌هم می‌افتند. اما این یکی تقارنِ آینه‌ای ندارد.'
+    };
+  }
+
+  // تقسیمِ دایره به قطاع‌های مساوی — تعدادِ قطاع‌ها سرنخ است؛ چرخش و قطاعِ رنگی گمراهی‌اند.
+  function pieFig(g, n, fillIdx, rot) {
+    var a0f = (rot + fillIdx * 360 / n) * Math.PI / 180, a1f = (rot + (fillIdx + 1) * 360 / n) * Math.PI / 180;
+    var xf0 = 50 + 34 * Math.cos(a0f), yf0 = 50 + 34 * Math.sin(a0f), xf1 = 50 + 34 * Math.cos(a1f), yf1 = 50 + 34 * Math.sin(a1f);
+    add(g, 'path', { d: 'M50 50 L' + xf0.toFixed(2) + ' ' + yf0.toFixed(2) + ' A34 34 0 0 1 ' + xf1.toFixed(2) + ' ' + yf1.toFixed(2) + ' Z', fill: PAL.gray });
+    for (var i = 0; i < n; i++) { var a = (rot + i * 360 / n) * Math.PI / 180; add(g, 'line', merge(DEF, { x1: 50, y1: 50, x2: (50 + 34 * Math.cos(a)).toFixed(2), y2: (50 + 34 * Math.sin(a)).toFixed(2), 'stroke-width': 2.6 })); }
+    add(g, 'circle', merge(DEF, { cx: 50, cy: 50, r: 34 }));
+  }
+  function oddPie(rng, level, count) {
+    count = count || 4;
+    var base = rng.pick([3, 4, 5, 6, 8]);
+    var odd = base + rng.pick([-2, -1, 1, 2].filter(function (d) { return base + d >= 3 && base + d <= 9 && base + d !== base; }));
+    var same = sameList(count, function (i) { return { n: base, f: rng.int(0, base - 1), rot: -90 + i * 24 }; });
+    var pa = placeAnswer(rng, same, { n: odd, f: rng.int(0, odd - 1), rot: rng.int(0, 40) }, count);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'تقسیمِ دایره',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(function (g) { pieFig(g, o.n, o.f, o.rot); }, { size: 96 }); },
+      why: 'چرخش و قطاعِ رنگی مهم نیست؛ دایره‌ی سه شکل به ' + toFa(base) + ' قسمتِ مساوی تقسیم شده، اما این یکی به ' + toFa(odd) + ' قسمت.'
+    };
+  }
+
+  // زاویه‌ی بینِ دو خط — اندازه‌ی زاویه سرنخ است؛ چرخشِ کلِ زاویه گمراهی است.
+  function oddAngle(rng, level, count) {
+    count = count || 4;
+    var angs = [30, 60, 90, 120, 150];
+    var base = rng.pick(angs), odd = rng.pick(angs.filter(function (a) { return a !== base; }));
+    function fig(theta, rot) { return function (g) { [rot, rot + theta].forEach(function (a) { var r = a * Math.PI / 180; add(g, 'line', merge(DEF, { x1: 50, y1: 50, x2: (50 + 38 * Math.cos(r)).toFixed(2), y2: (50 + 38 * Math.sin(r)).toFixed(2) })); }); add(g, 'circle', { cx: 50, cy: 50, r: 3.2, fill: PAL.line }); }; }
+    var rots = rng.sample([0, 40, 80, 120, 160, 200, 240, 300], count);
+    var same = sameList(count, function (i) { return { th: base, rot: rots[i] }; });
+    var pa = placeAnswer(rng, same, { th: odd, rot: rots[count - 1] }, count);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'اندازه‌ی زاویه',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(fig(o.th, o.rot), { size: 96 }); },
+      why: 'چرخشِ زاویه مهم نیست؛ زاویه‌ی بینِ دو خط در سه شکل ' + toFa(base) + ' درجه است، اما در این یکی ' + toFa(odd) + ' درجه.'
+    };
+  }
+
+  // ستاره با تعدادِ پَرِ متفاوت — تعدادِ پَرها سرنخ است؛ چرخش گمراهی است.
+  function starPts(p, ro, ri, rot) {
+    var s = [];
+    for (var i = 0; i < p * 2; i++) { var rr = (i % 2 === 0) ? ro : ri, a = (rot - 90 + i * 180 / p) * Math.PI / 180; s.push([50 + rr * Math.cos(a), 50 + rr * Math.sin(a)]); }
+    return s;
+  }
+  function oddStar(rng, level, count) {
+    count = count || 4;
+    var base = rng.pick([4, 5, 6, 7]);
+    var odd = rng.pick([4, 5, 6, 7, 8].filter(function (n) { return n !== base; }));
+    var tex = level >= 2 ? rng.pick(['none', 'gray', 'dots', 'hatch']) : 'none';
+    function fig(p, rot) { return function (g) { fillTexture(g, function (t, st) { var pts = ptsStr(starPts(p, 36, 16, rot)); if (st) add(t, 'polygon', merge(DEF, { points: pts })); else add(t, 'polygon', { points: pts }); }, tex); }; }
+    var same = sameList(count, function (i) { return { p: base, rot: i * 17 }; });
+    var pa = placeAnswer(rng, same, { p: odd, rot: rng.int(0, 30) }, count);
+    return {
+      prompt: 'کدام ستاره با بقیه فرق دارد؟', tag: 'تعدادِ پَر',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(fig(o.p, o.rot), { size: 96 }); },
+      why: 'چرخش مهم نیست؛ سه ستاره ' + toFa(base) + ' پَر دارند، اما این یکی ' + toFa(odd) + ' پَر.'
+    };
+  }
+
+  var GENS_EASY = [oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
+  var GENS_MED = [oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
+  var GENS_HARD = [sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -1820,7 +1909,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
