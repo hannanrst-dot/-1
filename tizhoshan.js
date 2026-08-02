@@ -2169,6 +2169,21 @@
       progStat('🏁', toFa(p.quizzes), 'آزمون')));
     var earnedN = p.badges.length;
     ROOT.appendChild(h('p', { class: 'tz-badgehint' }, earnedN ? '🎉 تا حالا ' + toFa(earnedN) + ' نشان گرفتی — عالیه! بقیه را هم باز کن.' : 'هنوز نشانی نگرفتی! یک تمرین حل کن تا اولین نشانت را بگیری.'));
+    // نقشه‌ی مهارت‌ها: بهترین نمره‌ی هر مبحث
+    function bestOf(id) { var b = p.topics[id] || 0; try { var c = cur(); if (c && c.activities && c.activities['tz_' + id]) b = Math.max(b, c.activities['tz_' + id].bestScore || 0); } catch (e) {} return b; }
+    var doneTopics = 0, sumPct = 0;
+    var smap = h('div', { class: 'tz-skillmap' }, h('div', { class: 'tz-analysis-h' }, '🗺️ نقشه‌ی مهارت‌ها — بهترین نمره‌ی هر مبحث'));
+    MABAHETH.forEach(function (mm) {
+      var bs = bestOf(mm.id); if (bs > 0) { doneTopics++; sumPct += bs; }
+      var cls = bs >= 85 ? 'good' : bs >= 55 ? 'ok' : bs > 0 ? 'weak' : 'none';
+      smap.appendChild(h('div', { class: 'tz-skrow ' + cls },
+        h('span', { class: 'tz-skname' }, 'م' + toFa(mm.n) + '؛ ' + mm.title),
+        h('span', { class: 'tz-tagbar' }, h('span', { class: 'tz-tagfill', style: 'width:' + bs + '%' })),
+        h('span', { class: 'tz-sknum' }, bs > 0 ? toFa(bs) + '٪' : '—')));
+    });
+    smap.appendChild(h('p', { class: 'tz-analysis-tip' }, doneTopics ? 'میانگینِ کلِ تو: ' + toFa(Math.round(sumPct / doneTopics)) + '٪ در ' + toFa(doneTopics) + ' مبحث. برای کاملِ نقشه، مباحثِ باقی‌مانده را هم آزمون بده!' : 'هنوز آزمونی نداده‌ای؛ اولین آزمون را بده تا نقشه‌ات پر شود.'));
+    ROOT.appendChild(smap);
+    ROOT.appendChild(h('h3', { class: 'tz-lt', style: 'font-size:1.15rem;margin:18px 0 4px' }, '🏅 نشان‌ها'));
     var g = h('div', { class: 'tz-badgegrid' });
     BADGES.forEach(function (bd) {
       var earned = p.badges.indexOf(bd.id) >= 0;
@@ -2340,11 +2355,14 @@
   /* ---- آزمون ---- */
   function runQuizIntro(m, stage) {
     clear(stage);
+    var challenge = false;
     var box = h('div', { class: 'tz-report' },
       h('h3', { class: 'tz-lt' }, 'آزمونِ ' + m.title + ' 🏁'),
       h('p', { class: 'tz-lb' }, 'در آزمون، سؤال‌ها از آسان به سخت جلو می‌روند. هر سؤال بازخوردِ آموزنده دارد و در پایان کارنامه‌ات را می‌بینی. چند سؤال حل کنیم؟'));
+    var toggle = h('button', { class: 'tz-toggle', onclick: function () { challenge = !challenge; toggle.classList.toggle('on', challenge); toggle.textContent = (challenge ? '⏱️ حالتِ چالش: روشن' : '⏱️ حالتِ چالش: خاموش'); } }, '⏱️ حالتِ چالش: خاموش');
+    box.appendChild(h('div', { class: 'tz-challrow' }, toggle, h('span', { class: 'tz-challhint' }, 'با زمان و امتیازِ سرعت!')));
     var row = h('div', { class: 'tz-pills' });
-    [10, 15, 20].forEach(function (nn) { row.appendChild(h('button', { class: 'tz-btn', onclick: function () { runQuiz(m, stage, nn); } }, toFa(nn) + ' سؤال')); });
+    [10, 15, 20].forEach(function (nn) { row.appendChild(h('button', { class: 'tz-btn', onclick: function () { runQuiz(m, stage, nn, challenge); } }, toFa(nn) + ' سؤال')); });
     box.appendChild(row); stage.appendChild(box);
   }
 
@@ -2368,9 +2386,10 @@
         : 'آفرین! در همه‌ی سرنخ‌ها خوب بودی. برای چالشِ بیشتر، سختیِ تمرین را بالا ببر.'));
     return panel;
   }
-  function runQuiz(m, stage, total) {
+  function runQuiz(m, stage, total, challenge) {
     clear(stage);
     total = total || 15;
+    var PERQ = 30;                              // ثانیه برای هر سؤال در حالتِ چالش
     var rng = new RNG((Date.now() & 0xffffff) ^ (m.n * 2654435761) ^ (total * 40503));
     // کیسه‌ی نوع‌ها (تا نوع‌ها پشتِ‌هم تکرار نشوند) + رمپِ سختیِ نرم با پراکندگی
     var bags = {};
@@ -2383,37 +2402,56 @@
       else lv = r < 0.72 ? 3 : 2;
       qs.push(pickGen(lv)(rng, lv));
     }
-    var idx = 0, correct = 0, wrong = [], stats = {}, streak = 0, bestStreak = 0, review = [];
+    var idx = 0, correct = 0, wrong = [], stats = {}, streak = 0, bestStreak = 0, review = [], speed = 0, qTimer = null;
+    function clearQT() { if (qTimer) { clearInterval(qTimer); qTimer = null; } }
     var bar = h('div', { class: 'tz-barwrap' }, h('div', { class: 'tz-bar' }));
     var box = h('div', {}); stage.appendChild(bar); stage.appendChild(box);
     function draw() {
+      clearQT();
       bar.firstChild.style.width = (idx / total * 100) + '%';
       clear(box);
       if (idx >= total) return finish();
       var q = qs[idx];
       box.appendChild(h('div', { class: 'tz-qcount' },
         h('span', {}, 'سؤالِ ' + toFa(idx + 1) + ' از ' + toFa(total)),
-        h('span', { class: 'tz-qscore' }, '⭐ ' + toFa(correct) + (streak >= 2 ? '   🔥 ' + toFa(streak) : ''))));
+        h('span', { class: 'tz-qscore' }, '⭐ ' + toFa(correct) + (challenge && speed ? '   ⚡ ' + toFa(speed) : '') + (streak >= 2 ? '   🔥 ' + toFa(streak) : ''))));
       box.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
+      var timeFill = null;
+      if (challenge) { timeFill = h('div', { class: 'tz-time' }); box.appendChild(h('div', { class: 'tz-timewrap' }, timeFill)); }
       if (q.refs) box.appendChild(refsPanel(q.refs));
       if (q.grid) box.appendChild(gridPanel(q.grid));
       if (q.matrix) box.appendChild(matrixPanel(q.matrix));
       if (q.series) box.appendChild(seriesPanel(q.series));
       var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
+      function reveal(chosen) {
+        if (done) return; done = true; clearQT();
+        var ok = chosen === q.answer;
+        if (chosen >= 0) opts.children[chosen].classList.add(ok ? 'ok' : 'bad');
+        opts.children[q.answer].classList.add('ok');
+        var tg = q.tag || 'عمومی'; if (!stats[tg]) stats[tg] = { t: 0, c: 0 }; stats[tg].t++; if (ok) stats[tg].c++;
+        if (ok) { correct++; streak++; if (streak > bestStreak) bestStreak = streak; if (challenge && timeLeft > PERQ * 0.55) speed++; }
+        else { streak = 0; wrong.push(idx + 1); review.push({ q: q, chosen: chosen }); }
+        var praise = chosen < 0 ? '⏱️ وقت تمام شد — پاسخِ درست این بود: ' : ok ? (streak >= 3 ? '🔥 ' + toFa(streak) + ' تایی پشتِ‌هم! آفرین! ' : '✓ درست! ') : '✗ اشتباه — ';
+        box.appendChild(h('div', { class: 'tz-fb ' + (ok ? 'ok' : 'bad') }, praise + q.why));
+        box.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: function () { idx++; draw(); } }, idx < total - 1 ? 'سؤالِ بعد ←' : 'دیدنِ کارنامه')));
+        if (ok && streak >= 3) tzConfetti(stage);
+      }
       q.options.forEach(function (o, i) {
-        var b = h('button', { class: 'tz-opt', onclick: function () {
-          if (done) return; done = true;
-          var ok = i === q.answer; b.classList.add(ok ? 'ok' : 'bad'); opts.children[q.answer].classList.add('ok');
-          var tg = q.tag || 'عمومی'; if (!stats[tg]) stats[tg] = { t: 0, c: 0 }; stats[tg].t++; if (ok) stats[tg].c++;
-          if (ok) { correct++; streak++; if (streak > bestStreak) bestStreak = streak; } else { streak = 0; wrong.push(idx + 1); review.push({ q: q, chosen: i }); }
-          var praise = ok ? (streak >= 3 ? '🔥 ' + toFa(streak) + ' تایی پشتِ‌هم! آفرین! ' : '✓ درست! ') : '✗ اشتباه — ';
-          box.appendChild(h('div', { class: 'tz-fb ' + (ok ? 'ok' : 'bad') }, praise + q.why));
-          box.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: function () { idx++; draw(); } }, idx < total - 1 ? 'سؤالِ بعد ←' : 'دیدنِ کارنامه')));
-          if (ok && streak >= 3) tzConfetti(stage);
-        } }, q.render(o), h('span', { class: 'tz-opt-n' }, toFa(i + 1)));
+        var b = h('button', { class: 'tz-opt', onclick: function () { reveal(i); } }, q.render(o), h('span', { class: 'tz-opt-n' }, toFa(i + 1)));
         opts.appendChild(b);
       });
       box.appendChild(opts);
+      var timeLeft = PERQ;
+      if (challenge && timeFill) {
+        timeFill.style.width = '100%';
+        qTimer = setInterval(function () {
+          if (!document.body.contains(box)) { clearQT(); return; }   // کاربر صفحه را عوض کرده
+          timeLeft--; var pctT = Math.max(0, timeLeft / PERQ * 100);
+          timeFill.style.width = pctT + '%';
+          timeFill.classList.toggle('low', timeLeft <= 8);
+          if (timeLeft <= 0) { clearQT(); reveal(-1); }
+        }, 1000);
+      }
     }
     function finish() {
       bar.firstChild.style.width = '100%'; clear(box);
@@ -2428,6 +2466,7 @@
         h('div', { class: 'tz-badge' }, '🎖 نشانِ «' + m.title + '»'),
         h('p', { class: 'tz-msg' }, msg),
         bestStreak >= 3 ? h('p', { class: 'tz-streakline' }, '🔥 بهترین زنجیره: ' + toFa(bestStreak) + ' پاسخِ درستِ پشتِ‌هم!') : null,
+        (challenge && speed) ? h('p', { class: 'tz-streakline', style: 'background:' + PAL.skyL + ';color:#0284a8' }, '⚡ ' + toFa(speed) + ' پاسخِ سریع — امتیازِ سرعت گرفتی!') : null,
         wrong.length ? h('p', { class: 'tz-wrong' }, 'سؤال‌های اشتباه: ' + wrong.map(toFa).join('، ')) : null,
         tagAnalysis(stats),
         h('div', { class: 'tz-lnav' },
@@ -2605,6 +2644,14 @@
       '.tz-tagline{display:inline-block;font-size:.78rem;color:' + PAL.teal + ';background:' + PAL.tealL + ';padding:3px 12px;border-radius:999px;font-weight:700;margin:0 auto 8px}',
       '.tz-barwrap{height:9px;background:#e8e9f6;border-radius:999px;overflow:hidden;margin-bottom:16px}',
       '.tz-bar{height:100%;width:0;background:linear-gradient(90deg,' + PAL.teal + ',' + PAL.lilac + ');transition:width .35s;border-radius:999px}',
+      '.tz-timewrap{height:8px;background:#eef0fb;border-radius:999px;overflow:hidden;margin:0 0 14px}',
+      '.tz-time{height:100%;width:100%;background:linear-gradient(90deg,' + PAL.lilac + ',' + PAL.sky + ');border-radius:999px;transition:width 1s linear}',
+      '.tz-time.low{background:linear-gradient(90deg,' + PAL.gold + ',' + PAL.bad + ');animation:tzPulse .8s ease-in-out infinite}',
+      '@keyframes tzPulse{0%,100%{opacity:1}50%{opacity:.55}}',
+      '.tz-challrow{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:6px 0 4px}',
+      '.tz-challhint{font-size:.8rem;color:' + PAL.inkSoft + '}',
+      '.tz-toggle{cursor:pointer;border:2px solid ' + PAL.border + ';background:#fff;color:' + PAL.inkSoft + ';font-family:inherit;font-weight:800;font-size:.86rem;padding:8px 16px;border-radius:999px;transition:.15s}',
+      '.tz-toggle.on{border-color:' + PAL.sky + ';background:' + PAL.skyL + ';color:#0284a8}',
       // report
       '.tz-report{text-align:center}',
       '.tz-score{font-family:"Lalezar",sans-serif;font-size:2.6rem;color:' + PAL.teal + '}',
@@ -2617,6 +2664,12 @@
       '.tz-tagbar{flex:1;height:9px;background:#eceefff0;border-radius:999px;overflow:hidden;background:' + PAL.cream + '}',
       '.tz-tagfill{display:block;height:100%;border-radius:999px}',
       '.tz-tagstat.good .tz-tagfill{background:' + PAL.ok + '}.tz-tagstat.ok .tz-tagfill{background:' + PAL.gold + '}.tz-tagstat.weak .tz-tagfill{background:' + PAL.bad + '}',
+      '.tz-skillmap{background:#fff;border:1px solid ' + PAL.border + ';border-radius:16px;padding:14px 16px;margin:8px 0 4px;box-shadow:' + SH + '}',
+      '.tz-skrow{display:flex;align-items:center;gap:9px;margin:8px 0}',
+      '.tz-skname{flex:0 0 44%;font-size:.82rem;font-weight:700;color:' + PAL.ink + '}',
+      '.tz-sknum{flex:0 0 auto;font-size:.82rem;font-weight:800;color:' + PAL.inkSoft + ';font-variant-numeric:tabular-nums}',
+      '.tz-skrow.good .tz-tagfill{background:' + PAL.ok + '}.tz-skrow.ok .tz-tagfill{background:' + PAL.gold + '}.tz-skrow.weak .tz-tagfill{background:' + PAL.bad + '}.tz-skrow.none .tz-tagfill{background:transparent}',
+      '.tz-skrow.good .tz-skname{color:' + PAL.ok + '}',
       '.tz-tagstat.good .tz-tagname{color:' + PAL.ok + '}.tz-tagstat.weak .tz-tagname{color:' + PAL.bad + '}',
       '.tz-tagnum{flex:0 0 auto;font-size:.82rem;color:' + PAL.inkSoft + ';font-weight:700;font-variant-numeric:tabular-nums}',
       '.tz-analysis-tip{font-size:.85rem;color:' + PAL.inkSoft + ';margin:12px 2px 0;line-height:1.8}',
