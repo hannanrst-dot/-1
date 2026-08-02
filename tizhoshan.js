@@ -1044,9 +1044,11 @@
       why: 'در بقیه فقط «ناحیه‌ی مشترکِ» دو دایره (وسط) رنگی است؛ اما در این یکی ناحیه‌ی دیگری رنگ شده است.'
     };
   }
-  var M2_EASY = [m2_needle, m2_dotsIO, m2_tangent, m2_layers, m2_pinwheel];
-  var M2_MED = [m2_pinwheel, m2_needle, m2_layers, m2_flow, m2_dotsIO, m2_overlap, m2_tangent];
-  var M2_HARD = [m2_scene, m2_pinwheel, m2_needle, m2_flow, m2_overlap, m2_layers, m2_tangent];
+  // ماتریسِ ویژگیِ ۵گزینه‌ای — ستونِ فقراتِ مبحث ۲ (گزینه‌های نزدیک + تله)
+  function m2_matrix(rng, level) { return oddMatrix(rng, level || 2, 5); }
+  var M2_EASY = [m2_matrix, m2_matrix, m2_needle, m2_dotsIO, m2_tangent, m2_layers, m2_pinwheel];
+  var M2_MED = [m2_matrix, m2_matrix, m2_matrix, m2_pinwheel, m2_flow, m2_scene, m2_layers, m2_needle];
+  var M2_HARD = [m2_matrix, m2_matrix, m2_matrix, m2_scene, m2_pinwheel, m2_flow];
   function poolForM2(level) { return level >= 3 ? M2_HARD : level === 2 ? M2_MED : M2_EASY; }
   function genQuestionM2(rng, level) { return rng.pick(poolForM2(level))(rng, level || 1); }
 
