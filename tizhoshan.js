@@ -79,7 +79,7 @@
   }
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
 
-  function RNG(seed) { this.s = (seed >>> 0) || 1; }
+  function RNG(seed) { var s = ((seed >>> 0) ^ 0x9E3779B9) >>> 0; s ^= s << 13; s ^= s >>> 17; s ^= s << 5; this.s = (s >>> 0) || 1; }
   RNG.prototype.next = function () { var x = this.s; x ^= x << 13; x ^= x >>> 17; x ^= x << 5; this.s = x >>> 0; return this.s / 4294967296; };
   RNG.prototype.int = function (a, b) { return a + Math.floor(this.next() * (b - a + 1)); };
   RNG.prototype.pick = function (a) { return a[this.int(0, a.length - 1)]; };
@@ -1144,6 +1144,45 @@
     };
   }
 
+  /* ==== تکمیلِ سری: قاعده‌ی ردیف را پیدا کن، شکلِ بعدی را بزن (near-miss) ==== */
+  function seriesComplete(rng, level, count) {
+    count = count || 4;
+    var kind = rng.pick(level >= 2 ? ['sides', 'rot', 'count', 'grow'] : ['sides', 'count']);
+    function cornerDot(g, n, r) { var v = polyPts(n, r, 50, 50, -90)[0]; add(g, 'circle', merge(DEF, { cx: v[0].toFixed(1), cy: v[1].toFixed(1), r: 3.2, 'stroke-width': 2, fill: PAL.line })); }
+    var draw, stemVals, correctV, dvals, tag, why;
+    if (kind === 'sides') {
+      var s = rng.pick([3, 4]);
+      draw = function (v, size) { return figure(function (g) { add(g, 'polygon', merge(DEF, { points: ptsStr(polyPts(v, 30, 50, 50, -90)) })); cornerDot(g, v, 30); }, { size: size }); };
+      stemVals = [s, s + 1, s + 2, s + 3]; correctV = s + 4; dvals = [s + 3, s + 5, s + 2];
+      tag = 'سری: تعدادِ ضلع'; why = 'هر گام یک ضلع اضافه می‌شود؛ پس شکلِ بعدی ' + toFa(s + 4) + ' ضلع دارد.';
+    } else if (kind === 'count') {
+      var s2 = 1;
+      draw = function (v, size) { return figure(dotsBox(v), { size: size }); };
+      stemVals = [s2, s2 + 1, s2 + 2, s2 + 3]; correctV = s2 + 4; dvals = [s2 + 3, s2 + 5, s2 + 2];
+      tag = 'سری: شمارشِ نقطه'; why = 'هر گام یک نقطه اضافه می‌شود؛ پس شکلِ بعدی ' + toFa(s2 + 4) + ' نقطه دارد.';
+    } else if (kind === 'rot') {
+      var step = rng.pick([45, 60]); var vec = { sides: rng.pick([3, 4, 5]), fill: 'none', inner: rng.pick(['square', 'triangle', 'plus']), dot: 'solid', size: 'big', ring: 'single' };
+      draw = function (v, size) { return figure(drawFeat(vec), { rot: v, size: size }); };
+      stemVals = [0, step, 2 * step, 3 * step]; correctV = 4 * step; dvals = [3 * step, 5 * step, 2 * step];
+      tag = 'سری: چرخش'; why = 'شکل هر گام ' + toFa(step) + ' درجه می‌چرخد؛ پس در گامِ بعدی روی ' + toFa(4 * step) + ' درجه است.';
+    } else {
+      var base = 12, st = 5, sd = rng.pick([4, 5, 6]);
+      draw = function (v, size) { return figure(function (g) { add(g, 'polygon', merge(DEF, { points: ptsStr(polyPts(sd, v, 50, 50, -90)) })); }, { size: size }); };
+      stemVals = [base, base + st, base + 2 * st, base + 3 * st]; correctV = base + 4 * st; dvals = [base + 3 * st, base + 5 * st, base + 2 * st];
+      tag = 'سری: بزرگ‌شدن'; why = 'شکل هر گام یک اندازه بزرگ‌تر می‌شود؛ پس شکلِ بعدی از همه بزرگ‌تر است.';
+    }
+    var stem = stemVals.map(function (v) { return function () { return draw(v, 50); }; });
+    var seen = {}; seen[String(correctV)] = 1; var ds = [];
+    for (var i = 0; i < dvals.length && ds.length < count - 1; i++) { var k = String(dvals[i]); if (!seen[k]) { seen[k] = 1; ds.push(dvals[i]); } }
+    var opts = [{ v: correctV }].concat(ds.map(function (v) { return { v: v }; }));
+    var order = rng.shuffle(opts);
+    return {
+      prompt: 'قاعده‌ی سری را پیدا کن. شکلِ بعدی کدام است؟', tag: tag, series: stem, wide: true,
+      options: order, answer: order.indexOf(opts[0]), correctV: correctV,
+      render: function (o) { return draw(o.v, 92); }, why: why
+    };
+  }
+
   /* ==== ماتریسِ استدلالیِ ۳×۳ (ریون-مانند): الگو در سطر و ستون، خانه‌ی آخر گم‌شده ==== */
   function matrix3x3(rng, level, count) {
     count = count || 4; level = level || 1;
@@ -1621,9 +1660,9 @@
     var dists = [row([0.32, 0.56, 1, 0.8]), row([0.32, 0.8, 0.56, 1]), row([0.32, 0.56, 0.8, 0.8])];
     return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکلِ باز به‌تدریج بسته می‌شود (شکاف کم‌کم پر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'بسته‌شدنِ تدریجی', 'در گزینه‌ی درست، شکاف مرتب کوچک‌تر می‌شود تا دایره کامل و بسته شود؛ اما در بقیه این روند منظم نیست.');
   }
-  var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair, matrix3x3];
-  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, matrix3x3];
-  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, analogyPair, matrix3x3, matrix3x3];
+  var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair, matrix3x3, seriesComplete, seriesComplete];
+  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete];
+  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, analogyPair, matrix3x3, matrix3x3, seriesComplete];
   function poolForM6(level) { return level >= 3 ? M6_HARD : level === 2 ? M6_MED : M6_EASY; }
   function genQuestionM6(rng, level) { return rng.pick(poolForM6(level))(rng, level || 1); }
 
@@ -1645,6 +1684,15 @@
       else g.appendChild(h('div', { class: 'tz-mxcell tz-mxq' }, '؟'));
     }
     box.appendChild(g); return box;
+  }
+  // پنلِ سری: ۴ خانه‌ی پُر + فلش + خانه‌ی «؟»
+  function seriesPanel(fns) {
+    var box = h('div', { class: 'tz-grid9' }, h('div', { class: 'tz-refs-lbl' }, 'قاعده‌ی سری را پیدا کن؛ شکلِ بعدی کدام است؟'));
+    var row = h('div', { class: 'tz-series-row' });
+    fns.forEach(function (f, i) { if (i > 0) row.appendChild(h('span', { class: 'tz-seq-arrow' }, '→')); row.appendChild(h('div', { class: 'tz-scell' }, f())); });
+    row.appendChild(h('span', { class: 'tz-seq-arrow' }, '→'));
+    row.appendChild(h('div', { class: 'tz-scell tz-mxq' }, '؟'));
+    box.appendChild(row); return box;
   }
   function fmtGroups(groups) { return groups.map(function (t) { return '(' + t.map(function (n) { return toFa(n); }).join('، ') + ')'; }).join('   '); }
   function m7Question(rng, catFig, prompt, why) {
@@ -1756,7 +1804,7 @@
     function artFn(list, maker) { return function () { var w = h('div', { class: 'tz-artrow' }); list.forEach(function (n) { w.appendChild(maker(n)); }); return w; }; }
   }
 
-  function toInter(q) { return { prompt: q.prompt, why: q.why, answer: q.answer, refs: q.refs, grid: q.grid, matrix: q.matrix, build: function () { return q.options.map(function (o) { return q.render(o); }); } }; }
+  function toInter(q) { return { prompt: q.prompt, why: q.why, answer: q.answer, refs: q.refs, grid: q.grid, matrix: q.matrix, series: q.series, build: function () { return q.options.map(function (o) { return q.render(o); }); } }; }
 
   // پنلِ تصویرهای مرجع (مبحث ۳ و بعد از آن)
   function refsPanel(refs) {
@@ -2112,6 +2160,7 @@
     if (q.refs) wrap.appendChild(refsPanel(q.refs));
     if (q.grid) wrap.appendChild(gridPanel(q.grid));
     if (q.matrix) wrap.appendChild(matrixPanel(q.matrix));
+    if (q.series) wrap.appendChild(seriesPanel(q.series));
     var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var figs = q.build(); var done = false;
     figs.forEach(function (fig, i) {
       var b = h('button', { class: 'tz-opt', onclick: function () {
@@ -2151,6 +2200,7 @@
       if (q.refs) box.appendChild(refsPanel(q.refs));
       if (q.grid) box.appendChild(gridPanel(q.grid));
       if (q.matrix) box.appendChild(matrixPanel(q.matrix));
+      if (q.series) box.appendChild(seriesPanel(q.series));
       var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
@@ -2226,6 +2276,7 @@
       if (q.refs) box.appendChild(refsPanel(q.refs));
       if (q.grid) box.appendChild(gridPanel(q.grid));
       if (q.matrix) box.appendChild(matrixPanel(q.matrix));
+      if (q.series) box.appendChild(seriesPanel(q.series));
       var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
@@ -2355,6 +2406,8 @@
       '.tz-matrix-cells{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-width:280px;margin:8px auto 0}',
       '.tz-mxcell{background:#fff;border-radius:10px;padding:3px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(35,37,68,.06);aspect-ratio:1/1}',
       '.tz-mxq{font-family:"Lalezar","Estedad",sans-serif;font-size:2rem;color:' + PAL.teal + ';background:' + PAL.tealL + ';border:2px dashed ' + PAL.teal + '}',
+      '.tz-series-row{display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:wrap;margin:8px auto 0}',
+      '.tz-scell{background:#fff;border-radius:10px;padding:3px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(35,37,68,.06);width:58px;height:58px}',
       '.tz-groups{font-weight:700;font-size:1.06rem;letter-spacing:.5px;color:' + PAL.ink + ';font-variant-numeric:tabular-nums;text-align:center;padding:6px 2px;width:100%}',
       '.tz-fb{margin-top:16px;padding:14px 16px;border-radius:16px;font-size:.97rem;text-align:justify;border-inline-start:5px solid}',
       '.tz-fb.ok{background:' + PAL.okL + ';color:#0f7a58;border-color:' + PAL.ok + '}',
@@ -2409,7 +2462,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
