@@ -853,9 +853,65 @@
     };
   }
 
-  var GENS_EASY = [oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
-  var GENS_MED = [oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
+  /* ==== موتورِ ماتریسِ ویژگی: گزینه‌های «نزدیک» با تله‌های ۲-۲ و پاسخِ یکتای ۳-۱ ==== */
+  var FEAT_FA = {
+    sides: { 3: 'مثلث', 4: 'چهارضلعی', 5: 'پنج‌ضلعی', 6: 'شش‌ضلعی' },
+    fill: { none: 'ساده', gray: 'خاکستری', hatch: 'هاشور', dots: 'نقطه‌ای' },
+    inner: { none: 'بدونِ شکلِ داخلی', circle: 'دایره‌ی داخلی', square: 'مربعِ داخلی', triangle: 'مثلثِ داخلی' },
+    dot: { solid: 'نقطه‌ی گوشه‌ی توپُر', open: 'نقطه‌ی گوشه‌ی توخالی' }
+  };
+  var RULE_FA = { sides: 'تعدادِ ضلع', fill: 'نوعِ پُری/بافت', inner: 'شکلِ داخلی', dot: 'نقطه‌ی گوشه' };
+  function drawFeat(f) {
+    return function (g) {
+      var pts = polyPts(f.sides, 33, 50, 50, -90), sp = ptsStr(pts);
+      fillTexture(g, function (t, st) { if (st) add(t, 'polygon', merge(DEF, { points: sp })); else add(t, 'polygon', { points: sp }); }, f.fill);
+      if (f.inner !== 'none') smallShape(g, f.inner, 50, 50, 11);
+      var v = pts[0];
+      add(g, 'circle', merge(DEF, { cx: v[0].toFixed(1), cy: v[1].toFixed(1), r: 3.4, 'stroke-width': 2, fill: f.dot === 'solid' ? PAL.line : '#fff' }));
+    };
+  }
+  function oddMatrix(rng, level, count) {
+    count = count || 4; level = level || 1;
+    var DOM = { sides: [3, 4, 5, 6], fill: ['none', 'gray', 'hatch', 'dots'], inner: ['none', 'circle', 'square', 'triangle'], dot: ['solid', 'open'] };
+    var rulePool = level >= 2 ? ['sides', 'fill', 'inner', 'dot'] : ['sides', 'fill', 'inner'];
+    var rule = rng.pick(rulePool);
+    // مقدارِ اکثریت و مقدارِ فرد (در سطحِ سخت، اختلاف‌ها نزدیک‌تر انتخاب می‌شوند)
+    var vA, vB;
+    if (rule === 'sides' && level >= 3) { var s0 = rng.pick([4, 5]); vA = s0; vB = s0 + 1; if (rng.next() < 0.5) { var tmp = vA; vA = vB; vB = tmp; } }
+    else { vA = rng.pick(DOM[rule]); vB = rng.pick(DOM[rule].filter(function (x) { return x !== vA; })); }
+    // مقدارِ ثابتِ بقیه‌ی ویژگی‌ها (۴-۰: همه یکسان → گزینه‌ها شبیه)
+    var base = {}; ['sides', 'fill', 'inner', 'dot'].forEach(function (nm) { base[nm] = rng.pick(DOM[nm]); });
+    // چند تله‌ی ۲-۲
+    var nDecoy = level >= 3 ? 2 : level >= 2 ? 1 : 0;
+    var decoys = rng.sample(['sides', 'fill', 'inner', 'dot'].filter(function (nm) { return nm !== rule; }), nDecoy);
+    var ansIdx = rng.int(0, count - 1);
+    var rots = rng.sample([0, 45, 90, 135, 180, 225, 270, 315], count);
+    var opts = [];
+    for (var i = 0; i < count; i++) {
+      var o = { sides: base.sides, fill: base.fill, inner: base.inner, dot: base.dot };
+      o[rule] = (i === ansIdx) ? vB : vA;
+      o.rot = rots[i];
+      opts.push(o);
+    }
+    // اعمالِ تله‌ها: تقسیمِ متعادل (هیچ مقدار تنها نباشد تا پاسخِ دوم ساخته نشود)
+    decoys.forEach(function (df) {
+      var vals = rng.sample(DOM[df], 2);
+      var k = count === 5 ? (rng.next() < 0.5 ? 2 : 3) : 2;
+      var pool = []; for (var j = 0; j < count; j++) pool.push(j);
+      var pickIdx = rng.sample(pool, k);
+      for (var t = 0; t < count; t++) opts[t][df] = (pickIdx.indexOf(t) >= 0) ? vals[1] : vals[0];
+    });
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'ماتریسِ ویژگی',
+      options: opts, answer: ansIdx,
+      render: function (o) { return figure(drawFeat(o), { rot: o.rot, size: 96 }); },
+      why: 'ویژگی‌های دیگر گمراه‌کننده‌اند؛ سرنخِ درست «' + RULE_FA[rule] + '» است: سه شکل ' + FEAT_FA[rule][vA] + ' دارند، اما این یکی ' + FEAT_FA[rule][vB] + '.'
+    };
+  }
+
+  var GENS_EASY = [oddMatrix, oddMatrix, oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
+  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
+  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -2050,7 +2106,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddMatrix: oddMatrix, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
