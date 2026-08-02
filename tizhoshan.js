@@ -1381,8 +1381,9 @@
   function m6_growDots(rng) {
     var s0 = rng.int(1, 3), row = function (arr) { return arr.map(dotsBox); };
     var correct = row([s0, s0 + 1, s0 + 2, s0 + 3]);
-    var dists = [row([s0 + 1, s0, s0 + 2, s0 + 3]), row([s0, s0 + 2, s0 + 1, s0 + 3]), row([s0 + 3, s0 + 2, s0 + 1, s0])];
-    return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، هر بار یک نقطه اضافه می‌شود. شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'دنباله‌ی نقطه', 'در گزینه‌ی درست، تعدادِ نقطه‌ها منظم و یکی‌یکی زیاد می‌شود؛ اما در بقیه جایی از ترتیب کم می‌شود یا به‌هم می‌ریزد.');
+    // near-miss: فقط یک قدم قاعده را می‌شکند (جابه‌جاییِ دو قدمِ کنارِ هم یا یک قدمِ درجا)
+    var dists = [row([s0, s0 + 1, s0 + 3, s0 + 2]), row([s0, s0 + 2, s0 + 1, s0 + 3]), row([s0, s0 + 1, s0 + 2, s0 + 2])];
+    return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، هر بار یک نقطه اضافه می‌شود. شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'دنباله‌ی نقطه', 'در گزینه‌ی درست، تعدادِ نقطه‌ها منظم و یکی‌یکی زیاد می‌شود؛ اما در بقیه یک‌جا از ترتیب کم می‌شود یا درجا می‌ماند. هر چهار قدم را چک کن!');
   }
   function m6_rotateStep(rng) {
     var motif = rng.pick([mFlag, mEll, mBoot, mZig]), step = rng.pick([45, 90]), A = [0, step, 2 * step, 3 * step];
@@ -1397,19 +1398,20 @@
   function m6_complexity(rng) {
     var n = rng.pick([5, 6]), row = function (arr) { return arr.map(function (k) { return polyLines(n, k); }); };
     var correct = row([1, 2, 3, 4]);
-    var dists = [row([1, 3, 2, 4]), row([2, 1, 3, 4]), row([4, 3, 2, 1])];
+    var dists = [row([1, 2, 4, 3]), row([1, 3, 2, 4]), row([1, 2, 3, 3])];
     return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکل‌ها پیچیده‌تر می‌شوند (خط‌های داخلشان بیشتر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'پیچیده‌تر شدن', 'در گزینه‌ی درست، تعدادِ خط‌های داخل مرتب زیاد می‌شود؛ اما در بقیه جایی کم می‌شود و پیچیدگی به‌هم می‌ریزد.');
   }
   function m6_shrinkSplit(rng) {
     var row = function (arr) { return arr.map(function (p) { return circleSplit(p[0], p[1]); }); };
     var correct = row([[32, 2], [27, 3], [22, 4], [17, 5]]);
-    var dists = [row([[17, 2], [22, 3], [27, 4], [32, 5]]), row([[32, 3], [27, 3], [22, 3], [17, 3]]), row([[24, 4], [30, 2], [18, 5], [27, 3]])];
+    // near-miss: یک قدم اندازه یا تعدادِ بخش را درست پیش نمی‌بَرد
+    var dists = [row([[32, 2], [27, 3], [17, 4], [22, 5]]), row([[32, 2], [27, 3], [22, 4], [17, 4]]), row([[32, 2], [22, 3], [27, 4], [17, 5]])];
     return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، دایره کوچک‌تر می‌شود و تعدادِ بخش‌هایش بیشتر. شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'کوچک‌تر و پرتقسیم‌تر', 'در گزینه‌ی درست هم‌زمان دایره کوچک‌تر و بخش‌هایش بیشتر می‌شود؛ اما در بقیه یکی از این دو رعایت نشده.');
   }
   function m6_arcClose(rng) {
     var row = function (arr) { return arr.map(arcFrac); };
     var correct = row([0.32, 0.56, 0.8, 1]);
-    var dists = [row([1, 0.8, 0.56, 0.32]), row([0.32, 0.7, 0.5, 1]), row([0.5, 0.5, 0.78, 0.78])];
+    var dists = [row([0.32, 0.56, 1, 0.8]), row([0.32, 0.8, 0.56, 1]), row([0.32, 0.56, 0.8, 0.8])];
     return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکلِ باز به‌تدریج بسته می‌شود (شکاف کم‌کم پر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'بسته‌شدنِ تدریجی', 'در گزینه‌ی درست، شکاف مرتب کوچک‌تر می‌شود تا دایره کامل و بسته شود؛ اما در بقیه این روند منظم نیست.');
   }
   var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose];
@@ -1435,7 +1437,18 @@
     var correct = { groups: byCat };
     function key(groups) { return groups.map(function (t) { return t.slice().sort(function (a, b) { return a - b; }).join(','); }).sort().join('|'); }
     var seen = {}; seen[key(byCat)] = 1; var dists = [], guard = 0;
-    while (dists.length < 3 && guard++ < 300) { var pm = rng.shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]); var gp = [[pm[0], pm[1], pm[2]], [pm[3], pm[4], pm[5]], [pm[6], pm[7], pm[8]]]; var k = key(gp); if (!seen[k]) { seen[k] = 1; dists.push({ groups: gp }); } }
+    // گزینه‌های غلطِ near-miss: گروه‌بندیِ درست با فقط ۱ تا ۲ جابه‌جایی (نه به‌هم‌ریختنِ کامل)
+    function swapOnce(groups) {
+      var g = groups.map(function (a) { return a.slice(); });
+      var i = rng.int(0, 2), j; do { j = rng.int(0, 2); } while (j === i);
+      var ai = rng.int(0, g[i].length - 1), aj = rng.int(0, g[j].length - 1);
+      var t = g[i][ai]; g[i][ai] = g[j][aj]; g[j][aj] = t; return g;
+    }
+    while (dists.length < 3 && guard++ < 400) {
+      var nSwap = dists.length === 2 ? 2 : 1;               // یکی از تله‌ها کمی سخت‌تر (۲ جابه‌جایی)
+      var gp = byCat; for (var sInd = 0; sInd < nSwap; sInd++) gp = swapOnce(gp);
+      var k = key(gp); if (!seen[k]) { seen[k] = 1; dists.push({ groups: gp }); }
+    }
     var opts = [correct].concat(dists); var order = rng.shuffle(opts);
     return {
       prompt: prompt, tag: 'دسته‌بندی', grid: grid, wide: true, options: order, answer: order.indexOf(correct),
