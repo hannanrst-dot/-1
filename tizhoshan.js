@@ -1027,6 +1027,47 @@
     };
   }
 
+  /* ==== تناسبِ تصویری A:B :: C:؟ — استدلالِ رابطه‌ای با گزینه‌های near-miss ==== */
+  function analogyPair(rng, level, count) {
+    count = count || 4; level = level || 1;
+    var DOM = { sides: [3, 4, 5, 6], fill: ['none', 'gray', 'hatch', 'vhatch', 'dots', 'checker'], inner: ['none', 'circle', 'square', 'triangle', 'star', 'plus'], dot: ['solid', 'open'], size: ['big', 'small'], ring: ['single', 'double'] };
+    var ALL = ['sides', 'fill', 'inner', 'dot', 'size', 'ring'];
+    function cl(o) { var x = {}; for (var k in o) x[k] = o[k]; return x; }
+    function keyOf(o) { return ALL.map(function (nm) { return o[nm]; }).join('|'); }
+    var tf = rng.pick(level >= 2 ? ['sides', 'fill', 'inner', 'dot', 'ring'] : ['sides', 'fill', 'inner']);
+    var fromV = rng.pick(DOM[tf]), toV = rng.pick(DOM[tf].filter(function (x) { return x !== fromV; }));
+    // A و B فقط در همان یک ویژگی فرق دارند (رابطه بی‌ابهام)
+    var A = {}; ALL.forEach(function (nm) { A[nm] = rng.pick(DOM[nm]); }); A[tf] = fromV;
+    var B = cl(A); B[tf] = toV;
+    // C: زمینه‌ی متفاوت (حداقل در دو ویژگیِ غیرِ tf فرق کند) با tf=fromV
+    var C = {}; ALL.forEach(function (nm) { C[nm] = rng.pick(DOM[nm]); }); C[tf] = fromV;
+    var diffs = 0; ALL.forEach(function (nm) { if (nm !== tf && C[nm] !== A[nm]) diffs++; });
+    if (diffs < 2) { var pool = ALL.filter(function (nm) { return nm !== tf; }); for (var z = 0; z < 2; z++) { var nm = pool[z]; C[nm] = rng.pick(DOM[nm].filter(function (x) { return x !== A[nm]; })); } }
+    var Arot = rng.pick([0, 30, 60, 300, 330]), Crot = rng.pick([0, 30, 60, 300, 330]);
+    A.rot = Arot; B.rot = Arot; C.rot = Crot;
+    var correct = cl(C); correct[tf] = toV; correct.rot = Crot;
+    // گزینه‌های غلطِ near-miss
+    var cand = [];
+    cand.push(cl(C));                                   // «تغییری اعمال نشده»
+    var Bcopy = cl(B); Bcopy.rot = Crot; cand.push(Bcopy); // «پاسخِ نمونه (B) را کپی کرده»
+    DOM[tf].filter(function (v) { return v !== fromV && v !== toV; }).forEach(function (v) { var d = cl(C); d[tf] = v; d.rot = Crot; cand.push(d); }); // هدفِ اشتباه
+    // پُرکردن با «tf درست ولی یک ویژگیِ اضافه هم عوض شده»
+    var guard = 0;
+    while (cand.length < count + 3 && guard++ < 40) { var d = cl(correct); var nm = rng.pick(ALL.filter(function (x) { return x !== tf; })); d[nm] = rng.pick(DOM[nm].filter(function (x) { return x !== correct[nm]; })); d.rot = Crot; cand.push(d); }
+    // یکتاسازی و حذفِ هرچه با پاسخِ درست یکی شود
+    var seen = {}; seen[keyOf(correct)] = 1; var dists = [];
+    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { var k = keyOf(cand[i]); if (!seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    var opts = [correct].concat(dists); var order = rng.shuffle(opts);
+    var refs = [function () { return figure(drawFeat(A), { rot: A.rot, size: 58 }); }, function () { return figure(drawFeat(B), { rot: B.rot, size: 58 }); }, function () { return figure(drawFeat(C), { rot: C.rot, size: 58 }); }];
+    return {
+      prompt: 'شکلِ A با یک تغییر به B تبدیل شده. اگر همان تغییر روی C اجرا شود، کدام گزینه به‌دست می‌آید؟ (A، B، C در بالا)',
+      tag: 'تناسبِ تصویری', refs: refs, options: order, answer: order.indexOf(correct),
+      correctKey: keyOf(correct), tf: tf, fromV: fromV, toV: toV,
+      render: function (o) { return figure(drawFeat(o), { rot: o.rot, size: 96 }); },
+      why: 'تغییرِ A به B این است: «' + RULE_FA[tf] + '» از ' + FEAT_FA[tf][fromV] + ' به ' + FEAT_FA[tf][toV] + '. همان تغییر را روی C اجرا کن؛ بقیه‌ی ویژگی‌های C باید دست‌نخورده بمانند.'
+    };
+  }
+
   var GENS_EASY = [oddMatrix, oddMatrix, oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
   var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
   var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
@@ -1342,8 +1383,8 @@
   }
   function m4_match(rng, level) { return matchMatrix(rng, level || 1, 4, 2); }
   var M4_EASY = [m4_match, m4_match, m4_oneShaded, m4_containsBoth, m4_symmetryPair];
-  var M4_MED = [m4_match, m4_match, m4_match, m4_sidesEqLines, m4_oneShaded, m4_containsBoth];
-  var M4_HARD = [m4_match, m4_match, m4_match, m4_chiralPair, m4_sidesEqLines, m4_containsBoth];
+  var M4_MED = [m4_match, m4_match, analogyPair, m4_sidesEqLines, m4_oneShaded, m4_containsBoth];
+  var M4_HARD = [m4_match, m4_match, analogyPair, analogyPair, m4_chiralPair, m4_sidesEqLines];
   function poolForM4(level) { return level >= 3 ? M4_HARD : level === 2 ? M4_MED : M4_EASY; }
   function genQuestionM4(rng, level) { return rng.pick(poolForM4(level))(rng, level || 1); }
 
@@ -1470,9 +1511,9 @@
     var dists = [row([0.32, 0.56, 1, 0.8]), row([0.32, 0.8, 0.56, 1]), row([0.32, 0.56, 0.8, 0.8])];
     return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکلِ باز به‌تدریج بسته می‌شود (شکاف کم‌کم پر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'بسته‌شدنِ تدریجی', 'در گزینه‌ی درست، شکاف مرتب کوچک‌تر می‌شود تا دایره کامل و بسته شود؛ اما در بقیه این روند منظم نیست.');
   }
-  var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose];
-  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep];
-  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, m6_arcClose];
+  var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair];
+  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, analogyPair];
+  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, m6_arcClose, analogyPair, analogyPair];
   function poolForM6(level) { return level >= 3 ? M6_HARD : level === 2 ? M6_MED : M6_EASY; }
   function genQuestionM6(rng, level) { return rng.pick(poolForM6(level))(rng, level || 1); }
 
@@ -2242,7 +2283,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
