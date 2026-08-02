@@ -230,7 +230,10 @@
   function mTri(g) { add(g, 'polygon', merge(DEF, { points: '30,72 72,72 30,30' })); drawDot(g, 41, 62, 3.4); }
   function mBoot(g) { add(g, 'path', merge(DEF, { d: 'M38 24 H56 V58 H72 V72 H38 Z' })); drawDot(g, 47, 34, 3.2); }
   function mZig(g) { add(g, 'path', merge(DEF, { d: 'M28 30 H62 L44 50 H70 L48 74' })); drawDot(g, 62, 30, 3.2); }
-  var MOTIFS = [mFlag, mEll, mHook, mTri, mBoot, mZig];
+  function mSeven(g) { add(g, 'path', merge(DEF, { d: 'M28 30 H70 L44 74' })); drawDot(g, 28, 30, 3.6); }
+  function mCheck(g) { add(g, 'path', merge(DEF, { 'stroke-width': 5, d: 'M28 50 L44 68 L74 28' })); drawDot(g, 28, 50, 3.4); }
+  function mChair(g) { add(g, 'path', merge(DEF, { d: 'M34 26 V70 H70 M34 48 H62 V70' })); drawDot(g, 34, 26, 3.4); }
+  var MOTIFS = [mFlag, mEll, mHook, mTri, mBoot, mZig, mSeven, mCheck, mChair];
   // موتیف‌های «حرف‌نما» — دست‌داریِ بسیار خوانا (مثلِ حرف در آینه). بدونِ تقارنِ چرخشی.
   function glF(g) { add(g, 'path', merge(DEF, { 'stroke-width': 6, d: 'M40 26 V74 M40 26 H64 M40 50 H60' })); }
   function glL(g) { add(g, 'path', merge(DEF, { 'stroke-width': 6, d: 'M42 26 V74 H68' })); }
@@ -853,6 +856,59 @@
     };
   }
 
+  // ابزارِ زیرمجموعه‌های متمایز
+  function distinctSubsets(rng, n, k, howMany) {
+    var out = [], seen = {}, guard = 0, pool = []; for (var i = 0; i < n; i++) pool.push(i);
+    while (out.length < howMany && guard++ < 200) { var s = rng.sample(pool, k).slice().sort(function (a, b) { return a - b; }); var key = s.join(','); if (!seen[key]) { seen[key] = 1; out.push(s); } }
+    return out;
+  }
+  // میله‌ها: تعدادِ میله‌های ضخیم سرنخ است؛ چیدمان گمراه‌کننده.
+  function oddBars(rng, level, count) {
+    count = count || 4;
+    var N = level >= 3 ? 6 : 5, k = rng.int(2, N - 2);
+    var oddK = rng.next() < 0.5 ? k + 1 : k - 1; if (oddK < 1) oddK = k + 1; if (oddK > N - 1) oddK = k - 1;
+    function draw(setArr) {
+      return function (g) {
+        add(g, 'rect', merge(DEF, { x: 18, y: 26, width: 64, height: 48, rx: 6 }));
+        for (var i = 0; i < N; i++) { var x = 26 + i * (48 / (N - 1)), thick = setArr.indexOf(i) >= 0, w = thick ? 6.4 : 2.6; add(g, 'rect', merge(DEF, { x: (x - w / 2).toFixed(1), y: 34, width: w.toFixed(1), height: 32, 'stroke-width': 2, fill: thick ? PAL.line : '#fff' })); }
+      };
+    }
+    var sames = distinctSubsets(rng, N, k, count - 1).map(function (a) { return { set: a }; });
+    var pa = placeAnswer(rng, sames, { set: rng.sample((function () { var p = []; for (var i = 0; i < N; i++) p.push(i); return p; })(), oddK) }, count);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'شمارشِ میله',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(draw(o.set), { size: 96 }); },
+      why: 'جای میله‌ها مهم نیست؛ سه شکل ' + toFa(k) + ' میله‌ی ضخیم دارند، اما این یکی ' + toFa(oddK) + '. میله‌های ضخیم را بشمار!'
+    };
+  }
+  // مسیرِ نقطه‌ای: تعدادِ نقطه‌های روی مسیر سرنخ است؛ شکلِ مسیر گمراه‌کننده.
+  function oddPath(rng, level, count) {
+    count = count || 4;
+    var grid = []; for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) grid.push([28 + c * 22, 28 + r * 22]);
+    var nodes = rng.int(3, level >= 3 ? 6 : 5), oddN = rng.next() < 0.5 ? nodes + 1 : nodes - 1;
+    if (oddN < 2) oddN = nodes + 1; if (oddN > 8) oddN = nodes - 1;
+    function route(m) { var idx = []; for (var i = 0; i < 9; i++) idx.push(i); return rng.sample(idx, m); }
+    function draw(rt) {
+      return function (g) {
+        grid.forEach(function (p) { drawDot(g, p[0], p[1], 1.7, PAL.gray); });
+        var d = 'M' + rt.map(function (i) { return grid[i][0] + ' ' + grid[i][1]; }).join(' L');
+        add(g, 'path', merge(DEF, { d: d, 'stroke-width': 3.2 }));
+        rt.forEach(function (i) { drawDot(g, grid[i][0], grid[i][1], 3.4, PAL.line); });
+      };
+    }
+    function canon(rt) { var a = rt.join(','), b = rt.slice().reverse().join(','); return a < b ? a : b; } // مسیر و برعکسش یک خط‌اند
+    var seen = {}, sames = [], guard = 0;
+    while (sames.length < count - 1 && guard++ < 120) { var rt = route(nodes), key = canon(rt); if (!seen[key]) { seen[key] = 1; sames.push({ rt: rt }); } }
+    var pa = placeAnswer(rng, sames, { rt: route(oddN) }, count);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'شمارشِ نقطه‌ی مسیر',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(draw(o.rt), { size: 96 }); },
+      why: 'شکلِ مسیر مهم نیست؛ سه مسیر از ' + toFa(nodes) + ' نقطه می‌گذرند، اما این یکی از ' + toFa(oddN) + '. نقطه‌های پُررنگِ روی مسیر را بشمار!'
+    };
+  }
+
   /* ==== موتورِ ماتریسِ ویژگی: گزینه‌های «نزدیک» با تله‌های ۲-۲ و پاسخِ یکتای ۳-۱ ==== */
   var FEAT_FA = {
     sides: { 3: 'مثلث', 4: 'چهارضلعی', 5: 'پنج‌ضلعی', 6: 'شش‌ضلعی' },
@@ -971,9 +1027,9 @@
     };
   }
 
-  var GENS_EASY = [oddMatrix, oddMatrix, oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
-  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
+  var GENS_EASY = [oddMatrix, oddMatrix, oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
+  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
+  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -2186,7 +2242,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddMatrix: oddMatrix, matchMatrix: matchMatrix, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
