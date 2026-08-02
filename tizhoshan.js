@@ -1068,6 +1068,38 @@
     };
   }
 
+  /* ==== ماتریسِ استدلالیِ ۳×۳ (ریون-مانند): الگو در سطر و ستون، خانه‌ی آخر گم‌شده ==== */
+  function matrix3x3(rng, level, count) {
+    count = count || 4; level = level || 1;
+    var DOM = { sides: [3, 4, 5, 6], fill: ['none', 'gray', 'hatch', 'vhatch', 'dots', 'checker'], inner: ['none', 'circle', 'square', 'triangle', 'star', 'plus'], dot: ['solid', 'open'], size: ['big', 'small'], ring: ['single', 'double'] };
+    var ALL = ['sides', 'fill', 'inner', 'dot', 'size', 'ring'];
+    function cl(o) { var x = {}; for (var k in o) x[k] = o[k]; return x; }
+    function keyOf(o) { return ALL.map(function (nm) { return o[nm]; }).join('|'); }
+    var featPool = ['sides', 'fill', 'inner'];
+    var Fc = rng.pick(featPool), Fr = rng.pick(featPool.filter(function (x) { return x !== Fc; }));
+    var colVals = rng.sample(DOM[Fc], 3), rowVals = rng.sample(DOM[Fr], 3);
+    var base = {}; ALL.forEach(function (nm) { base[nm] = rng.pick(DOM[nm]); });
+    function cell(r, c) { var o = cl(base); o[Fc] = colVals[c]; o[Fr] = rowVals[r]; o.rot = 0; return o; }
+    var fns = []; for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) { if (r === 2 && c === 2) continue; (function (rr, cc) { fns.push(function () { return figure(drawFeat(cell(rr, cc)), { size: 52 }); }); })(r, c); }
+    var correct = cell(2, 2);
+    var cand = [];
+    cand.push((function () { var d = cl(correct); d[Fc] = colVals[1]; return d; })());                 // ستون یک قدم عقب
+    cand.push((function () { var d = cl(correct); d[Fr] = rowVals[1]; return d; })());                 // سطر یک قدم عقب
+    cand.push((function () { var d = cl(correct); d[Fc] = colVals[1]; d[Fr] = rowVals[1]; return d; })()); // هر دو عقب
+    cand.push((function () { var d = cl(correct); d[Fc] = colVals[0]; return d; })());                 // ستون دو قدم عقب
+    cand.push((function () { var d = cl(correct); var nm = rng.pick(['fill', 'inner', 'ring', 'size'].filter(function (x) { return x !== Fc && x !== Fr; })); d[nm] = rng.pick(DOM[nm].filter(function (x) { return x !== d[nm]; })); return d; })()); // یک ویژگیِ ثابتِ کاملاً دیدنی خراب شده
+    var seen = {}; seen[keyOf(correct)] = 1; var dists = [];
+    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { var k = keyOf(cand[i]); if (!seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    var opts = [correct].concat(dists); var order = rng.shuffle(opts);
+    return {
+      prompt: 'الگوی سطرها و ستون‌ها را پیدا کن. کدام گزینه خانه‌ی «؟» را کامل می‌کند؟',
+      tag: 'ماتریسِ ۳×۳', matrix: fns, wide: true, options: order, answer: order.indexOf(correct),
+      correctKey: keyOf(correct), Fc: Fc, Fr: Fr,
+      render: function (o) { return figure(drawFeat(o), { rot: 0, size: 92 }); },
+      why: 'در هر ستون «' + RULE_FA[Fc] + '» و در هر سطر «' + RULE_FA[Fr] + '» پله‌پله تغییر می‌کند. پس خانه‌ی آخر باید هم‌زمان ' + FEAT_FA[Fc][colVals[2]] + ' و ' + FEAT_FA[Fr][rowVals[2]] + ' باشد.'
+    };
+  }
+
   var GENS_EASY = [oddMatrix, oddMatrix, oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
   var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
   var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
@@ -1511,9 +1543,9 @@
     var dists = [row([0.32, 0.56, 1, 0.8]), row([0.32, 0.8, 0.56, 1]), row([0.32, 0.56, 0.8, 0.8])];
     return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکلِ باز به‌تدریج بسته می‌شود (شکاف کم‌کم پر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'بسته‌شدنِ تدریجی', 'در گزینه‌ی درست، شکاف مرتب کوچک‌تر می‌شود تا دایره کامل و بسته شود؛ اما در بقیه این روند منظم نیست.');
   }
-  var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair];
-  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, analogyPair];
-  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, m6_arcClose, analogyPair, analogyPair];
+  var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair, matrix3x3];
+  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, matrix3x3];
+  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, analogyPair, matrix3x3, matrix3x3];
   function poolForM6(level) { return level >= 3 ? M6_HARD : level === 2 ? M6_MED : M6_EASY; }
   function genQuestionM6(rng, level) { return rng.pick(poolForM6(level))(rng, level || 1); }
 
@@ -1524,6 +1556,16 @@
     var box = h('div', { class: 'tz-grid9' }, h('div', { class: 'tz-refs-lbl' }, 'این ۹ شکل را در ذهنت به ۳ گروهِ هم‌ویژگی تقسیم کن:'));
     var g = h('div', { class: 'tz-grid9-cells' });
     figs.forEach(function (f, i) { g.appendChild(h('div', { class: 'tz-g9cell' }, f(), h('span', { class: 'tz-g9n' }, toFa(i + 1)))); });
+    box.appendChild(g); return box;
+  }
+  // پنلِ ماتریسِ ۳×۳ استدلالی: ۸ خانه‌ی پُر + خانه‌ی آخرِ «؟»
+  function matrixPanel(fns) {
+    var box = h('div', { class: 'tz-grid9' }, h('div', { class: 'tz-refs-lbl' }, 'الگوی سطرها و ستون‌ها را پیدا کن؛ خانه‌ی «؟» را کامل کن:'));
+    var g = h('div', { class: 'tz-matrix-cells' });
+    for (var i = 0; i < 9; i++) {
+      if (i < 8) g.appendChild(h('div', { class: 'tz-mxcell' }, fns[i]()));
+      else g.appendChild(h('div', { class: 'tz-mxcell tz-mxq' }, '؟'));
+    }
     box.appendChild(g); return box;
   }
   function fmtGroups(groups) { return groups.map(function (t) { return '(' + t.map(function (n) { return toFa(n); }).join('، ') + ')'; }).join('   '); }
@@ -1636,7 +1678,7 @@
     function artFn(list, maker) { return function () { var w = h('div', { class: 'tz-artrow' }); list.forEach(function (n) { w.appendChild(maker(n)); }); return w; }; }
   }
 
-  function toInter(q) { return { prompt: q.prompt, why: q.why, answer: q.answer, refs: q.refs, grid: q.grid, build: function () { return q.options.map(function (o) { return q.render(o); }); } }; }
+  function toInter(q) { return { prompt: q.prompt, why: q.why, answer: q.answer, refs: q.refs, grid: q.grid, matrix: q.matrix, build: function () { return q.options.map(function (o) { return q.render(o); }); } }; }
 
   // پنلِ تصویرهای مرجع (مبحث ۳ و بعد از آن)
   function refsPanel(refs) {
@@ -1991,6 +2033,7 @@
     wrap.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
     if (q.refs) wrap.appendChild(refsPanel(q.refs));
     if (q.grid) wrap.appendChild(gridPanel(q.grid));
+    if (q.matrix) wrap.appendChild(matrixPanel(q.matrix));
     var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var figs = q.build(); var done = false;
     figs.forEach(function (fig, i) {
       var b = h('button', { class: 'tz-opt', onclick: function () {
@@ -2029,6 +2072,7 @@
       box.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
       if (q.refs) box.appendChild(refsPanel(q.refs));
       if (q.grid) box.appendChild(gridPanel(q.grid));
+      if (q.matrix) box.appendChild(matrixPanel(q.matrix));
       var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
@@ -2103,6 +2147,7 @@
       box.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
       if (q.refs) box.appendChild(refsPanel(q.refs));
       if (q.grid) box.appendChild(gridPanel(q.grid));
+      if (q.matrix) box.appendChild(matrixPanel(q.matrix));
       var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
@@ -2229,6 +2274,9 @@
       '.tz-grid9-cells{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-width:270px;margin:8px auto 0}',
       '.tz-g9cell{background:#fff;border-radius:10px;padding:3px 3px 1px;display:flex;flex-direction:column;align-items:center;box-shadow:0 2px 6px rgba(35,37,68,.06)}',
       '.tz-g9n{font-size:.72rem;color:' + PAL.inkSoft + ';font-weight:700}',
+      '.tz-matrix-cells{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-width:280px;margin:8px auto 0}',
+      '.tz-mxcell{background:#fff;border-radius:10px;padding:3px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(35,37,68,.06);aspect-ratio:1/1}',
+      '.tz-mxq{font-family:"Lalezar","Estedad",sans-serif;font-size:2rem;color:' + PAL.teal + ';background:' + PAL.tealL + ';border:2px dashed ' + PAL.teal + '}',
       '.tz-groups{font-weight:700;font-size:1.06rem;letter-spacing:.5px;color:' + PAL.ink + ';font-variant-numeric:tabular-nums;text-align:center;padding:6px 2px;width:100%}',
       '.tz-fb{margin-top:16px;padding:14px 16px;border-radius:16px;font-size:.97rem;text-align:justify;border-inline-start:5px solid}',
       '.tz-fb.ok{background:' + PAL.okL + ';color:#0f7a58;border-color:' + PAL.ok + '}',
@@ -2283,7 +2331,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
