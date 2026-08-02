@@ -1068,6 +1068,43 @@
     };
   }
 
+  /* ==== ترکیبِ دو شکل: کدام گزینه A و B را درست روی‌هم گذاشته؟ (near-miss) ==== */
+  var PRIM_FA = { tri: 'مثلث', square: 'مربع', pentagon: 'پنج‌ضلعی', hexagon: 'شش‌ضلعی', diamond: 'لوزی', circle: 'دایره', plus: 'به‌علاوه', cross: 'ضربدر', hbar: 'خطِ افقی', vbar: 'خطِ عمودی' };
+  function primDraw(g, kind) {
+    if (kind === 'circle') { add(g, 'circle', merge(DEF, { cx: 50, cy: 50, r: 26 })); return; }
+    if (kind === 'plus') { add(g, 'path', merge(DEF, { 'stroke-width': 4, d: 'M50 22 V78 M22 50 H78' })); return; }
+    if (kind === 'cross') { add(g, 'path', merge(DEF, { 'stroke-width': 4, d: 'M28 28 L72 72 M72 28 L28 72' })); return; }
+    if (kind === 'hbar') { add(g, 'line', merge(DEF, { x1: 20, y1: 50, x2: 80, y2: 50, 'stroke-width': 4 })); return; }
+    if (kind === 'vbar') { add(g, 'line', merge(DEF, { x1: 50, y1: 20, x2: 50, y2: 80, 'stroke-width': 4 })); return; }
+    var n = { tri: 3, square: 4, pentagon: 5, hexagon: 6, diamond: 4 }[kind], st = kind === 'square' ? -45 : -90;
+    add(g, 'polygon', merge(DEF, { points: ptsStr(polyPts(n, 27, 50, 50, st)) }));
+  }
+  function combineDraw(parts) { return function (g) { parts.forEach(function (k) { primDraw(g, k); }); }; }
+  function partsKey(parts) { return parts.slice().sort().join('+'); }
+  function combineShapes(rng, level, count) {
+    count = count || 4;
+    var prims = ['tri', 'square', 'pentagon', 'hexagon', 'diamond', 'circle', 'plus', 'cross', 'hbar', 'vbar'];
+    var polys = ['tri', 'square', 'pentagon', 'hexagon'];
+    var c1 = rng.pick(prims), c2 = rng.pick(prims.filter(function (x) { return x !== c1; }));
+    // c3: در سطحِ سخت به c2 نزدیک (چندضلعیِ هم‌جوار) تا تله سخت‌تر شود
+    var c3;
+    if (level >= 2 && polys.indexOf(c2) >= 0) { var idx = polys.indexOf(c2), near = polys[idx + (rng.next() < 0.5 ? 1 : -1)] || polys[idx === 0 ? 1 : idx - 1]; c3 = (near !== c1 && near !== c2) ? near : rng.pick(prims.filter(function (x) { return x !== c1 && x !== c2; })); }
+    else c3 = rng.pick(prims.filter(function (x) { return x !== c1 && x !== c2; }));
+    var correct = [c1, c2];
+    var cand = [[c1], [c2], [c1, c3], [c1, c2, c3], [c2, c3]];
+    var seen = {}; seen[partsKey(correct)] = 1; var dists = [];
+    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { var k = partsKey(cand[i]); if (!seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    var opts = [correct].concat(dists); var order = rng.shuffle(opts);
+    var refs = [function () { return figure(combineDraw([c1]), { size: 58 }); }, function () { return figure(combineDraw([c2]), { size: 58 }); }];
+    return {
+      prompt: 'شکلِ A و B را روی هم بگذار. کدام گزینه دقیقاً حاصلِ ترکیب است؟ (A و B در بالا)',
+      tag: 'ترکیبِ دو شکل', refs: refs, options: order, answer: order.indexOf(correct),
+      correctKey: partsKey(correct),
+      render: function (o) { return figure(combineDraw(o), { size: 96 }); },
+      why: 'حاصلِ ترکیب باید دقیقاً «' + PRIM_FA[c1] + '» و «' + PRIM_FA[c2] + '» را با هم داشته باشد؛ نه کم، نه زیاد. گزینه‌های دیگر یک شکل کم دارند، شکلِ اشتباه دارند، یا یک شکلِ اضافه دارند.'
+    };
+  }
+
   /* ==== ماتریسِ استدلالیِ ۳×۳ (ریون-مانند): الگو در سطر و ستون، خانه‌ی آخر گم‌شده ==== */
   function matrix3x3(rng, level, count) {
     count = count || 4; level = level || 1;
@@ -1101,8 +1138,8 @@
   }
 
   var GENS_EASY = [oddMatrix, oddMatrix, oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
-  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
+  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
+  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -1338,9 +1375,10 @@
     };
   }
   function m3_match(rng, level) { return matchMatrix(rng, level || 1, 5, 4); }
-  var M3_EASY = [m3_match, m3_match, m3_sameType, m3_evenCount, m3_symmetry, m3_void];
-  var M3_MED = [m3_match, m3_match, m3_match, m3_symmetry, m3_innerMatch, m3_rotationFamily, m3_void];
-  var M3_HARD = [m3_match, m3_match, m3_match, m3_sceneFamily, m3_rotationFamily, m3_innerMatch];
+  function m3_combine(rng, level) { return combineShapes(rng, level || 1, 5); }
+  var M3_EASY = [m3_match, m3_match, m3_combine, m3_sameType, m3_evenCount, m3_symmetry, m3_void];
+  var M3_MED = [m3_match, m3_match, m3_match, m3_combine, m3_symmetry, m3_innerMatch, m3_rotationFamily];
+  var M3_HARD = [m3_match, m3_match, m3_match, m3_combine, m3_sceneFamily, m3_rotationFamily, m3_innerMatch];
   function poolForM3(level) { return level >= 3 ? M3_HARD : level === 2 ? M3_MED : M3_EASY; }
   function genQuestionM3(rng, level) { return rng.pick(poolForM3(level))(rng, level || 1); }
 
@@ -2331,7 +2369,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
