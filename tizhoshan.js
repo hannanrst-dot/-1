@@ -2551,7 +2551,26 @@
       '.tz-refs-row{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}',
       '.tz-ref{background:#fff;border-radius:12px;padding:3px;display:flex;flex-direction:column;align-items:center;box-shadow:0 2px 6px rgba(35,37,68,.06)}',
       '.tz-ref-l{font-size:.72rem;font-weight:700;color:' + PAL.teal + ';margin-top:1px}',
-      '@media(max-width:480px){.tz-root{padding:13px;border-radius:20px}.tz-hero-title{font-size:1.6rem}.tz-tab{min-width:0;font-size:.82rem;padding:9px 4px}.tz-stage{padding:15px}}'
+      '@media(max-width:480px){' +
+        '.tz-root{padding:12px;border-radius:20px;line-height:1.72}' +
+        '.tz-hero{padding:20px 16px}.tz-hero-title{font-size:1.5rem}.tz-hero-sub{font-size:.86rem}' +
+        '.tz-tab{min-width:0;font-size:.82rem;padding:9px 4px}.tz-stage{padding:14px 12px}' +
+        '.tz-h2{font-size:1.22rem}' +
+        // درسنامه در موبایل: متن‌ها کوچک‌تر و جمع‌وجورتر
+        '.tz-lt{font-size:1.14rem;margin-bottom:9px}' +
+        '.tz-lb{font-size:.9rem;padding:12px 13px;line-height:1.75;border-radius:14px}' +
+        '.tz-speech{padding:10px 12px;border-radius:14px}.tz-speech-b{font-size:.88rem;line-height:1.72}.tz-guide-name{font-size:.72rem}' +
+        '.tz-guide{gap:9px}.tz-guide-av svg{width:52px!important;height:52px!important}' +
+        '.tz-mission{font-size:.8rem;padding:3px 12px}' +
+        '.tz-step{width:22px;height:22px;font-size:.68rem}.tz-step.on{box-shadow:0 0 0 3px ' + PAL.tealL + '}.tz-stepbar{width:8px}' +
+        '.tz-steptrack{margin:8px 0 12px}' +
+        '.tz-lart{margin:8px 0 12px}.tz-lart svg{max-width:78px;max-height:78px;height:auto}' +
+        '.tz-btn{font-size:.9rem;padding:10px 15px;border-radius:12px}.tz-btn.ghost{padding:9px 13px}' +
+        '.tz-lnav{gap:7px;margin-top:14px}.tz-lpage{font-size:.76rem}' +
+        '.tz-badge{font-size:.82rem;padding:6px 13px}.tz-score{font-size:2.1rem}.tz-msg{font-size:.96rem}' +
+        '.tz-qprompt{font-size:.96rem}.tz-fb{font-size:.9rem;padding:12px 13px}' +
+        '.tz-celebrate .tz-mascot{width:88px!important;height:88px!important}' +
+      '}'
     ].join('\n');
     var st = document.createElement('style'); st.id = 'tz-styles'; st.textContent = css; document.head.appendChild(st);
   }
