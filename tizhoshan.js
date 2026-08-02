@@ -1105,6 +1105,45 @@
     };
   }
 
+  /* ==== تاکردن و برشِ کاغذ: کاغذ تا می‌خورد، سوراخ می‌شود؛ باز که شود کجا می‌افتد؟ ==== */
+  function pf_square(g) { add(g, 'rect', merge(DEF, { x: 20, y: 20, width: 60, height: 60, rx: 3 })); }
+  function pf_dash(g, x1, y1, x2, y2) { add(g, 'line', { x1: x1, y1: y1, x2: x2, y2: y2, stroke: PAL.gray, 'stroke-width': 2, 'stroke-dasharray': '4 4' }); }
+  function pf_ring(g, x, y) { add(g, 'circle', merge(DEF, { cx: x, cy: y, r: 3.8, 'stroke-width': 2.4 })); }
+  function pf_hole(g, x, y) { add(g, 'circle', merge(DEF, { cx: x, cy: y, r: 3.8, fill: PAL.line, 'stroke-width': 2 })); }
+  function paperFold(rng, level, count) {
+    count = count || 4;
+    var mode = level >= 3 ? 'both' : rng.pick(['vert', 'horiz']);
+    var hx = rng.pick([30, 40]), hy = mode === 'both' ? rng.pick([30, 40]) : rng.pick([32, 50, 68]);
+    var holes;
+    if (mode === 'vert') holes = [[hx, hy], [100 - hx, hy]];
+    else if (mode === 'horiz') holes = [[hx, hy], [hx, 100 - hy]];
+    else holes = [[hx, hy], [100 - hx, hy], [hx, 100 - hy], [100 - hx, 100 - hy]];
+    function keyOf(hs) { return hs.map(function (p) { return p[0] + ',' + p[1]; }).sort().join(';'); }
+    function cl(hs) { return hs.map(function (p) { return [p[0], p[1]]; }); }
+    // گزینه‌های غلطِ near-miss
+    var cand = [];
+    (function () { var c = cl(holes); c.splice(rng.int(0, c.length - 1), 1); cand.push(c); })();                 // یک سوراخ جا افتاده
+    (function () { var c = cl(holes); var i = rng.int(0, c.length - 1); c[i] = [c[i][0], c[i][1] < 50 ? c[i][1] + 15 : c[i][1] - 15]; cand.push(c); })(); // یک سوراخ جابه‌جا (تقارن به‌هم خورده)
+    if (mode === 'vert') cand.push([[hx, hy], [hx, 100 - hy]]);        // آینه از محورِ اشتباه
+    else if (mode === 'horiz') cand.push([[hx, hy], [100 - hx, hy]]);
+    else cand.push([[hx, hy], [100 - hx, hy]]);                       // انگار فقط یک‌بار تا خورده
+    (function () { var c = cl(holes); c.push([50, hy < 50 ? hy + 8 : hy - 8]); cand.push(c); })();                 // یک سوراخِ اضافه
+    var seen = {}; seen[keyOf(holes)] = 1; var dists = [];
+    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { var k = keyOf(cand[i]); if (!seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    var opts = [{ h: holes }].concat(dists.map(function (d) { return { h: d }; }));
+    var order = rng.shuffle(opts);
+    var refFold = function () { return figure(function (g) { pf_square(g); if (mode !== 'horiz') pf_dash(g, 50, 20, 50, 80); if (mode !== 'vert') pf_dash(g, 20, 50, 80, 50); }, { size: 58 }); };
+    var refPunch = function () { return figure(function (g) { var fw = (mode === 'horiz') ? 60 : 30, fh = (mode === 'vert') ? 60 : 30; add(g, 'rect', merge(DEF, { x: 20, y: 20, width: fw, height: fh, rx: 3 })); pf_hole(g, hx, hy); }, { size: 58 }); };
+    var foldFa = mode === 'both' ? 'دو بار (از وسط عمودی و افقی)' : mode === 'vert' ? 'یک بار از وسطِ عمودی' : 'یک بار از وسطِ افقی';
+    return {
+      prompt: 'کاغذِ مربع ' + foldFa + ' تا خورده (A)، بعد سوراخ شده (B). اگر بازش کنیم، کدام گزینه درست است؟',
+      tag: 'تاکردن و برش', refs: [refFold, refPunch], options: order, answer: order.indexOf(opts[0]),
+      correctKey: keyOf(holes),
+      render: function (o) { return figure(function (g) { pf_square(g); if (mode !== 'horiz') pf_dash(g, 50, 20, 50, 80); if (mode !== 'vert') pf_dash(g, 20, 50, 80, 50); o.h.forEach(function (p) { pf_ring(g, p[0], p[1]); }); }, { size: 96 }); },
+      why: 'هر سوراخ روی خطِ تا «قرینه» می‌شود. ' + (mode === 'both' ? 'با دو تا، هر سوراخ به چهار نقطه‌ی قرینه تبدیل می‌شود.' : 'با یک تا، هر سوراخ به دو نقطه‌ی قرینه نسبت به خطِ تا تبدیل می‌شود.') + ' گزینه‌های دیگر یا قرینه نیستند، یا سوراخی کم/زیاد دارند.'
+    };
+  }
+
   /* ==== ماتریسِ استدلالیِ ۳×۳ (ریون-مانند): الگو در سطر و ستون، خانه‌ی آخر گم‌شده ==== */
   function matrix3x3(rng, level, count) {
     count = count || 4; level = level || 1;
@@ -1139,7 +1178,7 @@
 
   var GENS_EASY = [oddMatrix, oddMatrix, oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
   var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
+  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -1376,9 +1415,10 @@
   }
   function m3_match(rng, level) { return matchMatrix(rng, level || 1, 5, 4); }
   function m3_combine(rng, level) { return combineShapes(rng, level || 1, 5); }
-  var M3_EASY = [m3_match, m3_match, m3_combine, m3_sameType, m3_evenCount, m3_symmetry, m3_void];
-  var M3_MED = [m3_match, m3_match, m3_match, m3_combine, m3_symmetry, m3_innerMatch, m3_rotationFamily];
-  var M3_HARD = [m3_match, m3_match, m3_match, m3_combine, m3_sceneFamily, m3_rotationFamily, m3_innerMatch];
+  function m3_fold(rng, level) { return paperFold(rng, level || 1, 5); }
+  var M3_EASY = [m3_match, m3_match, m3_combine, m3_fold, m3_sameType, m3_evenCount, m3_symmetry];
+  var M3_MED = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_symmetry, m3_innerMatch, m3_rotationFamily];
+  var M3_HARD = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_fold, m3_sceneFamily, m3_rotationFamily];
   function poolForM3(level) { return level >= 3 ? M3_HARD : level === 2 ? M3_MED : M3_EASY; }
   function genQuestionM3(rng, level) { return rng.pick(poolForM3(level))(rng, level || 1); }
 
@@ -2369,7 +2409,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
