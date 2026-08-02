@@ -923,6 +923,54 @@
     };
   }
 
+  /* ==== موتورِ تطبیقِ ماتریسی: مرجع‌ها یک ویژگیِ مشترک دارند؛ گزینه‌ها «نزدیک»‌اند و
+   *      فقط گزینه‌ی درست همان ویژگی را دارد (بقیه near-miss‌اند، نه پرتِ واضح). ==== */
+  function matchMatrix(rng, level, count, refCount) {
+    count = count || 4; level = level || 1; refCount = refCount || 2;
+    var DOM = { sides: [3, 4, 5, 6], fill: ['none', 'gray', 'hatch', 'vhatch', 'dots', 'checker'], inner: ['none', 'circle', 'square', 'triangle', 'star', 'plus'], dot: ['solid', 'open'], size: ['big', 'small'], ring: ['single', 'double'] };
+    var ALL = ['sides', 'fill', 'inner', 'dot', 'size', 'ring'];
+    var rulePool = level >= 2 ? ['sides', 'fill', 'inner', 'dot'] : ['sides', 'fill', 'inner'];
+    var rule = rng.pick(rulePool);
+    var vP = rng.pick(DOM[rule]);
+    // مرجع‌ها: همه rule=vP، بقیه‌ی ویژگی‌ها متنوع تا «ویژگیِ مشترک» فقط همین یکی باشد
+    var refVecs = [];
+    for (var r = 0; r < refCount; r++) { var rv = {}; ALL.forEach(function (nm) { rv[nm] = nm === rule ? vP : rng.pick(DOM[nm]); }); rv.rot = rng.pick([0, 30, 60, 120, 150, 210, 300]); refVecs.push(rv); }
+    ALL.forEach(function (nm) {
+      if (nm === rule) return;
+      var allSame = refVecs.every(function (v) { return v[nm] === refVecs[0][nm]; });
+      if (allSame) { var other = rng.pick(DOM[nm].filter(function (x) { return x !== refVecs[0][nm]; })); refVecs[rng.int(0, refCount - 1)][nm] = other; }
+    });
+    var refs = refVecs.map(function (rv) { return function () { return figure(drawFeat(rv), { rot: rv.rot, size: 60 }); }; });
+    // گزینه‌ها: زمینه‌ی مشترک (شبیه‌به‌هم)؛ درست rule=vP، بقیه rule≠vP (near-miss)
+    var base = {}; ALL.forEach(function (nm) { base[nm] = rng.pick(DOM[nm]); });
+    var otherVals = rng.shuffle(DOM[rule].filter(function (x) { return x !== vP; }));
+    var rots = rng.sample([0, 45, 90, 135, 180, 225, 270, 315], count);
+    var ansIdx = rng.int(0, count - 1);
+    var opts = [], di = 0;
+    for (var i = 0; i < count; i++) {
+      var o = {}; ALL.forEach(function (nm) { o[nm] = base[nm]; });
+      if (i === ansIdx) o[rule] = vP; else { o[rule] = otherVals[di % otherVals.length]; di++; }
+      o.rot = rots[i];
+      opts.push(o);
+    }
+    // تله‌ی ۲-۲ روی یک ویژگیِ غیرِقاعده (برای نزدیک‌ترکردن و سخت‌ترکردن)
+    var nDecoy = level >= 3 ? 2 : level >= 2 ? 1 : 0;
+    var decoys = rng.sample(ALL.filter(function (nm) { return nm !== rule; }), nDecoy);
+    decoys.forEach(function (df) {
+      var vals = rng.sample(DOM[df], 2), k = count === 5 ? (rng.next() < 0.5 ? 2 : 3) : 2, pool = [];
+      for (var j = 0; j < count; j++) pool.push(j);
+      var pk = rng.sample(pool, k);
+      for (var t = 0; t < count; t++) opts[t][df] = (pk.indexOf(t) >= 0) ? vals[1] : vals[0];
+    });
+    return {
+      prompt: 'همه‌ی شکل‌های بالا یک ویژگیِ مشترک دارند. کدام گزینه هم همان ویژگی را دارد؟',
+      tag: 'ویژگیِ مشترک: ' + RULE_FA[rule], refs: refs, options: opts, answer: ansIdx,
+      rule: rule, ansVal: vP, refVecs: refVecs,
+      render: function (o) { return figure(drawFeat(o), { rot: o.rot, size: 96 }); },
+      why: 'ویژگیِ مشترکِ همه‌ی شکل‌های بالا این است: «' + RULE_FA[rule] + ' = ' + FEAT_FA[rule][vP] + '». گزینه‌ی درست هم همین را دارد؛ بقیه‌ی گزینه‌ها در ظاهر شبیه‌اند اما این ویژگی را ندارند.'
+    };
+  }
+
   var GENS_EASY = [oddMatrix, oddMatrix, oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
   var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
   var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
@@ -1160,9 +1208,10 @@
       why: 'صحنه‌های بالا یک صحنه‌اند که فقط چرخیده‌اند (هم‌دست). گزینه‌ی درست هم با چرخش روی آن‌ها می‌افتد؛ اما بقیه «قرینه (آینه)» شده‌اند و عضوِ خانواده نیستند.'
     };
   }
-  var M3_EASY = [m3_sameType, m3_evenCount, m3_symmetry, m3_void];
-  var M3_MED = [m3_symmetry, m3_innerMatch, m3_evenCount, m3_rotationFamily, m3_void];
-  var M3_HARD = [m3_sceneFamily, m3_rotationFamily, m3_innerMatch, m3_symmetry, m3_void];
+  function m3_match(rng, level) { return matchMatrix(rng, level || 1, 5, 4); }
+  var M3_EASY = [m3_match, m3_match, m3_sameType, m3_evenCount, m3_symmetry, m3_void];
+  var M3_MED = [m3_match, m3_match, m3_match, m3_symmetry, m3_innerMatch, m3_rotationFamily, m3_void];
+  var M3_HARD = [m3_match, m3_match, m3_match, m3_sceneFamily, m3_rotationFamily, m3_innerMatch];
   function poolForM3(level) { return level >= 3 ? M3_HARD : level === 2 ? M3_MED : M3_EASY; }
   function genQuestionM3(rng, level) { return rng.pick(poolForM3(level))(rng, level || 1); }
 
@@ -1235,9 +1284,10 @@
       why: 'A و B یک صحنه‌اند که فقط چرخیده‌اند (هم‌دست). گزینه‌ی درست هم با چرخش روی آن‌ها می‌افتد؛ اما بقیه «قرینه (آینه)» شده‌اند.'
     };
   }
-  var M4_EASY = [m4_oneShaded, m4_containsBoth, m4_symmetryPair];
-  var M4_MED = [m4_sidesEqLines, m4_oneShaded, m4_containsBoth, m4_symmetryPair];
-  var M4_HARD = [m4_chiralPair, m4_sidesEqLines, m4_containsBoth, m4_symmetryPair];
+  function m4_match(rng, level) { return matchMatrix(rng, level || 1, 4, 2); }
+  var M4_EASY = [m4_match, m4_match, m4_oneShaded, m4_containsBoth, m4_symmetryPair];
+  var M4_MED = [m4_match, m4_match, m4_match, m4_sidesEqLines, m4_oneShaded, m4_containsBoth];
+  var M4_HARD = [m4_match, m4_match, m4_match, m4_chiralPair, m4_sidesEqLines, m4_containsBoth];
   function poolForM4(level) { return level >= 3 ? M4_HARD : level === 2 ? M4_MED : M4_EASY; }
   function genQuestionM4(rng, level) { return rng.pick(poolForM4(level))(rng, level || 1); }
 
@@ -1301,9 +1351,10 @@
       why: 'A و B یک صحنه‌اند که فقط چرخیده‌اند (هم‌دست). گزینه‌ی درست هم با چرخش روی آن‌ها می‌افتد؛ اما بقیه «قرینه (آینه)» شده‌اند.'
     };
   }
-  var M5_EASY = [m5_arrowCount, m5_containsTrio, m5_symmetryPair5];
-  var M5_MED = [m5_curveLineMix, m5_arrowCount, m5_containsTrio, m5_symmetryPair5];
-  var M5_HARD = [m5_chiralScene5, m5_curveLineMix, m5_containsTrio, m5_symmetryPair5];
+  function m5_match(rng, level) { return matchMatrix(rng, level || 1, 5, 2); }
+  var M5_EASY = [m5_match, m5_match, m5_arrowCount, m5_containsTrio, m5_symmetryPair5];
+  var M5_MED = [m5_match, m5_match, m5_match, m5_curveLineMix, m5_arrowCount, m5_containsTrio];
+  var M5_HARD = [m5_match, m5_match, m5_match, m5_chiralScene5, m5_curveLineMix, m5_containsTrio];
   function poolForM5(level) { return level >= 3 ? M5_HARD : level === 2 ? M5_MED : M5_EASY; }
   function genQuestionM5(rng, level) { return rng.pick(poolForM5(level))(rng, level || 1); }
 
@@ -2122,7 +2173,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddMatrix: oddMatrix, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddMatrix: oddMatrix, matchMatrix: matchMatrix, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
