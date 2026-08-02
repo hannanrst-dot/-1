@@ -1144,6 +1144,48 @@
     };
   }
 
+  /* ==== تکمیلِ تقارن: نیمه‌ی چپ داده شده؛ کدام گزینه با آینه‌ی عمودی کاملش می‌کند؟ ==== */
+  function mc_cell(g, x, y, sz, kind) {
+    if (kind === 'fill') add(g, 'rect', { x: x, y: y, width: sz, height: sz, rx: 2.5, fill: PAL.line });
+    else if (kind === 'dash') add(g, 'rect', { x: x, y: y, width: sz, height: sz, rx: 2.5, fill: 'none', stroke: PAL.gray, 'stroke-width': 1.6, 'stroke-dasharray': '3 3' });
+    else add(g, 'rect', merge(DEF, { x: x, y: y, width: sz, height: sz, rx: 2.5, 'stroke-width': 1.9, fill: 'none' }));
+  }
+  function mc_grid(cells, hideRight) {
+    return function (g) {
+      var x0 = 21, step = 19.5, sz = 15.5;
+      for (var i = 0; i < 9; i++) { var r = (i / 3) | 0, c = i % 3, x = x0 + c * step, y = x0 + r * step; mc_cell(g, x, y, sz, (hideRight && c === 2) ? 'dash' : (cells[i] ? 'fill' : 'empty')); }
+      var ax = x0 + step + sz + (step - sz) / 2;
+      add(g, 'line', { x1: ax.toFixed(1), y1: 17, x2: ax.toFixed(1), y2: 83, stroke: PAL.teal, 'stroke-width': 1.6, 'stroke-dasharray': '4 3' });
+    };
+  }
+  function mirrorComplete(rng, level, count) {
+    count = count || 4;
+    function col() { return [rng.next() < 0.5, rng.next() < 0.5, rng.next() < 0.5]; }
+    function cnt(a) { var n = 0; for (var i = 0; i < a.length; i++) if (a[i]) n++; return n; }
+    var c0, c1, guard = 0;
+    do { c0 = col(); c1 = col(); guard++; } while ((cnt(c0) === 0 || cnt(c0) + cnt(c1) < 2 || cnt(c0) === 3) && guard < 40);
+    function grid(c2) { var cells = []; for (var r = 0; r < 3; r++) { cells[r * 3] = c0[r]; cells[r * 3 + 1] = c1[r]; cells[r * 3 + 2] = c2[r]; } return cells; }
+    function keyc(a) { return a.map(function (b) { return b ? 1 : 0; }).join(''); }
+    function flipOne(a) { var x = a.slice(), i = rng.int(0, 2); x[i] = !x[i]; return x; }
+    var correct = c0.slice();                              // آینه: ستونِ راست = ستونِ چپ
+    var seen = {}; seen[keyc(correct)] = 1; var dcols = [];
+    function tryAdd(a) { var k = keyc(a); if (!seen[k] && dcols.length < count - 1) { seen[k] = 1; dcols.push(a); } }
+    tryAdd(c1.slice());                                     // تله: «ستونِ وسط را کپی کرده»
+    var pos = rng.shuffle([0, 1, 2]);
+    for (var i = 0; i < 3; i++) { var x = c0.slice(); x[pos[i]] = !x[pos[i]]; tryAdd(x); }   // تک‌سلولِ به‌هم‌خورده (near-miss)
+    tryAdd([!c0[0], !c0[1], !c0[2]]);                       // وارونه‌ی کامل
+    for (var m = 0; m < 8 && dcols.length < count - 1; m++) tryAdd([(m & 1) > 0, (m & 2) > 0, (m & 4) > 0]);
+    var opts = [{ c2: correct }].concat(dcols.map(function (d) { return { c2: d }; }));
+    var order = rng.shuffle(opts);
+    return {
+      prompt: 'نیمه‌ی چپ داده شده. کدام گزینه شکل را نسبت به خطِ عمودیِ وسط «قرینه (آینه)» و کامل می‌کند؟',
+      tag: 'تکمیلِ تقارن', refs: [function () { return figure(mc_grid(grid([false, false, false]), true), { size: 88 }); }],
+      options: order, answer: order.indexOf(opts[0]), leftCol: c0,
+      render: function (o) { return figure(mc_grid(grid(o.c2), false), { size: 96 }); },
+      why: 'در تقارنِ آینه‌ای نسبت به خطِ وسط، ستونِ راست باید دقیقاً مثلِ ستونِ چپ باشد. فقط یک گزینه این شرط را دارد؛ بقیه ستونِ راستشان با چپ نمی‌خواند.'
+    };
+  }
+
   /* ==== تکمیلِ سری: قاعده‌ی ردیف را پیدا کن، شکلِ بعدی را بزن (near-miss) ==== */
   function seriesComplete(rng, level, count) {
     count = count || 4;
@@ -1216,8 +1258,8 @@
   }
 
   var GENS_EASY = [oddMatrix, oddMatrix, oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
-  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
+  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
+  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -2462,7 +2504,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
