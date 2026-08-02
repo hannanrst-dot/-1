@@ -61,6 +61,40 @@
     try { if (typeof window.qdMissionProgress === 'function') window.qdMissionProgress('tizhoshan', 1); } catch (e) {}
   }
 
+  /* ---- پیشرفت و نشان‌های دستاورد (ذخیره روی CUR + fallbackِ localStorage) ---- */
+  function mergeProg(p) { p = p || {}; return { solved: p.solved || 0, bestStreak: p.bestStreak || 0, quizzes: p.quizzes || 0, badges: (p.badges || []).slice(), topics: p.topics || {} }; }
+  function loadProg() {
+    try { var c = cur(); if (c && c.activities && c.activities.tz_progress) return mergeProg(c.activities.tz_progress); } catch (e) {}
+    try { var s = window.localStorage.getItem('tz_progress'); if (s) return mergeProg(JSON.parse(s)); } catch (e) {}
+    return mergeProg({});
+  }
+  function saveProg(p) {
+    try { var c = cur(); if (c) { c.activities = c.activities || {}; c.activities.tz_progress = p; } } catch (e) {}
+    try { window.localStorage.setItem('tz_progress', JSON.stringify(p)); } catch (e) {}
+  }
+  var BADGES = [
+    { id: 'firstStep', ic: '🔰', t: 'اولین قدم', d: 'اولین تمرین را حل کردی', cond: function (p) { return p.solved >= 1; } },
+    { id: 'solver10', ic: '✏️', t: 'کوشا', d: '۱۰ تمرینِ درست', cond: function (p) { return p.solved >= 10; } },
+    { id: 'solver50', ic: '🧠', t: 'مغزِ متفکر', d: '۵۰ تمرینِ درست', cond: function (p) { return p.solved >= 50; } },
+    { id: 'solver100', ic: '🏆', t: 'استادِ تمرین', d: '۱۰۰ تمرینِ درست', cond: function (p) { return p.solved >= 100; } },
+    { id: 'streak3', ic: '🔥', t: 'سه‌تاییِ آتشین', d: '۳ پاسخِ درستِ پشتِ‌هم', cond: function (p) { return p.bestStreak >= 3; } },
+    { id: 'streak5', ic: '⚡', t: 'زنجیره‌ساز', d: '۵ پاسخِ درستِ پشتِ‌هم', cond: function (p) { return p.bestStreak >= 5; } },
+    { id: 'streak10', ic: '🌟', t: 'شکست‌ناپذیر', d: '۱۰ پاسخِ درستِ پشتِ‌هم', cond: function (p) { return p.bestStreak >= 10; } },
+    { id: 'firstQuiz', ic: '🏁', t: 'آزمون‌دیده', d: 'اولین آزمون را دادی', cond: function (p) { return p.quizzes >= 1; } },
+    { id: 'gold', ic: '🥇', t: 'کارآگاهِ طلایی', d: 'در یک آزمون سه‌ستاره شدی', cond: function (p) { var mx = 0; for (var k in p.topics) if (p.topics[k] > mx) mx = p.topics[k]; return mx >= 85; } },
+    { id: 'explorer', ic: '🗺️', t: 'کاوشگر', d: 'در همه‌ی ۷ مبحث آزمون دادی', cond: function (p) { return Object.keys(p.topics).length >= 7; } }
+  ];
+  function checkBadges(p) { var nw = []; BADGES.forEach(function (bd) { if (p.badges.indexOf(bd.id) < 0 && bd.cond(p)) { p.badges.push(bd.id); nw.push(bd); } }); return nw; }
+  function progSolved(streak) { var p = loadProg(); p.solved++; if (streak > p.bestStreak) p.bestStreak = streak; var nw = checkBadges(p); saveProg(p); if (nw.length) badgeToast(nw); }
+  function progQuiz(topicId, pct, bestStreak) { var p = loadProg(); p.quizzes++; if (bestStreak > p.bestStreak) p.bestStreak = bestStreak; if (!p.topics[topicId] || pct > p.topics[topicId]) p.topics[topicId] = pct; var nw = checkBadges(p); saveProg(p); if (nw.length) badgeToast(nw); }
+  function badgeToast(list) {
+    if (!ROOT) return;
+    var t = h('div', { class: 'tz-btoast' });
+    list.forEach(function (bd) { t.appendChild(h('div', { class: 'tz-bt-row' }, h('span', { class: 'tz-bt-ic' }, bd.ic), h('div', {}, h('div', { class: 'tz-bt-t' }, '🎉 نشانِ تازه!'), h('div', { class: 'tz-bt-n' }, bd.t)))); });
+    ROOT.appendChild(t); tzConfetti(ROOT);
+    setTimeout(function () { t.classList.add('out'); setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 400); }, 3400);
+  }
+
   function h(tag, props) {
     var node = document.createElement(tag);
     if (props) for (var k in props) {
@@ -2115,12 +2149,43 @@
     host.appendChild(c); setTimeout(function () { if (c.parentNode) c.parentNode.removeChild(c); }, 2800);
   }
 
+  function progStat(ic, val, lbl) { return h('div', { class: 'tz-pstat' }, h('span', { class: 'tz-pstat-ic' }, ic), h('div', {}, h('div', { class: 'tz-pstat-v' }, val), h('div', { class: 'tz-pstat-l' }, lbl))); }
+  function progStrip() {
+    var p = loadProg();
+    return h('div', { class: 'tz-progstrip' },
+      progStat('✅', toFa(p.solved), 'تمرینِ درست'),
+      progStat('🔥', toFa(p.bestStreak), 'رکوردِ زنجیره'),
+      progStat('🏅', toFa(p.badges.length) + '/' + toFa(BADGES.length), 'نشان'),
+      h('button', { class: 'tz-progbtn', onclick: badgesView }, '🏅 گنجینه‌ی نشان‌ها ←'));
+  }
+  function badgesView() {
+    clear(ROOT);
+    ROOT.appendChild(backBtn(renderHub, 'مبحث‌ها'));
+    ROOT.appendChild(h('h2', { class: 'tz-h2' }, '🏅 گنجینه‌ی نشان‌ها'));
+    var p = loadProg();
+    ROOT.appendChild(h('div', { class: 'tz-progstrip' },
+      progStat('✅', toFa(p.solved), 'تمرینِ درست'),
+      progStat('🔥', toFa(p.bestStreak), 'رکوردِ زنجیره'),
+      progStat('🏁', toFa(p.quizzes), 'آزمون')));
+    var earnedN = p.badges.length;
+    ROOT.appendChild(h('p', { class: 'tz-badgehint' }, earnedN ? '🎉 تا حالا ' + toFa(earnedN) + ' نشان گرفتی — عالیه! بقیه را هم باز کن.' : 'هنوز نشانی نگرفتی! یک تمرین حل کن تا اولین نشانت را بگیری.'));
+    var g = h('div', { class: 'tz-badgegrid' });
+    BADGES.forEach(function (bd) {
+      var earned = p.badges.indexOf(bd.id) >= 0;
+      g.appendChild(h('div', { class: 'tz-badgecard' + (earned ? ' earned' : '') },
+        h('span', { class: 'tz-bc-ic' }, earned ? bd.ic : '🔒'),
+        h('div', { class: 'tz-bc-t' }, bd.t),
+        h('div', { class: 'tz-bc-d' }, bd.d)));
+    });
+    ROOT.appendChild(g);
+  }
   function renderHub() {
     if (!ROOT) return; clear(ROOT);
     ROOT.appendChild(h('div', { class: 'tz-hero' },
       h('div', { class: 'tz-hero-badge' }, '✦ تیزهوشان'),
       h('h1', { class: 'tz-hero-title' }, 'هوش و استعدادِ تصویری'),
       h('p', { class: 'tz-hero-sub' }, 'فصلِ تحلیل — پایه‌ی ' + toFa(grade()) + ' — با هم کارآگاهِ شکل‌ها می‌شویم!')));
+    ROOT.appendChild(progStrip());
     var grid = h('div', { class: 'tz-grid' });
     MABAHETH.forEach(function (m) {
       var cl = m.color === PAL.teal ? PAL.tealL : m.color === PAL.lilac ? PAL.lilacL : PAL.goldL;
@@ -2253,7 +2318,7 @@
         var b = h('button', { class: 'tz-opt', onclick: function () {
           if (done || dim[i]) return; done = true;
           var ok = i === q.answer; b.classList.add(ok ? 'ok' : 'bad'); opts.children[q.answer].classList.add('ok');
-          if (ok) { solved++; streak++; } else { streak = 0; } updateCounter();
+          if (ok) { solved++; streak++; progSolved(streak); } else { streak = 0; } updateCounter();
           var praise = ok ? (streak >= 3 ? '🔥 ' + toFa(streak) + ' تایی! ' : '✓ آفرین! ') : '✗ اشتباه — ';
           box.appendChild(h('div', { class: 'tz-fb ' + (ok ? 'ok' : 'bad') }, praise + q.why));
           box.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: next }, 'سؤالِ تازه ←')));
@@ -2353,7 +2418,7 @@
     function finish() {
       bar.firstChild.style.width = '100%'; clear(box);
       var pct = Math.round(correct / total * 100), st = starsFor(pct);
-      saveBest(m.id, pct, true, wrong);
+      saveBest(m.id, pct, true, wrong); progQuiz(m.id, pct, bestStreak);
       var mood = pct >= 70 ? 'wow' : pct >= 40 ? 'happy' : 'hi';
       var msg = st === 3 ? 'فوق‌العاده بود! کارآگاهِ حرفه‌ای شدی 🌟' : st === 2 ? 'آفرین! خیلی خوب بود، یک قدم تا عالی 💪' : st === 1 ? 'شروعِ خوبی بود! با تمرین قوی‌تر می‌شوی 🌱' : 'اشکال ندارد قهرمان، دوباره تلاش کن؛ حتماً بهتر می‌شوی 🌱';
       box.appendChild(h('div', { class: 'tz-report tz-celebrate' },
@@ -2430,6 +2495,23 @@
       '.tz-card-t{font-family:"Lalezar","Estedad",sans-serif;font-weight:400;font-size:1.12rem;color:' + PAL.ink + ';line-height:1.5}',
       '.tz-card-s{font-size:.8rem;color:' + PAL.inkSoft + '}',
       '.tz-soon{margin-top:7px;font-size:.7rem;background:' + PAL.goldL + ';color:#b9791a;padding:3px 11px;border-radius:999px;font-weight:700}',
+      // progress strip + badges
+      '.tz-progstrip{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid ' + PAL.border + ';border-radius:18px;padding:10px 14px;margin-top:16px;box-shadow:' + SH + '}',
+      '.tz-pstat{display:flex;align-items:center;gap:8px}.tz-pstat-ic{font-size:1.3rem}',
+      '.tz-pstat-v{font-weight:800;font-size:1.05rem;color:' + PAL.ink + ';font-variant-numeric:tabular-nums;line-height:1.1}',
+      '.tz-pstat-l{font-size:.72rem;color:' + PAL.inkSoft + '}',
+      '.tz-progbtn{margin-inline-start:auto;cursor:pointer;border:none;background:linear-gradient(135deg,' + PAL.gold + ',' + PAL.fun + ');color:#fff;font-family:inherit;font-weight:800;font-size:.84rem;padding:8px 14px;border-radius:999px;box-shadow:0 5px 14px rgba(255,111,165,.3);transition:transform .12s}',
+      '.tz-progbtn:hover{transform:translateY(-2px)}',
+      '.tz-badgehint{text-align:center;font-size:.92rem;color:' + PAL.inkSoft + ';margin:6px 0 14px}',
+      '.tz-badgegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}',
+      '.tz-badgecard{text-align:center;background:#f6f7fd;border:1px solid ' + PAL.border + ';border-radius:16px;padding:14px 10px;opacity:.6;filter:grayscale(.4);transition:.15s}',
+      '.tz-badgecard.earned{opacity:1;filter:none;background:linear-gradient(135deg,#fff,' + PAL.goldL + ');border-color:' + PAL.gold + ';box-shadow:0 6px 16px rgba(255,176,32,.18)}',
+      '.tz-bc-ic{font-size:2rem;display:block;margin-bottom:6px}',
+      '.tz-bc-t{font-weight:800;font-size:.92rem;color:' + PAL.ink + '}.tz-bc-d{font-size:.76rem;color:' + PAL.inkSoft + ';margin-top:2px;line-height:1.5}',
+      '.tz-btoast{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:50;background:#fff;border:2px solid ' + PAL.gold + ';border-radius:16px;padding:10px 16px;box-shadow:0 12px 30px rgba(35,37,68,.2);animation:tzSlide .35s ease}',
+      '.tz-btoast.out{opacity:0;transition:opacity .4s}',
+      '.tz-bt-row{display:flex;align-items:center;gap:11px}.tz-bt-ic{font-size:1.9rem}',
+      '.tz-bt-t{font-size:.74rem;color:' + PAL.fun + ';font-weight:800}.tz-bt-n{font-size:1rem;font-weight:800;color:' + PAL.ink + '}',
       // subview
       '.tz-back{background:' + PAL.paper + ';border:1px solid ' + PAL.border + ';color:' + PAL.teal + ';font-family:inherit;font-size:.9rem;cursor:pointer;padding:7px 14px;border-radius:999px;font-weight:700;box-shadow:0 2px 8px rgba(35,37,68,.05)}',
       '.tz-back:hover{background:' + PAL.tealL + '}',
