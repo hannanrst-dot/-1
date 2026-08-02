@@ -1823,6 +1823,26 @@
     box.appendChild(row); stage.appendChild(box);
   }
 
+  // تحلیلِ نقاطِ قوت و ضعف بر اساسِ نوعِ سرنخ
+  function tagAnalysis(stats) {
+    var rows = [];
+    for (var k in stats) rows.push({ tag: k, t: stats[k].t, c: stats[k].c, pct: Math.round(stats[k].c / stats[k].t * 100) });
+    if (!rows.length) return null;
+    rows.sort(function (a, b) { return a.pct - b.pct || b.t - a.t; });
+    var weak = rows.filter(function (r) { return r.pct < 60; });
+    var panel = h('div', { class: 'tz-analysis' }, h('div', { class: 'tz-analysis-h' }, '📊 تحلیلِ مهارت‌ها بر اساسِ سرنخ'));
+    rows.forEach(function (r) {
+      var cls = r.pct >= 80 ? 'good' : r.pct >= 60 ? 'ok' : 'weak';
+      panel.appendChild(h('div', { class: 'tz-tagstat ' + cls },
+        h('span', { class: 'tz-tagname' }, (r.pct >= 80 ? '💪 ' : r.pct >= 60 ? '👍 ' : '🎯 ') + r.tag),
+        h('span', { class: 'tz-tagbar' }, h('span', { class: 'tz-tagfill', style: 'width:' + r.pct + '%' })),
+        h('span', { class: 'tz-tagnum' }, toFa(r.c) + '/' + toFa(r.t))));
+    });
+    panel.appendChild(h('p', { class: 'tz-analysis-tip' },
+      weak.length ? 'برای تقویت، درسنامه‌ی این سرنخ‌ها را دوباره ببین: ' + weak.map(function (r) { return r.tag; }).join('، ') + '.'
+        : 'آفرین! در همه‌ی سرنخ‌ها خوب بودی. برای چالشِ بیشتر، سختیِ تمرین را بالا ببر.'));
+    return panel;
+  }
   function runQuiz(m, stage, total) {
     clear(stage);
     total = total || 15;
@@ -1838,7 +1858,7 @@
       else lv = r < 0.72 ? 3 : 2;
       qs.push(pickGen(lv)(rng, lv));
     }
-    var idx = 0, correct = 0, wrong = [];
+    var idx = 0, correct = 0, wrong = [], stats = {};
     var bar = h('div', { class: 'tz-barwrap' }, h('div', { class: 'tz-bar' }));
     var box = h('div', {}); stage.appendChild(bar); stage.appendChild(box);
     function draw() {
@@ -1855,6 +1875,7 @@
         var b = h('button', { class: 'tz-opt', onclick: function () {
           if (done) return; done = true;
           var ok = i === q.answer; b.classList.add(ok ? 'ok' : 'bad'); opts.children[q.answer].classList.add('ok');
+          var tg = q.tag || 'عمومی'; if (!stats[tg]) stats[tg] = { t: 0, c: 0 }; stats[tg].t++; if (ok) stats[tg].c++;
           if (ok) correct++; else wrong.push(idx + 1);
           box.appendChild(h('div', { class: 'tz-fb ' + (ok ? 'ok' : 'bad') }, (ok ? '✓ درست! ' : '✗ اشتباه — ') + q.why));
           box.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: function () { idx++; draw(); } }, idx < total - 1 ? 'سؤالِ بعد ←' : 'دیدنِ کارنامه')));
@@ -1876,6 +1897,7 @@
         h('div', { class: 'tz-badge' }, '🎖 نشانِ «' + m.title + '»'),
         h('p', { class: 'tz-msg' }, msg),
         wrong.length ? h('p', { class: 'tz-wrong' }, 'سؤال‌های اشتباه: ' + wrong.map(toFa).join('، ')) : null,
+        tagAnalysis(stats),
         h('div', { class: 'tz-lnav' },
           h('button', { class: 'tz-btn ghost', onclick: function () { runPractice(m, stage); } }, 'رفتن به تمرین'),
           h('button', { class: 'tz-btn', onclick: function () { runQuizIntro(m, stage); } }, 'آزمونِ تازه 🔁'))));
@@ -1986,6 +2008,17 @@
       '.tz-report{text-align:center}',
       '.tz-score{font-family:"Lalezar",sans-serif;font-size:2.6rem;color:' + PAL.teal + '}',
       '.tz-pct{font-size:1.1rem;color:' + PAL.lilac + ';font-weight:700}.tz-msg{font-size:1.08rem;margin:8px 0}.tz-wrong{font-size:.9rem;color:' + PAL.inkSoft + '}',
+      // tag analysis
+      '.tz-analysis{text-align:right;background:' + PAL.paper + ';border:1px solid ' + PAL.border + ';border-radius:16px;padding:14px 16px;margin:16px auto;max-width:440px;box-shadow:' + SH + '}',
+      '.tz-analysis-h{font-weight:700;font-size:.98rem;margin-bottom:12px;color:' + PAL.ink + '}',
+      '.tz-tagstat{display:flex;align-items:center;gap:9px;margin:7px 0}',
+      '.tz-tagname{flex:0 0 40%;font-size:.85rem;font-weight:700}',
+      '.tz-tagbar{flex:1;height:9px;background:#eceefff0;border-radius:999px;overflow:hidden;background:' + PAL.cream + '}',
+      '.tz-tagfill{display:block;height:100%;border-radius:999px}',
+      '.tz-tagstat.good .tz-tagfill{background:' + PAL.ok + '}.tz-tagstat.ok .tz-tagfill{background:' + PAL.gold + '}.tz-tagstat.weak .tz-tagfill{background:' + PAL.bad + '}',
+      '.tz-tagstat.good .tz-tagname{color:' + PAL.ok + '}.tz-tagstat.weak .tz-tagname{color:' + PAL.bad + '}',
+      '.tz-tagnum{flex:0 0 auto;font-size:.82rem;color:' + PAL.inkSoft + ';font-weight:700;font-variant-numeric:tabular-nums}',
+      '.tz-analysis-tip{font-size:.85rem;color:' + PAL.inkSoft + ';margin:12px 2px 0;line-height:1.8}',
       // practice head & pills
       '.tz-practicehead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}',
       '.tz-lbl{font-size:.88rem;color:' + PAL.inkSoft + ';font-weight:700}',
