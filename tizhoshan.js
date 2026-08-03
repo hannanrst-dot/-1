@@ -62,7 +62,7 @@
   }
 
   /* ---- پیشرفت و نشان‌های دستاورد (ذخیره روی CUR + fallbackِ localStorage) ---- */
-  function mergeProg(p) { p = p || {}; return { solved: p.solved || 0, bestStreak: p.bestStreak || 0, quizzes: p.quizzes || 0, badges: (p.badges || []).slice(), topics: p.topics || {} }; }
+  function mergeProg(p) { p = p || {}; return { solved: p.solved || 0, bestStreak: p.bestStreak || 0, quizzes: p.quizzes || 0, badges: (p.badges || []).slice(), topics: p.topics || {}, journeys: p.journeys || {} }; }
   function loadProg() {
     try { var c = cur(); if (c && c.activities && c.activities.tz_progress) return mergeProg(c.activities.tz_progress); } catch (e) {}
     try { var s = window.localStorage.getItem('tz_progress'); if (s) return mergeProg(JSON.parse(s)); } catch (e) {}
@@ -82,7 +82,9 @@
     { id: 'streak10', ic: '🌟', t: 'شکست‌ناپذیر', d: '۱۰ پاسخِ درستِ پشتِ‌هم', cond: function (p) { return p.bestStreak >= 10; } },
     { id: 'firstQuiz', ic: '🏁', t: 'آزمون‌دیده', d: 'اولین آزمون را دادی', cond: function (p) { return p.quizzes >= 1; } },
     { id: 'gold', ic: '🥇', t: 'کارآگاهِ طلایی', d: 'در یک آزمون سه‌ستاره شدی', cond: function (p) { var mx = 0; for (var k in p.topics) if (p.topics[k] > mx) mx = p.topics[k]; return mx >= 85; } },
-    { id: 'explorer', ic: '🗺️', t: 'کاوشگر', d: 'در همه‌ی ۷ مبحث آزمون دادی', cond: function (p) { return Object.keys(p.topics).length >= 7; } }
+    { id: 'explorer', ic: '🗺️', t: 'کاوشگر', d: 'در همه‌ی ۷ مبحث تلاش کردی', cond: function (p) { return Object.keys(p.topics).length >= 7; } },
+    { id: 'trailblazer', ic: '🧭', t: 'پیشگام', d: 'اولین سفر را کامل کردی', cond: function (p) { for (var k in (p.journeys || {})) if (p.journeys[k].cleared >= 9) return true; return false; } },
+    { id: 'grandmaster', ic: '👑', t: 'نابغه‌ی کل', d: 'همه‌ی ۷ سفر را کامل کردی', cond: function (p) { var n = 0; for (var k in (p.journeys || {})) if (p.journeys[k].cleared >= 9) n++; return n >= 7; } }
   ];
   function checkBadges(p) { var nw = []; BADGES.forEach(function (bd) { if (p.badges.indexOf(bd.id) < 0 && bd.cond(p)) { p.badges.push(bd.id); nw.push(bd); } }); return nw; }
   function progSolved(streak) { var p = loadProg(); p.solved++; if (streak > p.bestStreak) p.bestStreak = streak; var nw = checkBadges(p); saveProg(p); if (nw.length) badgeToast(nw); }
@@ -2262,27 +2264,185 @@
     ROOT.appendChild(grid);
   }
 
-  function openMabhath(m) {
-    clear(ROOT);
-    ROOT.appendChild(backBtn(renderHub, 'مبحث‌ها'));
-    ROOT.appendChild(h('h2', { class: 'tz-h2' }, m.icon + ' مبحثِ ' + toFa(m.n) + ' — ' + m.title));
-    var tabs = h('div', { class: 'tz-tabs' });
-    var stage = h('div', { class: 'tz-stage' });
-    var TABS = [
-      { label: '📖 درسنامه', fn: function () { runLesson(m, stage); } },
-      { label: '🎨 تمرین', fn: function () { runPractice(m, stage); } },
-      { label: '🏁 آزمون', fn: function () { runQuizIntro(m, stage); } }
+  /* ====================================================================
+   * سفرِ مرحله‌ای (نقشه‌ی داستانی): آموزش → چالش‌های سخت‌شونده → باس → گنج
+   * ================================================================== */
+  var JOURNEY = {
+    motafavet1: { place: 'کوچه‌های مه‌آلود', title: 'کارآگاهِ تیزبین', intro: 'به کوچه‌های مه‌آلود خوش آمدی، کارآگاه! هر مرحله یک معما است؛ آن‌ها را حل کن تا به گنجِ پرونده برسی.' },
+    motafavet2: { place: 'هزارتوی پنج‌در', title: 'استادِ هزارتو', intro: 'وارد هزارتوی پنج‌در شدی! از هر اتاق فقط با یافتنِ درِ متفاوت رد می‌شوی.' },
+    monaseb: { place: 'تالارِ انتخاب', title: 'داورِ شکل‌ها', intro: 'در تالارِ انتخاب، باید همیشه گزینه‌ی درست را پیدا کنی تا دروازه‌ها باز شوند.' },
+    moshabeh1: { place: 'پلِ شباهت‌ها', title: 'یابنده‌ی شباهت', intro: 'روی پلِ شباهت‌ها قدم بگذار؛ با یافتنِ شبیه‌ترین‌ها پل را کامل کن.' },
+    moshabeh2: { place: 'سالنِ آینه‌ها', title: 'استادِ آینه‌ها', intro: 'در سالنِ آینه‌ها هر شباهت یک آینه است؛ درست‌ها تو را جلو می‌برند.' },
+    ejraye_qaede: { place: 'کارخانه‌ی قاعده‌ها', title: 'مهندسِ قاعده‌ها', intro: 'کارخانه‌ی قاعده‌ها منتظرِ توست؛ قانونِ هر ماشین را کشف کن تا چرخ‌ها بچرخند.' },
+    dastebandi: { place: 'کتابخانه‌ی دسته‌ها', title: 'کتابدارِ بزرگ', intro: 'در کتابخانه‌ی دسته‌ها، شکل‌ها را درست گروه‌بندی کن تا قفسه‌ها مرتب شوند.' }
+  };
+  function jTheme(m) { return JOURNEY[m.id] || { place: 'سرزمینِ شکل‌ها', title: 'قهرمانِ شکل‌ها', intro: 'سفرت را شروع کن!' }; }
+  function jStages() {
+    return [
+      { type: 'lesson', ic: '📖', name: 'آموزش' },
+      { type: 'challenge', ic: '⚔️', name: 'مرحله ۱', level: 1, n: 5 },
+      { type: 'challenge', ic: '⚔️', name: 'مرحله ۲', level: 1, n: 5 },
+      { type: 'chest', ic: '🎁', name: 'صندوقِ جایزه' },
+      { type: 'challenge', ic: '⚔️', name: 'مرحله ۳', level: 2, n: 5 },
+      { type: 'challenge', ic: '⚔️', name: 'مرحله ۴', level: 2, n: 5 },
+      { type: 'special', ic: '🌟', name: 'معمای ویژه', level: 3, n: 4 },
+      { type: 'challenge', ic: '⚔️', name: 'مرحله ۵', level: 3, n: 5 },
+      { type: 'boss', ic: '👹', name: 'باسِ نهایی', level: 3, n: 7 },
+      { type: 'treasure', ic: '💎', name: 'گنج' }
     ];
-    TABS.forEach(function (t, i) {
-      var b = h('button', { class: 'tz-tab', onclick: function () { Array.prototype.forEach.call(tabs.children, function (c) { c.classList.remove('on'); }); b.classList.add('on'); t.fn(); } }, t.label);
-      if (i === 0) b.classList.add('on'); tabs.appendChild(b);
-    });
-    ROOT.appendChild(tabs); ROOT.appendChild(stage);
-    runLesson(m, stage);
+  }
+  var J_TOTAL = 9;                                    // مرحله‌های قابلِ‌بازی (بدونِ خانه‌ی گنج)
+  function jGet(id) { var p = loadProg(); return (p.journeys && p.journeys[id]) || { cleared: 0, stars: {} }; }
+  function jClear(m, idx, stars) {
+    var p = loadProg(); p.journeys = p.journeys || {};
+    var j = p.journeys[m.id] || { cleared: 0, stars: {} };
+    if (idx + 1 > j.cleared) j.cleared = idx + 1;
+    if (stars > (j.stars[idx] || 0)) j.stars[idx] = stars;
+    p.journeys[m.id] = j;
+    var nw = checkBadges(p); saveProg(p); if (nw.length) badgeToast(nw);
+    try { saveBest(m.id, Math.round(Math.min(j.cleared, J_TOTAL) / J_TOTAL * 100), false); } catch (e) {}
   }
 
+  function renderJourney(m) {
+    clear(ROOT); applyTheme();
+    ROOT.appendChild(backBtn(renderHub, 'مبحث‌ها'));
+    var th = jTheme(m), st = jStages(), j = jGet(m.id);
+    var totStars = 0; for (var k in j.stars) totStars += j.stars[k];
+    ROOT.appendChild(h('div', { class: 'tz-jhead' },
+      h('div', { class: 'tz-jhead-t' }, m.icon + ' ' + th.place),
+      h('div', { class: 'tz-jhead-s' }, 'مبحثِ ' + toFa(m.n) + ' — ' + m.title + '  •  ⭐ ' + toFa(totStars))));
+    var map = h('div', { class: 'tz-map' });
+    st.forEach(function (s, i) {
+      var state = i < j.cleared ? 'done' : (i === j.cleared ? 'now' : 'lock');
+      if (s.type === 'treasure') state = j.cleared >= J_TOTAL ? 'now' : 'lock';
+      var side = i % 2 === 0 ? 'l' : 'r';
+      var node = h('button', { class: 'tz-node tz-node-' + state + ' side-' + side + ' t-' + s.type, disabled: state === 'lock' ? true : null, onclick: function () { if (state !== 'lock') runStage(m, i); } },
+        h('span', { class: 'tz-node-ic' }, state === 'lock' ? '🔒' : s.ic),
+        h('span', { class: 'tz-node-nm' }, s.name),
+        (i < j.cleared && j.stars[i]) ? starRow(j.stars[i], 3) : (state === 'now' && s.type !== 'treasure' ? h('span', { class: 'tz-node-go' }, 'شروع ←') : null));
+      map.appendChild(node);
+    });
+    ROOT.appendChild(map);
+    ROOT.appendChild(h('p', { class: 'tz-jtip' }, j.cleared >= J_TOTAL ? '🎉 همه‌ی مراحل را رد کردی — گنج را باز کن!' : 'برای بازکردنِ مرحله‌ی بعد، اکثرِ سؤال‌های مرحله‌ی روشن را درست بزن. ۳ جان ❤️ داری!'));
+  }
+
+  function jStageWrap(m, titleTxt) {
+    clear(ROOT); applyTheme();
+    ROOT.appendChild(backBtn(function () { renderJourney(m); }, 'نقشه'));
+    if (titleTxt) ROOT.appendChild(h('h2', { class: 'tz-h2' }, titleTxt));
+    var wrap = h('div', { class: 'tz-stage' }); ROOT.appendChild(wrap); return wrap;
+  }
+
+  function runStage(m, idx) {
+    var s = jStages()[idx];
+    if (s.type === 'lesson') return runLessonStage(m, idx, s);
+    if (s.type === 'chest') return runChest(m, idx, s);
+    if (s.type === 'treasure') return runTreasure(m);
+    return runRound(m, idx, s);
+  }
+
+  function runLessonStage(m, idx, s) {
+    var wrap = jStageWrap(m, null);
+    runLesson(m, wrap, function () { jClear(m, idx, 3); tzSound('finish'); renderJourney(m); });
+  }
+
+  function runChest(m, idx, s) {
+    var wrap = jStageWrap(m, null);
+    var box = h('div', { class: 'tz-chest' },
+      h('div', { class: 'tz-chest-ic' }, '🎁'),
+      h('h3', { class: 'tz-lt' }, 'صندوقِ جایزه!'),
+      h('p', { class: 'tz-lb' }, 'آفرین که تا این‌جا آمدی! این صندوق را باز کن و جایزه‌ات را بگیر.'));
+    var btn = h('button', { class: 'tz-btn', onclick: function () {
+      btn.disabled = true; tzConfetti(ROOT); tzSound('badge');
+      box.appendChild(h('div', { class: 'tz-chest-reward' }, '🌟 +۳ ستاره‌ی هدیه و یک آفرینِ ویژه! ادامه بده قهرمان.'));
+      box.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: function () { jClear(m, idx, 3); renderJourney(m); } }, 'ادامه به نقشه ←')));
+    } }, '🔓 بازکردنِ صندوق');
+    box.appendChild(btn); wrap.appendChild(box);
+  }
+
+  function runRound(m, idx, s) {
+    var wrap = jStageWrap(m, null);
+    var hearts = 3, qi = 0, correct = 0, streak = 0, seed = ((Date.now() & 0xffffff) ^ (idx * 2654435761)) | 1, bag = [];
+    var N = s.n, level = s.level, boss = s.type === 'boss';
+    function pick() { if (!bag.length) bag = new RNG(seed++).shuffle(m.pool(level)); return bag.pop(); }
+    var qs = []; for (var i = 0; i < N; i++) qs.push(pick()(new RNG(seed++), level));
+    var head = h('div', { class: 'tz-roundhead' + (boss ? ' boss' : '') }); wrap.appendChild(head);
+    var body = h('div', {}); wrap.appendChild(body);
+    function heartsTxt() { var t = ''; for (var i = 0; i < 3; i++) t += i < hearts ? '❤️' : '🤍'; return t; }
+    function draw() {
+      clear(body);
+      head.innerHTML = '';
+      head.appendChild(h('span', { class: 'tz-rh-title' }, s.ic + ' ' + (boss ? 'باسِ نهایی — ' + jTheme(m).title : s.name)));
+      head.appendChild(h('span', { class: 'tz-hearts' }, heartsTxt()));
+      head.appendChild(h('span', { class: 'tz-rh-prog' }, 'سؤال ' + toFa(qi + 1) + ' از ' + toFa(N)));
+      if (qi >= N) return pass();
+      var q = qs[qi];
+      body.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
+      if (q.refs) body.appendChild(refsPanel(q.refs));
+      if (q.grid) body.appendChild(gridPanel(q.grid));
+      if (q.matrix) body.appendChild(matrixPanel(q.matrix));
+      if (q.series) body.appendChild(seriesPanel(q.series));
+      var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
+      q.options.forEach(function (o, i) {
+        var b = h('button', { class: 'tz-opt', onclick: function () {
+          if (done) return; done = true;
+          var ok = i === q.answer; b.classList.add(ok ? 'ok' : 'bad'); opts.children[q.answer].classList.add('ok');
+          tzSound(ok ? 'ok' : 'bad');
+          if (ok) { correct++; streak++; progSolved(streak); } else { hearts--; streak = 0; }
+          head.querySelector('.tz-hearts').textContent = heartsTxt();
+          body.appendChild(h('div', { class: 'tz-fb ' + (ok ? 'ok' : 'bad') }, (ok ? '✓ آفرین! ' : '✗ اشتباه — ') + q.why));
+          var last = qi >= N - 1;
+          if (hearts <= 0) body.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: fail }, 'ادامه')));
+          else body.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: function () { qi++; draw(); } }, last ? 'پایانِ مرحله 🏁' : 'سؤالِ بعد ←')));
+        } }, q.render(o), h('span', { class: 'tz-opt-n' }, toFa(i + 1)));
+        opts.appendChild(b);
+      });
+      body.appendChild(opts);
+    }
+    function pass() {
+      var stars = hearts;
+      jClear(m, idx, stars);
+      clear(body); head.innerHTML = '';
+      tzConfetti(ROOT); tzSound('finish');
+      var msg = boss ? 'باس را شکست دادی! گنج باز شد 💎' : (stars === 3 ? 'بی‌نقص! هر سه جان سالم ماند 🌟' : 'مرحله را رد کردی! آفرین 💪');
+      body.appendChild(h('div', { class: 'tz-report tz-celebrate' },
+        tzMascot('wow', 108), starRow(stars, 3),
+        h('div', { class: 'tz-score' }, toFa(correct) + ' / ' + toFa(N)),
+        h('p', { class: 'tz-msg' }, msg),
+        h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: function () { renderJourney(m); } }, boss ? 'رفتن سراغِ گنج 💎' : 'ادامه به نقشه ←'))));
+    }
+    function fail() {
+      clear(body); head.innerHTML = ''; tzSound('bad');
+      body.appendChild(h('div', { class: 'tz-report tz-celebrate' },
+        tzMascot('hi', 100),
+        h('h3', { class: 'tz-lt' }, 'جان‌هایت تمام شد! 💔'),
+        h('p', { class: 'tz-msg' }, 'اشکال ندارد قهرمان — ' + toFa(correct) + ' سؤال درست زدی. دوباره امتحان کن، این‌بار می‌ترکانی!'),
+        h('div', { class: 'tz-lnav tz-lnav-wrap' },
+          h('button', { class: 'tz-btn ghost', onclick: function () { renderJourney(m); } }, 'نقشه'),
+          h('button', { class: 'tz-btn', onclick: function () { runRound(m, idx, s); } }, '🔁 دوباره امتحان کن'))));
+    }
+    draw();
+  }
+
+  function runTreasure(m) {
+    var wrap = jStageWrap(m, null); var th = jTheme(m);
+    setTimeout(function () { tzConfetti(ROOT); tzSound('finish'); }, 100);
+    setTimeout(function () { tzConfetti(ROOT); }, 900);
+    wrap.appendChild(h('div', { class: 'tz-treasure' },
+      h('div', { class: 'tz-cup' }, '🏆'),
+      h('h2', { class: 'tz-tr-title' }, 'گنج را یافتی!'),
+      h('div', { class: 'tz-tr-medal' }, '🥇'),
+      h('div', { class: 'tz-tr-rank' }, 'لقبِ تو: «' + th.title + '»'),
+      h('p', { class: 'tz-lb' }, 'تو تمامِ مراحلِ «' + th.place + '» را با هوش و پشتکار رد کردی و به گنجِ این سرزمین رسیدی. حالا رسماً ' + th.title + ' هستی! 🎉'),
+      h('div', { class: 'tz-lnav tz-lnav-wrap' },
+        h('button', { class: 'tz-btn ghost', onclick: function () { renderJourney(m); } }, 'نقشه'),
+        h('button', { class: 'tz-btn', onclick: renderHub }, 'سفرِ بعدی ←'))));
+  }
+
+  function openMabhath(m) { renderJourney(m); }
+
   /* ---- درسنامه (ماموریتِ مرحله‌ای با راهنما) ---- */
-  function runLesson(m, stage) {
+  function runLesson(m, stage, onDone) {
     clear(stage);
     var pages = m.lesson ? m.lesson() : []; var idx = 0;
     var card = h('div', { class: 'tz-lesson' });
@@ -2321,7 +2481,7 @@
         idx > 0 ? h('button', { class: 'tz-btn ghost', onclick: function () { idx--; draw(); } }, 'قبلی') : h('span'),
         h('span', { class: 'tz-lpage' }, 'مرحله ' + toFa(idx + 1) + ' از ' + toFa(pages.length)),
         idx < pages.length - 1 ? h('button', { class: 'tz-btn', onclick: function () { idx++; draw(); } }, 'مرحله‌ی بعد ←')
-          : h('button', { class: 'tz-btn', onclick: function () { runPractice(m, stage); } }, 'شروعِ ماموریت! 🚀')));
+          : h('button', { class: 'tz-btn', onclick: function () { if (onDone) onDone(); else runPractice(m, stage); } }, onDone ? 'پایانِ آموزش ✓' : 'شروعِ ماموریت! 🚀')));
     }
     draw();
   }
@@ -2600,6 +2760,36 @@
       '.tz-dark .tz-qscore{background:#2a2d4c;color:#bcb8f7}.tz-dark .tz-barwrap,.tz-dark .tz-timewrap{background:#2a2d4c}',
       '.tz-dark .tz-toggle{background:#22243c;border-color:#34375c;color:#a3a7c4}',
       '.tz-dark .tz-mission{background:#2a2d4c;color:#bcb8f7}.tz-dark .tz-step{background:#2f3253;color:#a3a7c4}',
+      // ---- سفرِ مرحله‌ای ----
+      '.tz-jhead{text-align:center;margin:8px 0 4px}',
+      '.tz-jhead-t{font-family:"Lalezar","Estedad",sans-serif;font-size:1.6rem;color:' + PAL.teal + '}',
+      '.tz-jhead-s{font-size:.86rem;color:' + PAL.inkSoft + ';font-weight:700}',
+      '.tz-map{position:relative;display:flex;flex-direction:column;align-items:center;gap:16px;padding:18px 0 8px}',
+      '.tz-map:before{content:"";position:absolute;top:14px;bottom:14px;left:50%;border-left:3px dashed #d4d6ef;transform:translateX(-1px);z-index:0}',
+      '.tz-node{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3px;width:158px;background:#fff;border:2px solid ' + PAL.border + ';border-radius:18px;padding:11px 10px;cursor:pointer;font-family:inherit;box-shadow:' + SH + ';transition:transform .14s,box-shadow .14s}',
+      '.tz-node.side-l{transform:translateX(-64px)}.tz-node.side-r{transform:translateX(64px)}',
+      '.tz-node:not(.tz-node-lock):hover{transform:translateY(-3px) scale(1.03)}.tz-node.side-l:not(.tz-node-lock):hover{transform:translateX(-64px) translateY(-3px) scale(1.03)}.tz-node.side-r:not(.tz-node-lock):hover{transform:translateX(64px) translateY(-3px) scale(1.03)}',
+      '.tz-node-ic{font-size:1.7rem}.tz-node-nm{font-weight:800;font-size:.86rem;color:' + PAL.ink + '}',
+      '.tz-node-go{font-size:.72rem;font-weight:800;color:#fff;background:' + PAL.teal + ';padding:2px 10px;border-radius:999px}',
+      '.tz-node-done{border-color:' + PAL.ok + ';background:' + PAL.okL + '}',
+      '.tz-node-now{border-color:' + PAL.teal + ';box-shadow:0 0 0 4px ' + PAL.tealL + ',0 8px 20px rgba(108,92,231,.25);animation:tzPulse 1.6s ease-in-out infinite}',
+      '.tz-node-lock{opacity:.55;filter:grayscale(.5);cursor:default;border-style:dashed;box-shadow:none}',
+      '.tz-node.t-treasure{width:180px}.tz-node.t-treasure.tz-node-now{background:linear-gradient(135deg,' + PAL.goldL + ',' + PAL.funL + ');border-color:' + PAL.gold + '}',
+      '.tz-node.t-boss.tz-node-now{border-color:' + PAL.bad + ';box-shadow:0 0 0 4px ' + PAL.badL + '}',
+      '.tz-jtip{text-align:center;font-size:.86rem;color:' + PAL.inkSoft + ';margin:8px auto 0;max-width:440px}',
+      '.tz-roundhead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:' + PAL.tealL + ';border-radius:14px;padding:9px 14px;margin-bottom:14px}',
+      '.tz-roundhead.boss{background:' + PAL.badL + '}',
+      '.tz-rh-title{font-weight:800;color:' + PAL.ink + '}.tz-rh-prog{font-size:.8rem;color:' + PAL.inkSoft + ';font-weight:700}',
+      '.tz-hearts{font-size:1.05rem;letter-spacing:2px}',
+      '.tz-chest{text-align:center;display:flex;flex-direction:column;align-items:center}.tz-chest-ic{font-size:4rem;animation:tzbob 2s ease-in-out infinite}',
+      '.tz-chest-reward{margin-top:14px;background:' + PAL.goldL + ';color:#a86b0f;border-radius:14px;padding:12px 16px;font-weight:800}',
+      '.tz-treasure{text-align:center;background:radial-gradient(circle at 50% 0,' + PAL.goldL + ',#fff 70%);border:2px solid ' + PAL.gold + ';border-radius:22px;padding:22px 18px;box-shadow:0 14px 34px rgba(255,176,32,.22)}',
+      '.tz-cup{font-size:4.6rem;animation:tzbob 3s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(255,176,32,.4))}',
+      '.tz-tr-title{font-family:"Lalezar","Estedad",sans-serif;color:' + PAL.teal + ';margin:4px 0;font-size:1.8rem}',
+      '.tz-tr-medal{font-size:2.6rem;margin:2px 0}',
+      '.tz-tr-rank{display:inline-block;background:linear-gradient(135deg,' + PAL.teal + ',' + PAL.fun + ');color:#fff;padding:8px 20px;border-radius:999px;font-weight:800;margin:8px 0 4px;font-size:1.05rem}',
+      '.tz-dark .tz-node{background:#22243c;border-color:#34375c}.tz-dark .tz-node-nm{color:#e8e9f6}.tz-dark .tz-map:before{border-color:#3a3d5f}',
+      '.tz-dark .tz-node-done{background:#183a2d}.tz-dark .tz-roundhead{background:#2a2d4c}.tz-dark .tz-rh-title{color:#e8e9f6}.tz-dark .tz-treasure{background:radial-gradient(circle at 50% 0,#3a3320,#22243c 70%)}',
       '.tz-hero-title{font-family:"Lalezar","Estedad",sans-serif;font-weight:400;margin:4px 0;font-size:2rem;position:relative}',
       '.tz-hero-sub{margin:0;opacity:.94;font-size:.96rem;position:relative}',
       // hub cards
@@ -2783,6 +2973,10 @@
         '.tz-badge{font-size:.82rem;padding:6px 13px}.tz-score{font-size:2.1rem}.tz-msg{font-size:.96rem}' +
         '.tz-qprompt{font-size:.96rem}.tz-fb{font-size:.9rem;padding:12px 13px}' +
         '.tz-celebrate .tz-mascot{width:88px!important;height:88px!important}' +
+        '.tz-node{width:130px;padding:9px 8px}.tz-node.side-l{transform:translateX(-42px)}.tz-node.side-r{transform:translateX(42px)}' +
+        '.tz-node.side-l:not(.tz-node-lock):hover{transform:translateX(-42px) translateY(-3px) scale(1.03)}.tz-node.side-r:not(.tz-node-lock):hover{transform:translateX(42px) translateY(-3px) scale(1.03)}' +
+        '.tz-node.t-treasure{width:150px}.tz-jhead-t{font-size:1.3rem}.tz-node-nm{font-size:.8rem}.tz-cup{font-size:3.6rem}.tz-tr-title{font-size:1.45rem}' +
+        '.tz-roundhead{padding:8px 11px}.tz-rh-title{font-size:.86rem}' +
       '}'
     ].join('\n');
     var st = document.createElement('style'); st.id = 'tz-styles'; st.textContent = css; document.head.appendChild(st);
