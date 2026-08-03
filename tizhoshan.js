@@ -93,7 +93,32 @@
     list.forEach(function (bd) { t.appendChild(h('div', { class: 'tz-bt-row' }, h('span', { class: 'tz-bt-ic' }, bd.ic), h('div', {}, h('div', { class: 'tz-bt-t' }, '🎉 نشانِ تازه!'), h('div', { class: 'tz-bt-n' }, bd.t)))); });
     ROOT.appendChild(t); tzConfetti(ROOT);
     setTimeout(function () { t.classList.add('out'); setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 400); }, 3400);
+    tzSound('badge');
   }
+
+  /* ---- صداهای ظریف (سنتزشده با Web Audio، بدونِ فایل) ---- */
+  var _actx = null, _muted = false;
+  try { _muted = window.localStorage.getItem('tz_muted') === '1'; } catch (e) {}
+  function tzMuted() { return _muted; }
+  function tzSetMute(v) { _muted = !!v; try { window.localStorage.setItem('tz_muted', v ? '1' : '0'); } catch (e) {} }
+  function tzSound(kind) {
+    if (_muted) return;
+    try {
+      _actx = _actx || new (window.AudioContext || window.webkitAudioContext)();
+      var ctx = _actx, now = ctx.currentTime;
+      function tone(f, t0, dur, type, gain) { var o = ctx.createOscillator(), g = ctx.createGain(); o.type = type || 'sine'; o.frequency.value = f; o.connect(g); g.connect(ctx.destination); g.gain.setValueAtTime(0.0001, now + t0); g.gain.exponentialRampToValueAtTime(gain || 0.13, now + t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, now + t0 + dur); o.start(now + t0); o.stop(now + t0 + dur + 0.02); }
+      if (kind === 'ok') { tone(660, 0, 0.13); tone(990, 0.09, 0.17); }
+      else if (kind === 'bad') { tone(220, 0, 0.2, 'sawtooth', 0.07); }
+      else if (kind === 'badge') { tone(523, 0, 0.14); tone(659, 0.12, 0.14); tone(784, 0.24, 0.24); }
+      else if (kind === 'finish') { tone(523, 0, 0.14); tone(659, 0.13, 0.14); tone(784, 0.26, 0.14); tone(1047, 0.39, 0.28); }
+    } catch (e) {}
+  }
+
+  /* ---- تمِ روشن/تاریک ---- */
+  var _dark = false;
+  try { _dark = window.localStorage.getItem('tz_theme') === 'dark'; } catch (e) {}
+  function applyTheme() { if (ROOT) ROOT.classList.toggle('tz-dark', _dark); }
+  function tzSetDark(v) { _dark = !!v; try { window.localStorage.setItem('tz_theme', v ? 'dark' : 'light'); } catch (e) {} applyTheme(); }
 
   function h(tag, props) {
     var node = document.createElement(tag);
@@ -1294,8 +1319,27 @@
     };
   }
 
-  var GENS_EASY = [oddMatrix, oddMatrix, oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
-  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
+  // دومینو: شمارشِ کلِ خال‌های دو نیمه؛ چیدمان گمراه‌کننده.
+  var PIP = { 0: [], 1: [[.5, .5]], 2: [[.28, .28], [.72, .72]], 3: [[.28, .28], [.5, .5], [.72, .72]], 4: [[.28, .28], [.72, .28], [.28, .72], [.72, .72]], 5: [[.28, .28], [.72, .28], [.5, .5], [.28, .72], [.72, .72]], 6: [[.28, .24], [.72, .24], [.28, .5], [.72, .5], [.28, .76], [.72, .76]] };
+  function pips(g, n, x, y, w, hh) { (PIP[n] || []).forEach(function (pt) { drawDot(g, x + pt[0] * w, y + pt[1] * hh, 3); }); }
+  function dominoOdd(rng, level, count) {
+    count = count || 4;
+    function draw(a, b) { return function (g) { add(g, 'rect', merge(DEF, { x: 26, y: 20, width: 48, height: 60, rx: 7 })); add(g, 'line', merge(DEF, { x1: 26, y1: 50, x2: 74, y2: 50, 'stroke-width': 2.6 })); pips(g, a, 26, 20, 48, 30); pips(g, b, 26, 50, 48, 30); }; }
+    function splits(tot, howMany) { var out = [], seen = {}, g = 0; while (out.length < howMany && g++ < 60) { var a = rng.int(Math.max(0, tot - 6), Math.min(6, tot)), b = tot - a, k = a + '-' + b; if (!seen[k]) { seen[k] = 1; out.push([a, b]); } } return out; }
+    var k = rng.int(3, level >= 3 ? 10 : 8), oddK = rng.next() < 0.5 ? k + 1 : k - 1; if (oddK < 1) oddK = k + 1; if (oddK > 12) oddK = k - 1;
+    var sames = splits(k, count - 1).map(function (ab) { return { a: ab[0], b: ab[1] }; });
+    var od = splits(oddK, 1)[0];
+    var pa = placeAnswer(rng, sames, { a: od[0], b: od[1] }, count);
+    return {
+      prompt: 'کدام دومینو با بقیه فرق دارد؟', tag: 'شمارشِ خالِ دومینو',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(draw(o.a, o.b), { size: 96 }); },
+      why: 'چیدمانِ خال‌ها مهم نیست؛ سه دومینو رویِ‌هم ' + toFa(k) + ' خال دارند، اما این یکی ' + toFa(oddK) + '. هر دو نیمه را با هم بشمار!'
+    };
+  }
+
+  var GENS_EASY = [oddMatrix, oddMatrix, dominoOdd, oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
+  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, dominoOdd, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
   var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
@@ -2195,8 +2239,11 @@
     ROOT.appendChild(g);
   }
   function renderHub() {
-    if (!ROOT) return; clear(ROOT);
+    if (!ROOT) return; clear(ROOT); applyTheme();
+    var muteBtn = h('button', { class: 'tz-icobtn', title: 'صدا', onclick: function () { tzSetMute(!tzMuted()); muteBtn.textContent = tzMuted() ? '🔇' : '🔊'; if (!tzMuted()) tzSound('ok'); } }, tzMuted() ? '🔇' : '🔊');
+    var themeBtn = h('button', { class: 'tz-icobtn', title: 'تمِ روشن/تاریک', onclick: function () { tzSetDark(!_dark); themeBtn.textContent = _dark ? '☀️' : '🌙'; } }, _dark ? '☀️' : '🌙');
     ROOT.appendChild(h('div', { class: 'tz-hero' },
+      h('div', { class: 'tz-toolbar' }, muteBtn, themeBtn),
       h('div', { class: 'tz-hero-badge' }, '✦ تیزهوشان'),
       h('h1', { class: 'tz-hero-title' }, 'هوش و استعدادِ تصویری'),
       h('p', { class: 'tz-hero-sub' }, 'فصلِ تحلیل — پایه‌ی ' + toFa(grade()) + ' — با هم کارآگاهِ شکل‌ها می‌شویم!')));
@@ -2333,7 +2380,7 @@
         var b = h('button', { class: 'tz-opt', onclick: function () {
           if (done || dim[i]) return; done = true;
           var ok = i === q.answer; b.classList.add(ok ? 'ok' : 'bad'); opts.children[q.answer].classList.add('ok');
-          if (ok) { solved++; streak++; progSolved(streak); } else { streak = 0; } updateCounter();
+          if (ok) { solved++; streak++; progSolved(streak); } else { streak = 0; } updateCounter(); tzSound(ok ? 'ok' : 'bad');
           var praise = ok ? (streak >= 3 ? '🔥 ' + toFa(streak) + ' تایی! ' : '✓ آفرین! ') : '✗ اشتباه — ';
           box.appendChild(h('div', { class: 'tz-fb ' + (ok ? 'ok' : 'bad') }, praise + q.why));
           box.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: next }, 'سؤالِ تازه ←')));
@@ -2353,6 +2400,15 @@
   }
 
   /* ---- آزمون ---- */
+  function fallbackCopy(txt, done) { try { var ta = document.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); if (done) done(); } catch (e) {} }
+  function copyText(txt, done) { try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, function () { fallbackCopy(txt, done); }); else fallbackCopy(txt, done); } catch (e) { fallbackCopy(txt, done); } }
+  function shareResult(m, correct, total, stars, btn) {
+    var pct = Math.round(correct / total * 100);
+    var stxt = ''; for (var i = 0; i < 3; i++) stxt += i < stars ? '★' : '☆';
+    var txt = 'من در تیزهوشان — «' + m.title + '» نمره‌ی ' + toFa(correct) + ' از ' + toFa(total) + ' گرفتم! ' + stxt + ' (' + toFa(pct) + '٪) 🧠✨';
+    var done = function () { if (btn) { var old = btn.textContent; btn.textContent = '✓ کپی شد!'; setTimeout(function () { btn.textContent = old; }, 1700); } };
+    try { if (navigator.share) navigator.share({ text: txt }).then(done, function () { copyText(txt, done); }); else copyText(txt, done); } catch (e) { copyText(txt, done); }
+  }
   function runQuizIntro(m, stage) {
     clear(stage);
     var challenge = false;
@@ -2431,6 +2487,7 @@
         var tg = q.tag || 'عمومی'; if (!stats[tg]) stats[tg] = { t: 0, c: 0 }; stats[tg].t++; if (ok) stats[tg].c++;
         if (ok) { correct++; streak++; if (streak > bestStreak) bestStreak = streak; if (challenge && timeLeft > PERQ * 0.55) speed++; }
         else { streak = 0; wrong.push(idx + 1); review.push({ q: q, chosen: chosen }); }
+        tzSound(ok ? 'ok' : 'bad');
         var praise = chosen < 0 ? '⏱️ وقت تمام شد — پاسخِ درست این بود: ' : ok ? (streak >= 3 ? '🔥 ' + toFa(streak) + ' تایی پشتِ‌هم! آفرین! ' : '✓ درست! ') : '✗ اشتباه — ';
         box.appendChild(h('div', { class: 'tz-fb ' + (ok ? 'ok' : 'bad') }, praise + q.why));
         box.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: function () { idx++; draw(); } }, idx < total - 1 ? 'سؤالِ بعد ←' : 'دیدنِ کارنامه')));
@@ -2469,10 +2526,11 @@
         (challenge && speed) ? h('p', { class: 'tz-streakline', style: 'background:' + PAL.skyL + ';color:#0284a8' }, '⚡ ' + toFa(speed) + ' پاسخِ سریع — امتیازِ سرعت گرفتی!') : null,
         wrong.length ? h('p', { class: 'tz-wrong' }, 'سؤال‌های اشتباه: ' + wrong.map(toFa).join('، ')) : null,
         tagAnalysis(stats),
-        h('div', { class: 'tz-lnav' },
+        h('div', { class: 'tz-lnav tz-lnav-wrap' },
           review.length ? h('button', { class: 'tz-btn ghost', onclick: function () { reviewWrong(); } }, '🔍 مرورِ اشتباه‌ها (' + toFa(review.length) + ')') : h('span'),
+          h('button', { class: 'tz-btn ghost', onclick: function (e) { shareResult(m, correct, total, st, e.currentTarget); } }, '📤 اشتراکِ نتیجه'),
           h('button', { class: 'tz-btn', onclick: function () { runQuizIntro(m, stage); } }, 'آزمونِ تازه 🔁'))));
-      if (pct >= 40) tzConfetti(stage);
+      if (pct >= 40) { tzConfetti(stage); tzSound('finish'); }
     }
     function reviewWrong() {
       clear(stage);
@@ -2522,6 +2580,26 @@
       '.tz-hero:after{content:"";position:absolute;bottom:-50%;left:-8%;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 70%)}',
       '.tz-hero:before{content:"";position:absolute;top:-40%;right:-10%;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.22),transparent 70%)}',
       '.tz-hero-badge{position:relative;display:inline-block;background:rgba(255,255,255,.18);padding:5px 16px;border-radius:999px;font-size:.82rem;margin-bottom:10px;backdrop-filter:blur(4px)}',
+      '.tz-toolbar{position:absolute;top:12px;inset-inline-start:12px;display:flex;gap:6px;z-index:2}',
+      '.tz-icobtn{cursor:pointer;border:none;background:rgba(255,255,255,.2);width:34px;height:34px;border-radius:11px;font-size:1rem;line-height:1;backdrop-filter:blur(4px);transition:.15s}',
+      '.tz-icobtn:hover{background:rgba(255,255,255,.34);transform:translateY(-1px)}',
+      '.tz-lnav-wrap{flex-wrap:wrap;justify-content:center;gap:8px}',
+      // ---- تمِ تاریک (کروم تیره، ولی کاشیِ شکل‌ها روشن می‌ماند تا شکل‌ها دیده شوند) ----
+      '.tz-root.tz-dark{background:radial-gradient(90% 60% at 12% 0,#2a1f3a 0,transparent 55%),radial-gradient(90% 60% at 92% 4%,#16273a 0,transparent 55%),radial-gradient(120% 100% at 50% 0,#1b1d31 0,#141525 65%);color:#e8e9f6}',
+      '.tz-dark .tz-h2,.tz-dark .tz-qprompt,.tz-dark .tz-lt,.tz-dark .tz-msg,.tz-dark .tz-score{color:#e8e9f6}',
+      '.tz-dark .tz-tabs{background:#1b1d33}.tz-dark .tz-tab{color:#a3a7c4}.tz-dark .tz-tab.on{background:#2a2d4c;color:#fff}',
+      '.tz-dark .tz-back{background:#242742;border-color:#33365a;color:#b9b7f5}',
+      '.tz-dark .tz-lb,.tz-dark .tz-speech{background:linear-gradient(135deg,#26284a,#20223c);border-color:#34375c;color:#dfe1f2}',
+      '.tz-dark .tz-speech-b,.tz-dark .tz-guide-name{color:#dfe1f2}',
+      '.tz-dark .tz-card,.tz-dark .tz-progstrip,.tz-dark .tz-skillmap,.tz-dark .tz-analysis,.tz-dark .tz-rvcard,.tz-dark .tz-badgecard,.tz-dark .tz-report{background:#22243c;border-color:#34375c}',
+      '.tz-dark .tz-card-t,.tz-dark .tz-pstat-v,.tz-dark .tz-skname,.tz-dark .tz-bc-t,.tz-dark .tz-analysis-h,.tz-dark .tz-tagname{color:#ece;color:#e8e9f6}',
+      '.tz-dark .tz-card-s,.tz-dark .tz-pstat-l,.tz-dark .tz-sknum,.tz-dark .tz-bc-d,.tz-dark .tz-analysis-tip,.tz-dark .tz-badgehint,.tz-dark .tz-tagnum,.tz-dark .tz-qcount{color:#a3a7c4}',
+      '.tz-dark .tz-tagline{background:#2a2d4c;color:#bcb8f7}',
+      '.tz-dark .tz-badgecard.earned{background:linear-gradient(135deg,#2b2c49,#3a3320);border-color:' + PAL.gold + '}',
+      '.tz-dark .tz-fb.ok{background:#173a2d;color:#83e2b6}.tz-dark .tz-fb.bad{background:#3b1f26;color:#f4a3ae}',
+      '.tz-dark .tz-qscore{background:#2a2d4c;color:#bcb8f7}.tz-dark .tz-barwrap,.tz-dark .tz-timewrap{background:#2a2d4c}',
+      '.tz-dark .tz-toggle{background:#22243c;border-color:#34375c;color:#a3a7c4}',
+      '.tz-dark .tz-mission{background:#2a2d4c;color:#bcb8f7}.tz-dark .tz-step{background:#2f3253;color:#a3a7c4}',
       '.tz-hero-title{font-family:"Lalezar","Estedad",sans-serif;font-weight:400;margin:4px 0;font-size:2rem;position:relative}',
       '.tz-hero-sub{margin:0;opacity:.94;font-size:.96rem;position:relative}',
       // hub cards
@@ -2723,7 +2801,7 @@
   if (window.__TZ_DEBUG === true) {
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
-      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+      gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
