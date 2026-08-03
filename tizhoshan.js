@@ -2250,18 +2250,53 @@
       h('h1', { class: 'tz-hero-title' }, 'هوش و استعدادِ تصویری'),
       h('p', { class: 'tz-hero-sub' }, 'فصلِ تحلیل — پایه‌ی ' + toFa(grade()) + ' — با هم کارآگاهِ شکل‌ها می‌شویم!')));
     ROOT.appendChild(progStrip());
+    ROOT.appendChild(worldStrip());
     var grid = h('div', { class: 'tz-grid' });
-    MABAHETH.forEach(function (m) {
+    var prevDone = true;                                // مبحثِ اول همیشه باز است
+    MABAHETH.forEach(function (m, mi) {
       var cl = m.color === PAL.teal ? PAL.tealL : m.color === PAL.lilac ? PAL.lilacL : PAL.goldL;
-      var best = 0; try { var c = cur(); if (c && c.activities && c.activities['tz_' + m.id]) best = c.activities['tz_' + m.id].bestScore || 0; } catch (e) {}
-      grid.appendChild(h('button', { class: 'tz-card' + (m.ready ? '' : ' tz-card-soon'), style: { '--tz-c': m.color, '--tz-cl': cl }, onclick: function () { if (m.ready) openMabhath(m); } },
-        h('span', { class: 'tz-card-ic' }, m.icon),
+      var jj = jGet(m.id), done = jj.cleared >= J_TOTAL, star = jStars(jj);
+      var open = m.ready && (mi === 0 || prevDone);      // فقط وقتی مبحثِ قبل کامل شده باز می‌شود
+      var state = !m.ready ? 'soon' : !open ? 'lock' : done ? 'done' : jj.cleared > 0 ? 'prog' : 'open';
+      var pct = Math.round(Math.min(jj.cleared, J_TOTAL) / J_TOTAL * 100);
+      var foot;
+      if (state === 'soon') foot = h('span', { class: 'tz-soon' }, 'به‌زودی');
+      else if (state === 'lock') foot = h('span', { class: 'tz-card-lockhint' }, '🔒 مبحثِ قبل را کامل کن');
+      else foot = h('div', { class: 'tz-card-foot' },
+        done ? h('span', { class: 'tz-card-conq' }, '👑 فتح شد') : null,
+        h('div', { class: 'tz-cardbar' }, h('span', { class: 'tz-cardbar-f', style: 'width:' + pct + '%' })),
+        h('span', { class: 'tz-cardbar-t' }, toFa(Math.min(jj.cleared, J_TOTAL)) + '/' + toFa(J_TOTAL) + ' مرحله' + (star ? '  •  ⭐ ' + toFa(star) : '')));
+      grid.appendChild(h('button', { class: 'tz-card tz-card-' + state, style: { '--tz-c': m.color, '--tz-cl': cl }, onclick: function () { if (open) openMabhath(m); } },
+        h('span', { class: 'tz-card-ic' }, state === 'lock' ? '🔒' : m.icon),
         h('span', { class: 'tz-card-n' }, 'مبحثِ ' + toFa(m.n)),
         h('span', { class: 'tz-card-t' }, m.title),
         h('span', { class: 'tz-card-s' }, m.sub),
-        m.ready ? starRow(starsFor(best), 3) : h('span', { class: 'tz-soon' }, 'به‌زودی')));
+        foot));
+      prevDone = m.ready && done;                        // زنجیره‌ی قفل: باز شدنِ بعدی به کاملِ این وابسته است
     });
     ROOT.appendChild(grid);
+  }
+  // نوارِ نقشه‌ی کلی: کدام سرزمین‌ها فتح شده‌اند
+  function worldStrip() {
+    var wrap = h('div', { class: 'tz-worldstrip' },
+      h('div', { class: 'tz-world-h' }, '🗺️ نقشه‌ی سرزمین‌ها'));
+    var track = h('div', { class: 'tz-world-track' });
+    var prevDone = true;
+    MABAHETH.forEach(function (m, mi) {
+      var jj = jGet(m.id), done = jj.cleared >= J_TOTAL;
+      var open = m.ready && (mi === 0 || prevDone);
+      var cur2 = open && !done;
+      var st = !m.ready ? 'soon' : !open ? 'lock' : done ? 'done' : 'cur';
+      var th = jTheme(m);
+      track.appendChild(h('button', { class: 'tz-land tz-land-' + st, title: th.place, disabled: open ? null : true,
+        onclick: function () { if (open) openMabhath(m); } },
+        h('span', { class: 'tz-land-ic' }, st === 'lock' ? '🔒' : st === 'done' ? '👑' : m.icon),
+        h('span', { class: 'tz-land-n' }, th.place),
+        cur2 ? h('span', { class: 'tz-land-dot' }) : null));
+      prevDone = m.ready && done;
+    });
+    wrap.appendChild(track);
+    return wrap;
   }
 
   /* ====================================================================
@@ -2293,6 +2328,8 @@
   }
   var J_TOTAL = 9;                                    // مرحله‌های قابلِ‌بازی (بدونِ خانه‌ی گنج)
   function jGet(id) { var p = loadProg(); return (p.journeys && p.journeys[id]) || { cleared: 0, stars: {} }; }
+  function jStars(j) { var t = 0; for (var k in (j.stars || {})) t += j.stars[k]; return t; }
+  function jDone(id) { return jGet(id).cleared >= J_TOTAL; }
   function jClear(m, idx, stars) {
     var p = loadProg(); p.journeys = p.journeys || {};
     var j = p.journeys[m.id] || { cleared: 0, stars: {} };
@@ -2303,23 +2340,54 @@
     try { saveBest(m.id, Math.round(Math.min(j.cleared, J_TOTAL) / J_TOTAL * 100), false); } catch (e) {}
   }
 
+  // پیامِ داستانیِ تیز بر اساسِ جای فعلی در سفر
+  function jGuideMsg(m, st, j) {
+    var th = jTheme(m);
+    if (j.cleared === 0) return th.intro;
+    if (j.cleared >= J_TOTAL) return 'کارِت تمام شد، قهرمان! فقط ماند گنجِ «' + th.place + '» را باز کنی. 🎉';
+    var nx = st[j.cleared];
+    if (nx && nx.type === 'boss') return 'رسیدیم به آخرِ راه! نگهبانِ گنج جلوته — با دقت جواب بده تا شکستش بدهیم. 👹';
+    if (nx && nx.type === 'special') return 'یک معمای ویژه در پیش است؛ این یکی چالشی‌تر است — تمرکز کن! 🌟';
+    if (nx && nx.type === 'chest') return 'آفرین! یک صندوقِ جایزه پیدا کردیم — بازش کن. 🎁';
+    return 'عالی پیش می‌روی! مرحله‌ی روشن را بزن تا جلوتر برویم. هرچه جلوتر، هیجان‌انگیزتر! 💪';
+  }
+  // یک جمله‌ی کوتاهِ داستانیِ تیز موقعِ ورود به هر مرحله
+  function jSay(s) {
+    if (s.type === 'boss') return 'نگهبانِ گنج این‌جاست! نفس عمیق بکش و با دقت جواب بده. 👹';
+    if (s.type === 'special') return 'معمای ویژه! این یکی مخصوصِ کارآگاه‌های زبل است. 🌟';
+    if (s.level >= 3) return 'مرحله‌های آخر؛ سخت‌تر ولی هیجان‌انگیزتر — حواست جمع! ⚡';
+    if (s.level === 2) return 'کمی سخت‌تر شد؛ ولی تو حالا وارد شده‌ای، ادامه بده! 💪';
+    return 'بریم سراغِ سرنخ‌ها! با هر جوابِ درست یک قدم به گنج نزدیک‌تر می‌شویم. 🔎';
+  }
+  // مسیرِ پیچ‌درپیچِ نقشه (SVG) که از نقطه‌های چپ/راست عبور می‌کند
+  function jTrail(n) {
+    var wr = h('div', { class: 'tz-trail' });
+    var svg = s('svg', { viewBox: '0 0 100 ' + (n * 10), preserveAspectRatio: 'none', width: '100%', height: '100%' });
+    var xs = function (i) { return i % 2 === 0 ? 26 : 74; };
+    var d = 'M ' + xs(0) + ' 5';
+    for (var i = 1; i < n; i++) { var y0 = (i - 0.5) * 10, y1 = i * 10 + 5; d += ' C ' + xs(i - 1) + ' ' + y0 + ' ' + xs(i) + ' ' + (y1 - 8) + ' ' + xs(i) + ' ' + y1; }
+    svg.appendChild(s('path', { d: d, fill: 'none', stroke: 'var(--jtrail,#d4d6ef)', 'stroke-width': '2.4', 'stroke-linecap': 'round', 'stroke-dasharray': '0.4 4.6' }));
+    wr.appendChild(svg); return wr;
+  }
   function renderJourney(m) {
     clear(ROOT); applyTheme();
     ROOT.appendChild(backBtn(renderHub, 'مبحث‌ها'));
     var th = jTheme(m), st = jStages(), j = jGet(m.id);
-    var totStars = 0; for (var k in j.stars) totStars += j.stars[k];
     ROOT.appendChild(h('div', { class: 'tz-jhead' },
       h('div', { class: 'tz-jhead-t' }, m.icon + ' ' + th.place),
-      h('div', { class: 'tz-jhead-s' }, 'مبحثِ ' + toFa(m.n) + ' — ' + m.title + '  •  ⭐ ' + toFa(totStars))));
-    var map = h('div', { class: 'tz-map' });
-    st.forEach(function (s, i) {
+      h('div', { class: 'tz-jhead-s' }, 'مبحثِ ' + toFa(m.n) + ' — ' + m.title + '  •  ⭐ ' + toFa(jStars(j)) + '  •  ' + toFa(Math.min(j.cleared, J_TOTAL)) + '/' + toFa(J_TOTAL) + ' مرحله')));
+    ROOT.appendChild(guideRow(j.cleared >= J_TOTAL ? 'wow' : 'happy', jGuideMsg(m, st, j), 'tz-guide-sm'));
+    var map = h('div', { class: 'tz-map', style: { '--jc': m.color } });
+    map.appendChild(jTrail(st.length));
+    map.appendChild(h('div', { class: 'tz-map-start' }, '🚩 شروع'));
+    st.forEach(function (s2, i) {
       var state = i < j.cleared ? 'done' : (i === j.cleared ? 'now' : 'lock');
-      if (s.type === 'treasure') state = j.cleared >= J_TOTAL ? 'now' : 'lock';
+      if (s2.type === 'treasure') state = j.cleared >= J_TOTAL ? 'now' : 'lock';
       var side = i % 2 === 0 ? 'l' : 'r';
-      var node = h('button', { class: 'tz-node tz-node-' + state + ' side-' + side + ' t-' + s.type, disabled: state === 'lock' ? true : null, onclick: function () { if (state !== 'lock') runStage(m, i); } },
-        h('span', { class: 'tz-node-ic' }, state === 'lock' ? '🔒' : s.ic),
-        h('span', { class: 'tz-node-nm' }, s.name),
-        (i < j.cleared && j.stars[i]) ? starRow(j.stars[i], 3) : (state === 'now' && s.type !== 'treasure' ? h('span', { class: 'tz-node-go' }, 'شروع ←') : null));
+      var node = h('button', { class: 'tz-node tz-node-' + state + ' side-' + side + ' t-' + s2.type, disabled: state === 'lock' ? true : null, onclick: function () { if (state !== 'lock') runStage(m, i); } },
+        h('span', { class: 'tz-node-ic' }, h('span', { class: 'tz-node-emoji' }, state === 'lock' ? '🔒' : (state === 'done' ? '✓' : s2.ic))),
+        h('span', { class: 'tz-node-nm' }, s2.name),
+        (i < j.cleared && j.stars[i]) ? starRow(j.stars[i], 3) : (state === 'now' && s2.type !== 'treasure' ? h('span', { class: 'tz-node-go' }, 'شروع ←') : null));
       map.appendChild(node);
     });
     ROOT.appendChild(map);
@@ -2348,6 +2416,7 @@
 
   function runChest(m, idx, s) {
     var wrap = jStageWrap(m, null);
+    wrap.appendChild(guideRow('wow', 'یک صندوقِ جایزه پیدا کردیم! بازش کن ببین چه چیزِ خوبی برایت گذاشته‌ام. 🎁', 'tz-guide-sm'));
     var box = h('div', { class: 'tz-chest' },
       h('div', { class: 'tz-chest-ic' }, '🎁'),
       h('h3', { class: 'tz-lt' }, 'صندوقِ جایزه!'),
@@ -2362,6 +2431,7 @@
 
   function runRound(m, idx, s) {
     var wrap = jStageWrap(m, null);
+    wrap.appendChild(guideRow(s.type === 'boss' ? 'think' : 'hi', jSay(s), 'tz-guide-sm'));
     var hearts = 3, qi = 0, correct = 0, streak = 0, seed = ((Date.now() & 0xffffff) ^ (idx * 2654435761)) | 1, bag = [];
     var N = s.n, level = s.level, boss = s.type === 'boss';
     function pick() { if (!bag.length) bag = new RNG(seed++).shuffle(m.pool(level)); return bag.pop(); }
@@ -2764,19 +2834,43 @@
       '.tz-jhead{text-align:center;margin:8px 0 4px}',
       '.tz-jhead-t{font-family:"Lalezar","Estedad",sans-serif;font-size:1.6rem;color:' + PAL.teal + '}',
       '.tz-jhead-s{font-size:.86rem;color:' + PAL.inkSoft + ';font-weight:700}',
-      '.tz-map{position:relative;display:flex;flex-direction:column;align-items:center;gap:16px;padding:18px 0 8px}',
-      '.tz-map:before{content:"";position:absolute;top:14px;bottom:14px;left:50%;border-left:3px dashed #d4d6ef;transform:translateX(-1px);z-index:0}',
-      '.tz-node{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3px;width:158px;background:#fff;border:2px solid ' + PAL.border + ';border-radius:18px;padding:11px 10px;cursor:pointer;font-family:inherit;box-shadow:' + SH + ';transition:transform .14s,box-shadow .14s}',
-      '.tz-node.side-l{transform:translateX(-64px)}.tz-node.side-r{transform:translateX(64px)}',
-      '.tz-node:not(.tz-node-lock):hover{transform:translateY(-3px) scale(1.03)}.tz-node.side-l:not(.tz-node-lock):hover{transform:translateX(-64px) translateY(-3px) scale(1.03)}.tz-node.side-r:not(.tz-node-lock):hover{transform:translateX(64px) translateY(-3px) scale(1.03)}',
-      '.tz-node-ic{font-size:1.7rem}.tz-node-nm{font-weight:800;font-size:.86rem;color:' + PAL.ink + '}',
-      '.tz-node-go{font-size:.72rem;font-weight:800;color:#fff;background:' + PAL.teal + ';padding:2px 10px;border-radius:999px}',
-      '.tz-node-done{border-color:' + PAL.ok + ';background:' + PAL.okL + '}',
-      '.tz-node-now{border-color:' + PAL.teal + ';box-shadow:0 0 0 4px ' + PAL.tealL + ',0 8px 20px rgba(108,92,231,.25);animation:tzPulse 1.6s ease-in-out infinite}',
-      '.tz-node-lock{opacity:.55;filter:grayscale(.5);cursor:default;border-style:dashed;box-shadow:none}',
-      '.tz-node.t-treasure{width:180px}.tz-node.t-treasure.tz-node-now{background:linear-gradient(135deg,' + PAL.goldL + ',' + PAL.funL + ');border-color:' + PAL.gold + '}',
-      '.tz-node.t-boss.tz-node-now{border-color:' + PAL.bad + ';box-shadow:0 0 0 4px ' + PAL.badL + '}',
+      '.tz-map{position:relative;display:flex;flex-direction:column;align-items:center;gap:18px;padding:44px 0 18px;margin-top:6px;border-radius:22px;overflow:hidden;--jc:' + PAL.teal + ';background:linear-gradient(180deg,#eef2fb 0,#eef7f0 42%,#e4f2df 100%);background:linear-gradient(180deg,color-mix(in srgb,var(--jc) 12%,#fff) 0,#eef7f0 42%,#e4f2df 100%);border:1px solid ' + PAL.border + '}',
+      '.tz-map:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 12% 8%,rgba(255,255,255,.6),transparent 22%),radial-gradient(circle at 84% 16%,rgba(255,255,255,.45),transparent 20%),radial-gradient(circle 3px at 30% 30%,rgba(35,37,68,.05) 99%,transparent),radial-gradient(circle 3px at 70% 62%,rgba(35,37,68,.05) 99%,transparent);z-index:0}',
+      '.tz-trail{position:absolute;inset:38px 0 22px;z-index:0;pointer-events:none;--jtrail:color-mix(in srgb,var(--jc) 42%,#c4c7e4)}',
+      '.tz-map-start{position:relative;z-index:1;font-weight:800;font-size:.82rem;color:var(--jc);background:#fff;border:2px solid ' + PAL.border + ';border:2px solid color-mix(in srgb,var(--jc) 40%,#fff);padding:4px 16px;border-radius:999px;box-shadow:' + SH + '}',
+      '.tz-node{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3px;width:150px;background:#fff;border:2px solid ' + PAL.border + ';border-radius:18px;padding:10px 10px 11px;cursor:pointer;font-family:inherit;box-shadow:' + SH + ';transition:transform .14s,box-shadow .14s}',
+      '.tz-node.side-l{transform:translateX(-58px)}.tz-node.side-r{transform:translateX(58px)}',
+      '.tz-node:not(.tz-node-lock):hover{transform:translateY(-3px) scale(1.03)}.tz-node.side-l:not(.tz-node-lock):hover{transform:translateX(-58px) translateY(-3px) scale(1.03)}.tz-node.side-r:not(.tz-node-lock):hover{transform:translateX(58px) translateY(-3px) scale(1.03)}',
+      '.tz-node-ic{width:46px;height:46px;margin-top:-30px;margin-bottom:2px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:linear-gradient(135deg,#fff,#eef0fb);border:3px solid ' + PAL.border + ';box-shadow:0 4px 10px rgba(35,37,68,.14)}',
+      '.tz-node-nm{font-weight:800;font-size:.84rem;color:' + PAL.ink + '}',
+      '.tz-node-go{font-size:.72rem;font-weight:800;color:#fff;background:' + PAL.teal + ';padding:2px 10px;border-radius:999px;margin-top:2px}',
+      '.tz-node-done{border-color:' + PAL.ok + ';background:' + PAL.okL + '}.tz-node-done .tz-node-ic{border-color:' + PAL.ok + ';background:linear-gradient(135deg,#fff,' + PAL.okL + ');color:' + PAL.ok + '}',
+      '.tz-node-now{border-color:' + PAL.teal + ';box-shadow:0 0 0 4px ' + PAL.tealL + ',0 8px 20px rgba(108,92,231,.25);animation:tzPulse 1.6s ease-in-out infinite}.tz-node-now .tz-node-ic{border-color:' + PAL.teal + ';background:linear-gradient(135deg,#fff,' + PAL.tealL + ')}',
+      '.tz-node-lock{opacity:.6;filter:grayscale(.45);cursor:default;border-style:dashed;box-shadow:none}.tz-node-lock .tz-node-ic{border-style:dashed;box-shadow:none}',
+      '.tz-node.t-treasure{width:172px}.tz-node.t-treasure .tz-node-ic{width:54px;height:54px;font-size:1.8rem;margin-top:-34px}.tz-node.t-treasure.tz-node-now{background:linear-gradient(135deg,' + PAL.goldL + ',' + PAL.funL + ');border-color:' + PAL.gold + '}.tz-node.t-treasure.tz-node-now .tz-node-ic{border-color:' + PAL.gold + '}',
+      '.tz-node.t-boss .tz-node-ic{background:linear-gradient(135deg,#fff,' + PAL.badL + ')}.tz-node.t-boss.tz-node-now{border-color:' + PAL.bad + ';box-shadow:0 0 0 4px ' + PAL.badL + '}.tz-node.t-boss.tz-node-now .tz-node-ic{border-color:' + PAL.bad + '}',
+      '.tz-node.t-chest .tz-node-ic{background:linear-gradient(135deg,#fff,' + PAL.goldL + ')}.tz-node.t-special .tz-node-ic{background:linear-gradient(135deg,#fff,' + PAL.funL + ')}',
       '.tz-jtip{text-align:center;font-size:.86rem;color:' + PAL.inkSoft + ';margin:8px auto 0;max-width:440px}',
+      // نوارِ نقشه‌ی سرزمین‌ها (هاب)
+      '.tz-worldstrip{background:#fff;border:1px solid ' + PAL.border + ';border-radius:18px;padding:12px 14px;margin-top:14px;box-shadow:' + SH + '}',
+      '.tz-world-h{font-weight:800;font-size:.9rem;color:' + PAL.teal + ';margin-bottom:8px}',
+      '.tz-world-track{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}',
+      '.tz-land{position:relative;flex:0 0 auto;min-width:78px;display:flex;flex-direction:column;align-items:center;gap:3px;background:#f6f7fd;border:2px solid ' + PAL.border + ';border-radius:14px;padding:8px 8px;cursor:pointer;font-family:inherit;transition:.14s}',
+      '.tz-land:not([disabled]):hover{transform:translateY(-2px);border-color:' + PAL.teal + '}',
+      '.tz-land-ic{font-size:1.4rem}.tz-land-n{font-size:.66rem;font-weight:700;color:' + PAL.inkSoft + ';text-align:center;line-height:1.35;max-width:74px}',
+      '.tz-land-done{background:linear-gradient(135deg,#fff,' + PAL.goldL + ');border-color:' + PAL.gold + '}.tz-land-done .tz-land-n{color:#b9791a}',
+      '.tz-land-cur{background:' + PAL.tealL + ';border-color:' + PAL.teal + '}.tz-land-cur .tz-land-n{color:' + PAL.teal + '}',
+      '.tz-land-lock,.tz-land-soon{opacity:.6;filter:grayscale(.4);cursor:default}',
+      '.tz-land-dot{position:absolute;top:5px;inset-inline-end:6px;width:8px;height:8px;border-radius:50%;background:' + PAL.teal + ';box-shadow:0 0 0 3px ' + PAL.tealL + ';animation:tzPulse 1.6s ease-in-out infinite}',
+      // فوترِ کارتِ مبحث (پیشرفت/قفل/فتح)
+      '.tz-card-foot{width:100%;margin-top:7px;display:flex;flex-direction:column;align-items:center;gap:4px}',
+      '.tz-cardbar{width:88%;height:7px;border-radius:999px;background:#eceef8;overflow:hidden}',
+      '.tz-cardbar-f{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,' + PAL.teal + ',' + PAL.lilac + ')}',
+      '.tz-cardbar-t{font-size:.68rem;font-weight:700;color:' + PAL.inkSoft + '}',
+      '.tz-card-conq{font-size:.72rem;font-weight:800;color:#b9791a;background:' + PAL.goldL + ';padding:2px 12px;border-radius:999px}',
+      '.tz-card-lockhint{margin-top:7px;font-size:.72rem;font-weight:700;color:' + PAL.inkSoft + ';background:#eceef8;padding:4px 12px;border-radius:999px}',
+      '.tz-card-lock{opacity:.72;cursor:default}.tz-card-lock .tz-card-ic{background:#eceef8;filter:grayscale(.5)}.tz-card-lock:hover{transform:none;box-shadow:' + SH + ';border-color:' + PAL.border + '}',
+      '.tz-card-done{border-color:' + PAL.gold + '}.tz-card-done .tz-card-ic{background:' + PAL.goldL + '}',
       '.tz-roundhead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:' + PAL.tealL + ';border-radius:14px;padding:9px 14px;margin-bottom:14px}',
       '.tz-roundhead.boss{background:' + PAL.badL + '}',
       '.tz-rh-title{font-weight:800;color:' + PAL.ink + '}.tz-rh-prog{font-size:.8rem;color:' + PAL.inkSoft + ';font-weight:700}',
@@ -2788,8 +2882,11 @@
       '.tz-tr-title{font-family:"Lalezar","Estedad",sans-serif;color:' + PAL.teal + ';margin:4px 0;font-size:1.8rem}',
       '.tz-tr-medal{font-size:2.6rem;margin:2px 0}',
       '.tz-tr-rank{display:inline-block;background:linear-gradient(135deg,' + PAL.teal + ',' + PAL.fun + ');color:#fff;padding:8px 20px;border-radius:999px;font-weight:800;margin:8px 0 4px;font-size:1.05rem}',
-      '.tz-dark .tz-node{background:#22243c;border-color:#34375c}.tz-dark .tz-node-nm{color:#e8e9f6}.tz-dark .tz-map:before{border-color:#3a3d5f}',
-      '.tz-dark .tz-node-done{background:#183a2d}.tz-dark .tz-roundhead{background:#2a2d4c}.tz-dark .tz-rh-title{color:#e8e9f6}.tz-dark .tz-treasure{background:radial-gradient(circle at 50% 0,#3a3320,#22243c 70%)}',
+      '.tz-dark .tz-node{background:#22243c;border-color:#34375c}.tz-dark .tz-node-nm{color:#e8e9f6}.tz-dark .tz-node-ic{background:linear-gradient(135deg,#2c2e4d,#22243c);border-color:#3a3d5f}',
+      '.tz-dark .tz-map{background:linear-gradient(180deg,#22243c 0,#1c2333 48%,#182a24 100%);border-color:#34375c}.tz-dark .tz-map-start{background:#22243c;border-color:#3a3d5f}',
+      '.tz-dark .tz-node-done{background:#183a2d}.tz-dark .tz-node-done .tz-node-ic{background:linear-gradient(135deg,#22243c,#173a2d)}.tz-dark .tz-roundhead{background:#2a2d4c}.tz-dark .tz-rh-title{color:#e8e9f6}.tz-dark .tz-treasure{background:radial-gradient(circle at 50% 0,#3a3320,#22243c 70%)}',
+      '.tz-dark .tz-worldstrip{background:#22243c;border-color:#34375c}.tz-dark .tz-land{background:#2a2d4c;border-color:#3a3d5f}.tz-dark .tz-land-n{color:#a3a7c4}',
+      '.tz-dark .tz-cardbar{background:#2f3253}.tz-dark .tz-card-lockhint,.tz-dark .tz-card-lock .tz-card-ic{background:#2f3253}',
       '.tz-hero-title{font-family:"Lalezar","Estedad",sans-serif;font-weight:400;margin:4px 0;font-size:2rem;position:relative}',
       '.tz-hero-sub{margin:0;opacity:.94;font-size:.96rem;position:relative}',
       // hub cards
