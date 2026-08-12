@@ -22,7 +22,7 @@ export default function App() {
   const [autoRotate, setAutoRotate] = useState(false);
   const [selectedId, setSelectedId] = useState(null), [selectedType, setSelectedType] = useState(null);
   const [inside, setInside] = useState(false), [started, setStarted] = useState(false);
-  const [status, setStatus] = useState('در حال آماده‌سازی دوربین…'), [error, setError] = useState('');
+  const [status, setStatus] = useState('در حال آماده‌سازی دوربین…'), [error, setError] = useState(''), [errorDetail, setErrorDetail] = useState('');
   const forceRender = useState(0)[1];
 
   const setSelected = useCallback((mesh) => {
@@ -79,13 +79,47 @@ export default function App() {
   useEffect(() => {
     let stream, cancelled = false;
     async function startCamera() {
+      setError(''); setErrorDetail(''); setStatus('در حال اتصال به دوربین…');
+      // Camera access needs a secure context. localhost is treated as secure.
+      if (!window.isSecureContext) {
+        setError('برای دسترسی به دوربین باید صفحه با HTTPS باز شود (یا از localhost).');
+        setErrorDetail(`آدرس فعلی: ${location.protocol}//${location.host}`);
+        return;
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError('این مرورگر از دسترسی به دوربین پشتیبانی نمی‌کند. اگر داخل مرورگرِ یک برنامهٔ دیگر (مثل اینستاگرام یا تلگرام) هستید، لینک را در مرورگر Chrome یا Safari باز کنید.');
+        return;
+      }
+      const facing = frontCamera ? 'user' : 'environment';
       try {
-        setError(''); setStatus('در حال اتصال به دوربین…');
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: frontCamera ? 'user' : 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+        // Preferred resolution first; fall back to the simplest possible request
+        // if the device can't satisfy the constraints (OverconstrainedError etc.).
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+        } catch (inner) {
+          if (['OverconstrainedError', 'NotFoundError', 'TypeError'].includes(inner.name)) {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          } else throw inner;
+        }
         if (cancelled) return stream.getTracks().forEach((t) => t.stop());
-        const video = videoRef.current; video.srcObject = stream; await video.play(); setStatus('دست خود را مقابل دوربین نگه دارید');
+        const video = videoRef.current;
+        video.srcObject = stream;
+        // The stream is already open here. play() can reject purely from autoplay
+        // policy — that must NOT be reported as a camera failure, so it is swallowed.
+        try { await video.play(); } catch { /* metadata still loads; playback resumes on its own */ }
+        setStatus('دست خود را مقابل دوربین نگه دارید');
       } catch (e) {
-        setError(e.name === 'NotAllowedError' ? 'اجازهٔ استفاده از دوربین داده نشد. از تنظیمات مرورگر، دسترسی دوربین را فعال کنید.' : 'دوربین در دسترس نیست. لطفاً اتصال HTTPS و دوربین دستگاه را بررسی کنید.');
+        const name = e?.name || 'Error';
+        const map = {
+          NotAllowedError: 'اجازهٔ استفاده از دوربین داده نشد. روی آیکن قفل/دوربین کنار نوار آدرس بزنید و دسترسی را Allow کنید، سپس صفحه را تازه کنید.',
+          SecurityError: 'اجازهٔ استفاده از دوربین داده نشد. روی آیکن قفل/دوربین کنار نوار آدرس بزنید و دسترسی را Allow کنید، سپس صفحه را تازه کنید.',
+          NotReadableError: 'دوربین توسط برنامهٔ دیگری (مثل زوم، اسکایپ یا تبی دیگر) در حال استفاده است. آن برنامه‌ها را ببندید و دوباره تلاش کنید.',
+          TrackStartError: 'دوربین توسط برنامهٔ دیگری در حال استفاده است. آن را ببندید و دوباره تلاش کنید.',
+          NotFoundError: 'دوربینی روی این دستگاه پیدا نشد.',
+          OverconstrainedError: 'دوربین درخواست‌شده در دسترس نیست.',
+        };
+        setError(map[name] || 'دوربین باز نشد. لطفاً اتصال دوربین دستگاه و دسترسی مرورگر را بررسی کنید.');
+        setErrorDetail(`کد خطا: ${name}${e?.message ? ' — ' + e.message : ''}`);
       }
     }
     startCamera(); return () => { cancelled = true; stream?.getTracks().forEach((t) => t.stop()); };
@@ -186,6 +220,6 @@ export default function App() {
     <InfoPanel info={selectedType ? shapeInfo(selectedType) : null} />
     <Controls onSpawn={spawn} onCamera={() => setFrontCamera((v) => !v)} {...{ showHands, setShowHands, wireframe, setWireframe, opacity, setOpacity, inside, autoRotate, setAutoRotate }} canEnter={!!selectedId} hasSelection={!!selectedId} hasObjects={objectsRef.current.length > 0} onEnterExit={enterExit} onDelete={removeSelected} onClearAll={clearAll} onColor={cycleColor} onScreenshot={screenshot} onSave={save} onLoad={load} />
     {!started && <Tutorial onClose={() => setStarted(true)} />}
-    {error && <div className="message-backdrop"><section className="message glass"><h2>دوربین آماده نشد</h2><p>{error}</p><button className="primary" onClick={() => location.reload()}>تلاش دوباره</button></section></div>}
+    {error && <div className="message-backdrop"><section className="message glass"><h2>دوربین آماده نشد</h2><p>{error}</p>{errorDetail && <p className="error-detail">{errorDetail}</p>}<button className="primary" onClick={() => location.reload()}>تلاش دوباره</button></section></div>}
   </main>;
 }
