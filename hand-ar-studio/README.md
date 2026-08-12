@@ -1,18 +1,19 @@
 # Hand AR Studio — واقعیت افزوده با دست
 
-A mobile-first, browser-only augmented reality playground. The phone camera is the background; Three.js shapes float on top; MediaPipe Hands detects up to two hands and turns pinches into direct manipulation.
+A mobile-first, browser-only **3D geometry teaching assistant**. The phone camera is the background; Three.js solids float on top; MediaPipe detects up to two hands and turns pinches into direct manipulation — built for a teacher to explain solids to a class hands-free.
 
 ## Included features
 
 - Front/rear camera switching through `getUserMedia`
 - MediaPipe **Tasks-Vision HandLandmarker**: 21 landmarks per hand, two-hand tracking, GPU with CPU fallback (bundler- and mobile-friendly)
-- Pinch-to-select, pinch-and-drag movement with interpolation, palm-size depth movement, hand-twist rotation, two-hand pinch scaling, open-palm release
-- Cube, cuboid, pyramid, sphere, cylinder, and cone with transparent illuminated materials, optional edge overlays, shadows, color cycling, deletion, and multiple instances
-- RTL Persian interface, gesture tutorial, camera-permission and unsupported-browser messages
-- **Teaching info panel**: the selected solid's face / edge / vertex counts (وجه / یال / رأس) shown live, with a short Persian note — built for the geometry classroom
-- **Auto-rotate** toggle to slowly spin the selected shape so every face can be shown to the class
-- “Go inside” inspection mode with Device Orientation look-around where available
-- Screenshot, clear-all, plus local browser save/load of a scene
+- **Free trackball rotation** with one hand — turn the solid in every direction, not just one axis
+- **Two-hand pinch** to scale, and move both hands together to reposition (phone-style pinch-zoom)
+- Glassy **MeshStandardMaterial** solids lit by a studio environment map, with **latitude/longitude guide grids on curved solids** (sphere / cylinder / cone) so their 3D form reads clearly
+- **Cross-section (برش) mode**: a movable clipping plane cuts the selected solid so students see the interior and the shape of the section (circle, square, triangle…)
+- **Teaching info panel**: face / edge / vertex counts, live dimensions, and the **surface-area and volume formulas with values** that recompute as the shape is scaled
+- Auto-rotate toggle, edge overlay, color cycling, transform reset, delete, clear-all
+- RTL Persian interface, gesture tutorial, clear camera-permission / unsupported-browser messages with error codes
+- Screenshot, plus local browser save/load of a scene
 
 ## Project layout
 
@@ -75,21 +76,22 @@ Then open `https://192.168.1.20:<port>` on the phone and accept the locally trus
 
 ## Gesture guide
 
-| Gesture | Result |
+| Gesture / control | Result |
 | --- | --- |
-| Pinch thumb + index over a visible shape | Select / grab it (pinch over a different shape to switch) |
-| Move while pinching | Move it on X/Y; moving the hand nearer/farther adjusts depth |
-| Twist your wrist while pinching | Rotate the shape around its vertical axis to see every face |
-| Both hands pinching | Increase/decrease distance between hands to scale the selected object |
+| Pinch with one hand and move | Select the solid and **rotate it freely in every direction** (trackball) |
+| Pinch with **both** hands | Spread/close to scale; move both hands together to reposition |
 | Open palm | Release current manipulation |
-| **چرخش** button | Auto-rotate the selected shape hands-free |
-| **ورود** button | View from within the selected transparent shape |
-| **پاک‌کردن** button | Remove all shapes from the scene |
+| **💫 چرخش** button | Auto-rotate the selected solid hands-free |
+| **🔪 برش** button + slider | Cross-section: cut the solid to reveal its interior and the section shape |
+| **📐 یال‌ها** button | Toggle the boundary edge overlay |
+| **♻️ بازنشانی** button | Reset the selected solid's rotation and scale |
+| **🗑️ پاک‌کردن** button | Remove all shapes from the scene |
 
-The info panel (top-left) always reflects the selected solid: its Persian name and
-its number of faces, edges and vertices — matching how these solids are taught
-(a sphere is one curved surface with 0 edges and 0 vertices; a cylinder has 2
-edges and 0 vertices; a cone has 1 edge and 1 vertex).
+The info panel (top-left) reflects the selected solid: its Persian name, its
+face/edge/vertex counts (a sphere is one curved surface with 0 edges and 0
+vertices; a cylinder has 2 edges and 0 vertices; a cone has 1 edge and 1
+vertex), its live dimensions, and the surface-area and volume **formulas with
+values** that update as you scale it.
 
 The tracker intentionally makes selection forgiving for mobile use. For the best result, hold one object near screen center, keep the hand well lit, and avoid a busy background.
 

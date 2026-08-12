@@ -1,6 +1,6 @@
 import { SHAPES } from '../lib/shapes';
 
-export default function Controls({ onSpawn, onCamera, showHands, setShowHands, wireframe, setWireframe, opacity, setOpacity, inside, autoRotate, setAutoRotate, canEnter, hasSelection, hasObjects, onEnterExit, onDelete, onClearAll, onColor, onScreenshot, onSave, onLoad }) {
+export default function Controls({ onSpawn, onCamera, showHands, setShowHands, wireframe, setWireframe, opacity, setOpacity, autoRotate, setAutoRotate, section, setSection, sectionPos, setSectionPos, hasSelection, hasObjects, onDelete, onClearAll, onColor, onReset, onScreenshot, onSave, onLoad }) {
   return <>
     <header className="top-controls">
       <button className="glass icon-button" onClick={onCamera} title="تغییر دوربین">🔄<span>دوربین</span></button>
@@ -8,13 +8,18 @@ export default function Controls({ onSpawn, onCamera, showHands, setShowHands, w
       <button className="glass icon-button" onClick={onScreenshot} title="عکس">📸<span>عکس</span></button>
     </header>
     <aside className="side-controls">
-      <button className={`glass icon-button ${wireframe ? 'active' : ''}`} onClick={() => setWireframe(!wireframe)} title="نمایش یال‌ها">🔍<span>یال‌ها</span></button>
-      <button className={`glass icon-button ${autoRotate ? 'active' : ''}`} onClick={() => setAutoRotate(!autoRotate)} disabled={!hasSelection} title="چرخش خودکار">🔄<span>چرخش</span></button>
+      <button className={`glass icon-button ${wireframe ? 'active' : ''}`} onClick={() => setWireframe(!wireframe)} title="نمایش یال‌ها">📐<span>یال‌ها</span></button>
+      <button className={`glass icon-button ${autoRotate ? 'active' : ''}`} onClick={() => setAutoRotate(!autoRotate)} disabled={!hasSelection} title="چرخش خودکار">💫<span>چرخش</span></button>
+      <button className={`glass icon-button enter ${section ? 'active' : ''}`} onClick={() => setSection(!section)} disabled={!hasSelection} title="برش مقطعی">🔪<span>برش</span></button>
       <button className="glass icon-button" onClick={onColor} disabled={!hasSelection} title="تغییر رنگ">🎨<span>رنگ</span></button>
+      <button className="glass icon-button" onClick={onReset} disabled={!hasSelection} title="بازنشانی">♻️<span>بازنشانی</span></button>
       <button className="glass icon-button" onClick={onDelete} disabled={!hasSelection} title="حذف شکل">❌<span>حذف</span></button>
-      <button className="glass icon-button enter" disabled={!canEnter} onClick={onEnterExit} title="ورود به داخل شکل">{inside ? '🚪' : '🔭'}<span>{inside ? 'خروج' : 'ورود'}</span></button>
     </aside>
     <section className="opacity-control glass">
+      {section && <div className="section-row">
+        <label>🔪 محل برش</label>
+        <input aria-label="محل برش" type="range" min="0" max="1" step="0.02" value={sectionPos} onChange={(e) => setSectionPos(Number(e.target.value))} />
+      </div>}
       <label>🔮 شفافیت</label>
       <input aria-label="شفافیت" type="range" min="0.15" max="0.95" step="0.05" value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} />
     </section>
