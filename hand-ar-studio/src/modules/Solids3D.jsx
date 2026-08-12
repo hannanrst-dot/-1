@@ -21,6 +21,7 @@ export default function Solids3D({ onBack }) {
   const [frontCamera, setFrontCamera] = useState(true);
   const [showHands, setShowHands] = useState(true), [wireframe, setWireframe] = useState(false), [opacity, setOpacity] = useState(.55);
   const [autoRotate, setAutoRotate] = useState(false), [section, setSection] = useState(false), [sectionPos, setSectionPos] = useState(0.5);
+  const [showInfo, setShowInfo] = useState(false), [statusShown, setStatusShown] = useState(true);
   const [selectedId, setSelectedId] = useState(null), [selectedType, setSelectedType] = useState(null), [selScale, setSelScale] = useState(1);
   const [started, setStarted] = useState(false);
   const [status, setStatus] = useState('در حال آماده‌سازی دوربین…'), [error, setError] = useState(''), [errorDetail, setErrorDetail] = useState('');
@@ -35,6 +36,8 @@ export default function Solids3D({ onBack }) {
     setSelScale(mesh ? +mesh.scale.x.toFixed(2) : 1);
   }, []);
 
+  // Show each status message briefly, then fade it so the view stays clean.
+  useEffect(() => { setStatusShown(true); const t = setTimeout(() => setStatusShown(false), 3500); return () => clearTimeout(t); }, [status]);
   useEffect(() => { sectionRef.current = section; }, [section]);
   useEffect(() => { sectionPosRef.current = sectionPos; }, [sectionPos]);
   useEffect(() => { autoRotateRef.current = autoRotate; }, [autoRotate]);
@@ -270,11 +273,11 @@ export default function Solids3D({ onBack }) {
     <video ref={videoRef} className={`camera ${frontCamera ? 'selfie' : ''}`} playsInline muted />
     <div ref={threeHostRef} className="three-layer" /><canvas ref={handsCanvasRef} className="hands-layer" />
     <button className="glass icon-button home-btn" onClick={onBack} title="منوی درس‌ها">🏠<span>منو</span></button>
-    <div className="status">{status}</div>
-    <InfoPanel info={selectedType ? shapeInfo(selectedType) : null} scale={selScale} />
+    <div className={`status ${statusShown ? '' : 'hide'}`}>{status}</div>
+    {showInfo && <InfoPanel info={selectedType ? shapeInfo(selectedType) : null} scale={selScale} />}
     <Controls
       onSpawn={spawn} onCamera={() => setFrontCamera((v) => !v)}
-      {...{ showHands, setShowHands, wireframe, setWireframe, opacity, setOpacity, autoRotate, setAutoRotate, section, setSection, sectionPos, setSectionPos }}
+      {...{ showHands, setShowHands, wireframe, setWireframe, opacity, setOpacity, autoRotate, setAutoRotate, section, setSection, sectionPos, setSectionPos, showInfo, setShowInfo }}
       hasSelection={!!selectedId} hasObjects={objectsRef.current.length > 0}
       onDelete={removeSelected} onClearAll={clearAll} onColor={cycleColor} onReset={resetTransform}
       onScreenshot={screenshot} onSave={save} onLoad={load} />
