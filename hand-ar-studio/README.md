@@ -1,6 +1,21 @@
-# Hand AR Studio — واقعیت افزوده با دست
+# استودیوی ریاضی — Math Studio
 
-A mobile-first, browser-only **3D geometry teaching assistant**. The phone camera is the background; Three.js solids float on top; MediaPipe detects up to two hands and turns pinches into direct manipulation — built for a teacher to explain solids to a class hands-free.
+A mobile-first, browser-only **math teaching studio**: a home menu of lessons a teacher can switch between and explore with the class. No install, works from any modern phone/laptop browser over HTTPS.
+
+## Lessons (modules)
+
+| Module | فارسی | What it does |
+| --- | --- | --- |
+| **3D Solids** | اجسام سه‌بعدی | Flagship AR module — camera + MediaPipe hand tracking. Free trackball rotation, two-hand scale/move, cross-section, live volume & area formulas. |
+| **Nets** | گسترده‌ی اجسام | The unfolded (flat) net of each solid, with faces labelled. |
+| **Fractions** | کسرها | Pie + bar visual, decimal/percent, simplified form, compare two fractions. |
+| **Number line** | خط اعداد | Addition/subtraction with jump arcs, including negative numbers. |
+| **Multiplication** | ضرب و مساحت | Array model and area model (partial products). |
+| **Symmetry** | تقارن | Mirror-drawing across a vertical/horizontal/both axis. |
+
+Only the 3D Solids module uses the camera and hand tracking; every other module is touch/click controlled so it works reliably on any device.
+
+## 3D Solids module
 
 ## Included features
 

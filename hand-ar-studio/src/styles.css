@@ -15,7 +15,7 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; touch-action
 .icon-button span { font-size: 9px; white-space: nowrap; }.icon-button.active { border-color: #63f0c2; background: rgba(25,116,92,.7); }.side-controls { position: absolute; z-index: 5; right: 12px; top: 50%; transform: translateY(-50%); display: grid; gap: 8px; }.enter.active { background: rgba(190, 70, 70, .7); border-color: #ff9a9a; }
 .opacity-control { position: absolute; z-index: 5; bottom: calc(108px + env(safe-area-inset-bottom)); left: 12px; padding: 8px 10px; border-radius: 13px; width: 142px; font-size: 10px; }.opacity-control label { display: block; margin-bottom: 4px; }.opacity-control input { width: 100%; accent-color: #5eead4; }
 .shape-toolbar { position: absolute; z-index: 5; bottom: max(9px, env(safe-area-inset-bottom)); left: 8px; right: 8px; height: 90px; border-radius: 19px; display: flex; align-items: center; justify-content: space-around; padding: 7px 3px; overflow-x: auto; direction: rtl; }.toolbar-title { display: none; }.shape-button { flex: 0 0 54px; height: 70px; background: transparent; display: grid; align-content: center; justify-items: center; gap: 3px; border-radius: 12px; }.shape-button:active { background: rgba(120,210,255,.22); }.shape-button b { font-size: 23px; line-height: 25px; }.shape-button small { font-size: 9px; white-space: nowrap; }.toolbar-divider { height: 42px; width: 1px; background: rgba(255,255,255,.2); }
-.info-panel { position: absolute; z-index: 5; top: max(58px, calc(env(safe-area-inset-top) + 46px)); left: 12px; width: 168px; max-height: 72vh; overflow-y: auto; padding: 10px 12px; border-radius: 15px; direction: rtl; text-align: right; }
+.info-panel { position: absolute; z-index: 5; top: max(72px, calc(env(safe-area-inset-top) + 60px)); left: 12px; width: 168px; max-height: 72vh; overflow-y: auto; padding: 10px 12px; border-radius: 15px; direction: rtl; text-align: right; }
 .info-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
 .info-title b { font-size: 18px; }
 .info-stats { display: flex; justify-content: space-between; gap: 6px; }
@@ -35,3 +35,97 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; touch-action
 .section-row { margin-bottom: 8px; }.section-row input { width: 100%; accent-color: #ff9a9a; }
 .tutorial-backdrop, .message-backdrop { position: absolute; z-index: 10; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(1,5,15,.56); backdrop-filter: blur(5px); }.tutorial { max-width: 390px; border-radius: 24px; padding: 26px; text-align: right; }.tutorial-mark { font-size: 45px; display: block; text-align: center; }.tutorial h1 { text-align: center; font-size: 22px; margin: 5px 0 12px; }.tutorial p, .tutorial li { font-size: 13px; line-height: 1.9; color: #e4ecff; }.tutorial-hint { background: rgba(94,234,212,.12); border: 1px solid rgba(94,234,212,.3); border-radius: 12px; padding: 8px 10px; margin-top: 12px; font-size: 12px; }.tutorial ul { padding-right: 18px; padding-left: 0; }.primary { width: 100%; border-radius: 13px; padding: 12px; background: linear-gradient(135deg,#2dd4bf,#3b82f6); font-weight: 700; }.message { max-width: 380px; padding: 24px; border-radius: 20px; text-align: center; }.message h2 { font-size: 19px; }.message p { font-size: 13px; line-height: 1.8; color: #dce9ff; }.error-detail { font-family: monospace; font-size: 11px; color: #ffb4b4; background: rgba(0,0,0,.3); border-radius: 8px; padding: 6px 8px; direction: ltr; word-break: break-word; }
 @media (min-width: 700px) { .shape-toolbar { left: 50%; right: auto; width: 590px; transform: translateX(-50%); } }
+
+/* ============ Home menu & module shell ============ */
+.home { position: fixed; inset: 0; direction: rtl; overflow-y: auto; padding: 26px 18px calc(28px + env(safe-area-inset-bottom)); background: radial-gradient(120% 90% at 50% -10%, #17213f 0%, #0b1020 55%, #080b16 100%); }
+.home-head { text-align: center; margin: 8px 0 22px; }
+.home-head h1 { font-size: 27px; margin: 0 0 6px; background: linear-gradient(120deg,#7ff0d0,#5aa9ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.home-head p { margin: 0; font-size: 13px; color: #b6c6ea; }
+.home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 13px; max-width: 720px; margin: 0 auto; }
+.home-card { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; text-align: right; padding: 16px; border-radius: 20px; min-height: 132px; transition: transform .12s ease, border-color .12s ease; }
+.home-card:active { transform: scale(.97); }
+.home-card-icon { font-size: 34px; }
+.home-card-title { font-size: 16px; font-weight: 700; }
+.home-card-desc { font-size: 11px; line-height: 1.6; color: #c4d3f2; flex: 1; }
+.home-card-tag { font-size: 10px; padding: 2px 9px; border-radius: 999px; background: rgba(94,234,212,.16); color: #9df0da; }
+.home-foot { text-align: center; margin-top: 22px; font-size: 11px; color: #7f8fb5; }
+
+.module { position: fixed; inset: 0; direction: rtl; display: flex; flex-direction: column; background: radial-gradient(120% 90% at 50% -10%, #17213f 0%, #0b1020 60%, #080b16 100%); }
+.module-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; padding-top: max(12px, env(safe-area-inset-top)); border-radius: 0 0 18px 18px; }
+.module-head h2 { flex: 1; text-align: center; font-size: 16px; margin: 0; }
+.module-back { background: rgba(255,255,255,.1); border-radius: 11px; padding: 8px 13px; font-size: 13px; font-weight: 700; color: #cfe0ff; }
+.module-back:active { background: rgba(255,255,255,.2); }
+.module-spacer { width: 62px; }
+.module-body { flex: 1; overflow-y: auto; display: flex; }
+
+/* ============ Shared 2D pane ============ */
+.pane { flex: 1; display: flex; flex-direction: column; width: 100%; }
+.pane > :first-child { flex: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 18px; padding: 18px 14px; }
+.pane-controls { margin: 8px 12px calc(14px + env(safe-area-inset-bottom)); padding: 12px; border-radius: 18px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; }
+.stepper { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,.06); border-radius: 13px; padding: 5px 10px; }
+.stepper-label { font-size: 12px; color: #c4d3f2; }
+.stepper b { min-width: 26px; text-align: center; font-size: 17px; }
+.stepper button, .op-toggle button, .toggle-btn, .net-tab, .swatch { background: rgba(255,255,255,.1); color: inherit; border: 1px solid rgba(255,255,255,.14); }
+.stepper button { width: 34px; height: 34px; border-radius: 10px; font-size: 20px; line-height: 1; }
+.stepper button:active { background: rgba(94,234,212,.3); }
+.op-toggle { display: flex; gap: 6px; }
+.op-toggle button { padding: 8px 12px; border-radius: 11px; font-size: 13px; }
+.op-toggle button.on { background: rgba(45,212,191,.28); border-color: #5eead4; }
+.toggle-btn { padding: 9px 15px; border-radius: 12px; font-size: 13px; font-weight: 600; }
+.toggle-btn.on { background: rgba(45,212,191,.28); border-color: #5eead4; }
+.ctrl-group { display: flex; gap: 10px; padding: 6px; border-radius: 14px; background: rgba(69,183,255,.1); }
+.ctrl-pink { background: rgba(244,114,182,.12); }
+
+/* ============ Fractions ============ */
+.frac-stage { align-items: center !important; }
+.frac-block { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.frac-svg { width: 150px; height: 150px; }
+.frac-bar { display: flex; width: 180px; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,.2); }
+.frac-cell { flex: 1; border-left: 1px solid rgba(11,16,32,.7); }
+.frac-readout { text-align: center; }
+.frac-value { display: inline-flex; flex-direction: column; align-items: center; font-size: 26px; font-weight: 700; line-height: 1.1; }
+.frac-line { width: 34px; height: 3px; background: #fff; margin: 3px 0; border-radius: 2px; }
+.frac-extra { margin-top: 6px; display: flex; gap: 12px; font-size: 13px; color: #ffe08a; justify-content: center; flex-wrap: wrap; }
+.frac-cmp { font-size: 40px; font-weight: 700; color: #7ff0d0; }
+
+/* ============ Number line ============ */
+.nl-stage { width: 100%; }
+.nl-svg { width: 100%; max-width: 720px; }
+.nl-tick { fill: #aebede; font-size: 11px; }
+.nl-op { fill: #fff; font-size: 16px; font-weight: 700; }
+.nl-equation { text-align: center; font-size: 22px; margin: 2px 0 6px; }
+.nl-result { color: #7ff0d0; font-weight: 700; }
+.nl-warn { font-size: 13px; color: #fb7185; font-style: normal; }
+
+/* ============ Multiplication ============ */
+.mul-svg { width: 100%; height: auto; }
+.mul-equation { text-align: center; font-size: 24px; margin: 4px 0; }
+.mul-result { color: #7ff0d0; font-weight: 700; }
+.mul-partial { font-size: 15px; color: #ffe08a; margin-top: 4px; }
+.area-model { display: grid; grid-template-columns: 44px 1fr 1fr; grid-auto-rows: minmax(46px, auto); gap: 6px; width: 300px; }
+.area-corner { }
+.area-col-head, .area-row-head { display: grid; place-items: center; font-weight: 700; font-size: 16px; color: #cfe0ff; }
+.area-box { display: grid; place-items: center; border-radius: 12px; font-size: 22px; font-weight: 700; min-height: 70px; }
+.area-box.blue { background: rgba(69,183,255,.28); border: 1px solid #45b7ff; }
+.area-box.green { background: rgba(54,211,153,.28); border: 1px solid #36d399; }
+
+/* ============ Symmetry ============ */
+.sym-stage { width: 100%; height: 100%; padding: 10px !important; }
+.sym-canvas { width: 100%; height: min(58vh, 460px); background: rgba(10,16,32,.55); border-radius: 16px; border: 1px solid rgba(255,255,255,.14); touch-action: none; }
+.color-row { display: flex; gap: 7px; }
+.swatch { width: 30px; height: 30px; border-radius: 50%; }
+.swatch.on { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* ============ Nets ============ */
+.net-stage { flex-direction: column !important; }
+.net-svg { width: min(78vw, 300px); height: auto; }
+.net-label { fill: #dceeff; font-size: 13px; }
+.net-note { padding: 10px 14px; border-radius: 12px; font-size: 12px; line-height: 1.7; max-width: 320px; text-align: center; }
+.net-picker { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.net-tab { display: grid; justify-items: center; gap: 2px; padding: 7px 11px; border-radius: 12px; }
+.net-tab b { font-size: 20px; }
+.net-tab small { font-size: 10px; }
+.net-tab.on { background: rgba(45,212,191,.24); border-color: #5eead4; }
+
+/* Home button inside the 3D module */
+.home-btn { position: absolute; z-index: 6; top: max(12px, env(safe-area-inset-top)); left: 12px; }
