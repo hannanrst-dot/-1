@@ -2312,20 +2312,22 @@
     dastebandi: { place: 'کتابخانه‌ی دسته‌ها', title: 'کتابدارِ بزرگ', intro: 'در کتابخانه‌ی دسته‌ها، شکل‌ها را درست گروه‌بندی کن تا قفسه‌ها مرتب شوند.' }
   };
   function jTheme(m) { return JOURNEY[m.id] || { place: 'سرزمینِ شکل‌ها', title: 'قهرمانِ شکل‌ها', intro: 'سفرت را شروع کن!' }; }
+  // سطح‌بندیِ سفر: هر مرحله سخت‌تر از قبل (سطحِ موتور ۱→۳، درجه‌ی سختیِ نمایشی ۱→۵، تعدادِ سؤال بالارونده)
   function jStages() {
     return [
       { type: 'lesson', ic: '📖', name: 'آموزش' },
-      { type: 'challenge', ic: '⚔️', name: 'مرحله ۱', level: 1, n: 5 },
-      { type: 'challenge', ic: '⚔️', name: 'مرحله ۲', level: 1, n: 5 },
+      { type: 'challenge', ic: '🔎', name: 'گامِ آغاز', level: 1, n: 5, diff: 1, dname: 'آسان' },
+      { type: 'challenge', ic: '🧩', name: 'گامِ دوم', level: 1, n: 5, diff: 2, dname: 'ساده' },
       { type: 'chest', ic: '🎁', name: 'صندوقِ جایزه' },
-      { type: 'challenge', ic: '⚔️', name: 'مرحله ۳', level: 2, n: 5 },
-      { type: 'challenge', ic: '⚔️', name: 'مرحله ۴', level: 2, n: 5 },
-      { type: 'special', ic: '🌟', name: 'معمای ویژه', level: 3, n: 4 },
-      { type: 'challenge', ic: '⚔️', name: 'مرحله ۵', level: 3, n: 5 },
-      { type: 'boss', ic: '👹', name: 'باسِ نهایی', level: 3, n: 7 },
+      { type: 'challenge', ic: '⚔️', name: 'چالشِ متوسط', level: 2, n: 6, diff: 3, dname: 'متوسط' },
+      { type: 'challenge', ic: '⚔️', name: 'چالشِ دشوار', level: 2, n: 6, diff: 4, dname: 'دشوار' },
+      { type: 'special', ic: '🌟', name: 'معمای ویژه', level: 3, n: 5, diff: 4, dname: 'ویژه' },
+      { type: 'challenge', ic: '🔥', name: 'چالشِ استادی', level: 3, n: 6, diff: 5, dname: 'خیلی سخت' },
+      { type: 'boss', ic: '👹', name: 'باسِ نهایی', level: 3, n: 8, diff: 5, dname: 'باس' },
       { type: 'treasure', ic: '💎', name: 'گنج' }
     ];
   }
+  function diffPips(d) { var w = h('span', { class: 'tz-pips' }); for (var i = 0; i < 5; i++) w.appendChild(h('span', { class: 'tz-pip' + (i < d ? ' on' : '') })); return w; }
   var J_TOTAL = 9;                                    // مرحله‌های قابلِ‌بازی (بدونِ خانه‌ی گنج)
   function jGet(id) { var p = loadProg(); return (p.journeys && p.journeys[id]) || { cleared: 0, stars: {} }; }
   function jStars(j) { var t = 0; for (var k in (j.stars || {})) t += j.stars[k]; return t; }
@@ -2369,6 +2371,90 @@
     svg.appendChild(s('path', { d: d, fill: 'none', stroke: 'var(--jtrail,#d4d6ef)', 'stroke-width': '2.4', 'stroke-linecap': 'round', 'stroke-dasharray': '0.4 4.6' }));
     wr.appendChild(svg); return wr;
   }
+  // ---- صحنه‌ی واقعیِ هر سرزمین (پس‌زمینه‌ی نقاشی‌شده، مخصوصِ هر مبحث) ----
+  var VB = '0 0 340 1000';
+  function _win(x, y, w, hh, c) { var r = ''; for (var yy = y; yy < y + hh; yy += 9) for (var xx = x; xx < x + w; xx += 8) if (Math.abs((xx * 7 + yy * 13) % 5) < 3) r += '<rect x="' + xx + '" y="' + yy + '" width="4" height="5" fill="' + c + '" opacity=".8"/>'; return r; }
+  function _gear(cx, cy, r, c, teeth) { var p = ''; for (var i = 0; i < teeth; i++) { var a = i / teeth * Math.PI * 2, x1 = cx + Math.cos(a) * r, y1 = cy + Math.sin(a) * r, x2 = cx + Math.cos(a) * (r + r * .22), y2 = cy + Math.sin(a) * (r + r * .22); p += '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" stroke="' + c + '" stroke-width="' + (r * .3).toFixed(1) + '" stroke-linecap="round"/>'; } return p + '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + c + '" stroke-width="' + (r * .28).toFixed(1) + '"/><circle cx="' + cx + '" cy="' + cy + '" r="' + (r * .32).toFixed(1) + '" fill="' + c + '"/>'; }
+  var SCENES = {
+    // ۱) کوچه‌های مه‌آلود — شبِ کارآگاهی
+    motafavet1: function (c) {
+      return '<defs><linearGradient id="sk1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1c3a"/><stop offset="1" stop-color="#3a2f52"/></linearGradient></defs>' +
+        '<rect width="340" height="1000" fill="url(#sk1)"/>' +
+        '<circle cx="268" cy="90" r="34" fill="#f4ecd0" opacity=".92"/><circle cx="255" cy="80" r="30" fill="#1a1c3a" opacity=".55"/>' +
+        '<g fill="#fff" opacity=".7"><circle cx="60" cy="70" r="1.6"/><circle cx="110" cy="120" r="1.3"/><circle cx="180" cy="60" r="1.5"/><circle cx="300" cy="180" r="1.3"/><circle cx="40" cy="200" r="1.4"/></g>' +
+        '<g fill="#15162e" opacity=".92"><rect x="0" y="150" width="60" height="850"/><rect x="60" y="210" width="46" height="790"/><rect x="250" y="230" width="44" height="770"/><rect x="294" y="170" width="46" height="830"/><polygon points="0,150 30,120 60,150"/><polygon points="294,170 317,140 340,170"/></g>' +
+        _win(10, 175, 44, 120, '#ffcf6b') + _win(68, 235, 30, 110, '#ffcf6b') + _win(258, 255, 28, 120, '#ffcf6b') + _win(300, 195, 34, 120, '#ffcf6b') +
+        '<g stroke="' + c + '" stroke-width="4" fill="none" opacity=".85"><line x1="150" y1="360" x2="150" y2="250"/></g><circle cx="150" cy="238" r="16" fill="#ffe08a" opacity=".9"/><ellipse cx="150" cy="238" rx="40" ry="24" fill="#ffe08a" opacity=".18"/>' +
+        '<g fill="#fff"><ellipse cx="120" cy="430" rx="220" ry="26" opacity=".1"/><ellipse cx="230" cy="560" rx="240" ry="30" opacity=".09"/><ellipse cx="120" cy="700" rx="240" ry="30" opacity=".08"/><ellipse cx="210" cy="840" rx="240" ry="34" opacity=".08"/></g>' +
+        '<rect x="0" y="930" width="340" height="70" fill="#141326"/>';
+    },
+    // ۲) هزارتوی پنج‌در
+    motafavet2: function (c) {
+      var doors = ''; for (var i = 0; i < 5; i++) { var x = 26 + i * 60; doors += '<path d="M' + x + ' 210 v-40 a22 22 0 0 1 44 0 v40 z" fill="' + c + '" opacity="' + (0.55 + i * 0.08) + '"/><circle cx="' + (x + 34) + '" cy="195" r="3.5" fill="#fff"/>'; }
+      return '<defs><linearGradient id="sk2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e7e2d3"/><stop offset="1" stop-color="#cdc7b4"/></linearGradient></defs>' +
+        '<rect width="340" height="1000" fill="url(#sk2)"/>' +
+        '<g stroke="#b3ac95" stroke-width="10" fill="none" opacity=".7"><path d="M20 300 h90 v70 h-60"/><path d="M320 300 h-90 v70 h60"/><path d="M20 430 h60 v90 h120 v-60"/><path d="M320 470 h-70 v100"/><path d="M60 600 h100 v70 h120"/><path d="M20 690 h80 v90 h150 v-60 h70"/><path d="M40 840 h120 v80 h160"/></g>' +
+        '<rect x="14" y="212" width="312" height="14" fill="#a59d84"/>' + doors +
+        '<rect x="0" y="150" width="340" height="62" fill="#bcb59d"/><text x="170" y="128" text-anchor="middle" font-size="34" opacity=".5">🏛️</text>';
+    },
+    // ۳) تالارِ انتخاب
+    monaseb: function (c) {
+      var floor = ''; for (var r = 0; r < 6; r++) for (var q = 0; q < 8; q++) { if ((q + r) % 2) floor += '<rect x="' + (q * 46 - 20 + r * 3) + '" y="' + (720 + r * 46) + '" width="46" height="46" fill="#d8b25a" opacity="' + (0.5 - r * 0.05) + '"/>'; }
+      return '<defs><linearGradient id="sk3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4dd"/><stop offset="1" stop-color="#f0dcae"/></linearGradient></defs>' +
+        '<rect width="340" height="1000" fill="url(#sk3)"/>' +
+        '<g fill="none" stroke="' + c + '" stroke-width="12" opacity=".55"><path d="M40 260 a130 130 0 0 1 260 0"/><path d="M80 300 a90 90 0 0 1 180 0"/></g>' +
+        '<g fill="#e6c77f" opacity=".8"><rect x="26" y="250" width="26" height="520" rx="6"/><rect x="288" y="250" width="26" height="520" rx="6"/><rect x="20" y="240" width="38" height="18" rx="6"/><rect x="282" y="240" width="38" height="18" rx="6"/></g>' +
+        '<circle cx="170" cy="150" r="30" fill="' + c + '" opacity=".5"/><text x="170" y="163" text-anchor="middle" font-size="34">⚖️</text>' + floor;
+    },
+    // ۴) پلِ شباهت‌ها
+    moshabeh1: function (c) {
+      var planks = ''; for (var i = 0; i < 16; i++) { var x = 18 + i * 19; planks += '<rect x="' + x + '" y="' + (470 + Math.sin(i / 2) * 6) + '" width="14" height="12" rx="2" fill="#a9743e"/>'; }
+      return '<defs><linearGradient id="sk4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe8f7"/><stop offset="1" stop-color="#e8f6ef"/></linearGradient></defs>' +
+        '<rect width="340" height="1000" fill="url(#sk4)"/>' +
+        '<g fill="#fff" opacity=".85"><ellipse cx="80" cy="120" rx="46" ry="22"/><ellipse cx="120" cy="130" rx="36" ry="18"/><ellipse cx="250" cy="90" rx="40" ry="20"/></g>' +
+        '<path d="M0 500 q60 -40 120 -30 v530 h-120 z" fill="#8fbf8a" opacity=".8"/><path d="M340 500 q-60 -40 -120 -30 v530 h120 z" fill="#7fb37c" opacity=".8"/>' +
+        '<path d="M20 476 q150 -70 300 0" fill="none" stroke="#8a5a2b" stroke-width="4"/><path d="M20 500 q150 40 300 0" fill="none" stroke="#8a5a2b" stroke-width="4"/>' + planks +
+        '<g><line x1="40" y1="470" x2="40" y2="360" stroke="' + c + '" stroke-width="5"/><polygon points="40,360 78,372 40,388" fill="' + c + '"/><line x1="300" y1="470" x2="300" y2="360" stroke="' + c + '" stroke-width="5"/><polygon points="300,360 262,372 300,388" fill="' + c + '"/></g>' +
+        '<g fill="#6fce93" opacity=".55"><rect x="0" y="640" width="340" height="360"/></g>';
+    },
+    // ۵) سالنِ آینه‌ها
+    moshabeh2: function (c) {
+      var mir = ''; for (var i = 0; i < 3; i++) { var x = 40 + i * 100; mir += '<rect x="' + x + '" y="300" width="66" height="150" rx="33" fill="#dbe7ff" opacity=".7" stroke="' + c + '" stroke-width="4"/><path d="M' + (x + 14) + ' 320 l14 60" stroke="#fff" stroke-width="6" opacity=".8" stroke-linecap="round"/>'; }
+      return '<defs><linearGradient id="sk5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#efe4ff"/><stop offset="1" stop-color="#e2d6f7"/></linearGradient></defs>' +
+        '<rect width="340" height="1000" fill="url(#sk5)"/>' +
+        '<g stroke="' + c + '" stroke-width="3" opacity=".4"><line x1="170" y1="150" x2="140" y2="240"/><line x1="170" y1="150" x2="200" y2="240"/></g><text x="170" y="150" text-anchor="middle" font-size="30">🕯️</text>' + mir +
+        '<g fill="' + c + '" opacity=".14"><rect x="0" y="470" width="340" height="530"/></g>' +
+        '<g stroke="#fff" stroke-width="2" opacity=".4"><path d="M0 560 l340 40 M0 640 l340 40 M0 720 l340 40 M0 800 l340 40"/></g>';
+    },
+    // ۶) کارخانه‌ی قاعده‌ها
+    ejraye_qaede: function (c) {
+      return '<defs><linearGradient id="sk6" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6d9a6"/><stop offset="1" stop-color="#e3b877"/></linearGradient></defs>' +
+        '<rect width="340" height="1000" fill="url(#sk6)"/>' +
+        '<g fill="#8a6a3e" opacity=".85"><rect x="40" y="150" width="34" height="120"/><rect x="90" y="120" width="30" height="150"/></g>' +
+        '<g fill="#fff" opacity=".5"><circle cx="57" cy="140" r="14"/><circle cx="80" cy="118" r="18"/><circle cx="105" cy="100" r="14"/></g>' +
+        _gear(120, 380, 52, c, 12) + _gear(210, 440, 40, '#a9772f', 10) + _gear(60, 470, 34, '#8a6a3e', 9) +
+        '<g fill="#7a5a30" opacity=".8"><rect x="0" y="560" width="340" height="24"/><rect x="0" y="560" width="340" height="24"/></g>' +
+        '<g stroke="#b98a45" stroke-width="14" fill="none" opacity=".7"><path d="M20 640 h120 v80 h180"/><path d="M320 760 h-120 v70 h-180"/></g>' +
+        '<g fill="#946f39" opacity=".85"><rect x="0" y="900" width="340" height="100"/></g><g fill="#c99a4f"><circle cx="30" cy="930" r="4"/><circle cx="70" cy="930" r="4"/><circle cx="110" cy="930" r="4"/></g>';
+    },
+    // ۷) کتابخانه‌ی دسته‌ها
+    dastebandi: function (c) {
+      var cols = ['#e0575f', '#3f9d6d', c, '#f0a93f', '#5b7fe0'];
+      var shelves = '';
+      for (var r = 0; r < 5; r++) {
+        var y = 220 + r * 150; shelves += '<rect x="16" y="' + (y + 96) + '" width="308" height="12" fill="#7a5230"/>';
+        var x = 22, gi = 0;
+        while (x < 316) { var col = cols[(r + gi) % 5], bw = 12 + ((x * 7 + r * 3) % 4) * 3, bh = 70 + ((x * 5) % 26); shelves += '<rect x="' + x + '" y="' + (y + 96 - bh) + '" width="' + bw + '" height="' + bh + '" fill="' + col + '" opacity=".82"/>'; x += bw + 2; gi++; }
+      }
+      return '<defs><linearGradient id="sk7" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3e6cf"/><stop offset="1" stop-color="#e6d3b3"/></linearGradient></defs>' +
+        '<rect width="340" height="1000" fill="url(#sk7)"/>' +
+        '<rect x="0" y="150" width="340" height="60" fill="#8a5a2b" opacity=".85"/><text x="170" y="192" text-anchor="middle" font-size="30">📚</text>' + shelves;
+    }
+  };
+  function jScene(m) {
+    var fn = SCENES[m.id]; if (!fn) return null;
+    return h('div', { class: 'tz-scene', html: '<svg viewBox="' + VB + '" preserveAspectRatio="none" width="100%" height="100%">' + fn(m.color) + '<rect width="340" height="1000" fill="#ffffff" opacity=".14"/></svg>' });
+  }
   function renderJourney(m) {
     clear(ROOT); applyTheme();
     ROOT.appendChild(backBtn(renderHub, 'مبحث‌ها'));
@@ -2378,6 +2464,7 @@
       h('div', { class: 'tz-jhead-s' }, 'مبحثِ ' + toFa(m.n) + ' — ' + m.title + '  •  ⭐ ' + toFa(jStars(j)) + '  •  ' + toFa(Math.min(j.cleared, J_TOTAL)) + '/' + toFa(J_TOTAL) + ' مرحله')));
     ROOT.appendChild(guideRow(j.cleared >= J_TOTAL ? 'wow' : 'happy', jGuideMsg(m, st, j), 'tz-guide-sm'));
     var map = h('div', { class: 'tz-map', style: { '--jc': m.color } });
+    var sc = jScene(m); if (sc) map.appendChild(sc);
     map.appendChild(jTrail(st.length));
     map.appendChild(h('div', { class: 'tz-map-start' }, '🚩 شروع'));
     st.forEach(function (s2, i) {
@@ -2387,6 +2474,7 @@
       var node = h('button', { class: 'tz-node tz-node-' + state + ' side-' + side + ' t-' + s2.type, disabled: state === 'lock' ? true : null, onclick: function () { if (state !== 'lock') runStage(m, i); } },
         h('span', { class: 'tz-node-ic' }, h('span', { class: 'tz-node-emoji' }, state === 'lock' ? '🔒' : (state === 'done' ? '✓' : s2.ic))),
         h('span', { class: 'tz-node-nm' }, s2.name),
+        s2.diff ? h('span', { class: 'tz-node-diff' }, diffPips(s2.diff), h('span', { class: 'tz-node-dn' }, s2.dname)) : null,
         (i < j.cleared && j.stars[i]) ? starRow(j.stars[i], 3) : (state === 'now' && s2.type !== 'treasure' ? h('span', { class: 'tz-node-go' }, 'شروع ←') : null));
       map.appendChild(node);
     });
@@ -2442,7 +2530,8 @@
     function draw() {
       clear(body);
       head.innerHTML = '';
-      head.appendChild(h('span', { class: 'tz-rh-title' }, s.ic + ' ' + (boss ? 'باسِ نهایی — ' + jTheme(m).title : s.name)));
+      head.appendChild(h('span', { class: 'tz-rh-title' }, s.ic + ' ' + (boss ? 'باسِ نهایی — ' + jTheme(m).title : s.name),
+        s.diff ? h('span', { class: 'tz-rh-diff' }, diffPips(s.diff), h('span', { class: 'tz-rh-dn' }, 'سطح ' + toFa(s.diff) + ' • ' + s.dname)) : null));
       head.appendChild(h('span', { class: 'tz-hearts' }, heartsTxt()));
       head.appendChild(h('span', { class: 'tz-rh-prog' }, 'سؤال ' + toFa(qi + 1) + ' از ' + toFa(N)));
       if (qi >= N) return pass();
@@ -2836,7 +2925,13 @@
       '.tz-jhead-s{font-size:.86rem;color:' + PAL.inkSoft + ';font-weight:700}',
       '.tz-map{position:relative;display:flex;flex-direction:column;align-items:center;gap:18px;padding:44px 0 18px;margin-top:6px;border-radius:22px;overflow:hidden;--jc:' + PAL.teal + ';background:linear-gradient(180deg,#eef2fb 0,#eef7f0 42%,#e4f2df 100%);background:linear-gradient(180deg,color-mix(in srgb,var(--jc) 12%,#fff) 0,#eef7f0 42%,#e4f2df 100%);border:1px solid ' + PAL.border + '}',
       '.tz-map:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 12% 8%,rgba(255,255,255,.6),transparent 22%),radial-gradient(circle at 84% 16%,rgba(255,255,255,.45),transparent 20%),radial-gradient(circle 3px at 30% 30%,rgba(35,37,68,.05) 99%,transparent),radial-gradient(circle 3px at 70% 62%,rgba(35,37,68,.05) 99%,transparent);z-index:0}',
-      '.tz-trail{position:absolute;inset:38px 0 22px;z-index:0;pointer-events:none;--jtrail:color-mix(in srgb,var(--jc) 42%,#c4c7e4)}',
+      '.tz-scene{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;border-radius:22px}.tz-scene svg{display:block;width:100%;height:100%}',
+      '.tz-dark .tz-scene{opacity:.5}',
+      '.tz-trail{position:absolute;inset:38px 0 22px;z-index:0;pointer-events:none;--jtrail:color-mix(in srgb,var(--jc) 42%,#fff)}',
+      '.tz-node-diff{display:flex;align-items:center;gap:5px;margin-top:2px}.tz-node-dn{font-size:.64rem;font-weight:800;color:' + PAL.inkSoft + '}',
+      '.tz-pips{display:inline-flex;gap:2px}.tz-pip{width:6px;height:6px;border-radius:50%;background:#d3d6ea}.tz-pip.on{background:' + PAL.gold + '}',
+      '.tz-rh-diff{display:inline-flex;align-items:center;gap:5px;margin-inline-start:8px}.tz-rh-dn{font-size:.7rem;font-weight:800;color:' + PAL.inkSoft + '}',
+      '.tz-dark .tz-node-dn,.tz-dark .tz-rh-dn{color:#a3a7c4}.tz-dark .tz-pip{background:#3a3d5f}',
       '.tz-map-start{position:relative;z-index:1;font-weight:800;font-size:.82rem;color:var(--jc);background:#fff;border:2px solid ' + PAL.border + ';border:2px solid color-mix(in srgb,var(--jc) 40%,#fff);padding:4px 16px;border-radius:999px;box-shadow:' + SH + '}',
       '.tz-node{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:3px;width:150px;background:#fff;border:2px solid ' + PAL.border + ';border-radius:18px;padding:10px 10px 11px;cursor:pointer;font-family:inherit;box-shadow:' + SH + ';transition:transform .14s,box-shadow .14s}',
       '.tz-node.side-l{transform:translateX(-58px)}.tz-node.side-r{transform:translateX(58px)}',
