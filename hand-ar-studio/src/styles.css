@@ -130,3 +130,20 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; touch-action
 
 /* Home button inside the 3D module */
 .home-btn { position: absolute; z-index: 6; top: max(12px, env(safe-area-inset-top)); left: 12px; }
+
+/* ============ Shared AR hand layer (2D lessons) ============ */
+.ar-bg-video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; background: #0b1020; }
+.ar-bg-video.selfie { transform: scaleX(-1); }
+.ar-bg-hands { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+.module.ar { background: transparent; }
+.module.ar::after { content: ''; position: fixed; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(130% 100% at 50% 25%, rgba(4,8,18,.12), rgba(4,8,18,.5)); }
+.module.ar .module-head, .module.ar .module-body { position: relative; z-index: 3; }
+.module-tools { display: flex; gap: 6px; }
+.mini-btn { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16); border-radius: 11px; min-width: 40px; height: 40px; font-size: 17px; color: inherit; }
+.mini-btn.on { border-color: #63f0c2; background: rgba(25,116,92,.6); }
+
+.hand-cursor { position: fixed; top: 0; left: 0; z-index: 50; width: 40px; height: 40px; margin: 0; border-radius: 50%; border: 3px solid #ffe08a; box-shadow: 0 0 14px rgba(255,224,138,.7), inset 0 0 8px rgba(255,224,138,.4); pointer-events: none; opacity: 0; transition: opacity .2s ease, transform .04s linear; will-change: transform, opacity; }
+.hand-cursor.pinch { border-color: #45f0b0; background: rgba(69,240,176,.28); box-shadow: 0 0 18px rgba(69,240,176,.85); }
+.hand-hover { outline: 2px solid rgba(255,224,138,.85) !important; outline-offset: 2px; }
+.hand-press { transform: scale(.9); filter: brightness(1.25); }
+.ar-hint { position: fixed; z-index: 6; top: 66px; right: 50%; transform: translateX(50%); padding: 6px 12px; border-radius: 999px; background: rgba(120,30,30,.7); border: 1px solid rgba(255,150,150,.4); font-size: 11px; white-space: nowrap; }

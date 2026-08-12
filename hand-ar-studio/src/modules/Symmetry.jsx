@@ -53,7 +53,7 @@ export default function Symmetry() {
   return (
     <div className="pane">
       <div className="sym-stage">
-        <canvas ref={canvasRef} className="sym-canvas"
+        <canvas ref={canvasRef} className="sym-canvas" data-hand-draw
           onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={up}
           onTouchStart={down} onTouchMove={move} onTouchEnd={up} />
       </div>

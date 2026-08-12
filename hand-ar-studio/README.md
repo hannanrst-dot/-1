@@ -13,7 +13,12 @@ A mobile-first, browser-only **math teaching studio**: a home menu of lessons a 
 | **Multiplication** | ضرب و مساحت | Array model and area model (partial products). |
 | **Symmetry** | تقارن | Mirror-drawing across a vertical/horizontal/both axis. |
 
-Only the 3D Solids module uses the camera and hand tracking; every other module is touch/click controlled so it works reliably on any device.
+Every lesson runs over the live camera with a shared **hand-pointer**: the pinch
+point becomes an on-screen cursor and a pinch acts as a click, so a teacher can
+drive the buttons (and freehand-draw in Symmetry) with a pinch in front of the
+camera — no touching the screen. Touch input is never disabled, so everything
+still works by tap, and the hand layer can be toggled off per lesson. The 3D
+Solids module keeps its own richer hand manipulation (rotate / scale / move).
 
 ## 3D Solids module
 
