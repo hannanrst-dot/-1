@@ -75,13 +75,16 @@ export default function HandPointer({ front }) {
             const drawEl = el?.closest?.('[data-hand-draw]') || null;
             setHover(btn);
             const rising = s.pinch && !s.prev, falling = !s.pinch && s.prev;
+            const now = performance.now();
             if (rising) {
-              if (btn) { btn.classList.add('hand-press'); s.pressBtn = btn; }
+              // Click at the moment of the pinch (not on release) so a little hand
+              // jitter afterwards can't slide off the target and cancel the click.
+              if (btn && now - (s.lastClick || 0) > 320) { btn.classList.add('hand-press'); btn.click(); s.pressBtn = btn; s.lastClick = now; }
               else if (drawEl) { s.draw = drawEl; dispatch(drawEl, 'mousedown', s.x, s.y); }
             }
             if (s.pinch && s.draw) dispatch(s.draw, 'mousemove', s.x, s.y);
             if (falling) {
-              if (s.pressBtn) { s.pressBtn.classList.remove('hand-press'); if (s.pressBtn === btn) s.pressBtn.click(); s.pressBtn = null; }
+              if (s.pressBtn) { s.pressBtn.classList.remove('hand-press'); s.pressBtn = null; }
               if (s.draw) { dispatch(s.draw, 'mouseup', s.x, s.y); s.draw = null; }
             }
             s.prev = s.pinch;
