@@ -1493,6 +1493,126 @@
     };
   }
 
+  /* ==================================================================
+   * ارتقای تحلیلی — سؤال‌های سبکِ آزمونِ واقعیِ هوش (کشفِ رابطه، ماتریسِ
+   * مرکب، سریِ دوقاعده‌ای، تناسبِ دوتغییره). نیازمندِ تحلیل و ریزبینی.
+   * ================================================================ */
+  var IQ_DOM = { sides: [3, 4, 5, 6], fill: ['none', 'gray', 'hatch', 'vhatch', 'dots', 'checker'], inner: ['none', 'circle', 'square', 'triangle', 'star', 'plus'], dot: ['solid', 'open'], size: ['big', 'small'], ring: ['single', 'double'] };
+  var IQ_ALL = ['sides', 'fill', 'inner', 'dot', 'size', 'ring'];
+  function iqCl(o) { var x = {}; for (var k in o) x[k] = o[k]; return x; }
+  function iqKey(o) { return IQ_ALL.map(function (nm) { return o[nm]; }).join('|'); }
+
+  // نقطه‌های داخل (چیدمانِ مرتب و مرکزی) — برای سؤالِ «کشفِ رابطه»
+  function innerDots(g, n) {
+    var rows = [], left = n; while (left > 0) { var take = Math.min(3, left); rows.push(take); left -= take; }
+    var y0 = 50 - (rows.length - 1) * 9 / 2;
+    rows.forEach(function (cnt, ri) { var x0 = 50 - (cnt - 1) * 9 / 2; for (var i = 0; i < cnt; i++) drawDot(g, x0 + i * 9, y0 + ri * 9, 2.9, PAL.line); });
+  }
+  function ruleFig(s, d, rot) { return function (g) { add(g, 'polygon', merge(DEF, { points: ptsStr(polyPts(s, 34, 50, 50, rot - 90)) })); innerDots(g, d); }; }
+  // رابطه‌ی پنهان: تعدادِ نقطه‌ها = تعدادِ ضلع‌ها؛ یک شکل رابطه را می‌شکند (هر شکل عددِ متفاوتی دارد ⇒ باید رابطه را تحلیل کنی، نه فقط بشماری).
+  function oddRule(rng, level, count) {
+    count = count || 4;
+    var vals = rng.sample([3, 4, 5, 6, 7, 8], count);
+    var ansIdx = rng.int(0, count - 1);
+    var opts = [];
+    for (var i = 0; i < count; i++) {
+      var s = vals[i];
+      var d = (i === ansIdx) ? s + rng.pick([-1, 1].filter(function (x) { return s + x >= 1 && s + x <= 9; })) : s;
+      opts.push({ s: s, d: d, rot: rng.int(-18, 18) });
+    }
+    return {
+      prompt: 'یک رابطه‌ی پنهان بینِ تعدادِ نقطه‌ها و ضلع‌ها هست. کدام شکل آن رابطه را می‌شکند؟',
+      tag: 'کشفِ رابطه', options: opts, answer: ansIdx,
+      render: function (o) { return figure(ruleFig(o.s, o.d, o.rot), { size: 96 }); },
+      why: 'در سه شکل تعدادِ نقطه‌های داخل دقیقاً برابرِ تعدادِ ضلع‌هاست (مثلاً پنج‌ضلعی با ۵ نقطه)؛ اما در این یکی نقطه‌ها با ضلع‌ها برابر نیست.'
+    };
+  }
+  function oddRule5(rng, level) { return oddRule(rng, level, 5); }
+
+  // ماتریسِ ۳×۳ مرکب: در هر ستون «دو» ویژگی و در هر سطر یک ویژگی هم‌زمان تغییر می‌کند (سه قاعده‌ی هم‌زمان).
+  function matrixCompound(rng, level, count) {
+    count = count || 4;
+    var perm = rng.shuffle(['sides', 'fill', 'inner']);
+    var Fc = perm[0], Fx = perm[1], Fr = perm[2];
+    var colA = rng.sample(IQ_DOM[Fc], 3), colB = rng.sample(IQ_DOM[Fx], 3), rowV = rng.sample(IQ_DOM[Fr], 3);
+    var base = {}; IQ_ALL.forEach(function (nm) { base[nm] = rng.pick(IQ_DOM[nm]); });
+    function cell(r, c) { var o = iqCl(base); o[Fc] = colA[c]; o[Fx] = colB[c]; o[Fr] = rowV[r]; o.rot = 0; return o; }
+    var fns = []; for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) { if (r === 2 && c === 2) continue; (function (rr, cc) { fns.push(function () { return figure(drawFeat(cell(rr, cc)), { size: 52 }); }); })(r, c); }
+    var correct = cell(2, 2);
+    var cand = [];
+    cand.push((function () { var d = iqCl(correct); d[Fc] = colA[1]; return d; })());
+    cand.push((function () { var d = iqCl(correct); d[Fx] = colB[1]; return d; })());
+    cand.push((function () { var d = iqCl(correct); d[Fr] = rowV[1]; return d; })());
+    cand.push((function () { var d = iqCl(correct); d[Fc] = colA[1]; d[Fx] = colB[1]; return d; })());
+    var seen = {}; seen[iqKey(correct)] = 1; var dists = [];
+    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { var k = iqKey(cand[i]); if (!seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    var opts = [correct].concat(dists); var order = rng.shuffle(opts);
+    return {
+      prompt: 'در این ماتریس چند قاعده هم‌زمان اجرا می‌شود. کدام گزینه خانه‌ی «؟» را کامل می‌کند؟',
+      tag: 'ماتریسِ مرکب', matrix: fns, wide: true, options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(drawFeat(o), { rot: 0, size: 92 }); },
+      why: 'در هر ستون هم «' + RULE_FA[Fc] + '» و هم «' + RULE_FA[Fx] + '» تغییر می‌کند، و در هر سطر «' + RULE_FA[Fr] + '». پس خانه‌ی آخر باید هم‌زمان هر سه قاعده را رعایت کند.'
+    };
+  }
+
+  // سریِ دوقاعده‌ای: هم تعدادِ ضلع زیاد می‌شود، هم بافتِ داخل هر گام عوض می‌شود.
+  function seriesCompound(rng, level, count) {
+    count = count || 4;
+    var s = rng.pick([3, 4]);
+    var FILLS = ['none', 'gray', 'dots', 'hatch', 'checker'];
+    function full(sides, fill) { return { sides: sides, fill: fill, inner: 'none', dot: 'solid', size: 'big', ring: 'single' }; }
+    var stem = [0, 1, 2, 3].map(function (i) { return function () { return figure(drawFeat(full(s + i, FILLS[i])), { size: 50 }); }; });
+    var correct = full(s + 4, FILLS[4]);
+    var cand = [full(s + 3, FILLS[4]), full(s + 4, FILLS[3]), full(s + 5, FILLS[4]), full(s + 4, FILLS[2])];
+    function k2(o) { return o.sides + '|' + o.fill; }
+    var seen = {}; seen[k2(correct)] = 1; var dists = [];
+    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { if (!seen[k2(cand[i])]) { seen[k2(cand[i])] = 1; dists.push(cand[i]); } }
+    var opts = [correct].concat(dists); var order = rng.shuffle(opts);
+    return {
+      prompt: 'این سری دو قاعده‌ی هم‌زمان دارد. شکلِ بعدی کدام است؟',
+      tag: 'سریِ دوقاعده‌ای', series: stem, wide: true, options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(drawFeat(o), { size: 92 }); },
+      why: 'هم «تعدادِ ضلع» هر گام یکی زیاد می‌شود و هم «بافتِ داخل» عوض می‌شود؛ پس شکلِ بعدی باید هم یک ضلعِ بیشتر و هم بافتِ مرحله‌ی بعد را داشته باشد.'
+    };
+  }
+
+  // تناسبِ دوتغییره: A→B با دو تغییرِ هم‌زمان؛ همان دو تغییر را روی C اجرا کن.
+  function analogyCompound(rng, level, count) {
+    count = count || 4;
+    var pr = rng.sample(['sides', 'fill', 'inner'], 2), t1 = pr[0], t2 = pr[1];
+    var f1 = rng.pick(IQ_DOM[t1]), o1 = rng.pick(IQ_DOM[t1].filter(function (x) { return x !== f1; }));
+    var f2 = rng.pick(IQ_DOM[t2]), o2 = rng.pick(IQ_DOM[t2].filter(function (x) { return x !== f2; }));
+    var A = {}; IQ_ALL.forEach(function (nm) { A[nm] = rng.pick(IQ_DOM[nm]); }); A[t1] = f1; A[t2] = f2; A.rot = 0;
+    var B = iqCl(A); B[t1] = o1; B[t2] = o2;
+    var C = {}; IQ_ALL.forEach(function (nm) { C[nm] = rng.pick(IQ_DOM[nm]); }); C[t1] = f1; C[t2] = f2; C.rot = 0;
+    var diffs = 0; IQ_ALL.forEach(function (nm) { if (nm !== t1 && nm !== t2 && C[nm] !== A[nm]) diffs++; });
+    if (diffs < 2) { var pool = IQ_ALL.filter(function (nm) { return nm !== t1 && nm !== t2; }); for (var z = 0; z < 2; z++) C[pool[z]] = rng.pick(IQ_DOM[pool[z]].filter(function (x) { return x !== A[pool[z]]; })); }
+    var correct = iqCl(C); correct[t1] = o1; correct[t2] = o2;
+    var cand = [];
+    cand.push((function () { var d = iqCl(C); d[t1] = o1; return d; })());
+    cand.push((function () { var d = iqCl(C); d[t2] = o2; return d; })());
+    cand.push(iqCl(C));
+    var Bc = iqCl(B); Bc.rot = 0; cand.push(Bc);
+    var seen = {}; seen[iqKey(correct)] = 1; var dists = [], guard = 0;
+    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { var k = iqKey(cand[i]); if (!seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    while (dists.length < count - 1 && guard++ < 40) { var d = iqCl(correct); var nm = rng.pick(IQ_ALL.filter(function (x) { return x !== t1 && x !== t2; })); d[nm] = rng.pick(IQ_DOM[nm].filter(function (x) { return x !== correct[nm]; })); var kk = iqKey(d); if (!seen[kk]) { seen[kk] = 1; dists.push(d); } }
+    var opts = [correct].concat(dists); var order = rng.shuffle(opts);
+    var refs = [function () { return figure(drawFeat(A), { size: 58 }); }, function () { return figure(drawFeat(B), { size: 58 }); }, function () { return figure(drawFeat(C), { size: 58 }); }];
+    return {
+      prompt: 'A با دو تغییرِ هم‌زمان به B تبدیل شده. اگر همان دو تغییر روی C اجرا شود، کدام گزینه به‌دست می‌آید؟ (A، B، C در بالا)',
+      tag: 'تناسبِ دوتغییره', refs: refs, options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(drawFeat(o), { size: 96 }); },
+      why: 'دو تغییرِ A به B: «' + RULE_FA[t1] + '» از ' + FEAT_FA[t1][f1] + ' به ' + FEAT_FA[t1][o1] + '، و «' + RULE_FA[t2] + '» از ' + FEAT_FA[t2][f2] + ' به ' + FEAT_FA[t2][o2] + '. هر دو را با هم روی C اجرا کن؛ بقیه‌ی ویژگی‌های C دست‌نخورده می‌مانند.'
+    };
+  }
+  function analogy2_5(rng, level) { return analogyCompound(rng, level, 5); }
+
+  // دسته‌بندی بر اساسِ تعدادِ نقطه‌های داخل (شکلِ بیرونی/اندازه/چرخش گمراهی)
+  function m7_byDotCount(rng) {
+    function fig(cat, seed) { var d = [2, 3, 4][cat], rr = new RNG(seed), n = rr.pick([3, 4, 5, 6]), st = rr.pick([-90, -45, -60]); return function (g) { add(g, 'polygon', merge(DEF, { points: ptsStr(polyPts(n, 32, 50, 50, st)) })); innerDots(g, d); }; }
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «تعدادِ نقطه‌های داخل» درست دسته‌بندی شده‌اند؟', 'شکلِ بیرونی و اندازه گمراه‌کننده‌اند؛ در گزینه‌ی درست هر گروه شکل‌هایی است که تعدادِ نقطه‌ی داخلشان یکی است (۲، ۳ یا ۴). نقطه‌ها را بشمار!');
+  }
+
   // دومینو: شمارشِ کلِ خال‌های دو نیمه؛ چیدمان گمراه‌کننده.
   var PIP = { 0: [], 1: [[.5, .5]], 2: [[.28, .28], [.72, .72]], 3: [[.28, .28], [.5, .5], [.72, .72]], 4: [[.28, .28], [.72, .28], [.28, .72], [.72, .72]], 5: [[.28, .28], [.72, .28], [.5, .5], [.28, .72], [.72, .72]], 6: [[.28, .24], [.72, .24], [.28, .5], [.72, .5], [.28, .76], [.72, .76]] };
   function pips(g, n, x, y, w, hh) { (PIP[n] || []).forEach(function (pt) { drawDot(g, x + pt[0] * w, y + pt[1] * hh, 3); }); }
@@ -1514,8 +1634,8 @@
 
   // سوالاتِ خیلی ساده (تک‌ویژگیِ بدیهی: oddDots/oddSides/oddArrow/oddDice/…) از ریلِ اصلی حذف شدند؛ کفِ سختی بالا رفت.
   var GENS_EASY = [oddMatrix, oddMatrix, oddMatrix, dominoOdd, oddChirality, oddTextureFill, oddArrowType, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGear, oddGridSym, oddCombo, oddFlower, oddConcentric, oddClock, oddChain, oddBranch];
-  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, dominoOdd, oddChirality, oddGlyph, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddTextureFill, oddSize, oddNested, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch];
+  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, dominoOdd, oddChirality, oddGlyph, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddTextureFill, oddSize, oddNested, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddRule, sceneArrowHead, sceneInnerSwap];
+  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddRule, oddRule];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -1637,8 +1757,8 @@
   // ماتریسِ ویژگیِ ۵گزینه‌ای — ستونِ فقراتِ مبحث ۲ (گزینه‌های نزدیک + تله)
   function m2_matrix(rng, level) { return oddMatrix(rng, level || 2, 5); }
   var M2_EASY = [m2_matrix, m2_matrix, m2_needle, m2_dotsIO, m2_tangent, m2_layers, m2_pinwheel];
-  var M2_MED = [m2_matrix, m2_matrix, m2_matrix, m2_pinwheel, m2_flow, m2_scene, m2_layers, m2_needle];
-  var M2_HARD = [m2_matrix, m2_matrix, m2_matrix, m2_scene, m2_pinwheel, m2_flow];
+  var M2_MED = [m2_matrix, m2_matrix, m2_matrix, m2_pinwheel, m2_flow, m2_scene, m2_layers, m2_needle, oddRule5];
+  var M2_HARD = [m2_matrix, m2_matrix, m2_matrix, m2_scene, m2_pinwheel, m2_flow, oddRule5, oddRule5];
   function poolForM2(level) { return level >= 3 ? M2_HARD : level === 2 ? M2_MED : M2_EASY; }
   function genQuestionM2(rng, level) { return rng.pick(poolForM2(level))(rng, level || 1); }
 
@@ -1754,8 +1874,8 @@
   function m3_combine(rng, level) { return combineShapes(rng, level || 1, 5); }
   function m3_fold(rng, level) { return paperFold(rng, level || 1, 5); }
   var M3_EASY = [m3_match, m3_match, m3_combine, m3_fold, m3_sameType, m3_evenCount, m3_symmetry];
-  var M3_MED = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_symmetry, m3_innerMatch, m3_rotationFamily];
-  var M3_HARD = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_fold, m3_sceneFamily, m3_rotationFamily];
+  var M3_MED = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_symmetry, m3_innerMatch, m3_rotationFamily, oddRule5, analogy2_5];
+  var M3_HARD = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_fold, m3_sceneFamily, m3_rotationFamily, oddRule5, analogy2_5, analogy2_5];
   function poolForM3(level) { return level >= 3 ? M3_HARD : level === 2 ? M3_MED : M3_EASY; }
   function genQuestionM3(rng, level) { return rng.pick(poolForM3(level))(rng, level || 1); }
 
@@ -1830,8 +1950,8 @@
   }
   function m4_match(rng, level) { return matchMatrix(rng, level || 1, 4, 2); }
   var M4_EASY = [m4_match, m4_match, m4_oneShaded, m4_containsBoth, m4_symmetryPair];
-  var M4_MED = [m4_match, m4_match, analogyPair, m4_sidesEqLines, m4_oneShaded, m4_containsBoth];
-  var M4_HARD = [m4_match, m4_match, analogyPair, analogyPair, m4_chiralPair, m4_sidesEqLines];
+  var M4_MED = [m4_match, m4_match, analogyPair, m4_sidesEqLines, m4_oneShaded, m4_containsBoth, analogyCompound];
+  var M4_HARD = [m4_match, m4_match, analogyPair, analogyPair, m4_chiralPair, m4_sidesEqLines, analogyCompound, analogyCompound];
   function poolForM4(level) { return level >= 3 ? M4_HARD : level === 2 ? M4_MED : M4_EASY; }
   function genQuestionM4(rng, level) { return rng.pick(poolForM4(level))(rng, level || 1); }
 
@@ -1897,8 +2017,8 @@
   }
   function m5_match(rng, level) { return matchMatrix(rng, level || 1, 5, 2); }
   var M5_EASY = [m5_match, m5_match, m5_arrowCount, m5_containsTrio, m5_symmetryPair5];
-  var M5_MED = [m5_match, m5_match, m5_match, m5_curveLineMix, m5_arrowCount, m5_containsTrio];
-  var M5_HARD = [m5_match, m5_match, m5_match, m5_chiralScene5, m5_curveLineMix, m5_containsTrio];
+  var M5_MED = [m5_match, m5_match, m5_match, m5_curveLineMix, m5_arrowCount, m5_containsTrio, analogy2_5];
+  var M5_HARD = [m5_match, m5_match, m5_match, m5_chiralScene5, m5_curveLineMix, m5_containsTrio, analogy2_5, analogy2_5];
   function poolForM5(level) { return level >= 3 ? M5_HARD : level === 2 ? M5_MED : M5_EASY; }
   function genQuestionM5(rng, level) { return rng.pick(poolForM5(level))(rng, level || 1); }
 
@@ -1959,8 +2079,8 @@
     return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکلِ باز به‌تدریج بسته می‌شود (شکاف کم‌کم پر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'بسته‌شدنِ تدریجی', 'در گزینه‌ی درست، شکاف مرتب کوچک‌تر می‌شود تا دایره کامل و بسته شود؛ اما در بقیه این روند منظم نیست.');
   }
   var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair, matrix3x3, seriesComplete, seriesComplete];
-  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete];
-  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, analogyPair, matrix3x3, matrix3x3, seriesComplete];
+  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound];
+  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound];
   function poolForM6(level) { return level >= 3 ? M6_HARD : level === 2 ? M6_MED : M6_EASY; }
   function genQuestionM6(rng, level) { return rng.pick(poolForM6(level))(rng, level || 1); }
 
@@ -2039,8 +2159,8 @@
     return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «جهتِ هاشور» درست دسته‌بندی شده‌اند؟', 'شکلِ بیرونی مهم نیست؛ در گزینه‌ی درست هر گروه یک جهتِ هاشور دارد: عمودی، مورب، یا افقی. به زاویه‌ی خط‌های داخل خوب دقت کن.');
   }
   var M7_EASY = [m7_bySides, m7_byInner];
-  var M7_MED = [m7_bySides, m7_byInner, m7_byFill];
-  var M7_HARD = [m7_byInner, m7_byFill, m7_byHatchDir, m7_bySides];
+  var M7_MED = [m7_bySides, m7_byInner, m7_byFill, m7_byDotCount];
+  var M7_HARD = [m7_byInner, m7_byFill, m7_byHatchDir, m7_bySides, m7_byDotCount, m7_byDotCount];
   function poolForM7(level) { return level >= 3 ? M7_HARD : level === 2 ? M7_MED : M7_EASY; }
   function genQuestionM7(rng, level) { return rng.pick(poolForM7(level))(rng, level || 1); }
 
@@ -3436,6 +3556,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
