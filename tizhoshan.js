@@ -898,6 +898,59 @@
     };
   }
 
+  // چرخ‌دنده: تعدادِ دندانه سرنخ است؛ چرخشِ چرخ‌دنده گمراهی است. (شکلِ باحال)
+  function gearFig(teeth, rot) {
+    return function (g) {
+      var R = 34, ri = 24, hole = 8, wb = 360 / teeth * 0.30, wt = 360 / teeth * 0.15;
+      function P(rad, deg) { var a = (rot + deg) * Math.PI / 180; return (50 + rad * Math.cos(a)).toFixed(2) + ' ' + (50 + rad * Math.sin(a)).toFixed(2); }
+      for (var i = 0; i < teeth; i++) {
+        var c = i * 360 / teeth;
+        add(g, 'polygon', merge(DEF, { points: [P(ri, c - wb), P(R, c - wt), P(R, c + wt), P(ri, c + wb)].join(' '), 'stroke-width': 2.6 }));
+      }
+      add(g, 'circle', merge(DEF, { cx: 50, cy: 50, r: ri, 'stroke-width': 3 }));
+      add(g, 'circle', merge(DEF, { cx: 50, cy: 50, r: hole, 'stroke-width': 2.6, fill: '#fff' }));
+    };
+  }
+  function oddGear(rng, level, count) {
+    count = count || 4; level = level || 1;
+    var base = rng.pick([6, 7, 8, 9, 10]);
+    var deltas = level >= 3 ? [-1, 1] : [-2, -1, 1, 2];
+    var odd = base + rng.pick(deltas.filter(function (d) { return base + d >= 5 && base + d <= 12; }));
+    var rots = rng.sample([0, 9, 18, 27, 36, 45, 54, 63], count);
+    var same = sameList(count, function (i) { return { t: base, rot: rots[i] }; });
+    var pa = placeAnswer(rng, same, { t: odd, rot: rots[count - 1] }, count);
+    return {
+      prompt: 'کدام چرخ‌دنده با بقیه فرق دارد؟', tag: 'شمارشِ دندانه',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(gearFig(o.t, o.rot), { size: 96 }); },
+      why: 'چرخشِ چرخ‌دنده مهم نیست؛ سه چرخ‌دنده ' + toFa(base) + ' دندانه دارند، اما این یکی ' + toFa(odd) + '. دندانه‌ها را دور تا دور بشمار!'
+    };
+  }
+  // مارپیچ: تعدادِ دورهای پیچش سرنخ است؛ جهتِ پیچش گمراهی است. (شکلِ باحال)
+  function spiralFig(turns, dir, rot) {
+    return function (g) {
+      var steps = turns * 44, maxR = 34, pts = [];
+      for (var i = 0; i <= steps; i++) { var frac = i / steps, a = (rot + dir * frac * turns * 360) * Math.PI / 180, r = 4 + frac * maxR; pts.push((i ? 'L' : 'M') + (50 + r * Math.cos(a)).toFixed(2) + ' ' + (50 + r * Math.sin(a)).toFixed(2)); }
+      add(g, 'path', merge(DEF, { d: pts.join(' '), fill: 'none', 'stroke-width': 3.2 }));
+      add(g, 'circle', { cx: 54, cy: 50, r: 2.4, fill: PAL.line });
+    };
+  }
+  function oddSpiral(rng, level, count) {
+    count = count || 4; level = level || 1;
+    var base = rng.pick([2, 3, 4]);
+    var odd = base + rng.pick(base === 2 ? [1] : base === 4 ? [-1] : [-1, 1]);
+    var dir = rng.pick([1, -1]);
+    var rots = rng.sample([0, 30, 60, 90, 120, 150, 180, 210], count);
+    var same = sameList(count, function (i) { return { t: base, dir: dir, rot: rots[i] }; });
+    var pa = placeAnswer(rng, same, { t: odd, dir: dir, rot: rots[count - 1] }, count);
+    return {
+      prompt: 'کدام مارپیچ با بقیه فرق دارد؟', tag: 'شمارشِ دورِ مارپیچ',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(spiralFig(o.t, o.dir, o.rot), { size: 96 }); },
+      why: 'چرخشِ مارپیچ مهم نیست؛ سه مارپیچ ' + toFa(base) + ' دور می‌پیچند، اما این یکی ' + toFa(odd) + ' دور. از مرکز تا بیرون دورها را بشمار!'
+    };
+  }
+
   // ستاره با تعدادِ پَرِ متفاوت — تعدادِ پَرها سرنخ است؛ چرخش گمراهی است.
   function starPts(p, ro, ri, rot) {
     var s = [];
@@ -1340,9 +1393,10 @@
     };
   }
 
-  var GENS_EASY = [oddMatrix, oddMatrix, dominoOdd, oddChirality, oddDots, oddTextureFill, oddLineStyle, oddArrowType, oddArrow, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddLineCount, oddDice, oddSymmetry, oddOpenClosed];
-  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, dominoOdd, oddChirality, oddGlyph, oddDots, oddSides, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddArrow, oddTextureFill, oddSize, oddLineCount, oddNested, oddBeadArrow, oddSymmetry, oddOpenClosed, oddRelation, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddAngle, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation];
+  // سوالاتِ خیلی ساده (تک‌ویژگیِ بدیهی: oddDots/oddSides/oddArrow/oddDice/…) از ریلِ اصلی حذف شدند؛ کفِ سختی بالا رفت.
+  var GENS_EASY = [oddMatrix, oddMatrix, oddMatrix, dominoOdd, oddChirality, oddTextureFill, oddArrowType, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGear, oddGridSym, oddCombo];
+  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, dominoOdd, oddChirality, oddGlyph, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddTextureFill, oddSize, oddNested, oddBeadArrow, oddRelation, oddGear, oddSpiral, sceneArrowHead, sceneInnerSwap];
+  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation, oddGear, oddSpiral];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -2137,6 +2191,31 @@
   /* ====================================================================
    * ۵) داده‌ی مبحث‌ها
    * ================================================================== */
+  /* ==== مبحثِ ترکیبی: سؤال از هر هفت مبحث با هم (کاپستون/نبردِ نهایی) ==== */
+  function poolForMix(level) {
+    return poolFor(level).concat(poolForM2(level), poolForM3(level), poolForM4(level), poolForM5(level), poolForM6(level), poolForM7(level));
+  }
+  function genMix(rng, level) { return rng.pick(poolForMix(level || 2))(rng, level || 2); }
+  function lessonMix() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(genFn, level) { return function () { return buildInteractive(toInter(genFn(new RNG(seed++), level || 2))); }; }
+    return [
+      { title: 'قلعه‌ی استادان 🎲',
+        body: 'آفرین قهرمان — به آخرین و سخت‌ترین سرزمین رسیدی! این‌جا دیگر خبری از یک نوع سؤال نیست: در هر مرحله، معماها از هر هفت مبحث با هم می‌آیند و نمی‌دانی سؤالِ بعدی از کدام نوع است. برای همین باید همه‌ی سرنخ‌ها را آماده داشته باشی و سریع تشخیص بدهی که «این معما از چه جنسی است».',
+        art: function () { return figure(gearFig(9, 0), { size: 116, frame: false }); } },
+      { title: 'راز استادی 🧠',
+        body: 'تکنیکِ استادها این است: اول در یک نگاه تشخیص بده سؤال از کدام خانواده است — «کدام فرق دارد؟»، «کدام مناسب است؟»، «شبیه‌ترین کدام است؟»، «قاعده را ادامه بده»، یا «دسته‌بندی». بعد سرنخِ همان خانواده را به کار ببر. هرچه جلوتر بروی، گزینه‌ها به‌هم نزدیک‌تر و شکل‌ها پیچیده‌تر می‌شوند؛ پس با حوصله بشمار و مقایسه کن.',
+        art: function () { return figure(spiralFig(3, 1, 0), { size: 112, frame: false }); } },
+      { title: 'گرم‌کردنِ ترکیبی ۱ ✏️', interactive: ex(genQuestion, 2) },
+      { title: 'گرم‌کردنِ ترکیبی ۲ ✏️', interactive: ex(genQuestionM3, 2) },
+      { title: 'گرم‌کردنِ ترکیبی ۳ ✏️', interactive: ex(genQuestionM6, 2) },
+      { title: 'گرم‌کردنِ ترکیبی ۴ ✏️', interactive: ex(genQuestionM7, 2) },
+      { title: 'آماده‌ی نبردِ نهایی! 🔥',
+        body: 'حالا که همه‌ی خانواده‌ها را می‌شناسی، وقتِ فتحِ قلعه است. مرحله‌به‌مرحله سخت‌تر می‌شود تا باسِ نهایی. اگر تا آخر بروی، رسماً «استادِ بزرگِ شکل‌ها» می‌شوی. برویم!',
+        art: function () { return figure(gearFig(10, 12), { size: 110, frame: false }); } }
+    ];
+  }
+
   var MABAHETH = [
     { id: 'motafavet1', n: 1, title: 'تصویرِ متفاوت', sub: 'یکی با بقیه فرق دارد', icon: '🔍', color: PAL.teal, ready: true, lesson: lessonM1, gen: genQuestion, pool: poolFor },
     { id: 'motafavet2', n: 2, title: 'تصویرِ متفاوت (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🧩', color: PAL.lilac, ready: true, lesson: lessonM2, gen: genQuestionM2, pool: poolForM2 },
@@ -2144,7 +2223,8 @@
     { id: 'moshabeh1', n: 4, title: 'ویژگیِ مشابه (نوع ۱)', sub: 'شبیه‌ترین گزینه', icon: '🔗', color: PAL.teal, ready: true, lesson: lessonM4, gen: genQuestionM4, pool: poolForM4 },
     { id: 'moshabeh2', n: 5, title: 'ویژگیِ مشابه (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🪞', color: PAL.lilac, ready: true, lesson: lessonM5, gen: genQuestionM5, pool: poolForM5 },
     { id: 'ejraye_qaede', n: 6, title: 'اجرای قاعده', sub: 'قاعده را ادامه بده', icon: '⚙️', color: PAL.gold, ready: true, lesson: lessonM6, gen: genQuestionM6, pool: poolForM6 },
-    { id: 'dastebandi', n: 7, title: 'دسته‌بندیِ شکل‌ها', sub: 'گروه‌بندیِ درست', icon: '🗂️', color: PAL.teal, ready: true, lesson: lessonM7, gen: genQuestionM7, pool: poolForM7 }
+    { id: 'dastebandi', n: 7, title: 'دسته‌بندیِ شکل‌ها', sub: 'گروه‌بندیِ درست', icon: '🗂️', color: PAL.teal, ready: true, lesson: lessonM7, gen: genQuestionM7, pool: poolForM7 },
+    { id: 'tarkibi', n: 8, title: 'آزمونِ استادان', sub: 'ترکیبِ همه‌ی مباحث', icon: '🎲', color: PAL.lilac, ready: true, lesson: lessonMix, gen: genMix, pool: poolForMix }
   ];
 
   /* ====================================================================
@@ -2309,21 +2389,22 @@
     moshabeh1: { place: 'پلِ شباهت‌ها', title: 'یابنده‌ی شباهت', intro: 'روی پلِ شباهت‌ها قدم بگذار؛ با یافتنِ شبیه‌ترین‌ها پل را کامل کن.' },
     moshabeh2: { place: 'سالنِ آینه‌ها', title: 'استادِ آینه‌ها', intro: 'در سالنِ آینه‌ها هر شباهت یک آینه است؛ درست‌ها تو را جلو می‌برند.' },
     ejraye_qaede: { place: 'کارخانه‌ی قاعده‌ها', title: 'مهندسِ قاعده‌ها', intro: 'کارخانه‌ی قاعده‌ها منتظرِ توست؛ قانونِ هر ماشین را کشف کن تا چرخ‌ها بچرخند.' },
-    dastebandi: { place: 'کتابخانه‌ی دسته‌ها', title: 'کتابدارِ بزرگ', intro: 'در کتابخانه‌ی دسته‌ها، شکل‌ها را درست گروه‌بندی کن تا قفسه‌ها مرتب شوند.' }
+    dastebandi: { place: 'کتابخانه‌ی دسته‌ها', title: 'کتابدارِ بزرگ', intro: 'در کتابخانه‌ی دسته‌ها، شکل‌ها را درست گروه‌بندی کن تا قفسه‌ها مرتب شوند.' },
+    tarkibi: { place: 'قلعه‌ی استادان', title: 'استادِ بزرگِ شکل‌ها', intro: 'به قلعه‌ی استادان رسیدی، قهرمان! این‌جا سؤال‌ها از همه‌ی هفت مبحث با هم می‌آیند و پشتِ سرِ هم سخت‌تر می‌شوند. اگر این‌جا را فتح کنی، استادِ بزرگ می‌شوی.' }
   };
   function jTheme(m) { return JOURNEY[m.id] || { place: 'سرزمینِ شکل‌ها', title: 'قهرمانِ شکل‌ها', intro: 'سفرت را شروع کن!' }; }
   // سطح‌بندیِ سفر: هر مرحله سخت‌تر از قبل (سطحِ موتور ۱→۳، درجه‌ی سختیِ نمایشی ۱→۵، تعدادِ سؤال بالارونده)
   function jStages() {
     return [
       { type: 'lesson', ic: '📖', name: 'آموزش' },
-      { type: 'challenge', ic: '🔎', name: 'گامِ آغاز', level: 1, n: 5, diff: 1, dname: 'آسان' },
-      { type: 'challenge', ic: '🧩', name: 'گامِ دوم', level: 1, n: 5, diff: 2, dname: 'ساده' },
+      { type: 'challenge', ic: '🔎', name: 'گامِ آغاز', level: 2, n: 6, diff: 2, dname: 'ساده' },
+      { type: 'challenge', ic: '🧩', name: 'گامِ دوم', level: 2, n: 6, diff: 3, dname: 'متوسط' },
       { type: 'chest', ic: '🎁', name: 'صندوقِ جایزه' },
-      { type: 'challenge', ic: '⚔️', name: 'چالشِ متوسط', level: 2, n: 6, diff: 3, dname: 'متوسط' },
-      { type: 'challenge', ic: '⚔️', name: 'چالشِ دشوار', level: 2, n: 6, diff: 4, dname: 'دشوار' },
-      { type: 'special', ic: '🌟', name: 'معمای ویژه', level: 3, n: 5, diff: 4, dname: 'ویژه' },
-      { type: 'challenge', ic: '🔥', name: 'چالشِ استادی', level: 3, n: 6, diff: 5, dname: 'خیلی سخت' },
-      { type: 'boss', ic: '👹', name: 'باسِ نهایی', level: 3, n: 8, diff: 5, dname: 'باس' },
+      { type: 'challenge', ic: '⚔️', name: 'چالشِ متوسط', level: 3, n: 7, diff: 3, dname: 'دشوار' },
+      { type: 'challenge', ic: '⚔️', name: 'چالشِ دشوار', level: 3, n: 7, diff: 4, dname: 'خیلی دشوار' },
+      { type: 'special', ic: '🌟', name: 'معمای ویژه', level: 3, n: 6, diff: 4, dname: 'ویژه' },
+      { type: 'challenge', ic: '🔥', name: 'چالشِ استادی', level: 3, n: 7, diff: 5, dname: 'خیلی سخت' },
+      { type: 'boss', ic: '👹', name: 'باسِ نهایی', level: 3, n: 9, diff: 5, dname: 'باس' },
       { type: 'treasure', ic: '💎', name: 'گنج' }
     ];
   }
@@ -2449,6 +2530,30 @@
       return '<defs><linearGradient id="sk7" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3e6cf"/><stop offset="1" stop-color="#e6d3b3"/></linearGradient></defs>' +
         '<rect width="340" height="1000" fill="url(#sk7)"/>' +
         '<rect x="0" y="150" width="340" height="60" fill="#8a5a2b" opacity=".85"/><text x="170" y="192" text-anchor="middle" font-size="30">📚</text>' + shelves;
+    },
+    // ۸) قلعه‌ی استادان — نبردِ نهاییِ ترکیبِ همه‌ی مباحث
+    tarkibi: function (c) {
+      var stars = ''; var sp = [[40, 90], [120, 60], [210, 100], [300, 70], [70, 200], [270, 190], [160, 150], [30, 300], [310, 320]];
+      sp.forEach(function (p, i) { stars += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + (1.2 + (i % 3) * 0.5) + '" fill="#fff" opacity="' + (0.55 + (i % 4) * 0.12) + '"/>'; });
+      // شکل‌های شناورِ نمادِ مباحث (کهکشانِ مهارت‌ها)
+      var glyphs = '<polygon points="60,470 74,498 44,498" fill="none" stroke="' + c + '" stroke-width="4" opacity=".7"/>' +
+        '<rect x="262" y="520" width="34" height="34" rx="4" fill="none" stroke="#f0a93f" stroke-width="4" opacity=".7" transform="rotate(18 279 537)"/>' +
+        '<circle cx="70" cy="660" r="18" fill="none" stroke="#6fce93" stroke-width="4" opacity=".7"/>' +
+        '<polygon points="280,700 292,724 268,724" fill="none" stroke="#5b7fe0" stroke-width="4" opacity=".7"/>' +
+        '<path d="M40 800 q22 -26 44 0" fill="none" stroke="#e0575f" stroke-width="4" opacity=".7"/>';
+      return '<defs><linearGradient id="sk8" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#241a4a"/><stop offset=".55" stop-color="#3c2760"/><stop offset="1" stop-color="#4a2f6a"/></linearGradient><radialGradient id="sk8g" cx="50%" cy="16%" r="72%"><stop offset="0" stop-color="#ffd76b" stop-opacity=".38"/><stop offset="1" stop-color="#ffd76b" stop-opacity="0"/></radialGradient></defs>' +
+        '<rect width="340" height="1000" fill="url(#sk8)"/><rect width="340" height="1000" fill="url(#sk8g)"/>' +
+        '<g>' + stars + '</g>' +
+        // پرتوهای نورافکنِ صحنه
+        '<g fill="#ffe08a" opacity=".08"><polygon points="120,150 60,1000 180,1000"/><polygon points="220,150 160,1000 280,1000"/></g>' +
+        // تاجِ قهرمانی و برجِ قلعه
+        '<g fill="#3a2856" opacity=".9"><rect x="40" y="230" width="40" height="120"/><rect x="260" y="230" width="40" height="120"/><polygon points="40,230 50,210 60,230 70,210 80,230"/><polygon points="260,230 270,210 280,210 290,230 300,230"/></g>' +
+        '<text x="170" y="180" text-anchor="middle" font-size="52">👑</text>' +
+        _gear(70, 380, 30, c, 9) + _gear(280, 420, 24, '#f0a93f', 8) +
+        glyphs +
+        // سکوی قهرمانی
+        '<g fill="#5a3f7a" opacity=".85"><rect x="110" y="900" width="120" height="100"/><rect x="40" y="940" width="70" height="60"/><rect x="230" y="940" width="70" height="60"/></g>' +
+        '<g fill="#ffd76b" opacity=".5"><rect x="110" y="894" width="120" height="8"/></g>';
     }
   };
   function jScene(m, won) {
