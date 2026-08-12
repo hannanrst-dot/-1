@@ -5,7 +5,7 @@ A mobile-first, browser-only augmented reality playground. The phone camera is t
 ## Included features
 
 - Front/rear camera switching through `getUserMedia`
-- MediaPipe Hands: 21 landmarks per hand, two-hand tracking, optimized confidence settings
+- MediaPipe **Tasks-Vision HandLandmarker**: 21 landmarks per hand, two-hand tracking, GPU with CPU fallback (bundler- and mobile-friendly)
 - Pinch-to-select, pinch-and-drag movement with interpolation, palm-size depth movement, hand-twist rotation, two-hand pinch scaling, open-palm release
 - Cube, cuboid, pyramid, sphere, cylinder, and cone with transparent illuminated materials, optional edge overlays, shadows, color cycling, deletion, and multiple instances
 - RTL Persian interface, gesture tutorial, camera-permission and unsupported-browser messages
@@ -95,7 +95,7 @@ The tracker intentionally makes selection forgiving for mobile use. For the best
 
 ## Notes for production deployment
 
-- MediaPipe’s WASM/data assets are loaded from jsDelivr in `App.jsx`. To deploy in a locked-down environment, serve those assets locally and update `locateFile`.
+- MediaPipe Tasks-Vision loads its WASM runtime from jsDelivr and the hand model from Google's model host (see `MP_WASM` / `MP_MODEL` in `App.jsx`). To deploy in a locked-down environment, host those two assets yourself and update the constants.
 - The app has no backend. Saved scenes use `localStorage` on the current device/browser.
 - Recording video was left out intentionally: mobile `MediaRecorder` support and camera/overlay compositing behavior vary heavily across Safari versions. Screenshot support is included and reliable.
 - Three.js meshes, geometry, edge geometry, and materials are disposed when the user deletes an object or reloads a saved scene.

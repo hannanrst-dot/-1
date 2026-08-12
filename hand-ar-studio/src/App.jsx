@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { Hands } from '@mediapipe/hands';
+import { HandLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import Controls from './components/Controls';
 import Tutorial from './components/Tutorial';
 import InfoPanel from './components/InfoPanel';
@@ -8,9 +8,12 @@ import { analyzeHands, drawHandSkeleton } from './lib/gesture';
 import { createShape, disposeShape, setShapeColor, shapeInfo } from './lib/shapes';
 
 const COLORS = ['#45b7ff', '#f472b6', '#fbbf24', '#36d399', '#a78bfa', '#fb7185'];
-// Pin the MediaPipe asset version so a future CDN "latest" bump can't break the
-// tracker in the middle of a class.
-const MP_VERSION = '0.4.1675469240';
+// MediaPipe Tasks-Vision assets. The WASM runtime is loaded from a CDN pinned to
+// the installed package version; the hand model comes from Google's model host.
+// This modern API is bundler- and mobile-friendly, unlike the deprecated
+// @mediapipe/hands package, which broke when bundled by Vite.
+const MP_WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
+const MP_MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
 
 export default function App() {
   const videoRef = useRef(null), threeHostRef = useRef(null), handsCanvasRef = useRef(null);
@@ -125,29 +128,67 @@ export default function App() {
     startCamera(); return () => { cancelled = true; stream?.getTracks().forEach((t) => t.stop()); };
   }, [frontCamera]);
 
-  // MediaPipe runs on video frames, then hands are painted and passed into the interaction loop.
+  // MediaPipe Tasks-Vision runs on each new video frame; results are shaped to
+  // match analyzeHands, then painted and passed into the interaction loop.
   useEffect(() => {
-    if (!navigator.mediaDevices) { setError('مرورگر شما از دسترسی دوربین پشتیبانی نمی‌کند.'); return; }
-    let active = true, busy = false, raf;
-    let hands;
-    try {
-      hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${MP_VERSION}/${file}` });
-      // selfieMode is left false: mirroring for the front camera is handled in
-      // analyzeHands so the overlay always lines up with the CSS-flipped video.
-      hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: .7, minTrackingConfidence: .6, selfieMode: false });
-      hands.onResults((results) => {
-        const detected = analyzeHands(results, frontCamera); handDataRef.current = detected;
-        const canvas = handsCanvasRef.current;
-        if (!canvas) return;
-        if (showHands) drawHandSkeleton(canvas, detected, videoRef.current?.videoWidth, videoRef.current?.videoHeight);
-        else canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    let active = true, raf, landmarker, lastVideoTime = -1;
+
+    const build = async (delegate) => {
+      const vision = await FilesetResolver.forVisionTasks(MP_WASM);
+      return HandLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: MP_MODEL, delegate },
+        numHands: 2,
+        runningMode: 'VIDEO',
+        minHandDetectionConfidence: 0.6,
+        minHandPresenceConfidence: 0.6,
+        minTrackingConfidence: 0.6,
       });
-    } catch { setError('ردیاب دست MediaPipe در این مرورگر قابل اجرا نیست. لطفاً Chrome یا Safari جدید را امتحان کنید.'); return; }
-    const process = async () => {
-      if (active && videoRef.current?.readyState >= 2 && !busy) { busy = true; try { await hands.send({ image: videoRef.current }); } catch { /* frame can be skipped while the stream changes */ } busy = false; }
-      if (active) raf = requestAnimationFrame(process);
     };
-    process(); return () => { active = false; cancelAnimationFrame(raf); hands.close?.(); };
+
+    (async () => {
+      try {
+        // Prefer the GPU delegate; fall back to CPU on devices/browsers that
+        // can't create a WebGL-backed landmarker.
+        try { landmarker = await build('GPU'); }
+        catch { landmarker = await build('CPU'); }
+      } catch (e) {
+        if (!active) return;
+        setError('ردیاب دست بارگذاری نشد. اتصال اینترنت را بررسی کنید و از Chrome یا Safari جدید استفاده کنید.');
+        setErrorDetail(`Landmarker: ${e?.name || 'Error'}${e?.message ? ' — ' + e.message : ''}`);
+        return;
+      }
+
+      const loop = () => {
+        if (!active) return;
+        const video = videoRef.current;
+        const canvas = handsCanvasRef.current;
+        if (landmarker && video && video.readyState >= 2 && video.videoWidth) {
+          // detectForVideo needs a strictly increasing timestamp and one call per frame.
+          if (video.currentTime !== lastVideoTime) {
+            lastVideoTime = video.currentTime;
+            let result;
+            try { result = landmarker.detectForVideo(video, performance.now()); } catch { /* transient frame errors */ }
+            if (result) {
+              // Adapt the Tasks-Vision shape to the legacy structure analyzeHands expects.
+              const shim = {
+                multiHandLandmarks: result.landmarks || [],
+                multiHandedness: (result.handednesses || result.handedness || []).map((h) => ({ label: h?.[0]?.categoryName || 'Hand' })),
+              };
+              const detected = analyzeHands(shim, frontCamera);
+              handDataRef.current = detected;
+              if (canvas) {
+                if (showHands) drawHandSkeleton(canvas, detected, video.videoWidth, video.videoHeight);
+                else canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+              }
+            }
+          }
+        }
+        raf = requestAnimationFrame(loop);
+      };
+      loop();
+    })();
+
+    return () => { active = false; cancelAnimationFrame(raf); landmarker?.close?.(); };
   }, [frontCamera, showHands]);
 
   /** Maps a normalized camera point to the world plane at depth z (unproject a ray). */
