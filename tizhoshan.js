@@ -951,6 +951,125 @@
     };
   }
 
+  // گل: تعدادِ گلبرگ سرنخ است؛ چرخش گمراهی. (شکلِ باحال)
+  function flowerFig(petals, rot) {
+    return function (g) {
+      for (var i = 0; i < petals; i++) {
+        var deg = rot + i * 360 / petals, a = deg * Math.PI / 180, cx = 50 + 22 * Math.cos(a), cy = 50 + 22 * Math.sin(a);
+        add(g, 'ellipse', merge(DEF, { cx: cx.toFixed(1), cy: cy.toFixed(1), rx: 14, ry: 8, 'stroke-width': 2.8, transform: 'rotate(' + deg.toFixed(1) + ' ' + cx.toFixed(1) + ' ' + cy.toFixed(1) + ')' }));
+      }
+      add(g, 'circle', merge(DEF, { cx: 50, cy: 50, r: 9, 'stroke-width': 2.6, fill: PAL.gray }));
+    };
+  }
+  function oddFlower(rng, level, count) {
+    count = count || 4; level = level || 1;
+    var base = rng.pick([4, 5, 6, 7, 8]);
+    var deltas = level >= 3 ? [-1, 1] : [-2, -1, 1, 2];
+    var odd = base + rng.pick(deltas.filter(function (d) { return base + d >= 3 && base + d <= 9; }));
+    var rots = rng.sample([0, 9, 17, 25, 33, 41, 50, 60], count);
+    var same = sameList(count, function (i) { return { p: base, rot: rots[i] }; });
+    var pa = placeAnswer(rng, same, { p: odd, rot: rots[count - 1] }, count);
+    return {
+      prompt: 'کدام گل با بقیه فرق دارد؟', tag: 'شمارشِ گلبرگ',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(flowerFig(o.p, o.rot), { size: 96 }); },
+      why: 'چرخشِ گل مهم نیست؛ سه گل ' + toFa(base) + ' گلبرگ دارند، اما این یکی ' + toFa(odd) + '. گلبرگ‌ها را دور تا دور بشمار!'
+    };
+  }
+  // حلقه‌های تودرتو: تعدادِ حلقه سرنخ است؛ چرخش/شکل گمراهی. (شکلِ باحال)
+  function concentricFig(rings, kind, rot) {
+    return function (g) {
+      for (var i = 0; i < rings; i++) {
+        var r = 12 + (34 - 12) * i / (rings - 1);
+        if (kind === 'circle') add(g, 'circle', merge(DEF, { cx: 50, cy: 50, r: r.toFixed(1), 'stroke-width': 2.8, fill: 'none' }));
+        else add(g, 'polygon', merge(DEF, { points: ptsStr(polyPts(kind, r, 50, 50, rot - 90)), 'stroke-width': 2.8, fill: 'none' }));
+      }
+    };
+  }
+  function oddConcentric(rng, level, count) {
+    count = count || 4;
+    var base = rng.pick([3, 4, 5]);
+    var odd = base + rng.pick([-1, 1].filter(function (d) { return base + d >= 2 && base + d <= 6; }));
+    var kind = rng.pick(['circle', 3, 4, 6]);
+    var rots = rng.sample([0, 20, 40, 60, 80, 100, 120, 140], count);
+    var same = sameList(count, function (i) { return { n: base, rot: rots[i] }; });
+    var pa = placeAnswer(rng, same, { n: odd, rot: rots[count - 1] }, count);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'شمارشِ حلقه',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(concentricFig(o.n, kind, o.rot), { size: 96 }); },
+      why: 'اندازه و چرخش مهم نیست؛ سه شکل ' + toFa(base) + ' حلقه‌ی تودرتو دارند، اما این یکی ' + toFa(odd) + '. حلقه‌ها را از بیرون به داخل بشمار!'
+    };
+  }
+  // ساعت: زاویه‌ی بینِ دو عقربه سرنخ است؛ چرخشِ کلِ ساعت گمراهی. (شکلِ باحال)
+  function clockFig(theta, rot) {
+    return function (g) {
+      add(g, 'circle', merge(DEF, { cx: 50, cy: 50, r: 34, 'stroke-width': 3 }));
+      for (var i = 0; i < 12; i++) { var a = i * 30 * Math.PI / 180; add(g, 'line', merge(DEF, { x1: (50 + 30 * Math.sin(a)).toFixed(1), y1: (50 - 30 * Math.cos(a)).toFixed(1), x2: (50 + 34 * Math.sin(a)).toFixed(1), y2: (50 - 34 * Math.cos(a)).toFixed(1), 'stroke-width': i % 3 === 0 ? 3 : 1.6 })); }
+      [[rot, 19], [rot + theta, 27]].forEach(function (hd) { var a = (hd[0] - 90) * Math.PI / 180; add(g, 'line', merge(DEF, { x1: 50, y1: 50, x2: (50 + hd[1] * Math.cos(a)).toFixed(1), y2: (50 + hd[1] * Math.sin(a)).toFixed(1), 'stroke-width': 3.4 })); });
+      add(g, 'circle', { cx: 50, cy: 50, r: 3, fill: PAL.line });
+    };
+  }
+  function oddClock(rng, level, count) {
+    count = count || 4;
+    var angs = level >= 3 ? [60, 90, 120, 150] : [60, 90, 120, 150, 180];
+    var base = rng.pick(angs), odd = rng.pick(angs.filter(function (a) { return a !== base; }));
+    var rots = rng.sample([0, 30, 60, 90, 120, 150, 210, 300], count);
+    var same = sameList(count, function (i) { return { th: base, rot: rots[i] }; });
+    var pa = placeAnswer(rng, same, { th: odd, rot: rots[count - 1] }, count);
+    return {
+      prompt: 'کدام ساعت با بقیه فرق دارد؟', tag: 'زاویه‌ی عقربه‌ها',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(clockFig(o.th, o.rot), { size: 96 }); },
+      why: 'جهتِ عقربه‌ها مهم نیست؛ زاویه‌ی بینِ دو عقربه در سه ساعت ' + toFa(base) + ' درجه است، اما در این یکی ' + toFa(odd) + ' درجه.'
+    };
+  }
+  // زنجیر: تعدادِ حلقه‌های زنجیر سرنخ است؛ چیدمانِ افقی/عمودی گمراهی. (شکلِ باحال)
+  function chainFig(links) {
+    return function (g) {
+      var n = links, w = 74, step = w / (n + 0.4), x0 = 50 - w / 2 + step * 0.7;
+      for (var i = 0; i < n; i++) { var cx = x0 + step * i, vert = i % 2 === 1; add(g, 'ellipse', merge(DEF, { cx: cx.toFixed(1), cy: 50, rx: vert ? 9 : 14, ry: vert ? 14 : 9, 'stroke-width': 3, fill: 'none' })); }
+    };
+  }
+  function oddChain(rng, level, count) {
+    count = count || 4;
+    var base = rng.pick([3, 4, 5, 6]);
+    var odd = base + rng.pick([-1, 1].filter(function (d) { return base + d >= 2 && base + d <= 7; }));
+    var same = sameList(count, function () { return { n: base }; });
+    var pa = placeAnswer(rng, same, { n: odd }, count);
+    return {
+      prompt: 'کدام زنجیر با بقیه فرق دارد؟', tag: 'شمارشِ حلقه‌ی زنجیر',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(chainFig(o.n), { size: 96 }); },
+      why: 'سه زنجیر ' + toFa(base) + ' حلقه دارند، اما این یکی ' + toFa(odd) + '. حلقه‌های افقی و عمودی را با هم بشمار!'
+    };
+  }
+  // شاخه: تعدادِ جوانه‌ها سرنخ است؛ چرخشِ شاخه گمراهی. (شکلِ باحال)
+  function branchFig(twigs, rot) {
+    return function (g) {
+      add(g, 'line', merge(DEF, { x1: 50, y1: 84, x2: 50, y2: 18, 'stroke-width': 3.6 }));
+      for (var i = 0; i < twigs; i++) {
+        var t = (i + 1) / (twigs + 1), y = 80 - t * 58, side = i % 2 ? 1 : -1, tx = 50 + side * 15, ty = y - 11;
+        add(g, 'line', merge(DEF, { x1: 50, y1: y.toFixed(1), x2: tx.toFixed(1), y2: ty.toFixed(1), 'stroke-width': 3 }));
+        add(g, 'circle', merge(DEF, { cx: tx.toFixed(1), cy: ty.toFixed(1), r: 4, 'stroke-width': 2.4, fill: PAL.gray }));
+      }
+    };
+  }
+  function oddBranch(rng, level, count) {
+    count = count || 4;
+    var base = rng.pick([3, 4, 5, 6]);
+    var odd = base + rng.pick([-1, 1].filter(function (d) { return base + d >= 2 && base + d <= 7; }));
+    var rots = rng.sample([-24, -14, 0, 14, 24, 36, -36, 8], count);
+    var same = sameList(count, function (i) { return { n: base, rot: rots[i] }; });
+    var pa = placeAnswer(rng, same, { n: odd, rot: rots[count - 1] }, count);
+    return {
+      prompt: 'کدام شاخه با بقیه فرق دارد؟', tag: 'شمارشِ جوانه',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(branchFig(o.n, o.rot), { rot: o.rot, size: 96 }); },
+      why: 'خمِ شاخه مهم نیست؛ سه شاخه ' + toFa(base) + ' جوانه دارند، اما این یکی ' + toFa(odd) + '. جوانه‌ها را بشمار!'
+    };
+  }
+
   // ستاره با تعدادِ پَرِ متفاوت — تعدادِ پَرها سرنخ است؛ چرخش گمراهی است.
   function starPts(p, ro, ri, rot) {
     var s = [];
@@ -1394,9 +1513,9 @@
   }
 
   // سوالاتِ خیلی ساده (تک‌ویژگیِ بدیهی: oddDots/oddSides/oddArrow/oddDice/…) از ریلِ اصلی حذف شدند؛ کفِ سختی بالا رفت.
-  var GENS_EASY = [oddMatrix, oddMatrix, oddMatrix, dominoOdd, oddChirality, oddTextureFill, oddArrowType, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGear, oddGridSym, oddCombo];
-  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, dominoOdd, oddChirality, oddGlyph, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddTextureFill, oddSize, oddNested, oddBeadArrow, oddRelation, oddGear, oddSpiral, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation, oddGear, oddSpiral];
+  var GENS_EASY = [oddMatrix, oddMatrix, oddMatrix, dominoOdd, oddChirality, oddTextureFill, oddArrowType, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGear, oddGridSym, oddCombo, oddFlower, oddConcentric, oddClock, oddChain, oddBranch];
+  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, dominoOdd, oddChirality, oddGlyph, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddTextureFill, oddSize, oddNested, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, sceneArrowHead, sceneInnerSwap];
+  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -3316,6 +3435,7 @@
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
+        oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
