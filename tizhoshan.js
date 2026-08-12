@@ -2451,27 +2451,39 @@
         '<rect x="0" y="150" width="340" height="60" fill="#8a5a2b" opacity=".85"/><text x="170" y="192" text-anchor="middle" font-size="30">📚</text>' + shelves;
     }
   };
-  function jScene(m) {
+  function jScene(m, won) {
     var fn = SCENES[m.id]; if (!fn) return null;
-    return h('div', { class: 'tz-scene', html: '<svg viewBox="' + VB + '" preserveAspectRatio="none" width="100%" height="100%">' + fn(m.color) + '<rect width="340" height="1000" fill="#ffffff" opacity=".14"/></svg>' });
+    // وقتی سرزمین فتح شده، پرده‌ی سفید کم‌رنگ‌تر می‌شود و درخششِ طلایی می‌آید ⇒ نقشه زنده‌تر
+    var veil = won ? '<radialGradient id="wg" cx="50%" cy="30%" r="75%"><stop offset="0" stop-color="#ffd76b" stop-opacity=".28"/><stop offset="1" stop-color="#ffd76b" stop-opacity="0"/></radialGradient><rect width="340" height="1000" fill="#ffffff" opacity=".04"/><rect width="340" height="1000" fill="url(#wg)"/>'
+      : '<rect width="340" height="1000" fill="#ffffff" opacity=".14"/>';
+    return h('div', { class: 'tz-scene', html: '<svg viewBox="' + VB + '" preserveAspectRatio="none" width="100%" height="100%">' + fn(m.color) + veil + '</svg>' });
+  }
+  // نشانگرِ «تیز این‌جاست» که کنارِ مرحله‌ی روشن می‌ایستد و با پیشرفت جلو می‌رود
+  function jHere(side, label) {
+    return h('span', { class: 'tz-here side-' + side }, tzMascot('happy', 46),
+      h('span', { class: 'tz-here-lbl' }, label || '🧭 این‌جایی'),
+      h('span', { class: 'tz-here-steps' }, '···'));
   }
   function renderJourney(m) {
     clear(ROOT); applyTheme();
     ROOT.appendChild(backBtn(renderHub, 'مبحث‌ها'));
-    var th = jTheme(m), st = jStages(), j = jGet(m.id);
+    var th = jTheme(m), st = jStages(), j = jGet(m.id), won = j.cleared >= J_TOTAL;
     ROOT.appendChild(h('div', { class: 'tz-jhead' },
       h('div', { class: 'tz-jhead-t' }, m.icon + ' ' + th.place),
       h('div', { class: 'tz-jhead-s' }, 'مبحثِ ' + toFa(m.n) + ' — ' + m.title + '  •  ⭐ ' + toFa(jStars(j)) + '  •  ' + toFa(Math.min(j.cleared, J_TOTAL)) + '/' + toFa(J_TOTAL) + ' مرحله')));
-    ROOT.appendChild(guideRow(j.cleared >= J_TOTAL ? 'wow' : 'happy', jGuideMsg(m, st, j), 'tz-guide-sm'));
-    var map = h('div', { class: 'tz-map', style: { '--jc': m.color } });
-    var sc = jScene(m); if (sc) map.appendChild(sc);
+    ROOT.appendChild(guideRow(won ? 'wow' : 'happy', jGuideMsg(m, st, j), 'tz-guide-sm'));
+    var map = h('div', { class: 'tz-map' + (won ? ' tz-map-won' : ''), style: { '--jc': m.color } });
+    var sc = jScene(m, won); if (sc) map.appendChild(sc);
+    if (won) map.appendChild(h('div', { class: 'tz-won-banner' }, '👑 سرزمینِ «' + th.place + '» فتح شد!'));
     map.appendChild(jTrail(st.length));
     map.appendChild(h('div', { class: 'tz-map-start' }, '🚩 شروع'));
     st.forEach(function (s2, i) {
       var state = i < j.cleared ? 'done' : (i === j.cleared ? 'now' : 'lock');
-      if (s2.type === 'treasure') state = j.cleared >= J_TOTAL ? 'now' : 'lock';
+      if (s2.type === 'treasure') state = won ? 'now' : 'lock';
       var side = i % 2 === 0 ? 'l' : 'r';
+      var here = (state === 'now') ? jHere(side === 'l' ? 'r' : 'l', s2.type === 'treasure' ? '🎉 رسیدی!' : '🧭 این‌جایی') : null;
       var node = h('button', { class: 'tz-node tz-node-' + state + ' side-' + side + ' t-' + s2.type, disabled: state === 'lock' ? true : null, onclick: function () { if (state !== 'lock') runStage(m, i); } },
+        here,
         h('span', { class: 'tz-node-ic' }, h('span', { class: 'tz-node-emoji' }, state === 'lock' ? '🔒' : (state === 'done' ? '✓' : s2.ic))),
         h('span', { class: 'tz-node-nm' }, s2.name),
         s2.diff ? h('span', { class: 'tz-node-diff' }, diffPips(s2.diff), h('span', { class: 'tz-node-dn' }, s2.dname)) : null,
@@ -2479,7 +2491,8 @@
       map.appendChild(node);
     });
     ROOT.appendChild(map);
-    ROOT.appendChild(h('p', { class: 'tz-jtip' }, j.cleared >= J_TOTAL ? '🎉 همه‌ی مراحل را رد کردی — گنج را باز کن!' : 'برای بازکردنِ مرحله‌ی بعد، اکثرِ سؤال‌های مرحله‌ی روشن را درست بزن. ۳ جان ❤️ داری!'));
+    ROOT.appendChild(h('p', { class: 'tz-jtip' }, won ? '🎉 همه‌ی مراحل را رد کردی — گنج را باز کن!' : 'برای بازکردنِ مرحله‌ی بعد، اکثرِ سؤال‌های مرحله‌ی روشن را درست بزن. ۳ جان ❤️ داری!'));
+    if (won) setTimeout(function () { tzConfetti(map); }, 200);
   }
 
   function jStageWrap(m, titleTxt) {
@@ -2926,7 +2939,17 @@
       '.tz-map{position:relative;display:flex;flex-direction:column;align-items:center;gap:18px;padding:44px 0 18px;margin-top:6px;border-radius:22px;overflow:hidden;--jc:' + PAL.teal + ';background:linear-gradient(180deg,#eef2fb 0,#eef7f0 42%,#e4f2df 100%);background:linear-gradient(180deg,color-mix(in srgb,var(--jc) 12%,#fff) 0,#eef7f0 42%,#e4f2df 100%);border:1px solid ' + PAL.border + '}',
       '.tz-map:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 12% 8%,rgba(255,255,255,.6),transparent 22%),radial-gradient(circle at 84% 16%,rgba(255,255,255,.45),transparent 20%),radial-gradient(circle 3px at 30% 30%,rgba(35,37,68,.05) 99%,transparent),radial-gradient(circle 3px at 70% 62%,rgba(35,37,68,.05) 99%,transparent);z-index:0}',
       '.tz-scene{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;border-radius:22px}.tz-scene svg{display:block;width:100%;height:100%}',
-      '.tz-dark .tz-scene{opacity:.5}',
+      '.tz-dark .tz-scene{opacity:.5}.tz-dark .tz-map-won .tz-scene{opacity:.72}',
+      // نشانگرِ «تیز این‌جاست» + افکتِ فتحِ سرزمین
+      '.tz-here{position:absolute;top:-42px;z-index:3;display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none;animation:tzstep 1.5s ease-in-out infinite}',
+      '.tz-here.side-l{inset-inline-start:-38px}.tz-here.side-r{inset-inline-end:-38px}',
+      '.tz-here svg{width:46px;height:46px;filter:drop-shadow(0 4px 6px rgba(35,37,68,.28))}',
+      '.tz-here-lbl{font-size:.6rem;font-weight:800;color:#fff;background:var(--jc,' + PAL.teal + ');padding:1px 8px;border-radius:999px;white-space:nowrap;box-shadow:0 3px 8px rgba(35,37,68,.28)}',
+      '.tz-here-steps{font-size:.7rem;color:var(--jc,' + PAL.teal + ');opacity:.5;letter-spacing:2px;line-height:.6}',
+      '@keyframes tzstep{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}',
+      '.tz-map-won{padding-top:58px;box-shadow:0 0 0 3px #ffcf6b,0 16px 44px rgba(255,176,32,.34);animation:tzWonGlow 2.4s ease-in-out infinite}',
+      '@keyframes tzWonGlow{0%,100%{box-shadow:0 0 0 3px #ffcf6b,0 16px 44px rgba(255,176,32,.30)}50%{box-shadow:0 0 0 4px #ffd98a,0 18px 52px rgba(255,176,32,.5)}}',
+      '.tz-won-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:4;background:linear-gradient(135deg,#ffcf6b,#ff9f43);color:#5a3a00;font-weight:800;font-size:.86rem;padding:6px 18px;border-radius:999px;box-shadow:0 8px 22px rgba(255,160,60,.5);white-space:nowrap;animation:tzpop .5s ease}',
       '.tz-trail{position:absolute;inset:38px 0 22px;z-index:0;pointer-events:none;--jtrail:color-mix(in srgb,var(--jc) 42%,#fff)}',
       '.tz-node-diff{display:flex;align-items:center;gap:5px;margin-top:2px}.tz-node-dn{font-size:.64rem;font-weight:800;color:' + PAL.inkSoft + '}',
       '.tz-pips{display:inline-flex;gap:2px}.tz-pip{width:6px;height:6px;border-radius:50%;background:#d3d6ea}.tz-pip.on{background:' + PAL.gold + '}',
