@@ -52,7 +52,9 @@ function pyramidNet(b, H, color, baseColor) {
   const pivots = [];
   group.add(planeFace(b, b, baseColor)); // base square
   const slant = Math.sqrt(H * H + (b / 2) ** 2);
-  const alpha = Math.atan2(H, b / 2);
+  // Fold angle from the flat net. The apex must lean PAST vertical to meet over
+  // the centre, so the angle is obtuse: atan2(H, -b/2) = π − atan2(H, b/2).
+  const alpha = Math.atan2(H, -(b / 2));
   const add = (pos, verts, axis, angle) => {
     const pivot = new THREE.Group(); pivot.position.set(pos[0], pos[1], pos[2]);
     pivot.add(triFace(verts[0], verts[1], verts[2], color));

@@ -14,7 +14,7 @@ const MP_MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarke
 export default function Nets({ onBack }) {
   const videoRef = useRef(null), hostRef = useRef(null), handsCanvasRef = useRef(null);
   const sceneRef = useRef(), cameraRef = useRef(), rendererRef = useRef(), groupRef = useRef();
-  const builderRef = useRef(), foldRef = useRef(0), foldTargetRef = useRef(0), rotRef = useRef(0);
+  const builderRef = useRef(), foldRef = useRef(0), foldTargetRef = useRef(0), rotRef = useRef(0), scaleRef = useRef(0.85);
   const handDataRef = useRef([]), gripRef = useRef(null), swipeRef = useRef({ lastX: null, t: 0 });
   const [front, setFront] = useState(true);
   const [index, setIndex] = useState(0);
@@ -54,8 +54,10 @@ export default function Nets({ onBack }) {
       foldRef.current += (foldTargetRef.current - foldRef.current) * 0.16;
       builderRef.current?.setFold(foldRef.current);
       if (g) {
-        if (gripRef.current) g.rotation.y = rotRef.current; else { rotRef.current += 0.004; g.rotation.y = rotRef.current; }
+        if (gripRef.current?.kind === 'one') g.rotation.y = rotRef.current; else { rotRef.current += 0.004; g.rotation.y = rotRef.current; }
         g.rotation.x = -0.35;
+        const s = g.scale.x + (scaleRef.current - g.scale.x) * 0.2;
+        g.scale.setScalar(s);
       }
       renderer.render(scene, camera); raf = requestAnimationFrame(animate);
     };
@@ -83,7 +85,7 @@ export default function Nets({ onBack }) {
   // Hand tracking.
   useEffect(() => {
     let active = true, raf, landmarker, lastT = -1;
-    const build = async (d) => { const vision = await FilesetResolver.forVisionTasks(MP_WASM); return HandLandmarker.createFromOptions(vision, { baseOptions: { modelAssetPath: MP_MODEL, delegate: d }, numHands: 1, runningMode: 'VIDEO', minHandDetectionConfidence: .6, minHandPresenceConfidence: .6, minTrackingConfidence: .6 }); };
+    const build = async (d) => { const vision = await FilesetResolver.forVisionTasks(MP_WASM); return HandLandmarker.createFromOptions(vision, { baseOptions: { modelAssetPath: MP_MODEL, delegate: d }, numHands: 2, runningMode: 'VIDEO', minHandDetectionConfidence: .6, minHandPresenceConfidence: .6, minTrackingConfidence: .6 }); };
     (async () => {
       try { try { landmarker = await build('GPU'); } catch { landmarker = await build('CPU'); } } catch { return; }
       const loop = () => {
@@ -108,11 +110,21 @@ export default function Nets({ onBack }) {
     let raf;
     const setFoldBoth = (t) => { foldTargetRef.current = t; setFoldUI(Math.round(t * 100)); };
     const tick = () => {
-      const hand = handDataRef.current[0];
+      const hands = handDataRef.current;
+      const pinching = hands.filter((h) => h.pinch);
       const now = performance.now();
-      if (hand && hand.pinch) {
+      if (pinching.length >= 2) {
+        // Two-hand pinch: zoom the model by the distance between the hands.
+        const [a, b] = pinching;
+        const dist = Math.hypot(a.pinchPoint.x - b.pinchPoint.x, a.pinchPoint.y - b.pinchPoint.y);
         const g = gripRef.current;
-        if (!g) gripRef.current = { y: hand.center.y, x: hand.center.x, fold: foldTargetRef.current, rot: rotRef.current };
+        if (!g || g.kind !== 'scale') gripRef.current = { kind: 'scale', dist, scale: scaleRef.current };
+        else scaleRef.current = Math.max(0.35, Math.min(2.6, g.scale * dist / Math.max(g.dist, 0.03)));
+        swipeRef.current.lastX = null;
+      } else if (pinching.length === 1) {
+        const hand = pinching[0];
+        const g = gripRef.current;
+        if (!g || g.kind !== 'one') gripRef.current = { kind: 'one', y: hand.center.y, x: hand.center.x, fold: foldTargetRef.current, rot: rotRef.current };
         else {
           setFoldBoth(Math.max(0, Math.min(1, g.fold + (g.y - hand.center.y) * 2.6)));
           rotRef.current = g.rot + (hand.center.x - g.x) * 3.2;
@@ -120,6 +132,7 @@ export default function Nets({ onBack }) {
         swipeRef.current.lastX = null;
       } else {
         gripRef.current = null;
+        const hand = hands[0];
         if (hand) {
           const s = swipeRef.current;
           if (s.lastX != null && now - s.t > 750) {
@@ -163,6 +176,6 @@ export default function Nets({ onBack }) {
       </div>
     </div>
 
-    <div className="net-help glass">✋ نیشگون بگیرید و بالا/پایین بکشید تا تا شود • دست را چپ/راست تکان دهید تا شکل عوض شود</div>
+    <div className="net-help glass">✋ نیشگون + بالا/پایین: تا شدن • دو دست نیشگون: بزرگ/کوچک • تکان دست چپ/راست: تعویض شکل</div>
   </main>;
 }

@@ -10,7 +10,7 @@ import HandPointer from './components/HandPointer';
 const MODULES = [
   { id: 'solids', icon: '🧊', title: 'اجسام سه‌بعدی', desc: 'چرخش با دست، برش، حجم و مساحت', tag: 'دوربین + دست' },
   { id: 'nets', icon: '📦', title: 'گسترده‌ی اجسام', desc: 'تا کردن گسترده به جسم سه‌بعدی، با دست', tag: 'دوربین + دست' },
-  { id: 'fractions', icon: '🍕', title: 'کسرها', desc: 'نمایش، مقایسه، معادل، اعشار و درصد', tag: 'کسر' },
+  { id: 'fractions', icon: '🍕', title: 'کسرها', desc: 'پر کردن پیتزا با انگشت، اعشار و درصد', tag: 'دوربین + دست' },
   { id: 'numberline', icon: '🔢', title: 'خط اعداد', desc: 'جمع و تفریق با پرش، اعداد منفی', tag: 'عدد' },
   { id: 'multiply', icon: '✖️', title: 'ضرب و مساحت', desc: 'مدل آرایه‌ای و مدل مساحت', tag: 'ضرب' },
   { id: 'symmetry', icon: '🦋', title: 'تقارن', desc: 'نقاشی آینه‌ای و محور تقارن', tag: 'هندسه' },
@@ -66,8 +66,9 @@ export default function App() {
   if (!mode) return <Home onPick={setMode} />;
   if (mode === 'solids') return <Solids3D onBack={back} />;
   if (mode === 'nets') return <Nets onBack={back} />;
+  if (mode === 'fractions') return <Fractions onBack={back} />;
   const meta = MODULES.find((m) => m.id === mode);
-  const Body = { fractions: Fractions, numberline: NumberLine, multiply: Multiplication, symmetry: Symmetry }[mode];
+  const Body = { numberline: NumberLine, multiply: Multiplication, symmetry: Symmetry }[mode];
   return (
     <ModuleShell meta={meta} onBack={back} handOn={handOn} setHandOn={setHandOn} front={front} setFront={setFront}>
       <Body />
