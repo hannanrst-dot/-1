@@ -8,3 +8,6 @@ backups/*.db
 backups/*.zip
 *.log
 .DS_Store
+
+# فایل‌های zip تولیدشده برای دانلود (خروجی، نه سورس)
+*.zip
