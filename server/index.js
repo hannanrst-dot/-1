@@ -8,8 +8,16 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const config = require('./config');
 const { migrate } = require('./db');
+const { seed, isEmpty } = require('./db/seed');
 
 migrate(); // اطمینان از وجود جداول
+
+// اگر دیتابیس خالی است (اولین اجرا روی هاست)، خودکار کاربر مدیر و داده‌های
+// نمونه ساخته می‌شود تا برنامه بدون هیچ دستور دستی «آماده» بالا بیاید.
+if (isEmpty()) {
+  const withSamples = process.env.SEED_SAMPLE_DATA !== 'false';
+  seed({ withSamples, log: (m) => console.log('[seed]', m) });
+}
 
 const app = express();
 app.use(express.json({ limit: '5mb' }));
