@@ -4,8 +4,18 @@ A mobile-first, browser-only **math teaching studio**: a home menu of lessons a 
 
 ## Lessons (modules)
 
+**ShapeLab (آزمایشگاه شکل‌ها)** is the flagship teacher tool: a parametric 2D
+geometry stage where you grab a shape's corners/edges (with the mouse, touch, or
+a pinch in front of the camera) and reshape it while area, perimeter, side
+lengths and angles update live. It has a property **lock** (area / perimeter /
+ratio / one side) for discovering relationships, a **unit grid**, an info
+toggle, a **presentation mode** for the projector, and reset. It's built on a
+separated Shape Engine + Math Engine + reusable Interaction Engine so the other
+math tools (fractions, angles, symmetry, …) can be added on the same core.
+
 | Module | فارسی | What it does |
 | --- | --- | --- |
+| **ShapeLab** | آزمایشگاه شکل‌ها | Reshape 2D shapes by hand; live area/perimeter; property locks; unit grid; presentation mode. |
 | **3D Solids** | اجسام سه‌بعدی | Flagship AR module — camera + MediaPipe hand tracking. Free trackball rotation, two-hand scale/move, cross-section, live volume & area formulas. |
 | **Nets** | گسترده‌ی اجسام | The unfolded (flat) net of each solid, with faces labelled. |
 | **Fractions** | کسرها | Pie + bar visual, decimal/percent, simplified form, compare two fractions. |

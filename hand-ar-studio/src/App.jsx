@@ -5,9 +5,11 @@ import Fractions from './modules/Fractions';
 import NumberLine from './modules/NumberLine';
 import Multiplication from './modules/Multiplication';
 import Symmetry from './modules/Symmetry';
+import ShapeLab from './modules/ShapeLab';
 import HandPointer from './components/HandPointer';
 
 const MODULES = [
+  { id: 'shapelab', icon: '🔬', title: 'آزمایشگاه شکل‌ها', desc: 'گرفتن و تغییر شکل با دست • مساحت و محیط زنده • قفل ویژگی • شبکهٔ واحد', tag: 'دوربین + دست' },
   { id: 'solids', icon: '🧊', title: 'اجسام سه‌بعدی', desc: 'چرخش با دست، برش، حجم و مساحت', tag: 'دوربین + دست' },
   { id: 'nets', icon: '📦', title: 'گسترده‌ی اجسام', desc: 'تا کردن گسترده به جسم سه‌بعدی، با دست', tag: 'دوربین + دست' },
   { id: 'fractions', icon: '🍕', title: 'کسرها', desc: 'پر کردن پیتزا با انگشت، اعشار و درصد', tag: 'دوربین + دست' },
@@ -64,6 +66,7 @@ export default function App() {
   const back = () => setMode(null);
 
   if (!mode) return <Home onPick={setMode} />;
+  if (mode === 'shapelab') return <ShapeLab onBack={back} />;
   if (mode === 'solids') return <Solids3D onBack={back} />;
   if (mode === 'nets') return <Nets onBack={back} />;
   if (mode === 'fractions') return <Fractions onBack={back} />;
