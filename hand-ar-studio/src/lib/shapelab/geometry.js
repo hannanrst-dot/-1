@@ -132,3 +132,45 @@ export function metricsOf(type, params) {
   if (def.metrics) return def.metrics(params);
   return polyMetrics(def.verts(params));
 }
+
+// Decompose a shape into simple polygon pieces (for the cut / re-assemble mode).
+// Each piece is a list of absolute vertices (in the shape's centred units).
+export function splitShape(type, params) {
+  const V = (x, y) => ({ x, y });
+  if (type === 'rectangle') {
+    const { w, h } = params, a = V(-w / 2, -h / 2), b = V(w / 2, -h / 2), c = V(w / 2, h / 2), d = V(-w / 2, h / 2);
+    return [[a, b, c], [a, c, d]];
+  }
+  if (type === 'square') {
+    const { s } = params, a = V(-s / 2, -s / 2), b = V(s / 2, -s / 2), c = V(s / 2, s / 2), d = V(-s / 2, s / 2), o = V(0, 0);
+    return [[a, b, o], [b, c, o], [c, d, o], [d, a, o]];
+  }
+  if (type === 'triangle') {
+    const { b, h, ax } = params, A = V(-b / 2, -h / 2), B = V(b / 2, -h / 2), C = V(ax, h / 2), M = V(0, -h / 2);
+    return [[A, M, C], [M, B, C]];
+  }
+  if (type === 'parallelogram') {
+    const { b, h, skew } = params, p0 = V(-b / 2, -h / 2), p1 = V(b / 2, -h / 2), p2 = V(b / 2 + skew, h / 2), p3 = V(-b / 2 + skew, h / 2);
+    return [[p0, p1, p2], [p0, p2, p3]];
+  }
+  if (type === 'trapezoid') {
+    const { a, b, h } = params, B0 = V(-b / 2, -h / 2), B1 = V(b / 2, -h / 2), T1 = V(a / 2, h / 2), T0 = V(-a / 2, h / 2), L = V(-a / 2, -h / 2), R = V(a / 2, -h / 2);
+    return [[B0, L, T0], [L, R, T1, T0], [R, B1, T1]]; // triangle + rectangle + triangle
+  }
+  if (type === 'rhombus') {
+    const { d1, d2 } = params, r = V(d1 / 2, 0), t = V(0, d2 / 2), l = V(-d1 / 2, 0), bt = V(0, -d2 / 2), o = V(0, 0);
+    return [[r, t, o], [t, l, o], [l, bt, o], [bt, r, o]];
+  }
+  return null; // circle: no simple decomposition
+}
+
+export const centroid = (verts) => { let x = 0, y = 0; verts.forEach((v) => { x += v.x; y += v.y; }); return { x: x / verts.length, y: y / verts.length }; };
+
+export function pointInPoly(px, py, verts) {
+  let inside = false;
+  for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
+    const xi = verts[i].x, yi = verts[i].y, xj = verts[j].x, yj = verts[j].y;
+    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
