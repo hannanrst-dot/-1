@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle } from "lucide-react";
+import { Mic, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp } from "lucide-react";
 import { formatToman, toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
 import { collapseRepeatedWords } from "@/lib/voice/persianNormalizer";
 
-type Mode = "menu" | "invoice" | "product" | "purchase" | "query";
+type Mode = "menu" | "invoice" | "product" | "purchase" | "query" | "price";
 
 interface VoiceAssistantModalProps {
   isOpen: boolean;
@@ -42,10 +42,14 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const [purchaseItems, setPurchaseItems] = useState<{ productName: string; quantity: number; unitPrice: number }[]>([]);
   // query
   const [answer, setAnswer] = useState("");
+  // price update
+  const [pricePreview, setPricePreview] = useState<any>(null);
 
   const recognitionRef = useRef<any>(null);
   const modeRef = useRef<Mode>(mode);
   const transcriptRef = useRef("");
+  const shouldListenRef = useRef(false); // تا کاربر خودش «توقف» نزند، ضبط ادامه دارد
+  const finalRef = useRef("");           // متن نهاییِ انباشته‌شده
   modeRef.current = mode;
 
   useEffect(() => { if (isOpen) setMode(defaultMode); }, [isOpen, defaultMode]);
@@ -64,14 +68,19 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     if (!SR) return;
     const rec = new SR();
     rec.lang = "fa-IR";
-    rec.continuous = false;      // تک‌جمله‌ای: پایدارترین حالت روی موبایل (بدون تکرار)
+    rec.continuous = true;       // پیوسته: تا کاربر خودش «توقف» نزند ادامه دارد (چند جمله در یک ضبط)
     rec.interimResults = true;
     rec.maxAlternatives = 1;
 
     rec.onresult = (event: any) => {
-      let text = "";
-      for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript + " ";
-      const clean = collapseRepeatedWords(text.replace(/\s+/g, " ").trim());
+      // فقط نتایجِ جدید (از resultIndex) را پردازش می‌کنیم تا تکرار نشود.
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const r = event.results[i];
+        if (r.isFinal) finalRef.current += r[0].transcript + " ";
+        else interim += r[0].transcript + " ";
+      }
+      const clean = collapseRepeatedWords((finalRef.current + interim).replace(/\s+/g, " ").trim());
       transcriptRef.current = clean;
       setTranscript(clean);
     };
@@ -79,20 +88,31 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
       if (event.error !== "no-speech" && event.error !== "aborted") console.error("Speech:", event.error);
     };
     rec.onend = () => {
-      setIsListening(false);
-      const text = transcriptRef.current.trim();
-      if (text) setTimeout(() => processText(text, modeRef.current), 200);
+      // اگر کاربر هنوز «توقف» را نزده، ضبط را ادامه بده (رفع قطعِ خودکار مرورگر).
+      if (shouldListenRef.current) {
+        try { rec.start(); } catch { /* ignore */ }
+      } else {
+        setIsListening(false);
+      }
     };
     recognitionRef.current = rec;
-    return () => { try { rec.stop(); } catch { /* ignore */ } };
+    return () => { shouldListenRef.current = false; try { rec.stop(); } catch { /* ignore */ } };
   }, []);
 
   const startRecording = () => {
     if (!recognitionRef.current) { setNotice("مرورگر شما میکروفون را پشتیبانی نمی‌کند. می‌توانید تایپ کنید."); return; }
-    setTranscript(""); transcriptRef.current = ""; setNotice("");
+    setTranscript(""); transcriptRef.current = ""; finalRef.current = ""; setNotice("");
+    shouldListenRef.current = true;
     try { recognitionRef.current.start(); setIsListening(true); } catch (e) { console.error(e); }
   };
-  const stopRecording = () => { try { recognitionRef.current?.stop(); } catch { /* ignore */ } setIsListening(false); };
+  // توقف دستی توسط کاربر — سپس پردازش همان گفتار
+  const stopRecording = () => {
+    shouldListenRef.current = false;
+    try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+    setIsListening(false);
+    const text = transcriptRef.current.trim();
+    if (text) setTimeout(() => processText(text, modeRef.current), 200);
+  };
 
   const speak = (t: string) => {
     try { if (!("speechSynthesis" in window) || !t) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = "fa-IR"; window.speechSynthesis.speak(u); } catch { /* ignore */ }
@@ -102,7 +122,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     if (!text.trim()) return;
     setLoading(true); setNotice("");
     try {
-      const apiMode = m === "invoice" ? "invoice" : m === "product" ? "product" : m === "purchase" ? "purchase" : undefined;
+      const apiMode = m === "invoice" ? "invoice" : m === "product" ? "product" : m === "purchase" ? "purchase" : m === "price" ? "price" : undefined;
       const res = await fetch("/api/voice/process", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ spokenText: text, mode: apiMode }),
@@ -126,6 +146,9 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
       } else if (m === "query") {
         setAnswer(data.speechResponse || "پاسخی یافت نشد.");
         speak(data.speechResponse || "");
+      } else if (m === "price") {
+        setPricePreview(data.data || null);
+        setNotice(data.speechResponse || "");
       }
     } catch { setNotice("خطای ارتباط با سرور."); }
     finally { setLoading(false); }
@@ -143,7 +166,21 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     });
   };
 
-  const resetAll = () => { setItems([]); setCustomerName(""); setProduct(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setNotice(""); setTranscript(""); };
+  const resetAll = () => { setItems([]); setCustomerName(""); setProduct(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setNotice(""); setTranscript(""); };
+
+  const applyPriceUpdate = async () => {
+    if (!pricePreview) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/products/bulk-price", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ percent: pricePreview.percent, direction: pricePreview.direction, filterName: pricePreview.filterName }),
+      });
+      const data = await res.json();
+      if (res.ok) { speak("قیمت‌ها به‌روزرسانی شد"); setNotice(`قیمت ${toPersianDigits(data.count)} کالا به‌روزرسانی شد. ✅`); setPricePreview(null); setTranscript(""); onActionExecute?.("REFRESH_PRODUCTS", null); }
+      else setNotice(data.error || "خطا در تغییر قیمت.");
+    } catch { setNotice("خطای ارتباط."); } finally { setLoading(false); }
+  };
   const goMenu = () => { resetAll(); setMode("menu"); };
 
   const invoiceTotal = items.reduce((s, it) => s + it.unitPrice * it.quantity, 0);
@@ -186,7 +223,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   if (!isOpen) return null;
 
   const MENU_TITLE: Record<Mode, string> = {
-    menu: "دستیار صوتی", invoice: "🧾 فاکتور صوتی", product: "📦 ثبت کالای صوتی", purchase: "🛒 خرید صوتی", query: "💬 پرسش صوتی",
+    menu: "دستیار صوتی", invoice: "🧾 فاکتور صوتی", product: "📦 ثبت کالای صوتی", purchase: "🛒 خرید صوتی", query: "💬 پرسش صوتی", price: "📈 تغییر قیمت صوتی",
   };
 
   return (
@@ -211,6 +248,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
               <MenuButton icon={<ShoppingBag />} title="فاکتور صوتی" desc="فروش کالا به مشتری با گفتن نام و تعداد" color="emerald" onClick={() => { resetAll(); setMode("invoice"); }} />
               <MenuButton icon={<PackagePlus />} title="ثبت کالای صوتی" desc="افزودن کالای جدید همراه قیمت خرید و فروش" color="sky" onClick={() => { resetAll(); setMode("product"); }} />
               <MenuButton icon={<Truck />} title="خرید صوتی" desc="ثبت خرید از تأمین‌کننده و افزایش موجودی" color="amber" onClick={() => { resetAll(); setMode("purchase"); }} />
+              <MenuButton icon={<TrendingUp />} title="تغییر قیمت صوتی" desc="افزایش/کاهش درصدی قیمت همه یا گروهی از کالاها" color="rose" onClick={() => { resetAll(); setMode("price"); }} />
               <MenuButton icon={<MessageCircle />} title="پرسش صوتی" desc="مثلاً: فروش امروز چقدر بوده؟" color="violet" onClick={() => { resetAll(); setMode("query"); }} />
             </div>
           )}
@@ -227,14 +265,14 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 >
                   <Mic className="w-9 h-9" />
                 </button>
-                <span className="text-xs text-gray-500">{isListening ? "🔴 در حال شنیدن... بگویید" : "بزنید و یک جمله بگویید"}</span>
+                <span className="text-xs text-center text-gray-500 px-2">{isListening ? "🔴 در حال ضبط... هر چقدر می‌خواهید بگویید، بعد همین دکمه را بزنید تا تمام شود." : "بزنید و صحبت کنید (توقف با خودتان)"}</span>
               </div>
 
               <div className="space-y-2">
                 <textarea value={transcript} onChange={(e) => { setTranscript(e.target.value); transcriptRef.current = e.target.value; }} placeholder="متن گفتار شما اینجا می‌آید (قابل ویرایش)..." rows={2}
                   className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 <button onClick={() => processText(transcript, mode)} disabled={loading || !transcript.trim()} className="w-full bg-emerald-600 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">
-                  <Plus className="w-4 h-4" /> {mode === "invoice" ? "افزودن به فاکتور" : mode === "purchase" ? "افزودن به خرید" : mode === "product" ? "پر کردن فرم" : "پرسیدن"}
+                  <Plus className="w-4 h-4" /> {mode === "invoice" ? "افزودن به فاکتور" : mode === "purchase" ? "افزودن به خرید" : mode === "product" ? "پر کردن فرم" : mode === "price" ? "محاسبهٔ قیمت جدید" : "پرسیدن"}
                 </button>
               </div>
 
@@ -256,17 +294,32 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
               </div>
               {items.length === 0 ? (
                 <div className="text-center text-xs text-gray-400 py-4 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl">هنوز چیزی اضافه نشده — میکروفون را بزنید و بگویید.</div>
-              ) : items.map((it, i) => (
-                <div key={i} className={`rounded-xl p-2.5 border ${it.productId == null ? "border-rose-300 bg-rose-50 dark:bg-rose-950/30" : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60"}`}>
+              ) : items.map((it, i) => {
+                const ambiguous = !!(it.matches && it.matches.length > 1);
+                return (
+                <div key={i} className={`rounded-xl p-2.5 border ${it.productId == null ? "border-rose-300 bg-rose-50 dark:bg-rose-950/30" : ambiguous ? "border-amber-300 bg-amber-50 dark:bg-amber-950/30" : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60"}`}>
                   <div className="flex items-center justify-between gap-2">
-                    {it.matches && it.matches.length > 1 ? (
-                      <select value={it.productId ?? ""} onChange={(e) => { const mm = it.matches!.find((x) => x.id === Number(e.target.value)); if (mm) setItems((prev) => prev.map((x, idx) => idx === i ? { ...x, productId: mm.id, productName: mm.name, unitPrice: mm.sellPrice } : x)); }} className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 text-xs">
-                        {it.matches.map((mm) => <option key={mm.id} value={mm.id}>{mm.name}</option>)}
-                      </select>
-                    ) : <span className="text-sm font-medium truncate flex-1">{it.productName}</span>}
+                    <span className="text-sm font-medium truncate flex-1">{it.productName}</span>
                     <button onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))} className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 flex items-center justify-center shrink-0"><Trash2 className="w-4 h-4" /></button>
                   </div>
-                  {it.productId == null && <div className="text-[11px] text-rose-600 mt-1">در انبار پیدا نشد — حذفش کنید</div>}
+
+                  {/* انتخاب‌گر ابهام: چند کالای مشابه */}
+                  {ambiguous && (
+                    <div className="mt-2">
+                      <div className="text-[11px] font-bold text-amber-700 dark:text-amber-300 mb-1">❓ چند کالای مشابه پیدا شد — کدام را می‌خواهید؟</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {it.matches!.map((mm) => (
+                          <button key={mm.id}
+                            onClick={() => setItems((prev) => prev.map((x, idx) => idx === i ? { ...x, productId: mm.id, productName: mm.name, unitPrice: mm.sellPrice, matches: [] } : x))}
+                            className={`text-[11px] px-2 py-1 rounded-lg border ${it.productId === mm.id ? "bg-emerald-600 text-white border-emerald-600" : "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700"}`}>
+                            {mm.name} <span className="opacity-70">({formatToman(mm.sellPrice)})</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {it.productId == null && <div className="text-[11px] text-rose-600 mt-1">در انبار پیدا نشد — حذفش کنید یا اول کالا را ثبت کنید</div>}
+
                   <div className="flex items-center justify-between mt-2 text-xs">
                     <div className="flex items-center gap-1"><span className="text-gray-500">تعداد:</span>
                       <input type="text" inputMode="numeric" value={toPersianDigits(it.quantity)} onChange={(e) => { const v = Number(toEnglishDigits(e.target.value)) || 0; setItems((prev) => prev.map((x, idx) => idx === i ? { ...x, quantity: v } : x)); }} className="w-14 text-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg py-1" />
@@ -275,7 +328,8 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                     <span className="font-bold">{formatToman(it.unitPrice * it.quantity)}</span>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -321,6 +375,28 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
           {mode === "query" && answer && (
             <div className="bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-900 rounded-2xl p-4 text-sm font-semibold text-violet-900 dark:text-violet-200">{answer}</div>
           )}
+
+          {/* ---------- PRICE preview ---------- */}
+          {mode === "price" && pricePreview && pricePreview.affectedCount > 0 && (
+            <div className="border border-rose-200 dark:border-rose-900 rounded-2xl p-3 bg-rose-50 dark:bg-rose-950/20 space-y-2">
+              <div className="font-bold text-sm text-rose-800 dark:text-rose-300">
+                {pricePreview.direction === "decrease" ? "کاهش" : "افزایش"} {toPersianDigits(pricePreview.percent)}٪ قیمت — {toPersianDigits(pricePreview.affectedCount)} کالا
+                {pricePreview.filterName ? ` («${pricePreview.filterName}»)` : " (همه)"}
+              </div>
+              <div className="space-y-1">
+                {pricePreview.samples.map((s: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-xs bg-white dark:bg-gray-900 rounded-lg px-2 py-1.5">
+                    <span className="truncate flex-1">{s.name}</span>
+                    <span className="text-gray-400 line-through mx-2">{formatToman(s.oldPrice)}</span>
+                    <span className="font-bold text-rose-700 dark:text-rose-400">{formatToman(s.newPrice)}</span>
+                  </div>
+                ))}
+                {pricePreview.affectedCount > pricePreview.samples.length && (
+                  <div className="text-[11px] text-gray-500 text-center">و {toPersianDigits(pricePreview.affectedCount - pricePreview.samples.length)} کالای دیگر...</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer actions */}
@@ -335,6 +411,11 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
             <button onClick={submitPurchase} disabled={loading} className="w-full bg-amber-600 disabled:opacity-50 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2"><CheckCircle className="w-5 h-5" /> ثبت خرید و افزایش موجودی</button>
           </div>
         )}
+        {mode === "price" && pricePreview && pricePreview.affectedCount > 0 && (
+          <div className="shrink-0 border-t border-gray-200 dark:border-gray-800 p-3">
+            <button onClick={applyPriceUpdate} disabled={loading} className="w-full bg-rose-600 disabled:opacity-50 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2"><CheckCircle className="w-5 h-5" /> اعمال قیمت‌های جدید</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -346,6 +427,7 @@ function MenuButton({ icon, title, desc, color, onClick }: { icon: React.ReactNo
     sky: "bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300",
     amber: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300",
     violet: "bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300",
+    rose: "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300",
   };
   return (
     <button onClick={onClick} className={`w-full flex items-center gap-3 p-4 rounded-2xl border text-right active:scale-[0.99] transition ${map[color]}`}>
@@ -365,6 +447,7 @@ function Guide({ mode }: { mode: Mode }) {
     product: { pattern: "«[نام] قیمت خرید [عدد] قیمت فروش [عدد] تعداد [عدد]»", example: "دفتر پاپکو قیمت خرید ۴۵ هزار قیمت فروش ۶۰ هزار تعداد ۵۰" },
     purchase: { pattern: "«از [تأمین‌کننده] [تعداد] [نام کالا] دونه‌ای [عدد]»", example: "از پاپکو صد تا دفتر دونه‌ای ۴۵ هزار" },
     query: { pattern: "یک سؤال بپرسید", example: "فروش امروز چقدر بوده؟", note: "یا: «کدوم کالاها موجودیشون کمه؟»" },
+    price: { pattern: "«قیمت [همه/گروه] را [عدد] درصد زیاد/کم کن»", example: "قیمت همه کالاها رو ۱۰ درصد زیاد کن", note: "برای گروه خاص: «قیمت دفترها رو ۲۰ درصد زیاد کن». قبل از اعمال، پیش‌نمایش و تأیید می‌گیرید." },
   };
   const g = data[mode];
   if (!g) return null;

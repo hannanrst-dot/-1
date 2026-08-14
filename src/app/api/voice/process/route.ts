@@ -4,7 +4,7 @@ import { resolveVoiceInvoiceItems } from "@/lib/voice/ambiguityResolver";
 import { db } from "@/db";
 import { products, invoices } from "@/db/schema";
 import { eq, lte, sql, desc, like } from "drizzle-orm";
-import { formatToman, toPersianDigits } from "@/lib/persian/utils";
+import { formatToman, toPersianDigits, normalizePersianText } from "@/lib/persian/utils";
 
 export async function POST(req: Request) {
   try {
@@ -107,6 +107,33 @@ export async function POST(req: Request) {
         speechResponse,
         type: "INVOICE_FOUND",
         data: { invoice: matchedInvoices[0] || null },
+      });
+    }
+
+    if (actionResult.intent === "BULK_PRICE_UPDATE") {
+      const p = Number(actionResult.entities.percent) || 0;
+      const dir = actionResult.entities.priceDirection || "increase";
+      const filterName = actionResult.entities.filterName || null;
+      const factor = dir === "decrease" ? 1 - p / 100 : 1 + p / 100;
+
+      const nf = filterName ? normalizePersianText(filterName) : null;
+      const targets = nf ? allDbProducts.filter((x) => normalizePersianText(x.name).includes(nf)) : allDbProducts;
+      const samples = targets.slice(0, 6).map((x) => ({
+        name: x.name,
+        oldPrice: x.sellPrice,
+        newPrice: Math.max(0, Math.round(x.sellPrice * factor)),
+      }));
+      const dirWord = dir === "decrease" ? "کاهش" : "افزایش";
+      const scope = filterName ? `«${filterName}»` : "همهٔ کالاها";
+      const speechResponse = targets.length
+        ? `${toPersianDigits(targets.length)} کالا (${scope}) با ${dirWord} ${toPersianDigits(p)} درصدی قیمت. تأیید می‌کنید؟`
+        : `کالایی با ${scope} پیدا نشد.`;
+
+      return NextResponse.json({
+        result: actionResult,
+        speechResponse,
+        type: "PRICE_UPDATE_PREVIEW",
+        data: { percent: p, direction: dir, filterName, affectedCount: targets.length, samples },
       });
     }
 

@@ -4,6 +4,7 @@ export type VoiceIntentType =
   | "CREATE_PRODUCT"
   | "CREATE_INVOICE"
   | "CREATE_PURCHASE"
+  | "BULK_PRICE_UPDATE"
   | "QUERY_TODAY_SALES"
   | "QUERY_LOW_STOCK"
   | "QUERY_CUSTOMER_INVOICE"
@@ -34,6 +35,9 @@ export interface VoiceActionResult {
     discount?: number;
     items?: ParsedVoiceItem[];
     searchQuery?: string;
+    percent?: number;
+    priceDirection?: "increase" | "decrease";
+    filterName?: string | null;
   };
   promptUser?: string; // If system needs to ask user for missing info
 }
@@ -223,7 +227,30 @@ export function buildPurchaseResult(raw: string, norm: string): VoiceActionResul
   };
 }
 
-export type ForceMode = "invoice" | "product" | "purchase";
+/** ساخت نتیجهٔ «تغییر درصدی قیمت» از متن نرمال‌شده */
+export function buildPriceUpdateResult(raw: string, norm: string): VoiceActionResult {
+  const pm = norm.match(new RegExp(`(${NUMW})\\s*درصد`));
+  const percent = pm ? parsePersianNumberWords(pm[1]) ?? 0 : 0;
+  const decrease = /کم|تخفیف|پایین|کاهش|ارزون|ارزان/.test(norm);
+  const priceDirection: "increase" | "decrease" = decrease ? "decrease" : "increase";
+
+  // اگر «همه/تمام کالاها» گفته شود → همهٔ کالاها؛ وگرنه نامِ فیلتر استخراج می‌شود.
+  let filterName: string | null = null;
+  if (!/همه|تمام|کل\s*کالا|همگی/.test(norm)) {
+    const fm = norm.match(/قیمت\s+(.+?)\s+(?:رو|را|به|\d|درصد|ده|بیست|سی|چهل|پنجاه|شصت|هفتاد|هشتاد|نود|صد)/);
+    if (fm) filterName = fm[1].replace(/(ها|های|هارو|هارا)$/, "").trim() || null;
+  }
+
+  return {
+    intent: "BULK_PRICE_UPDATE",
+    rawText: raw,
+    normalizedText: norm,
+    confidence: 0.9,
+    entities: { percent, priceDirection, filterName },
+  };
+}
+
+export type ForceMode = "invoice" | "product" | "purchase" | "price";
 
 /**
  * Detects intent and extracts structured entities from raw Persian spoken sentence.
@@ -237,6 +264,12 @@ export function processVoiceCommand(spokenText: string, forceMode?: ForceMode): 
   if (forceMode === "product") return buildProductResult(raw, norm);
   if (forceMode === "purchase") return buildPurchaseResult(raw, norm);
   if (forceMode === "invoice") return buildInvoiceResult(raw, norm);
+  if (forceMode === "price") return buildPriceUpdateResult(raw, norm);
+
+  // تغییر درصدی قیمت: «قیمت ... را ... درصد زیاد/کم کن»
+  if (norm.includes("درصد") && norm.includes("قیمت") && /(زیاد|اضافه|گرون|گران|بالا|افزایش|کم|تخفیف|کاهش|ارزون|ارزان)/.test(norm)) {
+    return buildPriceUpdateResult(raw, norm);
+  }
 
   // 1. Check Confirm / Cancel
   if (/^(ثبت کن|تایید|بله|آره|حتمی|اوکی|ثبت بکن|انجام بده)$/i.test(norm)) {
