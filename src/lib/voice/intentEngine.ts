@@ -166,12 +166,77 @@ function extractInvoiceOrPurchaseItems(normText: string): ParsedVoiceItem[] {
   return items;
 }
 
+const NUMW = "\\d+|صد|یکصد|دویست|سیصد|چهارصد|پانصد|ششصد|هفتصد|هشتصد|نهصد|هزار|یک|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده|بیست|سی|چهل|پنجاه|شصت|هفتاد|هشتاد|نود";
+
+/** ساخت نتیجهٔ «ثبت کالا» از متن نرمال‌شده */
+export function buildProductResult(raw: string, norm: string): VoiceActionResult {
+  return {
+    intent: "CREATE_PRODUCT",
+    rawText: raw,
+    normalizedText: norm,
+    confidence: 0.9,
+    entities: extractProductDetailsFromVoice(norm),
+  };
+}
+
+/** ساخت نتیجهٔ «فاکتور» از متن نرمال‌شده */
+export function buildInvoiceResult(raw: string, norm: string): VoiceActionResult {
+  return {
+    intent: "CREATE_INVOICE",
+    rawText: raw,
+    normalizedText: norm,
+    confidence: 0.85,
+    entities: {
+      customerName: extractCustomerFromVoice(norm),
+      items: extractInvoiceOrPurchaseItems(norm),
+    },
+  };
+}
+
+/** ساخت نتیجهٔ «خرید» از متن نرمال‌شده */
+export function buildPurchaseResult(raw: string, norm: string): VoiceActionResult {
+  let supplierName: string | undefined;
+  const sup = norm.match(new RegExp(`از\\s+(?:شرکت|فروشگاه|آقای|خانم|تامین\\s*کننده)?\\s*(.+?)\\s+(?:${NUMW}|خرید)`));
+  if (sup) supplierName = sup[1].replace(/^(شرکت|فروشگاه)\s+/, "").trim();
+
+  const items: ParsedVoiceItem[] = [];
+  const qi = norm.match(new RegExp(`(${NUMW})\\s*(?:تا|عدد|بسته|کارتن)\\s+(.+?)\\s+(?:رو\\s+)?(?:خرید|قیمت|به قیمت|دونه|دانه|هرکدام|هر\\s*عدد|$)`));
+  if (qi) {
+    const quantity = parsePersianNumberWords(qi[1]) || 1;
+    const productName = qi[2].trim();
+    if (productName.length > 1) items.push({ productName, quantity });
+  }
+  if (items.length === 0) {
+    for (const it of extractInvoiceOrPurchaseItems(norm)) items.push(it);
+  }
+
+  const buyPriceMatch = norm.match(/(?:قیمت\s*خرید|دونه\s*ای|دانه\s*ای|هرکدام|هر\s*کدام|هر\s*عدد|به قیمت)\s*[:\-]?\s*([\d\s؀-ۿ]+?)(?:تومان|تومن|ریال|،|,|$)/);
+  let buyPrice: number | undefined;
+  if (buyPriceMatch) buyPrice = parsePersianNumberWords(buyPriceMatch[1]) ?? undefined;
+
+  return {
+    intent: "CREATE_PURCHASE",
+    rawText: raw,
+    normalizedText: norm,
+    confidence: 0.88,
+    entities: { supplierName, buyPrice, items },
+  };
+}
+
+export type ForceMode = "invoice" | "product" | "purchase";
+
 /**
  * Detects intent and extracts structured entities from raw Persian spoken sentence.
+ * اگر forceMode داده شود، تشخیص خودکار نادیده گرفته می‌شود و مستقیماً همان حالت
+ * پردازش می‌شود (برای دکمه‌های جداگانهٔ فاکتور/کالا/خرید).
  */
-export function processVoiceCommand(spokenText: string): VoiceActionResult {
+export function processVoiceCommand(spokenText: string, forceMode?: ForceMode): VoiceActionResult {
   const norm = normalizeSpokenPersian(spokenText);
   const raw = spokenText.trim();
+
+  if (forceMode === "product") return buildProductResult(raw, norm);
+  if (forceMode === "purchase") return buildPurchaseResult(raw, norm);
+  if (forceMode === "invoice") return buildInvoiceResult(raw, norm);
 
   // 1. Check Confirm / Cancel
   if (/^(ثبت کن|تایید|بله|آره|حتمی|اوکی|ثبت بکن|انجام بده)$/i.test(norm)) {
@@ -242,44 +307,7 @@ export function processVoiceCommand(spokenText: string): VoiceActionResult {
 
   // 6. Check Purchase Intent (ثبت خرید)
   if (norm.includes("خریدم") || norm.includes("خرید از") || norm.includes("ثبت خرید")) {
-    const NUMW = "\\d+|صد|یکصد|دویست|سیصد|چهارصد|پانصد|ششصد|هفتصد|هشتصد|نهصد|هزار|یک|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده|بیست|سی|چهل|پنجاه|شصت|هفتاد|هشتاد|نود";
-
-    // تأمین‌کننده: بعد از «از [شرکت/فروشگاه/...] X» تا اولین عدد یا «خرید».
-    let supplierName: string | undefined;
-    const sup = norm.match(new RegExp(`از\\s+(?:شرکت|فروشگاه|آقای|خانم|تامین\\s*کننده)?\\s*(.+?)\\s+(?:${NUMW}|خرید)`));
-    if (sup) supplierName = sup[1].replace(/^(شرکت|فروشگاه)\s+/, "").trim();
-
-    // تعداد + نام کالا: «(عدد) تا (نام) خریدم/خرید/قیمت...»
-    const items: ParsedVoiceItem[] = [];
-    const qi = norm.match(new RegExp(`(${NUMW})\\s*(?:تا|عدد|بسته|کارتن)\\s+(.+?)\\s+(?:رو\\s+)?(?:خرید|قیمت|به قیمت|دونه|دانه|هرکدام|هر\\s*عدد|$)`));
-    if (qi) {
-      const quantity = parsePersianNumberWords(qi[1]) || 1;
-      const productName = qi[2].trim();
-      if (productName.length > 1) items.push({ productName, quantity });
-    }
-    if (items.length === 0) {
-      // fallback به استخراج عمومی
-      for (const it of extractInvoiceOrPurchaseItems(norm)) items.push(it);
-    }
-
-    // قیمت خرید هر واحد
-    const buyPriceMatch = norm.match(/(?:قیمت\s*خرید|دونه\s*ای|دانه\s*ای|هرکدام|هر\s*کدام|هر\s*عدد|به قیمت)\s*[:\-]?\s*([\d\s؀-ۿ]+?)(?:تومان|تومن|ریال|،|,|$)/);
-    let buyPrice: number | undefined;
-    if (buyPriceMatch) {
-      buyPrice = parsePersianNumberWords(buyPriceMatch[1]) ?? undefined;
-    }
-
-    return {
-      intent: "CREATE_PURCHASE",
-      rawText: raw,
-      normalizedText: norm,
-      confidence: 0.88,
-      entities: {
-        supplierName,
-        buyPrice,
-        items,
-      },
-    };
+    return buildPurchaseResult(raw, norm);
   }
 
   // 7. Check Single Product Registration Intent (ثبت کالا با صدا)
@@ -289,31 +317,13 @@ export function processVoiceCommand(spokenText: string): VoiceActionResult {
     (norm.includes("موجودی") && norm.includes("قیمت")) ||
     (norm.includes("اضافه کن") && norm.includes("خریدی"))
   ) {
-    const extractedProduct = extractProductDetailsFromVoice(norm);
-    return {
-      intent: "CREATE_PRODUCT",
-      rawText: raw,
-      normalizedText: norm,
-      confidence: 0.9,
-      entities: extractedProduct,
-    };
+    return buildProductResult(raw, norm);
   }
 
   // 8. Default fallback to Invoice Generation (فاکتور صوتی)
-  const customerName = extractCustomerFromVoice(norm);
-  const items = extractInvoiceOrPurchaseItems(norm);
-
-  if (items.length > 0) {
-    return {
-      intent: "CREATE_INVOICE",
-      rawText: raw,
-      normalizedText: norm,
-      confidence: 0.85,
-      entities: {
-        customerName,
-        items,
-      },
-    };
+  const invoiceResult = buildInvoiceResult(raw, norm);
+  if ((invoiceResult.entities.items?.length || 0) > 0) {
+    return invoiceResult;
   }
 
   // Unknown intent

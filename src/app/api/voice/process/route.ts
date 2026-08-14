@@ -8,14 +8,16 @@ import { formatToman, toPersianDigits } from "@/lib/persian/utils";
 
 export async function POST(req: Request) {
   try {
-    const { spokenText } = await req.json();
+    const { spokenText, mode } = await req.json();
 
     if (!spokenText || typeof spokenText !== "string" || !spokenText.trim()) {
       return NextResponse.json({ error: "متن صوتی ارسال نشده است." }, { status: 400 });
     }
 
     // 1. Process Voice Command through Intent Engine
-    const actionResult = processVoiceCommand(spokenText);
+    // mode (اختیاری): invoice | product | purchase — برای دکمه‌های جداگانه
+    const forceMode = mode === "invoice" || mode === "product" || mode === "purchase" ? mode : undefined;
+    const actionResult = processVoiceCommand(spokenText, forceMode);
 
     // 2. Fetch active products for smart matching
     const allDbProducts = await db
