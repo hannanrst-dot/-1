@@ -1,13 +1,27 @@
-node_modules/
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# database & backups (runtime data)
+/data
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# env
 .env
-data/*.db
-data/*.db-journal
-data/*.db-wal
-data/*.db-shm
-backups/*.db
-backups/*.zip
+.env*.local
+
+# misc
 *.log
 .DS_Store
 
-# فایل‌های zip تولیدشده برای دانلود (خروجی، نه سورس)
+# generated download zips
 *.zip

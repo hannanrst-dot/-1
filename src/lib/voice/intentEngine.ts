@@ -1,0 +1,327 @@
+import { normalizeSpokenPersian, parsePersianNumberWords } from "./persianNormalizer";
+
+export type VoiceIntentType =
+  | "CREATE_PRODUCT"
+  | "CREATE_INVOICE"
+  | "CREATE_PURCHASE"
+  | "QUERY_TODAY_SALES"
+  | "QUERY_LOW_STOCK"
+  | "QUERY_CUSTOMER_INVOICE"
+  | "SEARCH_PRODUCT"
+  | "CONFIRM"
+  | "CANCEL"
+  | "UNKNOWN";
+
+export interface ParsedVoiceItem {
+  productName: string;
+  quantity: number;
+  buyPrice?: number;
+  sellPrice?: number;
+}
+
+export interface VoiceActionResult {
+  intent: VoiceIntentType;
+  rawText: string;
+  normalizedText: string;
+  confidence: number;
+  entities: {
+    productName?: string;
+    customerName?: string;
+    supplierName?: string;
+    stock?: number;
+    buyPrice?: number;
+    sellPrice?: number;
+    discount?: number;
+    items?: ParsedVoiceItem[];
+    searchQuery?: string;
+  };
+  promptUser?: string; // If system needs to ask user for missing info
+}
+
+/**
+ * Helper to extract customer name if spoken in invoice command
+ */
+function extractCustomerFromVoice(normText: string): string | undefined {
+  const match = normText.match(/(?:برای|به نام|مشتری)\s+([آ-ی\s]+?)(?:\s+فاکتور|\s+سه|\s+دو|\s+یک|\s+\d+|\s+بزن|\s+بنویس|,|$)/);
+  if (match) {
+    const candidate = match[1].replace(/فاکتور|بزن|بنویس/g, '').trim();
+    if (candidate.length > 1 && !['سه', 'دو', 'یک', 'پنج', 'چند'].includes(candidate)) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Extract product registration attributes from speech input
+ */
+function extractProductDetailsFromVoice(normText: string) {
+  // در این مرحله ارقام فارسی قبلاً به انگلیسی تبدیل شده‌اند (normalizeSpokenPersian).
+  let stock = 1;
+  let buyPrice = 0;
+  let sellPrice = 0;
+
+  // قیمت خرید — عبارت عددی بعد از کلیدواژه تا کلیدواژهٔ بعدی/انتها
+  const buyMatch = normText.match(/(?:قیمت\s*خرید|خریدم|خریدی|خرید)\s*[:\-]?\s*([\d\s؀-ۿ]+?)(?:تومان|تومن|ریال|قیمت|فروش|تعداد|موجودی|،|,|$)/);
+  if (buyMatch) {
+    const parsed = parsePersianNumberWords(buyMatch[1]);
+    if (parsed) buyPrice = parsed;
+  }
+
+  // قیمت فروش
+  const sellMatch = normText.match(/(?:قیمت\s*فروش|بفروشم|بفروش|فروش)\s*[:\-]?\s*([\d\s؀-ۿ]+?)(?:تومان|تومن|ریال|قیمت|خرید|تعداد|موجودی|،|,|$)/);
+  if (sellMatch) {
+    const parsed = parsePersianNumberWords(sellMatch[1]);
+    if (parsed) sellPrice = parsed;
+  }
+  // حالت محاوره‌ای «۶۰ هزار بفروشم» که عدد پیش از فعل می‌آید
+  if (!sellPrice) {
+    const sell2 = normText.match(/([\d\s؀-ۿ]+?)\s*(?:تومان|تومن|ریال)?\s*(?:می\s*خوام\s*)?بفروش(?:م|ی)?/);
+    if (sell2) {
+      const parsed = parsePersianNumberWords(sell2[1]);
+      if (parsed) sellPrice = parsed;
+    }
+  }
+
+  // تعداد/موجودی
+  const qtyMatch = normText.match(/(?:تعداد|موجودی|تعدادش)\s*[:\-]?\s*([\d\s؀-ۿ]+?)(?:تا|عدد|بسته|قیمت|،|,|$)/);
+  if (qtyMatch) {
+    const parsed = parsePersianNumberWords(qtyMatch[1]);
+    if (parsed) stock = parsed;
+  } else {
+    const countMatch = normText.match(/(\d+|پنجاه|بیست|سی|چهل|شصت|هفتاد|هشتاد|نود|صد|ده|بیست)\s*(?:تا|عدد|بسته)/);
+    if (countMatch) {
+      const parsed = parsePersianNumberWords(countMatch[1]);
+      if (parsed) stock = parsed;
+    }
+  }
+
+  // نام کالا: بخش ابتدایی جمله تا اولین کلیدواژهٔ توصیفی یا اولین ویرگول.
+  let productName = normText;
+  const cutKeywords = ["تعداد", "موجودی", "قیمت خرید", "قیمت فروش", "قیمت", "خرید", "فروش", "بفروش", "حداقل", "تخفیف", "مالیات"];
+  let cutIndex = productName.length;
+  for (const kw of cutKeywords) {
+    const idx = productName.indexOf(kw);
+    if (idx > 0 && idx < cutIndex) cutIndex = idx;
+  }
+  productName = productName.slice(0, cutIndex);
+  const comma = productName.search(/[،,]/);
+  if (comma > 1) productName = productName.slice(0, comma);
+  productName = productName
+    .replace(/(اضافه کن|ثبت کن|به انبار|رو اضافه کن|را اضافه کن| رو | را |دارم|میخوام|می خوام|بنداز تو انبار)/g, " ")
+    .replace(/^(یه|یک)\s+/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  // حذف تعداد ابتدایی چسبیده به نام مثل «۵۰ تا دفتر پاپکو»
+  productName = productName.replace(/^\s*\d+\s*(?:تا|عدد|بسته|دونه)?\s+/, "").trim();
+
+  return {
+    productName: productName.length >= 2 ? productName : "کالای جدید",
+    stock,
+    buyPrice,
+    sellPrice,
+  };
+}
+
+/**
+ * Extract items array from voice invoice or purchase command
+ * Example: "سه تا دفتر پاپکو و دو تا مداد استدلر" -> [{productName: "دفتر پاپکو", quantity: 3}, {productName: "مداد استدلر", quantity: 2}]
+ */
+function extractInvoiceOrPurchaseItems(normText: string): ParsedVoiceItem[] {
+  const items: ParsedVoiceItem[] = [];
+
+  // Remove preface customer info
+  let text = normText.replace(/(?:برای|به نام|مشتری)\s+[آ-ی\s]+?(?=\s+فاکتور|\s+سه|\s+دو|\s+یک|\s+\d+)/, '');
+  text = text.replace(/فاکتور بزن|فاکتور ثبت کن|بزن|بنویس|ثبت کن/g, '');
+
+  // Split clauses by 'و', ',', 'همچنين'
+  const clauses = text.split(/,| و | و/).map(c => c.trim()).filter(Boolean);
+
+  for (const clause of clauses) {
+    // Match pattern: "3 تا مداد" or "مداد 3 تا" or "دو تا دفتر پاپکو"
+    const prefixQtyMatch = clause.match(/^(\d+|یک|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده|یازده|دوازده|پانزده|پونزده|بیست|سی|چهل|پنجاه)\s*(?:تا|عدد|بسته|کارتن)?\s+(.+)$/);
+    const suffixQtyMatch = clause.match(/^(.+?)\s+(\d+|یک|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده|بیست|پنجاه)\s*(?:تا|عدد|بسته)?$/);
+
+    if (prefixQtyMatch) {
+      const qty = parsePersianNumberWords(prefixQtyMatch[1]) || 1;
+      const pName = prefixQtyMatch[2].trim();
+      if (pName.length > 1) {
+        items.push({ productName: pName, quantity: qty });
+      }
+    } else if (suffixQtyMatch) {
+      const pName = suffixQtyMatch[1].trim();
+      const qty = parsePersianNumberWords(suffixQtyMatch[2]) || 1;
+      if (pName.length > 1) {
+        items.push({ productName: pName, quantity: qty });
+      }
+    } else {
+      // Just product name without explicit quantity (default 1)
+      const cleaned = clause.replace(/\d+\s*(?:تومان|تومن|ریال)/g, '').trim();
+      if (cleaned.length > 1) {
+        items.push({ productName: cleaned, quantity: 1 });
+      }
+    }
+  }
+
+  return items;
+}
+
+/**
+ * Detects intent and extracts structured entities from raw Persian spoken sentence.
+ */
+export function processVoiceCommand(spokenText: string): VoiceActionResult {
+  const norm = normalizeSpokenPersian(spokenText);
+  const raw = spokenText.trim();
+
+  // 1. Check Confirm / Cancel
+  if (/^(ثبت کن|تایید|بله|آره|حتمی|اوکی|ثبت بکن|انجام بده)$/i.test(norm)) {
+    return {
+      intent: "CONFIRM",
+      rawText: raw,
+      normalizedText: norm,
+      confidence: 0.98,
+      entities: {},
+    };
+  }
+
+  if (/^(لغو|لغو کن|خیر|نه|بیخیال|کنسل|انصراف)$/i.test(norm)) {
+    return {
+      intent: "CANCEL",
+      rawText: raw,
+      normalizedText: norm,
+      confidence: 0.98,
+      entities: {},
+    };
+  }
+
+  // 2. Check Query Intent: Today Sales
+  if (norm.includes("فروش امروز") || norm.includes("امروز چقدر") || norm.includes("امار فروش") || norm.includes("مبلغ فروش امروز")) {
+    return {
+      intent: "QUERY_TODAY_SALES",
+      rawText: raw,
+      normalizedText: norm,
+      confidence: 0.95,
+      entities: {},
+    };
+  }
+
+  // 3. Check Query Intent: Low Stock
+  if (norm.includes("موجودی کم") || norm.includes("کدوم کالاها") || norm.includes("کالاهای کم موجود") || norm.includes("کالاها موجودیشون کمه") || norm.includes("کمبود موجودی")) {
+    return {
+      intent: "QUERY_LOW_STOCK",
+      rawText: raw,
+      normalizedText: norm,
+      confidence: 0.95,
+      entities: {},
+    };
+  }
+
+  // 4. Check Query Intent: Customer Last Invoice
+  if (norm.includes("فاکتور") && (norm.includes("باز کن") || norm.includes("بیار"))) {
+    const customerName = extractCustomerFromVoice(norm);
+    return {
+      intent: "QUERY_CUSTOMER_INVOICE",
+      rawText: raw,
+      normalizedText: norm,
+      confidence: 0.9,
+      entities: { customerName },
+    };
+  }
+
+  // 5. Check Search Product
+  if (norm.startsWith("جستجو") || norm.startsWith("سرچ") || norm.startsWith("پیدا کن")) {
+    const query = norm.replace(/^(جستجو|سرچ|پیدا کن)\s+(کالای\s+)?/, "").trim();
+    return {
+      intent: "SEARCH_PRODUCT",
+      rawText: raw,
+      normalizedText: norm,
+      confidence: 0.9,
+      entities: { searchQuery: query },
+    };
+  }
+
+  // 6. Check Purchase Intent (ثبت خرید)
+  if (norm.includes("خریدم") || norm.includes("خرید از") || norm.includes("ثبت خرید")) {
+    const NUMW = "\\d+|صد|یکصد|دویست|سیصد|چهارصد|پانصد|ششصد|هفتصد|هشتصد|نهصد|هزار|یک|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده|بیست|سی|چهل|پنجاه|شصت|هفتاد|هشتاد|نود";
+
+    // تأمین‌کننده: بعد از «از [شرکت/فروشگاه/...] X» تا اولین عدد یا «خرید».
+    let supplierName: string | undefined;
+    const sup = norm.match(new RegExp(`از\\s+(?:شرکت|فروشگاه|آقای|خانم|تامین\\s*کننده)?\\s*(.+?)\\s+(?:${NUMW}|خرید)`));
+    if (sup) supplierName = sup[1].replace(/^(شرکت|فروشگاه)\s+/, "").trim();
+
+    // تعداد + نام کالا: «(عدد) تا (نام) خریدم/خرید/قیمت...»
+    const items: ParsedVoiceItem[] = [];
+    const qi = norm.match(new RegExp(`(${NUMW})\\s*(?:تا|عدد|بسته|کارتن)\\s+(.+?)\\s+(?:رو\\s+)?(?:خرید|قیمت|به قیمت|دونه|دانه|هرکدام|هر\\s*عدد|$)`));
+    if (qi) {
+      const quantity = parsePersianNumberWords(qi[1]) || 1;
+      const productName = qi[2].trim();
+      if (productName.length > 1) items.push({ productName, quantity });
+    }
+    if (items.length === 0) {
+      // fallback به استخراج عمومی
+      for (const it of extractInvoiceOrPurchaseItems(norm)) items.push(it);
+    }
+
+    // قیمت خرید هر واحد
+    const buyPriceMatch = norm.match(/(?:قیمت\s*خرید|دونه\s*ای|دانه\s*ای|هرکدام|هر\s*کدام|هر\s*عدد|به قیمت)\s*[:\-]?\s*([\d\s؀-ۿ]+?)(?:تومان|تومن|ریال|،|,|$)/);
+    let buyPrice: number | undefined;
+    if (buyPriceMatch) {
+      buyPrice = parsePersianNumberWords(buyPriceMatch[1]) ?? undefined;
+    }
+
+    return {
+      intent: "CREATE_PURCHASE",
+      rawText: raw,
+      normalizedText: norm,
+      confidence: 0.88,
+      entities: {
+        supplierName,
+        buyPrice,
+        items,
+      },
+    };
+  }
+
+  // 7. Check Single Product Registration Intent (ثبت کالا با صدا)
+  if (
+    norm.includes("قیمت خرید") ||
+    norm.includes("قیمت فروش") ||
+    (norm.includes("موجودی") && norm.includes("قیمت")) ||
+    (norm.includes("اضافه کن") && norm.includes("خریدی"))
+  ) {
+    const extractedProduct = extractProductDetailsFromVoice(norm);
+    return {
+      intent: "CREATE_PRODUCT",
+      rawText: raw,
+      normalizedText: norm,
+      confidence: 0.9,
+      entities: extractedProduct,
+    };
+  }
+
+  // 8. Default fallback to Invoice Generation (فاکتور صوتی)
+  const customerName = extractCustomerFromVoice(norm);
+  const items = extractInvoiceOrPurchaseItems(norm);
+
+  if (items.length > 0) {
+    return {
+      intent: "CREATE_INVOICE",
+      rawText: raw,
+      normalizedText: norm,
+      confidence: 0.85,
+      entities: {
+        customerName,
+        items,
+      },
+    };
+  }
+
+  // Unknown intent
+  return {
+    intent: "UNKNOWN",
+    rawText: raw,
+    normalizedText: norm,
+    confidence: 0.3,
+    entities: {},
+  };
+}

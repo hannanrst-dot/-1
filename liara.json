@@ -1,9 +1,6 @@
 {
-  "platform": "node",
+  "platform": "next",
   "port": 3000,
-  "node": {
-    "version": "20"
-  },
   "build": {
     "location": "iran"
   }
