@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Mic, X, Volume2, CheckCircle, Sparkles, Trash2, Plus, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { formatToman, toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
+import { collapseRepeatedWords } from "@/lib/voice/persianNormalizer";
 
 interface VoiceAssistantModalProps {
   isOpen: boolean;
@@ -62,7 +63,8 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute }: VoiceA
         else interimStr += r[0].transcript;
       }
       currentFinalRef.current = finalStr;
-      const combined = (sessionBaseRef.current + finalStr + interimStr).replace(/\s+/g, " ").trim();
+      // حذف تکرارهای پیاپیِ تشخیص گفتار تا کاربر متن تمیز ببیند.
+      const combined = collapseRepeatedWords((sessionBaseRef.current + finalStr + interimStr).replace(/\s+/g, " ").trim());
       setTranscript(combined);
     };
 

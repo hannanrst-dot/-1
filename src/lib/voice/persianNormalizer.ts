@@ -132,6 +132,38 @@ export function parsePersianNumberWords(text: string): number | null {
 }
 
 /**
+ * حذف تکرارهای پیاپی که موتور تشخیص گفتار مرورگر (به‌ویژه در موبایل) تولید می‌کند.
+ * مثال: «دفتر دفتر پاپکو پاپکو» → «دفتر پاپکو» ، «۴۵ ۴۵ هزار» → «۴۵ هزار».
+ * ابتدا عبارت‌های سه‌کلمه‌ای، سپس دو‌کلمه‌ای و در آخر تک‌کلمه‌ایِ تکراری حذف می‌شوند.
+ */
+export function collapseRepeatedWords(text: string): string {
+  let words = text.split(/\s+/).filter(Boolean);
+  const collapseN = (arr: string[], n: number): string[] => {
+    const out: string[] = [];
+    let i = 0;
+    while (i < arr.length) {
+      if (i + 2 * n <= arr.length) {
+        const a = arr.slice(i, i + n).join(" ");
+        const b = arr.slice(i + n, i + 2 * n).join(" ");
+        if (a === b && a.length > 0) {
+          out.push(...arr.slice(i, i + n));
+          i += 2 * n;
+          continue;
+        }
+      }
+      out.push(arr[i]);
+      i += 1;
+    }
+    return out;
+  };
+  // دو بار اجرا می‌کنیم تا تکرارهای زنجیره‌ای هم پاک شوند.
+  for (let pass = 0; pass < 2; pass++) {
+    for (const n of [3, 2, 1]) words = collapseN(words, n);
+  }
+  return words.join(" ");
+}
+
+/**
  * Standardizes raw spoken Persian speech input
  */
 export function normalizeSpokenPersian(input: string): string {
@@ -145,6 +177,9 @@ export function normalizeSpokenPersian(input: string): string {
     .replace(/تومان|تومن|تومانی/g, 'تومان')
     .replace(/\s+/g, ' ')
     .trim();
+
+  // حذف تکرارهای پیاپیِ ناشی از تشخیص گفتار
+  text = collapseRepeatedWords(text);
 
   return text;
 }
