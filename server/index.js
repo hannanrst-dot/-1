@@ -10,6 +10,7 @@ const config = require('./config');
 const { migrate } = require('./db');
 const { seed, isEmpty } = require('./db/seed');
 
+console.log('[ثبت‌یار] مسیر دیتابیس:', config.databaseFile);
 migrate(); // اطمینان از وجود جداول
 
 // اگر دیتابیس خالی است (اولین اجرا روی هاست)، خودکار کاربر مدیر و داده‌های
