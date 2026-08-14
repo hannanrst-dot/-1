@@ -28,3 +28,5 @@
 
 # lockfile removed so Liara uses npm install (avoids npm ci crash)
 package-lock.json
+
+*.tsbuildinfo
