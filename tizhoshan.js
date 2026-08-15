@@ -1613,7 +1613,7 @@
   // دسته‌بندی بر اساسِ تعدادِ نقطه‌های داخل (شکلِ بیرونی/اندازه/چرخش گمراهی)
   function m7_byDotCount(rng) {
     function fig(cat, seed) { var d = [2, 3, 4][cat], rr = new RNG(seed), n = rr.pick([3, 4, 5, 6]), st = rr.pick([-90, -45, -60]); return function (g) { add(g, 'polygon', merge(DEF, { points: ptsStr(polyPts(n, 32, 50, 50, st)) })); innerDots(g, d); }; }
-    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «تعدادِ نقطه‌های داخل» درست دسته‌بندی شده‌اند؟', 'شکلِ بیرونی و اندازه گمراه‌کننده‌اند؛ در گزینه‌ی درست هر گروه شکل‌هایی است که تعدادِ نقطه‌ی داخلشان یکی است (۲، ۳ یا ۴). نقطه‌ها را بشمار!');
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «تعدادِ نقطه‌های داخل» درست دسته‌بندی شده‌اند؟', 'شکلِ بیرونی و اندازه گمراه‌کننده‌اند؛ در گزینه‌ی درست هر گروه شکل‌هایی است که تعدادِ نقطه‌ی داخلشان یکی است (۲، ۳ یا ۴). نقطه‌ها را بشمار!', 'دسته‌بندی: شمارشِ نقطه');
   }
 
   /* ==================================================================
@@ -1708,9 +1708,9 @@
   }
 
   // سوالاتِ خیلی ساده (تک‌ویژگیِ بدیهی: oddDots/oddSides/oddArrow/oddDice/…) از ریلِ اصلی حذف شدند؛ کفِ سختی بالا رفت.
-  var GENS_EASY = [oddMatrix, oddMatrix, oddMatrix, dominoOdd, oddChirality, oddTextureFill, oddArrowType, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGear, oddGridSym, oddCombo, oddFlower, oddConcentric, oddClock, oddChain, oddBranch];
-  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, dominoOdd, oddChirality, oddGlyph, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddTextureFill, oddSize, oddNested, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddRule, sceneArrowHead, sceneInnerSwap];
-  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddRule, oddRule];
+  var GENS_EASY = [oddMatrix, oddMatrix, oddMatrix, dominoOdd, oddChirality, oddTextureFill, oddArrowType, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGear, oddGridSym, oddCombo, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddCurvature];
+  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, dominoOdd, oddChirality, oddGlyph, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddTextureFill, oddSize, oddNested, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddRule, sceneArrowHead, sceneInnerSwap, oddRotOrder, oddCurvature];
+  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddRule, oddRule, oddRotOrder, oddCurvature];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -1948,9 +1948,9 @@
   function m3_match(rng, level) { return matchMatrix(rng, level || 1, 5, 4); }
   function m3_combine(rng, level) { return combineShapes(rng, level || 1, 5); }
   function m3_fold(rng, level) { return paperFold(rng, level || 1, 5); }
-  var M3_EASY = [m3_match, m3_match, m3_combine, m3_fold, m3_sameType, m3_evenCount, m3_symmetry];
-  var M3_MED = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_symmetry, m3_innerMatch, m3_rotationFamily, oddRule5, analogy2_5];
-  var M3_HARD = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_fold, m3_sceneFamily, m3_rotationFamily, oddRule5, analogy2_5, analogy2_5];
+  var M3_EASY = [m3_match, m3_match, m3_combine, m3_fold, m3_sameType, m3_evenCount, m3_symmetry, jigsawPiece];
+  var M3_MED = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_symmetry, m3_innerMatch, m3_rotationFamily, oddRule5, analogy2_5, gridOverlay, jigsawPiece];
+  var M3_HARD = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_fold, m3_sceneFamily, m3_rotationFamily, oddRule5, analogy2_5, analogy2_5, gridXor, gridOverlay, jigsawPiece];
   function poolForM3(level) { return level >= 3 ? M3_HARD : level === 2 ? M3_MED : M3_EASY; }
   function genQuestionM3(rng, level) { return rng.pick(poolForM3(level))(rng, level || 1); }
 
@@ -2024,9 +2024,9 @@
     };
   }
   function m4_match(rng, level) { return matchMatrix(rng, level || 1, 4, 2); }
-  var M4_EASY = [m4_match, m4_match, m4_oneShaded, m4_containsBoth, m4_symmetryPair];
-  var M4_MED = [m4_match, m4_match, analogyPair, m4_sidesEqLines, m4_oneShaded, m4_containsBoth, analogyCompound];
-  var M4_HARD = [m4_match, m4_match, analogyPair, analogyPair, m4_chiralPair, m4_sidesEqLines, analogyCompound, analogyCompound];
+  var M4_EASY = [m4_match, m4_match, m4_oneShaded, m4_containsBoth, m4_symmetryPair, mirrorWater];
+  var M4_MED = [m4_match, m4_match, analogyPair, m4_sidesEqLines, m4_oneShaded, m4_containsBoth, analogyCompound, analogyRotate, mirrorWater];
+  var M4_HARD = [m4_match, m4_match, analogyPair, analogyPair, m4_chiralPair, m4_sidesEqLines, analogyCompound, analogyCompound, analogyRotate, mirrorWater];
   function poolForM4(level) { return level >= 3 ? M4_HARD : level === 2 ? M4_MED : M4_EASY; }
   function genQuestionM4(rng, level) { return rng.pick(poolForM4(level))(rng, level || 1); }
 
@@ -2091,9 +2091,9 @@
     };
   }
   function m5_match(rng, level) { return matchMatrix(rng, level || 1, 5, 2); }
-  var M5_EASY = [m5_match, m5_match, m5_arrowCount, m5_containsTrio, m5_symmetryPair5];
-  var M5_MED = [m5_match, m5_match, m5_match, m5_curveLineMix, m5_arrowCount, m5_containsTrio, analogy2_5];
-  var M5_HARD = [m5_match, m5_match, m5_match, m5_chiralScene5, m5_curveLineMix, m5_containsTrio, analogy2_5, analogy2_5];
+  var M5_EASY = [m5_match, m5_match, m5_arrowCount, m5_containsTrio, m5_symmetryPair5, m5_mirror];
+  var M5_MED = [m5_match, m5_match, m5_match, m5_curveLineMix, m5_arrowCount, m5_containsTrio, analogy2_5, m5_mirror, m5_analogyRot];
+  var M5_HARD = [m5_match, m5_match, m5_match, m5_chiralScene5, m5_curveLineMix, m5_containsTrio, analogy2_5, analogy2_5, m5_analogyRot, m5_mirror];
   function poolForM5(level) { return level >= 3 ? M5_HARD : level === 2 ? M5_MED : M5_EASY; }
   function genQuestionM5(rng, level) { return rng.pick(poolForM5(level))(rng, level || 1); }
 
@@ -2153,9 +2153,9 @@
     var dists = [row([0.32, 0.56, 1, 0.8]), row([0.32, 0.8, 0.56, 1]), row([0.32, 0.56, 0.8, 0.8])];
     return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکلِ باز به‌تدریج بسته می‌شود (شکاف کم‌کم پر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'بسته‌شدنِ تدریجی', 'در گزینه‌ی درست، شکاف مرتب کوچک‌تر می‌شود تا دایره کامل و بسته شود؛ اما در بقیه این روند منظم نیست.');
   }
-  var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair, matrix3x3, seriesComplete, seriesComplete];
-  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound];
-  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound];
+  var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair, matrix3x3, seriesComplete, seriesComplete, dominoNext];
+  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound, matrixLogic3x3, dominoNext];
+  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound, matrixLogic3x3, matrixLogic3x3, dominoNext];
   function poolForM6(level) { return level >= 3 ? M6_HARD : level === 2 ? M6_MED : M6_EASY; }
   function genQuestionM6(rng, level) { return rng.pick(poolForM6(level))(rng, level || 1); }
 
@@ -2188,7 +2188,7 @@
     box.appendChild(row); return box;
   }
   function fmtGroups(groups) { return groups.map(function (t) { return '(' + t.map(function (n) { return toFa(n); }).join('، ') + ')'; }).join('   '); }
-  function m7Question(rng, catFig, prompt, why) {
+  function m7Question(rng, catFig, prompt, why, tag) {
     var cats = rng.shuffle([0, 0, 0, 1, 1, 1, 2, 2, 2]);
     var grid = cats.map(function (c, i) { var d = catFig(c, i * 7 + 3); return function () { return figure(d, { size: 46 }); }; });
     var byCat = [[], [], []]; cats.forEach(function (c, i) { byCat[c].push(i + 1); });
@@ -2209,21 +2209,21 @@
     }
     var opts = [correct].concat(dists); var order = rng.shuffle(opts);
     return {
-      prompt: prompt, tag: 'دسته‌بندی', grid: grid, wide: true, options: order, answer: order.indexOf(correct),
+      prompt: prompt, tag: tag || 'دسته‌بندی', grid: grid, wide: true, options: order, answer: order.indexOf(correct),
       render: function (o) { return h('div', { class: 'tz-groups' }, fmtGroups(o.groups)); }, why: why
     };
   }
   function m7_bySides(rng) {
     function fig(cat, seed) { var n = [3, 4, 5][cat], rr = new RNG(seed), st = rr.pick([-90, -60, -30, 0]); return function (g) { drawPoly(g, n, { r: 30, start: st }); }; }
-    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «تعدادِ ضلع» درست دسته‌بندی شده‌اند؟', 'در گزینه‌ی درست، هر گروه شکل‌های هم‌ضلع است (سه مثلث، سه چهارضلعی، سه پنج‌ضلعی)؛ اما در بقیه، گروه‌ها قاطیِ هم‌اند. ضلع‌ها را بشمار!');
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «تعدادِ ضلع» درست دسته‌بندی شده‌اند؟', 'در گزینه‌ی درست، هر گروه شکل‌های هم‌ضلع است (سه مثلث، سه چهارضلعی، سه پنج‌ضلعی)؛ اما در بقیه، گروه‌ها قاطیِ هم‌اند. ضلع‌ها را بشمار!', 'دسته‌بندی: ضلع');
   }
   function m7_byInner(rng) {
     function fig(cat, seed) { var inner = ['circle', 'square', 'triangle'][cat], rr = new RNG(seed), n = rr.pick([4, 5, 6]), st = rr.pick([-90, -45]); return function (g) { drawPoly(g, n, { r: 34, start: st }); smallShape(g, inner, 50, 50, 10); }; }
-    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «شکلِ داخلی» درست دسته‌بندی شده‌اند؟', 'شکلِ بیرونی مهم نیست؛ در گزینه‌ی درست، هر گروه شکل‌هایی است که داخلشان یکی است (دایره/مربع/مثلث). در بقیه قاطی‌اند.');
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «شکلِ داخلی» درست دسته‌بندی شده‌اند؟', 'شکلِ بیرونی مهم نیست؛ در گزینه‌ی درست، هر گروه شکل‌هایی است که داخلشان یکی است (دایره/مربع/مثلث). در بقیه قاطی‌اند.', 'دسته‌بندی: شکلِ داخلی');
   }
   function m7_byFill(rng) {
     function fig(cat, seed) { var rr = new RNG(seed), n = rr.pick([4, 5, 6]), st = rr.pick([-90, -45]); return function (g) { if (cat === 0) drawPoly(g, n, { r: 32, start: st, fill: 'solid' }); else if (cat === 1) drawPoly(g, n, { r: 32, start: st }); else { function shp(t, k) { var p = polyPts(n, 32, 50, 50, st); if (k) add(t, 'polygon', merge(DEF, { points: ptsStr(p) })); else add(t, 'polygon', { points: ptsStr(p) }); } hatchInto(g, shp, 45, 7, 1.6); } }; }
-    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «جنسِ پُری» (توپُر / توخالی / هاشور) درست دسته‌بندی شده‌اند؟', 'در گزینه‌ی درست، هر گروه یک‌جور است: سه شکلِ توپُر، سه توخالی، سه هاشوردار. در بقیه گروه‌ها قاطی‌اند.');
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «جنسِ پُری» (توپُر / توخالی / هاشور) درست دسته‌بندی شده‌اند؟', 'در گزینه‌ی درست، هر گروه یک‌جور است: سه شکلِ توپُر، سه توخالی، سه هاشوردار. در بقیه گروه‌ها قاطی‌اند.', 'دسته‌بندی: پُری');
   }
   // دسته‌بندی بر اساسِ «جهتِ هاشور» — جزئیاتِ ریز؛ باید به زاویه‌ی خط‌های داخل دقت کرد.
   function m7_byHatchDir(rng) {
@@ -2231,13 +2231,260 @@
       var rr = new RNG(seed), n = rr.pick([4, 5, 6]), st = rr.pick([-90, -45]), ang = [0, 45, 90][cat];
       return function (g) { function shp(t, k) { var p = polyPts(n, 32, 50, 50, st); if (k) add(t, 'polygon', merge(DEF, { points: ptsStr(p) })); else add(t, 'polygon', { points: ptsStr(p) }); } hatchInto(g, shp, ang, 7, 1.7); };
     }
-    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «جهتِ هاشور» درست دسته‌بندی شده‌اند؟', 'شکلِ بیرونی مهم نیست؛ در گزینه‌ی درست هر گروه یک جهتِ هاشور دارد: عمودی، مورب، یا افقی. به زاویه‌ی خط‌های داخل خوب دقت کن.');
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «جهتِ هاشور» درست دسته‌بندی شده‌اند؟', 'شکلِ بیرونی مهم نیست؛ در گزینه‌ی درست هر گروه یک جهتِ هاشور دارد: عمودی، مورب، یا افقی. به زاویه‌ی خط‌های داخل خوب دقت کن.', 'دسته‌بندی: جهتِ هاشور');
   }
-  var M7_EASY = [m7_bySides, m7_byInner];
-  var M7_MED = [m7_bySides, m7_byInner, m7_byFill, m7_byDotCount];
-  var M7_HARD = [m7_byInner, m7_byFill, m7_byHatchDir, m7_bySides, m7_byDotCount, m7_byDotCount];
+  var M7_EASY = [m7_bySides, m7_byInner, m7_byCurvature];
+  var M7_MED = [m7_bySides, m7_byInner, m7_byFill, m7_byDotCount, m7_bySymmetry, m7_byCurvature];
+  var M7_HARD = [m7_byInner, m7_byFill, m7_byHatchDir, m7_bySides, m7_byDotCount, m7_byDotCount, m7_bySymmetry, m7_byCurvature];
   function poolForM7(level) { return level >= 3 ? M7_HARD : level === 2 ? M7_MED : M7_EASY; }
   function genQuestionM7(rng, level) { return rng.pick(poolForM7(level))(rng, level || 1); }
+
+  /* ====================================================================
+   * ۳.۵) تیپ‌های تازه و «خفن» — انواعِ مختلف (منطقِ شبکه، قیاسِ چرخشی،
+   *      انعکاسِ آب، قاچِ گم‌شده، فرفره‌ی چیرال، دومینوی دنباله‌ای، …)
+   * ================================================================== */
+  // شبکه‌ی ۳×۳ با خانه‌های پُر/خالی
+  function gridFig(mask) {
+    return function (g) {
+      var x0 = 24, x1 = 76, st = (x1 - x0) / 3;
+      add(g, 'rect', merge(DEF, { x: x0, y: x0, width: x1 - x0, height: x1 - x0, rx: 3, 'stroke-width': 2.8 }));
+      for (var i = 1; i < 3; i++) {
+        add(g, 'line', { x1: x0 + i * st, y1: x0, x2: x0 + i * st, y2: x1, stroke: PAL.gray, 'stroke-width': 1.3 });
+        add(g, 'line', { x1: x0, y1: x0 + i * st, x2: x1, y2: x0 + i * st, stroke: PAL.gray, 'stroke-width': 1.3 });
+      }
+      for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) if (mask[r * 3 + c]) {
+        var cx = x0 + (c + 0.5) * st, cy = x0 + (r + 0.5) * st, sq = st * 0.31;
+        add(g, 'rect', { x: (cx - sq).toFixed(1), y: (cy - sq).toFixed(1), width: (2 * sq).toFixed(1), height: (2 * sq).toFixed(1), rx: 1.5, fill: PAL.line });
+      }
+    };
+  }
+  function maskKey(m) { return m.map(function (b) { return b ? 1 : 0; }).join(''); }
+  function maskFills(m) { var n = 0; for (var i = 0; i < 9; i++) if (m[i]) n++; return n; }
+  function randMask(rng, kMin, kMax) { var idx = rng.sample([0, 1, 2, 3, 4, 5, 6, 7, 8], rng.int(kMin, kMax)); var m = []; for (var i = 0; i < 9; i++) m.push(idx.indexOf(i) >= 0); return m; }
+  function combineMask(a, b, o) { var m = []; for (var i = 0; i < 9; i++) { var x = a[i], y = b[i]; m.push(o === 'or' ? (x || y) : o === 'and' ? (x && y) : (x !== y)); } return m; }
+
+  // منطقِ دو شبکه: روی‌هم‌گذاری (OR)، یکی‌درمیان (XOR)، اشتراک (AND)
+  function gridLogic(rng, level, count, op, tag, prompt, why) {
+    count = count || 4;
+    var A, B, C, guard = 0, ok = false;
+    do {
+      A = randMask(rng, 2, 4); B = randMask(rng, 2, 4); C = combineMask(A, B, op);
+      var keys = {}; keys[maskKey(combineMask(A, B, 'or'))] = 1; keys[maskKey(combineMask(A, B, 'and'))] = 1; keys[maskKey(combineMask(A, B, 'xor'))] = 1;
+      ok = maskFills(C) >= 1 && maskFills(C) <= 8 && Object.keys(keys).length === 3 && maskKey(C) !== maskKey(A) && maskKey(C) !== maskKey(B);
+    } while (!ok && guard++ < 80);
+    var pool = [combineMask(A, B, 'or'), combineMask(A, B, 'and'), combineMask(A, B, 'xor'), A.slice(), B.slice()];
+    (function () { var m = C.slice(); var i = rng.int(0, 8); m[i] = !m[i]; pool.push(m); })(); // near-miss: یک خانه اشتباه
+    var seen = {}; seen[maskKey(C)] = 1; var dists = [], sh = rng.shuffle(pool);
+    for (var i = 0; i < sh.length && dists.length < count - 1; i++) { var k = maskKey(sh[i]); if (!seen[k]) { seen[k] = 1; dists.push(sh[i]); } }
+    while (dists.length < count - 1) { var m = randMask(rng, 2, 5); var k = maskKey(m); if (!seen[k]) { seen[k] = 1; dists.push(m); } }
+    var opts = [{ m: C }].concat(dists.map(function (m) { return { m: m }; })); var order = rng.shuffle(opts);
+    var refs = [function () { return figure(gridFig(A), { size: 72 }); }, function () { return figure(gridFig(B), { size: 72 }); }];
+    refs.label = 'دو شبکه‌ی A و B:';
+    return {
+      prompt: prompt, tag: tag, refs: refs, options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(gridFig(o.m), { size: 96 }); }, why: why
+    };
+  }
+  function gridOverlay(rng, level, count) { return gridLogic(rng, level, count, 'or', 'روی‌هم‌گذاریِ شبکه', 'شبکه‌ی A و B را روی هم بگذار: هر خانه که در A «یا» B پُر باشد، در جواب پُر می‌ماند. کدام گزینه درست است؟ (A و B در بالا)', 'در روی‌هم‌گذاری، هر خانه‌ای که دستِ‌کم در یکی از A یا B پُر باشد پُر می‌ماند؛ فقط خانه‌هایی که در هر دو خالی‌اند، خالی می‌مانند.'); }
+  function gridXor(rng, level, count) { return gridLogic(rng, level, count, 'xor', 'شبکه‌ی یکی‌درمیان (XOR)', 'خانه‌ای در جواب پُر است که «فقط در یکی» از A یا B پُر باشد (اگر در هر دو یا در هیچ‌کدام پُر باشد، خالی می‌شود). کدام گزینه درست است؟ (A و B در بالا)', 'قاعده‌ی «یکی‌درمیان»: خانه‌ای پُر می‌شود که دقیقاً در یکی از دو شبکه پُر باشد. خانه‌هایی که در هر دو پُرند، در جواب خالی می‌شوند — همین‌جا با روی‌هم‌گذاریِ ساده فرق دارد.'); }
+
+  // ماتریسِ منطقیِ ۳×۳: ستونِ سوم = ترکیبِ منطقیِ دو ستونِ اول (OR/XOR/AND)
+  function matrixLogic3x3(rng, level, count) {
+    count = count || 4;
+    var op = rng.pick(['or', 'xor', 'and']), opFa = { or: 'روی‌هم‌گذاری (یا)', xor: 'یکی‌درمیان', and: 'اشتراک (و)' }[op];
+    var rows = [], guard = 0;
+    while (rows.length < 3 && guard++ < 300) {
+      var a = randMask(rng, 2, 4), b = randMask(rng, 2, 4), c = combineMask(a, b, op);
+      if (maskFills(c) >= 1 && maskFills(c) <= 8 && maskKey(c) !== maskKey(a) && maskKey(c) !== maskKey(b)) rows.push([a, b, c]);
+    }
+    if (rows.length < 3) return gridOverlay(rng, level, count);
+    var C = rows[2][2];
+    var fns = []; for (var r = 0; r < 3; r++) for (var cc = 0; cc < 3; cc++) { if (r === 2 && cc === 2) break; (function (m) { fns.push(function () { return figure(gridFig(m), { size: 50 }); }); })(rows[r][cc]); }
+    var pool = [combineMask(rows[2][0], rows[2][1], 'or'), combineMask(rows[2][0], rows[2][1], 'and'), combineMask(rows[2][0], rows[2][1], 'xor'), rows[2][0].slice(), rows[2][1].slice()];
+    (function () { var m = C.slice(); var i = rng.int(0, 8); m[i] = !m[i]; pool.push(m); })();
+    var seen = {}; seen[maskKey(C)] = 1; var dists = [], sh = rng.shuffle(pool);
+    for (var i = 0; i < sh.length && dists.length < count - 1; i++) { var k = maskKey(sh[i]); if (!seen[k]) { seen[k] = 1; dists.push(sh[i]); } }
+    while (dists.length < count - 1) { var m = randMask(rng, 2, 5); var k = maskKey(m); if (!seen[k]) { seen[k] = 1; dists.push(m); } }
+    var opts = [{ m: C }].concat(dists.map(function (m) { return { m: m }; })); var order = rng.shuffle(opts);
+    return {
+      prompt: 'در هر سطر، شبکه‌ی سوم از ترکیبِ دو شبکه‌ی اول ساخته شده. قاعده را کشف کن و خانه‌ی «؟» را کامل کن.', tag: 'ماتریسِ منطقی',
+      matrix: fns, options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(gridFig(o.m), { size: 96 }); },
+      why: 'قاعده‌ی هر سطر «' + opFa + '» است: شبکه‌ی سومِ هر سطر از ترکیبِ منطقیِ دو شبکه‌ی اولش به‌دست می‌آید. همان قاعده را روی سطرِ آخر اجرا کن.'
+    };
+  }
+
+  // قاچِ گم‌شده: کدام قاچ جای خالیِ دایره را دقیقاً پر می‌کند؟
+  function sectorPath(cx, cy, r, a0, a1) {
+    var s0 = a0 * Math.PI / 180, s1 = a1 * Math.PI / 180;
+    var x0 = cx + r * Math.cos(s0), y0 = cy + r * Math.sin(s0), x1 = cx + r * Math.cos(s1), y1 = cy + r * Math.sin(s1);
+    var large = (((a1 - a0) % 360 + 360) % 360) > 180 ? 1 : 0;
+    return 'M' + cx + ' ' + cy + ' L' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' A' + r + ' ' + r + ' 0 ' + large + ' 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1) + ' Z';
+  }
+  function discMouth(r, th, phi) { return function (g) { add(g, 'circle', { cx: 50, cy: 50, r: r, fill: 'none', stroke: PAL.gray, 'stroke-width': 1.4, 'stroke-dasharray': '3 4' }); add(g, 'path', merge(DEF, { d: sectorPath(50, 50, r, th + phi, th - phi + 360), fill: PAL.tealL })); }; }
+  function wedgeFig(r, th, phi) { return function (g) { add(g, 'path', merge(DEF, { d: sectorPath(50, 50, r, th - phi, th + phi), fill: PAL.funL })); }; }
+  function jigsawPiece(rng, level, count) {
+    count = count || 4;
+    var phi = rng.pick([28, 40, 52]), th = rng.pick([0, 45, 90, 135, 180, 225, 270, 315]);
+    var correct = { th: th, phi: phi };
+    var cand = [{ th: (th + 90) % 360, phi: phi }, { th: (th + 180) % 360, phi: phi }, { th: th, phi: phi + 24 }, { th: th, phi: Math.max(16, phi - 16) }, { th: (th + 135) % 360, phi: phi }, { th: (th + 45) % 360, phi: phi + 24 }];
+    function key(o) { return o.th + '|' + o.phi; }
+    var seen = {}; seen[key(correct)] = 1; var dists = [], sh = rng.shuffle(cand);
+    for (var i = 0; i < sh.length && dists.length < count - 1; i++) { var k = key(sh[i]); if (!seen[k]) { seen[k] = 1; dists.push(sh[i]); } }
+    var opts = [correct].concat(dists); var order = rng.shuffle(opts);
+    var refs = [function () { return figure(discMouth(32, th, phi), { size: 104 }); }]; refs.label = 'این دایره یک قاچ کم دارد:';
+    return {
+      prompt: 'کدام «قاچ» دقیقاً جای خالیِ دایره را پر می‌کند؟ به جهت و پهنای قاچ دقت کن.', tag: 'قاچِ گم‌شده',
+      refs: refs, options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(wedgeFig(30, o.th, o.phi), { size: 96 }); },
+      why: 'قاچِ درست باید هم در همان جهتِ جای خالی باشد و هم دقیقاً همان پهنا را داشته باشد — نه بازتر، نه بسته‌تر، و نه رو به سمتِ دیگر.'
+    };
+  }
+
+  // انعکاس در آب: قرینه‌ی شکل نسبت به خطِ افقیِ زمین (وارونه‌ی بالا-پایین)
+  function mirrorWater(rng, level, count) {
+    count = count || 4;
+    var motif = rng.pick(MOTIFS);
+    var correct = { mirror: 'h', k: 'ref' };
+    var pool = [{ k: 'id' }, { mirror: 'v', k: 'v' }, { rot: 180, k: 'r180' }, { rot: 90, k: 'r90' }, { rot: 270, k: 'r270' }];
+    var dists = rng.sample(pool, count - 1);
+    var opts = [correct].concat(dists); var order = rng.shuffle(opts);
+    var refs = [function () { return figure(motif, { size: 84 }); }]; refs.label = 'شکلِ اصلی روی خشکی:';
+    return {
+      prompt: 'انعکاسِ این شکل در آب کدام است؟ (قرینه نسبت به خطِ افقیِ زمین: بالا و پایینِ شکل جابه‌جا می‌شود)', tag: 'انعکاس در آب',
+      refs: refs, options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(motif, { rot: o.rot || 0, mirror: o.mirror || null, size: 96 }); },
+      why: 'انعکاس در آب یعنی شکل نسبت به خطِ افقی وارونه می‌شود (بالا↔پایین)، اما چپ و راستش سرِ جایش می‌ماند. این با «چرخش» فرق دارد؛ در چرخشِ ۱۸۰ درجه چپ و راست هم عوض می‌شود.'
+    };
+  }
+
+  // قیاسِ چرخشی: A با چرخشِ θ به B رسیده؛ همان چرخش را روی C اجرا کن
+  function analogyRotate(rng, level, count) {
+    count = count || 4;
+    var DOM = { sides: [3, 4, 5], fill: ['none', 'gray', 'hatch', 'dots'], inner: ['circle', 'square', 'triangle', 'plus', 'star'] };
+    var theta = rng.pick([45, 90, 135]);
+    function vec() { return { sides: rng.pick(DOM.sides), fill: rng.pick(DOM.fill), inner: rng.pick(DOM.inner), dot: 'solid', size: 'big', ring: 'single' }; }
+    var A = vec(); A.rot = rng.pick([0, 30, 60]);
+    var B = {}; for (var k in A) B[k] = A[k]; B.rot = (A.rot + theta) % 360;
+    var C = vec(); var diff = 0; ['sides', 'fill', 'inner'].forEach(function (nm) { if (C[nm] !== A[nm]) diff++; });
+    if (diff < 2) { C.inner = rng.pick(DOM.inner.filter(function (x) { return x !== A.inner; })); C.fill = rng.pick(DOM.fill.filter(function (x) { return x !== A.fill; })); }
+    C.rot = rng.pick([0, 30, 60, 300]);
+    var correctRot = (C.rot + theta) % 360;
+    var rots = [correctRot, C.rot, ((C.rot - theta) % 360 + 360) % 360, (C.rot + 2 * theta) % 360];
+    var seen = {}, uniq = []; rots.forEach(function (rv) { if (!seen[rv]) { seen[rv] = 1; uniq.push(rv); } });
+    var extra = [45, 90, 135, 180, 225, 270, 315]; for (var e = 0; e < extra.length && uniq.length < count; e++) { var rv = extra[e]; if (!seen[rv]) { seen[rv] = 1; uniq.push(rv); } }
+    var opts = uniq.slice(0, count).map(function (rv) { var o = {}; for (var kk in C) o[kk] = C[kk]; o.rot = rv; return o; });
+    var order = rng.shuffle(opts);
+    var refs = [function () { return figure(drawFeat(A), { rot: A.rot, size: 60 }); }, function () { return figure(drawFeat(B), { rot: B.rot, size: 60 }); }, function () { return figure(drawFeat(C), { rot: C.rot, size: 60 }); }];
+    refs.label = 'A با یک چرخش به B رسیده. C را همان‌قدر بچرخان:';
+    return {
+      prompt: 'شکلِ A با یک «چرخش» به B تبدیل شده. اگر همان چرخش روی C اجرا شود، کدام گزینه به‌دست می‌آید؟ (A، B، C در بالا)', tag: 'قیاسِ چرخشی',
+      refs: refs, options: order, answer: order.indexOf(opts.filter(function (o) { return o.rot === correctRot; })[0]),
+      render: function (o) { return figure(drawFeat(o), { rot: o.rot, size: 96 }); },
+      why: 'چرخشِ A به B برابرِ ' + toFa(theta) + ' درجه است. همان مقدار را روی C اعمال کن؛ خودِ شکل و اجزایش عوض نمی‌شوند، فقط می‌چرخد. به جای «نقطه‌ی گوشه» دقت کن تا مقدارِ چرخش را بسنجی.'
+    };
+  }
+
+  // فرفره‌ی چیرال: سه فرفره در یک جهت می‌پیچند، یکی آینه (جهتِ مخالف)
+  function pinwheelFig(k, hand) {
+    return function (g) {
+      for (var i = 0; i < k; i++) {
+        var a = i * 360 / k, gg = s('g', { transform: 'rotate(' + a.toFixed(1) + ' 50 50)' });
+        var d = hand === 'cw' ? 'M50 50 L50 16 Q68 22 60 42 Z' : 'M50 50 L50 16 Q32 22 40 42 Z';
+        gg.appendChild(s('path', merge(DEF, { d: d, fill: PAL.tealL, 'stroke-width': 3 })));
+        g.appendChild(gg);
+      }
+      add(g, 'circle', merge(DEF, { cx: 50, cy: 50, r: 3.2, fill: PAL.line }));
+    };
+  }
+  function oddRotOrder(rng, level, count) {
+    count = count || 4;
+    var k = rng.pick([4, 5, 6]), hand = rng.next() < 0.5 ? 'cw' : 'ccw', off = rng.pick([17, 23, 29]);
+    var same = []; for (var i = 0; i < count - 1; i++) same.push({ rot: i * off });
+    var pa = placeAnswer(rng, same, { rot: rng.pick([11, 37, 53]), mir: true }, count);
+    return {
+      prompt: 'کدام فرفره با بقیه فرق دارد؟', tag: 'جهتِ پیچشِ فرفره',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(pinwheelFig(k, o.mir ? (hand === 'cw' ? 'ccw' : 'cw') : hand), { rot: o.rot, size: 96 }); },
+      why: 'سه فرفره در یک جهت می‌پیچند (فقط چرخیده‌اند و روی هم می‌افتند)؛ اما این یکی «آینه» شده و در جهتِ مخالف می‌پیچد — با هیچ چرخشی مثلِ بقیه نمی‌شود.'
+    };
+  }
+
+  // لبه‌ی خمیده: سه چندضلعیِ صاف، یکی یک لبه‌ی قوسی دارد
+  function polyMaybeCurved(n, start, bulge) {
+    return function (g) {
+      var pts = polyPts(n, 32, 50, 50, start), d = 'M' + pts[0][0].toFixed(1) + ' ' + pts[0][1].toFixed(1);
+      for (var i = 1; i <= n; i++) {
+        var a = pts[i % n];
+        if (bulge >= 0 && (i - 1) === bulge) {
+          var p0 = pts[i - 1], mx = (p0[0] + a[0]) / 2, my = (p0[1] + a[1]) / 2, dx = mx - 50, dy = my - 50, L = Math.sqrt(dx * dx + dy * dy) || 1;
+          var qx = mx + dx / L * 18, qy = my + dy / L * 18;
+          d += ' Q' + qx.toFixed(1) + ' ' + qy.toFixed(1) + ' ' + a[0].toFixed(1) + ' ' + a[1].toFixed(1);
+        } else d += ' L' + a[0].toFixed(1) + ' ' + a[1].toFixed(1);
+      }
+      add(g, 'path', merge(DEF, { d: d + ' Z' }));
+    };
+  }
+  function oddCurvature(rng, level, count) {
+    count = count || 4;
+    var n = rng.pick([4, 5, 6]), starts = rng.sample([-90, -60, -45, -30, 0, 30], count);
+    var same = []; for (var i = 0; i < count - 1; i++) same.push({ st: starts[i], bulge: -1 });
+    var pa = placeAnswer(rng, same, { st: starts[count - 1], bulge: rng.int(0, n - 1) }, count);
+    return {
+      prompt: 'کدام شکل با بقیه فرق دارد؟', tag: 'لبه‌ی خمیده',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(polyMaybeCurved(n, o.st, o.bulge), { size: 96 }); },
+      why: 'سه شکل همه‌ی لبه‌هایشان صاف است؛ اما این یکی یک لبه‌ی «خمیده (قوسی)» دارد. به راست‌بودنِ ضلع‌ها دقت کن، نه فقط به تعدادشان.'
+    };
+  }
+
+  // دومینوی دنباله‌ای: نیمه‌ی بالا با یک قاعده، نیمه‌ی پایین با قاعده‌ی دیگر تغییر می‌کند
+  function dominoNext(rng, level, count) {
+    count = count || 4;
+    function draw(a, b) { return function (g) { add(g, 'rect', merge(DEF, { x: 30, y: 20, width: 40, height: 60, rx: 7 })); add(g, 'line', merge(DEF, { x1: 30, y1: 50, x2: 70, y2: 50, 'stroke-width': 2.4 })); pips(g, a, 30, 20, 40, 30); pips(g, b, 30, 50, 40, 30); }; }
+    var dT = rng.pick([1, -1]), dB = rng.pick([1, -1]);
+    var t0 = dT > 0 ? rng.int(0, 2) : rng.int(4, 6), b0 = dB > 0 ? rng.int(0, 2) : rng.int(4, 6);
+    var stem = []; for (var i = 0; i < 4; i++) stem.push((function (ii) { return function () { return draw(t0 + ii * dT, b0 + ii * dB); }; })(i));
+    var ansA = t0 + 4 * dT, ansB = b0 + 4 * dB, correct = { a: ansA, b: ansB };
+    function clamp(v) { return v < 0 ? 0 : v > 6 ? 6 : v; }
+    var cand = [{ a: clamp(ansA - dT), b: ansB }, { a: ansA, b: clamp(ansB - dB) }, { a: ansB, b: ansA }, { a: clamp(ansA + dT), b: clamp(ansB + dB) }, { a: t0 + 3 * dT, b: b0 + 3 * dB }];
+    function key(o) { return o.a + '-' + o.b; }
+    var seen = {}; seen[key(correct)] = 1; var dists = [], sh = rng.shuffle(cand);
+    for (var i = 0; i < sh.length && dists.length < count - 1; i++) { var k = key(sh[i]); if (sh[i].a >= 0 && sh[i].a <= 6 && sh[i].b >= 0 && sh[i].b <= 6 && !seen[k]) { seen[k] = 1; dists.push(sh[i]); } }
+    var g2 = 0; while (dists.length < count - 1 && g2++ < 40) { var o = { a: rng.int(0, 6), b: rng.int(0, 6) }, k = key(o); if (!seen[k]) { seen[k] = 1; dists.push(o); } }
+    var opts = [correct].concat(dists); var order = rng.shuffle(opts);
+    return {
+      prompt: 'قاعده‌ی دنباله‌ی دومینوها را پیدا کن. دومینوی بعدی کدام است؟', tag: 'سری: دومینو', series: stem, wide: true,
+      options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(draw(o.a, o.b), { size: 92 }); },
+      why: 'نیمه‌ی بالا هر گام ' + (dT > 0 ? 'یکی زیاد' : 'یکی کم') + ' می‌شود و نیمه‌ی پایین هر گام ' + (dB > 0 ? 'یکی زیاد' : 'یکی کم') + '. پس دومینوی بعدی بالا ' + toFa(clamp(ansA)) + ' و پایین ' + toFa(clamp(ansB)) + ' خال دارد.'
+    };
+  }
+
+  // دسته‌بندی بر اساسِ تعدادِ محورهای تقارن: بی‌تقارن / یک‌محور / چندمحور
+  function m7_bySymmetry(rng) {
+    function fig(cat, seed) {
+      var rr = new RNG(seed);
+      if (cat === 0) { return rr.pick(MOTIFS); }
+      if (cat === 1) { var up = rr.next() < 0.5; return function (g) { add(g, 'polygon', merge(DEF, { points: up ? '50,22 74,72 26,72' : '26,28 74,28 50,78' })); }; }
+      var n = rr.pick([4, 5, 6]); return function (g) { drawPoly(g, n, { r: 32, start: -90 }); };
+    }
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «تعدادِ محورهای تقارن» درست دسته‌بندی شده‌اند؟', 'محورِ تقارن خطی است که شکل را به دو نیمه‌ی آینه‌ای می‌کند. یک گروه بی‌تقارن است (هیچ محور)، یک گروه فقط یک محور دارد (مثلِ مثلثِ متساوی‌الساقین)، و یک گروه چند محور دارد (چندضلعیِ منتظم). با دقت محورها را تصور کن.', 'دسته‌بندی: تقارن');
+  }
+  // دسته‌بندی بر اساسِ جنسِ لبه‌ها: همه‌صاف / همه‌خمیده / ترکیبی
+  function m7_byCurvature(rng) {
+    function fig(cat, seed) {
+      var rr = new RNG(seed);
+      if (cat === 0) { var n = rr.pick([3, 4, 5]); return function (g) { drawPoly(g, n, { r: 32, start: rr.pick([-90, -45]) }); }; }
+      if (cat === 1) { return rr.next() < 0.5 ? function (g) { add(g, 'circle', merge(DEF, { cx: 50, cy: 50, r: 30 })); } : function (g) { add(g, 'ellipse', merge(DEF, { cx: 50, cy: 50, rx: 32, ry: 22 })); }; }
+      return function (g) { add(g, 'path', merge(DEF, { d: 'M28 68 A30 30 0 0 1 72 68 Z' })); }; // نیم‌دایره: یک لبه‌ی صاف + یک لبه‌ی خمیده
+    }
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «جنسِ لبه‌ها» درست دسته‌بندی شده‌اند؟', 'یک گروه لبه‌هایش کاملاً صاف است (چندضلعی)، یک گروه کاملاً خمیده (دایره/بیضی)، و یک گروه ترکیبی است (هم لبه‌ی صاف، هم خمیده — مثلِ نیم‌دایره).', 'دسته‌بندی: خمیدگی');
+  }
+
+  // بسته‌بندیِ ۵-گزینه‌ایِ تیپ‌های تازه برای مبحث‌های ۵ (نوع ۲)
+  function m5_mirror(rng, level) { return mirrorWater(rng, level, 5); }
+  function m5_analogyRot(rng, level) { return analogyRotate(rng, level, 5); }
 
   /* ====================================================================
    * ۴) درسنامه‌ی کاملِ مبحث ۱ — متنِ اورجینال، آموزشِ ۵ سرنخ + تکنیک‌ها
@@ -3774,7 +4021,8 @@
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
         m5_curveLineMix: m5_curveLineMix, m5_arrowCount: m5_arrowCount, m5_containsTrio: m5_containsTrio, m5_symmetryPair5: m5_symmetryPair5, m5_chiralScene5: m5_chiralScene5 },
       m6: { m6_growDots: m6_growDots, m6_rotateStep: m6_rotateStep, m6_complexity: m6_complexity, m6_shrinkSplit: m6_shrinkSplit, m6_arcClose: m6_arcClose },
-      m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill, m7_byHatchDir: m7_byHatchDir },
+      m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill, m7_byHatchDir: m7_byHatchDir, m7_bySymmetry: m7_bySymmetry, m7_byCurvature: m7_byCurvature },
+      nw: { gridOverlay: gridOverlay, gridXor: gridXor, matrixLogic3x3: matrixLogic3x3, jigsawPiece: jigsawPiece, mirrorWater: mirrorWater, analogyRotate: analogyRotate, oddRotOrder: oddRotOrder, oddCurvature: oddCurvature, dominoNext: dominoNext },
       book: { bkHouse: bkHouse, bkBentArrow: bkBentArrow, bkTwoCircles: bkTwoCircles, bkArrow: bkArrow } };
   }
 })();
