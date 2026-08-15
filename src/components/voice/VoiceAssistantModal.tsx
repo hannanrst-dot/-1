@@ -433,7 +433,10 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
 
                   <div className="flex items-center justify-between mt-2 text-xs">
                     <div className="flex items-center gap-1"><span className="text-gray-500">تعداد:</span>
-                      <input type="text" inputMode="numeric" value={toPersianDigits(it.quantity)} onChange={(e) => { const v = Number(toEnglishDigits(e.target.value)) || 0; setItems((prev) => prev.map((x, idx) => idx === i ? { ...x, quantity: v } : x)); }} className="w-14 text-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg py-1" />
+                      {/* اصلاح یک‌ضربه‌ایِ تعداد اگر صدا اشتباه شنیده شد */}
+                      <button type="button" onClick={() => setItems((prev) => prev.map((x, idx) => idx === i ? { ...x, quantity: Math.max(1, x.quantity - 1) } : x))} className="w-6 h-6 rounded-lg bg-gray-200 dark:bg-gray-700 font-bold shrink-0">−</button>
+                      <input type="text" inputMode="numeric" value={toPersianDigits(it.quantity)} onChange={(e) => { const v = Number(toEnglishDigits(e.target.value)) || 0; setItems((prev) => prev.map((x, idx) => idx === i ? { ...x, quantity: v } : x)); }} className="w-12 text-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg py-1" />
+                      <button type="button" onClick={() => setItems((prev) => prev.map((x, idx) => idx === i ? { ...x, quantity: x.quantity + 1 } : x))} className="w-6 h-6 rounded-lg bg-gray-200 dark:bg-gray-700 font-bold shrink-0">+</button>
                     </div>
                     <span className="text-gray-500">{formatToman(it.unitPrice)}</span>
                     <span className="font-bold">{formatToman(it.unitPrice * it.quantity)}</span>
