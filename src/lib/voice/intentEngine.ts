@@ -133,50 +133,101 @@ function extractProductDetailsFromVoice(normText: string) {
  * Extract items array from voice invoice or purchase command
  * Example: "سه تا دفتر پاپکو و دو تا مداد استدلر" -> [{productName: "دفتر پاپکو", quantity: 3}, {productName: "مداد استدلر", quantity: 2}]
  */
+// کلماتِ عدد (برای تشخیص مرزِ اقلام). ارقام انگلیسی هم عدد شمرده می‌شوند.
+const NUM_WORDS = new Set([
+  "صفر","یک","یه","یکی","دو","سه","چهار","پنج","شش","شیش","هفت","هشت","نه","ده",
+  "یازده","دوازده","سیزده","چهارده","پانزده","پونزده","شانزده","شونزده","هفده","هجده","نوزده",
+  "بیست","سی","چهل","پنجاه","شصت","هفتاد","هشتاد","نود",
+  "صد","یکصد","دویست","سیصد","چهارصد","پانصد","پونصد","ششصد","شیشصد","هفتصد","هشتصد","نهصد","هزار",
+]);
+// واحدهای شمارش که بلافاصله بعد از عدد می‌آیند (نشانهٔ قطعیِ «تعداد»).
+const UNIT_WORDS = new Set(["تا", "عدد", "بسته", "کارتن", "دونه", "دانه", "عددی", "تایی", "جین", "دست", "جفت"]);
+// مشخصاتی که «بعد از» عدد می‌آیند → عددِ قبل‌شان جزوِ نام است (مثل «۱۰۰ برگ»، «۴ رنگ»).
+const POST_SPEC_WORDS = new Set(["برگ", "رنگ", "رنگی", "سانت", "سانتی", "سانتیمتر", "میل", "میلی", "میلیمتر", "متر", "متری", "کاره", "نفره", "لیتر", "لیتری", "گرم", "گرمی", "اینچ", "کیلو", "کیلویی", "خط", "خطی", "ستون", "تکه"]);
+// مشخصاتی که «قبل از» عدد می‌آیند → عددِ بعدشان جزوِ نام است (مثل «آ ۴»، «سایز ۳»، «شماره ۲»).
+// توجه: «آ» پس از نرمال‌سازی به «ا» تبدیل می‌شود، پس هر دو را می‌گذاریم.
+const PRE_SPEC_WORDS = new Set(["ا", "آ", "سایز", "شماره", "سری", "مدل", "کد", "نمره"]);
+const SEP_WORDS = new Set(["و", "بعدی", "بعدا", "بعدش", "همچنین", "بعد", "سپس", "بعدشم"]);
+const isNumTok = (t: string) => /^\d+$/.test(t) || NUM_WORDS.has(t);
+
+/**
+ * استخراج اقلام از جملهٔ فاکتور/خرید با اسکنِ توکن‌به‌توکنِ عددمحور.
+ * برخلاف روش قبلی، به کلمهٔ «تا» وابسته نیست؛ بنابراین «سه دفتر پاپکو دو مداد استدلر»
+ * هم درست به دو قلم تفکیک می‌شود و تعدادها با هم قاطی نمی‌شوند.
+ * همچنین اعدادِ داخلِ نام (مثل «دفتر ۱۰۰ برگ») به‌اشتباه به‌عنوان تعداد گرفته نمی‌شوند.
+ */
 function extractInvoiceOrPurchaseItems(normText: string): ParsedVoiceItem[] {
+  // حذف پیشوندِ مشتری و افعالِ دستوری
+  let text = normText.replace(/(?:برای|به نام|مشتری)\s+[آ-ی\s]+?(?=\s+فاکتور|\s+سه|\s+دو|\s+یک|\s+\d+)/, "");
+  text = text.replace(/فاکتور بزن|فاکتور ثبت کن|بزن|بنویس|ثبت کن/g, "");
+  text = text.replace(/[،,؛]/g, " و ");
+
+  const tokens = text.split(/\s+/).filter(Boolean);
   const items: ParsedVoiceItem[] = [];
+  let curQty: number | null = null;
+  let curName: string[] = [];
 
-  // Remove preface customer info
-  let text = normText.replace(/(?:برای|به نام|مشتری)\s+[آ-ی\s]+?(?=\s+فاکتور|\s+سه|\s+دو|\s+یک|\s+\d+)/, '');
-  text = text.replace(/فاکتور بزن|فاکتور ثبت کن|بزن|بنویس|ثبت کن/g, '');
+  const pushCur = () => {
+    const name = curName.join(" ").trim();
+    if (name.length > 1) items.push({ productName: name, quantity: curQty ?? 1 });
+    curQty = null;
+    curName = [];
+  };
 
-  // جداسازی اقلام با «و»، ویرگول، و کلمات جداکنندهٔ صریح: «بعدی»، «بعدش»، «همچنین».
-  // نکته: از \b استفاده نمی‌کنیم چون با حروف فارسی کار نمی‌کند؛ به‌جای آن فاصله می‌گذاریم.
-  // همچنین وقتی کالاها فقط با فاصله پشت‌سرهم گفته می‌شوند (بدون «و»)، جایی که یک
-  // «[عدد] تا/عدد/بسته» جدید شروع می‌شود، قلم جدید در نظر گرفته می‌شود.
-  const QTY = "\\d+|یک|یه|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده|یازده|دوازده|بیست|سی|چهل|پنجاه|شصت|هفتاد|هشتاد|نود|صد";
-  text = text.replace(new RegExp(`(\\S)\\s+(${QTY})\\s*(تا|عدد|بسته|کارتن)\\s`, "g"), `$1 ||| $2 $3 `);
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
 
-  const clauses = text
-    .split(/\|\|\||[،,؛]|\sو\s|\sبعدی\s|\sبعدا\s|\sبعدش\s|\sهمچنین\s|\sبعد\s/)
-    .map(c => c.trim())
-    .filter(Boolean);
-
-  for (const clause of clauses) {
-    // Match pattern: "3 تا مداد" or "مداد 3 تا" or "دو تا دفتر پاپکو"
-    const prefixQtyMatch = clause.match(/^(\d+|یک|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده|یازده|دوازده|پانزده|پونزده|بیست|سی|چهل|پنجاه)\s*(?:تا|عدد|بسته|کارتن)?\s+(.+)$/);
-    const suffixQtyMatch = clause.match(/^(.+?)\s+(\d+|یک|دو|سه|چهار|پنج|شش|شیش|هفت|هشت|نه|ده|بیست|پنجاه)\s*(?:تا|عدد|بسته)?$/);
-
-    if (prefixQtyMatch) {
-      const qty = parsePersianNumberWords(prefixQtyMatch[1]) || 1;
-      const pName = prefixQtyMatch[2].trim();
-      if (pName.length > 1) {
-        items.push({ productName: pName, quantity: qty });
+    // جداکنندهٔ صریح («و»، «بعدی»، ...) → مرزِ قلمِ جدید (مگر بخشی از عددِ مرکب مثل «چهل و پنج»)
+    if (SEP_WORDS.has(tok)) {
+      const prev = tokens[i - 1];
+      const next = tokens[i + 1];
+      if (tok === "و" && prev && next && isNumTok(prev) && isNumTok(next)) {
+        // بخشی از عددِ مرکب؛ نادیده بگیر (پارس‌گر عدد آن را می‌فهمد)
+        continue;
       }
-    } else if (suffixQtyMatch) {
-      const pName = suffixQtyMatch[1].trim();
-      const qty = parsePersianNumberWords(suffixQtyMatch[2]) || 1;
-      if (pName.length > 1) {
-        items.push({ productName: pName, quantity: qty });
-      }
-    } else {
-      // Just product name without explicit quantity (default 1)
-      const cleaned = clause.replace(/\d+\s*(?:تومان|تومن|ریال)/g, '').trim();
-      if (cleaned.length > 1) {
-        items.push({ productName: cleaned, quantity: 1 });
-      }
+      if (curName.length > 0) pushCur();
+      continue;
     }
+
+    if (isNumTok(tok)) {
+      const next = tokens[i + 1];
+      const prev = tokens[i - 1];
+      // عددی که بلافاصله «برگ/رنگ/...» بعدش می‌آید، یا بعد از «آ/سایز/شماره/...» می‌آید،
+      // جزوِ نام است نه تعداد (مثل «۱۰۰ برگ» یا «کاغذ آ چهار»).
+      if ((next && POST_SPEC_WORDS.has(next)) || (prev && PRE_SPEC_WORDS.has(prev) && curName.length > 0)) {
+        curName.push(tok);
+        continue;
+      }
+      // آیا بعد از این عدد (و واحدِ اختیاری) کالای دیگری هست؟ اگر بله → این عدد «تعدادِ قلمِ بعدی» است.
+      let j = i + 1;
+      if (tokens[j] && UNIT_WORDS.has(tokens[j])) j++; // واحد را رد کن
+      let hasFollowingName = false;
+      for (let k = j; k < tokens.length; k++) {
+        if (isNumTok(tokens[k]) || SEP_WORDS.has(tokens[k]) || UNIT_WORDS.has(tokens[k])) break;
+        hasFollowingName = true;
+        break;
+      }
+      const qty = parsePersianNumberWords(tok) || 1;
+
+      if (hasFollowingName) {
+        // شروعِ قلمِ جدید (الگوی رایجِ «تعداد + نام»)
+        if (curName.length > 0) pushCur();
+        curQty = qty;
+        if (tokens[i + 1] && UNIT_WORDS.has(tokens[i + 1])) i++; // واحد را مصرف کن
+      } else {
+        // عددِ انتهایی/بدونِ نامِ بعدی → «تعدادِ پسوندیِ» همین قلم (مثل «دفتر سه تا»)
+        curQty = qty;
+        if (tokens[i + 1] && UNIT_WORDS.has(tokens[i + 1])) i++;
+      }
+      continue;
+    }
+
+    // قیمتِ محاوره‌ای داخل جمله را نادیده بگیر
+    if (tok === "تومان" || tok === "تومن" || tok === "ریال") continue;
+
+    curName.push(tok);
   }
+  pushCur();
 
   return items;
 }
