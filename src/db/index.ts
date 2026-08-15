@@ -179,6 +179,33 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS installment_plans (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  invoice_id INTEGER REFERENCES invoices(id),
+  invoice_number TEXT,
+  customer_id INTEGER REFERENCES customers(id),
+  customer_name TEXT NOT NULL,
+  phone TEXT,
+  address TEXT,
+  national_id TEXT,
+  total_amount REAL NOT NULL DEFAULT 0,
+  down_payment REAL NOT NULL DEFAULT 0,
+  installments_count INTEGER NOT NULL DEFAULT 3,
+  interval_days INTEGER NOT NULL DEFAULT 30,
+  status TEXT NOT NULL DEFAULT 'active',
+  notes TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS installments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  plan_id INTEGER NOT NULL REFERENCES installment_plans(id) ON DELETE CASCADE,
+  seq INTEGER NOT NULL,
+  due_date TEXT NOT NULL,
+  amount REAL NOT NULL DEFAULT 0,
+  paid INTEGER NOT NULL DEFAULT 0,
+  paid_at TEXT,
+  reminded_at TEXT
+);
 CREATE TABLE IF NOT EXISTS audit_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER REFERENCES users(id),

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Printer, Download, X, Store, Calendar, FileText, CheckCircle2 } from "lucide-react";
+import { Printer, Download, X, Store, Calendar, FileText, CheckCircle2, CalendarClock } from "lucide-react";
 import { formatToman, toJalaliDateTime, toPersianDigits } from "@/lib/persian/utils";
 
 interface InvoicePrintItem {
@@ -13,6 +13,7 @@ interface InvoicePrintItem {
 }
 
 interface InvoicePrintData {
+  id?: number;
   invoiceNumber: string;
   customerName: string;
   createdAt: string;
@@ -78,6 +79,12 @@ export function PrintableInvoice({ invoice, isOpen, onClose }: PrintableInvoiceP
           </div>
 
           <div className="flex items-center gap-2">
+            <a
+              href={`/installments?invoiceId=${invoice.id ?? ""}&invoiceNumber=${encodeURIComponent(invoice.invoiceNumber || "")}&customer=${encodeURIComponent(invoice.customerName || "")}&total=${Math.round(invoice.finalAmount || 0)}`}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-indigo-600/30"
+            >
+              <CalendarClock className="w-4 h-4" /> فروش قسطی
+            </a>
             <button
               onClick={handlePrint}
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-emerald-600/30"

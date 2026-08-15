@@ -175,6 +175,37 @@ export const settings = sqliteTable("settings", {
   updatedAt: text("updated_at").notNull().$defaultFn(nowIso),
 });
 
+// Installment Plans (خرید قسطی)
+export const installmentPlans = sqliteTable("installment_plans", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  invoiceId: integer("invoice_id").references(() => invoices.id),
+  invoiceNumber: text("invoice_number"),
+  customerId: integer("customer_id").references(() => customers.id),
+  customerName: text("customer_name").notNull(),
+  phone: text("phone"),
+  address: text("address"),
+  nationalId: text("national_id"),
+  totalAmount: real("total_amount").notNull().default(0),
+  downPayment: real("down_payment").notNull().default(0),
+  installmentsCount: integer("installments_count").notNull().default(3), // 2 | 3 | 4 ...
+  intervalDays: integer("interval_days").notNull().default(30),
+  status: text("status").notNull().default("active"), // active | completed
+  notes: text("notes"),
+  createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
+});
+
+// Individual Installments (اقساط)
+export const installments = sqliteTable("installments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  planId: integer("plan_id").references(() => installmentPlans.id, { onDelete: "cascade" }).notNull(),
+  seq: integer("seq").notNull(),                 // شمارهٔ قسط
+  dueDate: text("due_date").notNull(),           // تاریخ سررسید (ISO)
+  amount: real("amount").notNull().default(0),
+  paid: integer("paid", { mode: "boolean" }).notNull().default(false),
+  paidAt: text("paid_at"),
+  remindedAt: text("reminded_at"),
+});
+
 // Audit Logs Table
 export const auditLogs = sqliteTable("audit_logs", {
   id: integer("id").primaryKey({ autoIncrement: true }),

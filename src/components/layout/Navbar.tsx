@@ -15,6 +15,7 @@ import {
   Boxes,
   BarChart3,
   Settings,
+  CalendarClock,
 } from "lucide-react";
 
 export function Navbar() {
@@ -27,6 +28,7 @@ export function Navbar() {
     { href: "/products/new", label: "ثبت کالا", icon: PlusCircle },
     { href: "/invoices", label: "فاکتورهای فروش", icon: Receipt },
     { href: "/customers", label: "مشتریان", icon: Users },
+    { href: "/installments", label: "خرید قسطی", icon: CalendarClock },
     { href: "/suppliers", label: "تأمین‌کنندگان", icon: Truck },
     { href: "/purchases", label: "ثبت خرید", icon: ShoppingCart },
     { href: "/inventory", label: "انبار و موجودی", icon: Boxes },
