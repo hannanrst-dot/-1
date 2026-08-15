@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Store, Lock, User, KeyRound, AlertCircle, ArrowLeft } from "lucide-react";
+import { APP_VERSION, APP_VERSION_NOTE } from "@/lib/version";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("admin");
@@ -120,6 +121,7 @@ export default function LoginPage() {
           <p>رمز عبور: <code className="font-bold font-mono">admin123</code></p>
         </div>
 
+        <p className="text-center text-[11px] text-gray-400">نسخهٔ {APP_VERSION} — {APP_VERSION_NOTE}</p>
       </div>
     </div>
   );

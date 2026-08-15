@@ -68,19 +68,18 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     if (!SR) return;
     const rec = new SR();
     rec.lang = "fa-IR";
-    rec.continuous = true;       // پیوسته: تا کاربر خودش «توقف» نزند ادامه دارد (چند جمله در یک ضبط)
+    // تک‌جمله‌ای: پایدارترین حالت روی موبایل. «شروع مجدد خودکار» را حذف کردیم چون
+    // منبع اصلی تکرار و قاطی‌شدن کلمات بود. کل جمله (چند کالا پشت‌سرهم) در یک ضبط
+    // گرفته می‌شود و پس از پایان گفتار پردازش می‌شود.
+    rec.continuous = false;
     rec.interimResults = true;
     rec.maxAlternatives = 1;
 
     rec.onresult = (event: any) => {
-      // فقط نتایجِ جدید (از resultIndex) را پردازش می‌کنیم تا تکرار نشود.
-      let interim = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const r = event.results[i];
-        if (r.isFinal) finalRef.current += r[0].transcript + " ";
-        else interim += r[0].transcript + " ";
-      }
-      const clean = collapseRepeatedWords((finalRef.current + interim).replace(/\s+/g, " ").trim());
+      // بازسازی کامل از همهٔ نتایج (نه الحاق) تا هیچ تکراری رخ ندهد.
+      let text = "";
+      for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript + " ";
+      const clean = collapseRepeatedWords(text.replace(/\s+/g, " ").trim());
       transcriptRef.current = clean;
       setTranscript(clean);
     };
@@ -88,12 +87,11 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
       if (event.error !== "no-speech" && event.error !== "aborted") console.error("Speech:", event.error);
     };
     rec.onend = () => {
-      // اگر کاربر هنوز «توقف» را نزده، ضبط را ادامه بده (رفع قطعِ خودکار مرورگر).
-      if (shouldListenRef.current) {
-        try { rec.start(); } catch { /* ignore */ }
-      } else {
-        setIsListening(false);
-      }
+      setIsListening(false);
+      // پس از پایان گفتار، همان یک جمله پردازش می‌شود.
+      const text = transcriptRef.current.trim();
+      if (shouldListenRef.current && text) setTimeout(() => processText(text, modeRef.current), 150);
+      shouldListenRef.current = false;
     };
     recognitionRef.current = rec;
     return () => { shouldListenRef.current = false; try { rec.stop(); } catch { /* ignore */ } };
@@ -105,13 +103,10 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     shouldListenRef.current = true;
     try { recognitionRef.current.start(); setIsListening(true); } catch (e) { console.error(e); }
   };
-  // توقف دستی توسط کاربر — سپس پردازش همان گفتار
+  // توقف زودهنگام (اختیاری) — در حالت تک‌جمله‌ای معمولاً خودش با پایان گفتار متوقف می‌شود.
   const stopRecording = () => {
-    shouldListenRef.current = false;
     try { recognitionRef.current?.stop(); } catch { /* ignore */ }
     setIsListening(false);
-    const text = transcriptRef.current.trim();
-    if (text) setTimeout(() => processText(text, modeRef.current), 200);
   };
 
   const speak = (t: string) => {
@@ -265,7 +260,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 >
                   <Mic className="w-9 h-9" />
                 </button>
-                <span className="text-xs text-center text-gray-500 px-2">{isListening ? "🔴 در حال ضبط... هر چقدر می‌خواهید بگویید، بعد همین دکمه را بزنید تا تمام شود." : "بزنید و صحبت کنید (توقف با خودتان)"}</span>
+                <span className="text-xs text-center text-gray-500 px-2">{isListening ? "🔴 بگویید... (چند کالا را پشت‌سرهم و بدون مکث بگویید)" : "بزنید و صحبت کنید — برای کالای بعدی دوباره بزنید"}</span>
               </div>
 
               <div className="space-y-2">
