@@ -63,32 +63,49 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     return () => { document.body.style.overflow = prev; };
   }, [isOpen]);
 
-  // آرایهٔ عبارت‌های ضبط‌شده در طول یک بار «ضبط» (تا وقتی کاربر توقف نزده).
-  const utterancesRef = useRef<string[]>([]);
-  const sessionTextRef = useRef("");
+  // committedRef: متنِ سشن‌های تمام‌شدهٔ قبلی. currentSessionRef: متنِ سشن جاری.
+  const committedRef = useRef("");
+  const currentSessionRef = useRef("");
 
   const getSR = () => (typeof window === "undefined" ? null : (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+  const restartTimerRef = useRef<any>(null);
+  const processGuardRef = useRef(false);
 
-  // یک «سشنِ» تشخیصِ تک‌عبارتی (پایدارترین حالت، بدون تکرار داخلی). پس از پایانِ
-  // هر عبارت، اگر کاربر هنوز «توقف» نزده، سشن بعدی خودکار شروع می‌شود (برای گفتن
-  // چند کالا پشت‌سرهم). تکرار/بازپخش با منطق pushUtterance/joinTranscript حذف می‌شود.
+  const fullText = () => joinTranscript([committedRef.current, currentSessionRef.current].filter(Boolean));
+
+  // پردازش نهاییِ گفتار — فقط یک‌بار اجرا می‌شود (چه از onend چه از دکمهٔ توقف).
+  const finalizeAndProcess = () => {
+    if (processGuardRef.current) return;
+    processGuardRef.current = true;
+    setIsListening(false);
+    const finalText = fullText().trim();
+    if (finalText) setTimeout(() => processText(finalText, modeRef.current), 120);
+  };
+
+  // یک ضبطِ «پیوسته» که از مکث‌های کوتاه رد می‌شود (تا چند کالا پشت‌سرهم گفته شود)
+  // و تا وقتی کاربر خودش «توقف» نزند ادامه دارد.
   const startSession = () => {
     const SR = getSR();
     if (!SR) return;
     const rec = new SR();
     rec.lang = "fa-IR";
-    rec.continuous = false;
+    rec.continuous = true;      // از مکث‌ها رد می‌شود → «فقط اولی» رفع می‌شود
     rec.interimResults = true;
     rec.maxAlternatives = 1;
-    sessionTextRef.current = "";
 
     rec.onresult = (event: any) => {
-      let text = "";
-      for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript + " ";
-      sessionTextRef.current = text.replace(/\s+/g, " ").trim();
-      // نمایش زنده هم با همان منطقِ ثبت دِدوپ می‌شود تا اگر سشن، عبارت قبلی را
-      // دوباره بگوید، متن دو برابر دیده نشود.
-      const disp = joinTranscript(pushUtterance(utterancesRef.current, sessionTextRef.current));
+      // در حالت پیوسته، event.results همیشه همهٔ نتایجِ همین سشن را دارد؛ پس هر بار
+      // متنِ سشن را «از نو» می‌سازیم (نه الحاق) تا دوبرابر نشود. تکرارهای پیاپیِ نهایی
+      // با pushUtterance و joinTranscript حذف می‌شوند.
+      let interim = "";
+      let acc: string[] = [];
+      for (let i = 0; i < event.results.length; i++) {
+        const r = event.results[i];
+        if (r.isFinal) acc = pushUtterance(acc, String(r[0].transcript).trim());
+        else interim += r[0].transcript + " ";
+      }
+      currentSessionRef.current = joinTranscript(acc);
+      const disp = joinTranscript([committedRef.current, currentSessionRef.current].filter(Boolean), interim.trim());
       transcriptRef.current = disp;
       setTranscript(disp);
     };
@@ -96,33 +113,27 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
       if (event.error !== "no-speech" && event.error !== "aborted") console.error("Speech:", event.error);
     };
     rec.onend = () => {
-      // عبارتِ این سشن را (با حذف تکرار/بازپخش) ثبت کن.
-      utterancesRef.current = pushUtterance(utterancesRef.current, sessionTextRef.current);
-      sessionTextRef.current = "";
-      const disp = joinTranscript(utterancesRef.current);
-      transcriptRef.current = disp;
-      setTranscript(disp);
+      // متنِ این سشن را به «قبلی‌ها» منتقل کن.
+      committedRef.current = joinTranscript([committedRef.current, currentSessionRef.current].filter(Boolean));
+      currentSessionRef.current = "";
       if (shouldListenRef.current) {
-        // کاربر هنوز توقف نزده → سشن بعدی برای عبارت بعدی
-        try { startSession(); } catch { /* ignore */ }
+        restartTimerRef.current = setTimeout(() => { if (shouldListenRef.current) { try { startSession(); } catch { /* ignore */ } } }, 250);
       } else {
-        // توقفِ کاربر → پردازشِ کلِ گفتار
-        setIsListening(false);
-        const finalText = disp.trim();
-        if (finalText) setTimeout(() => processText(finalText, modeRef.current), 150);
+        finalizeAndProcess();
       }
     };
     recognitionRef.current = rec;
     try { rec.start(); } catch { /* ignore */ }
   };
 
-  useEffect(() => () => { shouldListenRef.current = false; try { recognitionRef.current?.stop(); } catch { /* ignore */ } }, []);
+  useEffect(() => () => { shouldListenRef.current = false; if (restartTimerRef.current) clearTimeout(restartTimerRef.current); try { recognitionRef.current?.stop(); } catch { /* ignore */ } }, []);
 
   const startRecording = () => {
     if (!getSR()) { setNotice("مرورگر شما میکروفون را پشتیبانی نمی‌کند. می‌توانید متن را تایپ کنید."); return; }
-    utterancesRef.current = [];
-    sessionTextRef.current = "";
+    committedRef.current = "";
+    currentSessionRef.current = "";
     setTranscript(""); transcriptRef.current = ""; setNotice("");
+    processGuardRef.current = false;
     shouldListenRef.current = true;
     setIsListening(true);
     startSession();
@@ -130,8 +141,9 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   // توقف دستی توسط کاربر — گفتار جمع‌آوری‌شده پردازش می‌شود.
   const stopRecording = () => {
     shouldListenRef.current = false;
+    if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
     try { recognitionRef.current?.stop(); } catch { /* ignore */ }
-    setIsListening(false);
+    setTimeout(finalizeAndProcess, 500);
   };
 
   const speak = (t: string) => {
@@ -507,7 +519,7 @@ function MenuButton({ icon, title, desc, color, onClick }: { icon: React.ReactNo
 
 function Guide({ mode }: { mode: Mode }) {
   const data: Record<string, { pattern: string; example: string; note?: string }> = {
-    invoice: { pattern: "«[تعداد] + [نام کالا]»", example: "سه تا دفتر پاپکو", note: "چند کالا با «و»: «سه تا دفتر و دو تا خودکار». برای مشتری: «برای علی رضایی...». هر بار میکروفون را بزنید، اقلام جمع می‌شوند." },
+    invoice: { pattern: "«[تعداد] + [نام کالا]»", example: "سه تا دفتر پاپکو و دو تا خودکار", note: "چند کالا را پشت‌سرهم با «و» یا «بعدی» بگویید: «سه تا دفتر بعدی دو تا خودکار». وقتی تمام شد دکمهٔ توقف (⏹) را بزنید. برای مشتری: «برای علی رضایی...»." },
     product: { pattern: "«[نام] قیمت خرید [عدد] قیمت فروش [عدد] تعداد [عدد]»", example: "دفتر پاپکو قیمت خرید ۴۵ هزار قیمت فروش ۶۰ هزار تعداد ۵۰" },
     purchase: { pattern: "«از [تأمین‌کننده] [تعداد] [نام کالا] دونه‌ای [عدد]»", example: "از پاپکو صد تا دفتر دونه‌ای ۴۵ هزار" },
     query: { pattern: "یک سؤال بپرسید", example: "فروش امروز چقدر بوده؟", note: "یا: «کدوم کالاها موجودیشون کمه؟»" },
