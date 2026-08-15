@@ -44,6 +44,8 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const [answer, setAnswer] = useState("");
   // price update
   const [pricePreview, setPricePreview] = useState<any>(null);
+  // فاکتور ثبت‌شده (برای نمایش کامل پس از ثبت)
+  const [createdInvoice, setCreatedInvoice] = useState<any>(null);
 
   const recognitionRef = useRef<any>(null);
   const modeRef = useRef<Mode>(mode);
@@ -68,15 +70,14 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     if (!SR) return;
     const rec = new SR();
     rec.lang = "fa-IR";
-    // تک‌جمله‌ای: پایدارترین حالت روی موبایل. «شروع مجدد خودکار» را حذف کردیم چون
-    // منبع اصلی تکرار و قاطی‌شدن کلمات بود. کل جمله (چند کالا پشت‌سرهم) در یک ضبط
-    // گرفته می‌شود و پس از پایان گفتار پردازش می‌شود.
-    rec.continuous = false;
+    // پیوسته: از مکث‌های کوتاه رد می‌شود تا چند کالا در یک ضبط گفته شود.
+    // «شروع مجدد خودکار» را عمداً حذف کردیم چون منبع تکرار کلمات بود؛ در عوض متن را
+    // در هر رویداد از روی «همهٔ نتایج» بازسازی می‌کنیم (نه الحاق) تا هیچ تکراری نباشد.
+    rec.continuous = true;
     rec.interimResults = true;
     rec.maxAlternatives = 1;
 
     rec.onresult = (event: any) => {
-      // بازسازی کامل از همهٔ نتایج (نه الحاق) تا هیچ تکراری رخ ندهد.
       let text = "";
       for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript + " ";
       const clean = collapseRepeatedWords(text.replace(/\s+/g, " ").trim());
@@ -88,10 +89,12 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     };
     rec.onend = () => {
       setIsListening(false);
-      // پس از پایان گفتار، همان یک جمله پردازش می‌شود.
       const text = transcriptRef.current.trim();
-      if (shouldListenRef.current && text) setTimeout(() => processText(text, modeRef.current), 150);
-      shouldListenRef.current = false;
+      // چه کاربر «توقف» بزند چه مرورگر بعد از سکوت طولانی تمام کند، یک‌بار پردازش می‌شود.
+      if (shouldListenRef.current && text) {
+        shouldListenRef.current = false;
+        setTimeout(() => processText(text, modeRef.current), 150);
+      }
     };
     recognitionRef.current = rec;
     return () => { shouldListenRef.current = false; try { rec.stop(); } catch { /* ignore */ } };
@@ -103,7 +106,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     shouldListenRef.current = true;
     try { recognitionRef.current.start(); setIsListening(true); } catch (e) { console.error(e); }
   };
-  // توقف زودهنگام (اختیاری) — در حالت تک‌جمله‌ای معمولاً خودش با پایان گفتار متوقف می‌شود.
+  // توقف دستی توسط کاربر
   const stopRecording = () => {
     try { recognitionRef.current?.stop(); } catch { /* ignore */ }
     setIsListening(false);
@@ -161,7 +164,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     });
   };
 
-  const resetAll = () => { setItems([]); setCustomerName(""); setProduct(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setNotice(""); setTranscript(""); };
+  const resetAll = () => { setItems([]); setCustomerName(""); setProduct(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setCreatedInvoice(null); setNotice(""); setTranscript(""); };
 
   const applyPriceUpdate = async () => {
     if (!pricePreview) return;
@@ -190,8 +193,17 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
         body: JSON.stringify({ customerName: customerName || "مشتری عمومی", items: items.map((it) => ({ productId: it.productId, productName: it.productName, quantity: it.quantity, unitPrice: it.unitPrice, totalPrice: it.unitPrice * it.quantity })), notes: "ثبت صوتی" }),
       });
       const data = await res.json();
-      if (res.ok) { speak("فاکتور ثبت شد"); resetAll(); onActionExecute?.("NAVIGATE_INVOICE", data.invoice?.id); onClose(); }
-      else setNotice(data.error || "خطا در ثبت فاکتور.");
+      if (res.ok) {
+        speak("فاکتور ثبت شد");
+        // نمایش کامل فاکتور همان‌جا (نه رفتن به صفحهٔ دیگر)
+        setCreatedInvoice({
+          id: data.invoice?.id,
+          number: data.invoice?.invoiceNumber || "",
+          customerName: customerName || "مشتری عمومی",
+          items: items.map((it) => ({ productName: it.productName, quantity: it.quantity, unitPrice: it.unitPrice, totalPrice: it.unitPrice * it.quantity })),
+          total: invoiceTotal,
+        });
+      } else setNotice(data.error || "خطا در ثبت فاکتور.");
     } catch { setNotice("خطای ارتباط."); } finally { setLoading(false); }
   };
 
@@ -248,8 +260,43 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
             </div>
           )}
 
+          {/* ---------- Invoice success (full invoice shown here) ---------- */}
+          {mode === "invoice" && createdInvoice && (
+            <div className="space-y-3">
+              <div className="text-center">
+                <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center mx-auto mb-2"><CheckCircle className="w-8 h-8" /></div>
+                <div className="font-bold text-emerald-700 dark:text-emerald-400">فاکتور با موفقیت ثبت شد ✅</div>
+                <div className="text-xs text-gray-500 mt-1">شماره: {toPersianDigits(createdInvoice.number)}</div>
+              </div>
+              <div className="border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden">
+                <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm font-bold flex justify-between"><span>مشتری: {createdInvoice.customerName}</span></div>
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 dark:bg-gray-800 text-gray-500"><tr><th className="p-2 text-right">کالا</th><th className="p-2">تعداد</th><th className="p-2">قیمت</th><th className="p-2">جمع</th></tr></thead>
+                  <tbody>
+                    {createdInvoice.items.map((it: any, i: number) => (
+                      <tr key={i} className="border-t border-gray-100 dark:border-gray-800">
+                        <td className="p-2 text-right">{it.productName}</td>
+                        <td className="p-2 text-center">{toPersianDigits(it.quantity)}</td>
+                        <td className="p-2 text-center">{formatToman(it.unitPrice)}</td>
+                        <td className="p-2 text-center font-bold">{formatToman(it.totalPrice)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="flex items-center justify-between px-3 py-2.5 bg-emerald-50 dark:bg-emerald-950/30 text-sm font-extrabold">
+                  <span>مبلغ کل</span><span className="text-emerald-700 dark:text-emerald-400">{formatToman(createdInvoice.total)}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => { const inv = createdInvoice; resetAll(); }} className="bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><Plus className="w-4 h-4" /> فاکتور جدید</button>
+                <a href={`/installments?invoiceId=${createdInvoice.id ?? ""}&invoiceNumber=${encodeURIComponent(createdInvoice.number)}&customer=${encodeURIComponent(createdInvoice.customerName)}&total=${Math.round(createdInvoice.total)}`} className="bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">فروش قسطی</a>
+              </div>
+              <button onClick={() => { resetAll(); onActionExecute?.("NAVIGATE_INVOICE", createdInvoice.id); onClose(); }} className="w-full border border-gray-300 dark:border-gray-700 py-2.5 rounded-xl text-sm">بستن</button>
+            </div>
+          )}
+
           {/* ---------- SHARED: mic + guide (non-menu) ---------- */}
-          {mode !== "menu" && (
+          {mode !== "menu" && !(mode === "invoice" && createdInvoice) && (
             <>
               <Guide mode={mode} />
 
@@ -260,7 +307,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 >
                   <Mic className="w-9 h-9" />
                 </button>
-                <span className="text-xs text-center text-gray-500 px-2">{isListening ? "🔴 بگویید... (چند کالا را پشت‌سرهم و بدون مکث بگویید)" : "بزنید و صحبت کنید — برای کالای بعدی دوباره بزنید"}</span>
+                <span className="text-xs text-center text-gray-500 px-2">{isListening ? "🔴 در حال ضبط... چند کالا را پشت‌سرهم بگویید، بعد دکمهٔ توقف را بزنید." : "بزنید و صحبت کنید (توقف با خودتان)"}</span>
               </div>
 
               <div className="space-y-2">
@@ -277,7 +324,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
           )}
 
           {/* ---------- INVOICE list ---------- */}
-          {mode === "invoice" && (
+          {mode === "invoice" && !createdInvoice && (
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-gray-500">مشتری (اختیاری)</label>
@@ -290,7 +337,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
               {items.length === 0 ? (
                 <div className="text-center text-xs text-gray-400 py-4 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl">هنوز چیزی اضافه نشده — میکروفون را بزنید و بگویید.</div>
               ) : items.map((it, i) => {
-                const ambiguous = !!(it.matches && it.matches.length > 1);
+                const ambiguous = it.status === "AMBIGUOUS" && !!(it.matches && it.matches.length > 1);
                 return (
                 <div key={i} className={`rounded-xl p-2.5 border ${it.productId == null ? "border-rose-300 bg-rose-50 dark:bg-rose-950/30" : ambiguous ? "border-amber-300 bg-amber-50 dark:bg-amber-950/30" : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60"}`}>
                   <div className="flex items-center justify-between gap-2">
@@ -395,7 +442,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
         </div>
 
         {/* Footer actions */}
-        {mode === "invoice" && (
+        {mode === "invoice" && !createdInvoice && (
           <div className="shrink-0 border-t border-gray-200 dark:border-gray-800 p-3">
             <div className="flex items-center justify-between mb-2"><span className="text-sm text-gray-500">مبلغ کل</span><span className="text-lg font-extrabold text-emerald-700 dark:text-emerald-400">{formatToman(invoiceTotal)}</span></div>
             <button onClick={submitInvoice} disabled={loading || !items.length || invoiceUnresolved} className="w-full bg-emerald-600 disabled:opacity-50 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2"><CheckCircle className="w-5 h-5" /> ثبت نهایی فاکتور</button>

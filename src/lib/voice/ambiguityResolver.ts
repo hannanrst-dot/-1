@@ -51,21 +51,17 @@ export function resolveVoiceInvoiceItems(
     // Sort matches descending by score
     matches.sort((a, b) => b.score - a.score);
 
-    if (matches.length === 1 && matches[0].score >= 0.7) {
-      // Exact single candidate
+    // اگر بهترین تطبیق مطمئن باشد (تطبیق کامل/تقریباً کامل ≈ ۸۰٪ به بالا)، بدون پرسش
+    // همان انتخاب می‌شود. فقط وقتی واقعاً نامطمئن است سؤال می‌پرسیم.
+    const top = matches[0];
+    const second = matches[1];
+    const confident = top && (top.score >= 0.8 || (top.score >= 0.6 && (!second || top.score - second.score >= 0.15)));
+
+    if (confident) {
       resolvedItems.push({
         requestedName: term,
         quantity: item.quantity,
-        selectedProduct: matches[0].product,
-        matches: [matches[0].product],
-        status: "EXACT",
-      });
-    } else if (matches.length > 1 && matches[0].score >= 0.7 && matches[0].score - matches[1].score > 0.2) {
-      // Very high single match advantage
-      resolvedItems.push({
-        requestedName: term,
-        quantity: item.quantity,
-        selectedProduct: matches[0].product,
+        selectedProduct: top.product,
         matches: matches.slice(0, 3).map(m => m.product),
         status: "EXACT",
       });

@@ -57,7 +57,7 @@ export function toJalaliDateTime(dateInput?: Date | string | null): string {
 // Normalize Persian Text for searching & comparison
 export function normalizePersianText(str: string): string {
   if (!str) return '';
-  return str
+  return toEnglishDigits(str) // ارقام فارسی/عربی → انگلیسی تا «۸۰» و «80» یکسان دیده شوند
     .replace(/ي/g, 'ی')
     .replace(/ك/g, 'ک')
     .replace(/ة/g, 'ه')
