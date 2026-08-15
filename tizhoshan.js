@@ -1613,6 +1613,78 @@
     return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «تعدادِ نقطه‌های داخل» درست دسته‌بندی شده‌اند؟', 'شکلِ بیرونی و اندازه گمراه‌کننده‌اند؛ در گزینه‌ی درست هر گروه شکل‌هایی است که تعدادِ نقطه‌ی داخلشان یکی است (۲، ۳ یا ۴). نقطه‌ها را بشمار!');
   }
 
+  /* ==================================================================
+   * مبحثِ ۸ — تصویرِ پنهان (Embedded Figure): تصویرِ X داخلِ یکی از گزینه‌ها
+   * پنهان است. موتور روی شبکه کار می‌کند: گزینه‌ی درست همه‌ی پاره‌خط‌های X را
+   * دارد (+ خط‌های اضافه)، و گزینه‌های غلط دستِ‌کم یک پاره‌خطِ X را ندارند ⇒
+   * پاسخ یکتا و اثبات‌پذیر. نیازمندِ ریزبینی و دنبال‌کردنِ خط‌ها.
+   * ================================================================ */
+  function embeddedFigure(rng, level, count) {
+    count = count || 4; level = level || 1;
+    var G = 4;                                             // شبکه‌ی ۴×۴ نقطه
+    function xy(r, c) { return [20 + c * 20, 20 + r * 20]; }
+    var segs = [];
+    for (var r = 0; r < G; r++) for (var c = 0; c < G; c++) {
+      if (c < G - 1) segs.push([[r, c], [r, c + 1]]);
+      if (r < G - 1) segs.push([[r, c], [r + 1, c]]);
+      if (r < G - 1 && c < G - 1) segs.push([[r, c], [r + 1, c + 1]]);
+      if (r < G - 1 && c < G - 1) segs.push([[r, c + 1], [r + 1, c]]);
+    }
+    function key(s) { var a = s[0], b = s[1], p = a[0] * 10 + a[1], q = b[0] * 10 + b[1]; return p < q ? p + '_' + q : q + '_' + p; }
+    var byKey = {}; segs.forEach(function (s) { byKey[key(s)] = s; });
+    var allKeys = Object.keys(byKey);
+    function neighbors(node) { var res = []; segs.forEach(function (s) { if (s[0][0] === node[0] && s[0][1] === node[1]) res.push([key(s), s[1]]); else if (s[1][0] === node[0] && s[1][1] === node[1]) res.push([key(s), s[0]]); }); return res; }
+    var L = level >= 3 ? 6 : level >= 2 ? 5 : 4;           // طولِ تصویرِ X (پاره‌خط)
+    function genX() {
+      var node = [rng.int(0, G - 1), rng.int(0, G - 1)], used = {}, xk = [], tries = 0;
+      while (xk.length < L && tries++ < 50) {
+        var nb = neighbors(node).filter(function (n) { return !used[n[0]]; });
+        if (!nb.length) break;
+        var pick = nb[rng.int(0, nb.length - 1)];
+        used[pick[0]] = 1; xk.push(pick[0]); node = pick[1];
+      }
+      return xk;
+    }
+    var Xk = genX(), guard = 0;
+    while (Xk.length < Math.max(4, L - 1) && guard++ < 25) Xk = genX();
+    var Xset = {}; Xk.forEach(function (k) { Xset[k] = 1; });
+    var extraN = level >= 3 ? 7 : level >= 2 ? 6 : 5;
+    function randKeys(n, excludeObj) { var pool = allKeys.filter(function (k) { return !(excludeObj && excludeObj[k]); }); return rng.sample(pool, Math.min(n, pool.length)); }
+    var correctKeys = Xk.concat(randKeys(extraN, Xset));
+    function makeWrong() {
+      var g2 = 0;
+      while (g2++ < 50) {
+        var removeN = level >= 3 ? 1 : (rng.next() < 0.55 ? 1 : 2);
+        var removed = rng.sample(Xk, Math.min(removeN, Xk.length)), remObj = {};
+        removed.forEach(function (k) { remObj[k] = 1; });
+        var kept = Xk.filter(function (k) { return !remObj[k]; });
+        var excl = {}; kept.forEach(function (k) { excl[k] = 1; }); removed.forEach(function (k) { excl[k] = 1; });
+        var wk = kept.concat(randKeys(correctKeys.length - kept.length, excl));
+        var wobj = {}; wk.forEach(function (k) { wobj[k] = 1; });
+        if (!Xk.every(function (k) { return wobj[k]; })) return wk;   // ابداً همه‌ی X را ندارد
+      }
+      return null;
+    }
+    function sig(keys) { return keys.slice().sort().join(','); }
+    var wrongs = [], seenSig = {}, wguard = 0; seenSig[sig(correctKeys)] = 1;
+    while (wrongs.length < count - 1 && wguard++ < 300) { var w = makeWrong(); if (!w) continue; var s2 = sig(w); if (seenSig[s2]) continue; seenSig[s2] = 1; wrongs.push(w); }
+    while (wrongs.length < count - 1) wrongs.push(randKeys(correctKeys.length, Xset));   // پشتیبان
+    function drawKeys(keys, sw) { return function (g) { keys.forEach(function (k) { var s = byKey[k]; if (!s) return; var a = xy(s[0][0], s[0][1]), b = xy(s[1][0], s[1][1]); add(g, 'line', merge(DEF, { x1: a[0], y1: a[1], x2: b[0], y2: b[1], 'stroke-width': sw || 2.6 })); }); }; }
+    var ansIdx = rng.int(0, count - 1), opts = [], wi = 0;
+    for (var i = 0; i < count; i++) opts.push(i === ansIdx ? { keys: correctKeys } : { keys: wrongs[wi++] });
+    var refs = [function () { return figure(drawKeys(Xk, 3.2), { size: 78, frame: true }); }];
+    refs.label = 'تصویرِ «X» را خوب نگاه کن؛ داخلِ کدام گزینه کاملاً پنهان شده است؟';
+    refs.letters = ['X'];
+    return {
+      prompt: 'تصویرِ X در کدام گزینه پنهان شده است؟', tag: 'تصویرِ پنهان', refs: refs, wide: true,
+      options: opts, answer: ansIdx,
+      render: function (o) { return figure(drawKeys(o.keys), { size: 96 }); },
+      why: 'اگر همه‌ی خط‌های تصویرِ X را دنبال کنی، دقیقاً در همین گزینه در کنارِ هم آمده‌اند (لابه‌لای خط‌های اضافی پنهان شده‌اند)؛ در گزینه‌های دیگر دستِ‌کم یکی از خط‌های X جا افتاده است.'
+    };
+  }
+  function poolForPenhan(level) { return [embeddedFigure]; }
+  function genPenhan(rng, level) { return embeddedFigure(rng, level || 2); }
+
   // دومینو: شمارشِ کلِ خال‌های دو نیمه؛ چیدمان گمراه‌کننده.
   var PIP = { 0: [], 1: [[.5, .5]], 2: [[.28, .28], [.72, .72]], 3: [[.28, .28], [.5, .5], [.72, .72]], 4: [[.28, .28], [.72, .28], [.28, .72], [.72, .72]], 5: [[.28, .28], [.72, .28], [.5, .5], [.28, .72], [.72, .72]], 6: [[.28, .24], [.72, .24], [.28, .5], [.72, .5], [.28, .76], [.72, .76]] };
   function pips(g, n, x, y, w, hh) { (PIP[n] || []).forEach(function (pt) { drawDot(g, x + pt[0] * w, y + pt[1] * hh, 3); }); }
@@ -2226,9 +2298,10 @@
 
   // پنلِ تصویرهای مرجع (مبحث ۳ و بعد از آن)
   function refsPanel(refs) {
-    var box = h('div', { class: 'tz-refs' }, h('div', { class: 'tz-refs-lbl' }, (refs.length <= 2 ? 'ویژگیِ مشترکِ A و B را پیدا کن:' : 'ویژگیِ مشترکِ این‌ها را پیدا کن:')));
+    var lbl = refs.label || (refs.length <= 2 ? 'ویژگیِ مشترکِ A و B را پیدا کن:' : 'ویژگیِ مشترکِ این‌ها را پیدا کن:');
+    var box = h('div', { class: 'tz-refs' }, h('div', { class: 'tz-refs-lbl' }, lbl));
     var row = h('div', { class: 'tz-refs-row' });
-    refs.forEach(function (f, i) { row.appendChild(h('div', { class: 'tz-ref' }, f(), h('span', { class: 'tz-ref-l' }, String.fromCharCode(65 + i)))); });
+    refs.forEach(function (f, i) { row.appendChild(h('div', { class: 'tz-ref' }, f(), h('span', { class: 'tz-ref-l' }, refs.letters ? refs.letters[i] : String.fromCharCode(65 + i)))); });
     box.appendChild(row);
     return box;
   }
@@ -2432,7 +2505,7 @@
    * ================================================================== */
   /* ==== مبحثِ ترکیبی: سؤال از هر هفت مبحث با هم (کاپستون/نبردِ نهایی) ==== */
   function poolForMix(level) {
-    return poolFor(level).concat(poolForM2(level), poolForM3(level), poolForM4(level), poolForM5(level), poolForM6(level), poolForM7(level));
+    return poolFor(level).concat(poolForM2(level), poolForM3(level), poolForM4(level), poolForM5(level), poolForM6(level), poolForM7(level), poolForPenhan(level));
   }
   function genMix(rng, level) { return rng.pick(poolForMix(level || 2))(rng, level || 2); }
   function lessonMix() {
@@ -2455,6 +2528,25 @@
     ];
   }
 
+  // مبحثِ ۸ — تصویرِ پنهان (از کتاب)
+  function lessonPenhan() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(level) { return function () { return buildInteractive(toInter(embeddedFigure(new RNG(seed++), level || 1))); }; }
+    return [
+      { title: 'تصویرِ پنهان 🔎',
+        body: 'به سخت‌ترین نوعِ کارآگاهی خوش آمدی! این‌جا یک تصویرِ کوچک به اسمِ «X» به تو نشان داده می‌شود. X لابه‌لای خط‌های یکی از چهار گزینه پنهان شده — مثلِ ردِّ پایی که بینِ هزار خطِ دیگر گم شده. باید همان گزینه‌ای را پیدا کنی که همه‌ی خط‌های X، دقیقاً کنارِ هم و به همان شکل، داخلش هستند.',
+        art: function () { return figure(function (g) { [[30, 30, 70, 30], [70, 30, 50, 60], [50, 60, 30, 30]].forEach(function (l) { add(g, 'line', merge(DEF, { x1: l[0], y1: l[1], x2: l[2], y2: l[3], 'stroke-width': 3.4 })); }); }, { size: 110, frame: true }); } },
+      { title: 'تکنیکِ کارآگاهی 🕵️',
+        body: 'راز: اول شکلِ X را خوب در ذهنت نگه دار — از کدام گوشه شروع می‌شود و به کدام سمت می‌رود. بعد در هر گزینه، همان مسیر را با چشمت دنبال کن؛ اگر حتی یک خط از X در گزینه‌ای نباشد، آن گزینه غلط است. خط‌های اضافه فقط برای گمراه‌کردنِ تو هستند، نگذار حواست را پرت کنند!',
+        art: function () { return figure(mHook, { size: 108, frame: false }); } },
+      { title: 'تمرینِ ۱ ✏️', interactive: ex(1) },
+      { title: 'تمرینِ ۲ ✏️', interactive: ex(2) },
+      { title: 'آماده‌ای! 🌟',
+        body: 'حالا بلدی خط‌ها را دنبال کنی و تصویرِ پنهان را پیدا کنی. هرچه جلوتر بروی، خط‌های اضافه بیشتر و پنهان‌شدن سخت‌تر می‌شود. با حوصله و ریزبینی جلو برو، کارآگاه!',
+        art: function () { return figure(mBoot, { size: 104, frame: false }); } }
+    ];
+  }
+
   var MABAHETH = [
     { id: 'motafavet1', n: 1, title: 'تصویرِ متفاوت', sub: 'یکی با بقیه فرق دارد', icon: '🔍', color: PAL.teal, ready: true, lesson: lessonM1, gen: genQuestion, pool: poolFor },
     { id: 'motafavet2', n: 2, title: 'تصویرِ متفاوت (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🧩', color: PAL.lilac, ready: true, lesson: lessonM2, gen: genQuestionM2, pool: poolForM2 },
@@ -2463,7 +2555,8 @@
     { id: 'moshabeh2', n: 5, title: 'ویژگیِ مشابه (نوع ۲)', sub: '۵ گزینه‌ای', icon: '🪞', color: PAL.lilac, ready: true, lesson: lessonM5, gen: genQuestionM5, pool: poolForM5 },
     { id: 'ejraye_qaede', n: 6, title: 'اجرای قاعده', sub: 'قاعده را ادامه بده', icon: '⚙️', color: PAL.gold, ready: true, lesson: lessonM6, gen: genQuestionM6, pool: poolForM6 },
     { id: 'dastebandi', n: 7, title: 'دسته‌بندیِ شکل‌ها', sub: 'گروه‌بندیِ درست', icon: '🗂️', color: PAL.teal, ready: true, lesson: lessonM7, gen: genQuestionM7, pool: poolForM7 },
-    { id: 'tarkibi', n: 8, title: 'آزمونِ استادان', sub: 'ترکیبِ همه‌ی مباحث', icon: '🎲', color: PAL.lilac, ready: true, lesson: lessonMix, gen: genMix, pool: poolForMix }
+    { id: 'penhan', n: 8, title: 'تصویرِ پنهان', sub: 'X کجا پنهان شده؟', icon: '🕵️', color: PAL.gold, ready: true, review: true, lesson: lessonPenhan, gen: genPenhan, pool: poolForPenhan },
+    { id: 'tarkibi', n: 9, title: 'آزمونِ استادان', sub: 'ترکیبِ همه‌ی مباحث', icon: '🎲', color: PAL.lilac, ready: true, lesson: lessonMix, gen: genMix, pool: poolForMix }
   ];
 
   /* ====================================================================
@@ -2575,7 +2668,7 @@
     MABAHETH.forEach(function (m, mi) {
       var cl = m.color === PAL.teal ? PAL.tealL : m.color === PAL.lilac ? PAL.lilacL : PAL.goldL;
       var jj = jGet(m.id), done = jj.cleared >= J_TOTAL, star = jStars(jj);
-      var open = m.ready && (mi === 0 || prevDone);      // فقط وقتی مبحثِ قبل کامل شده باز می‌شود
+      var open = m.ready && (mi === 0 || prevDone || m.review);      // فقط وقتی مبحثِ قبل کامل شده باز می‌شود
       var state = !m.ready ? 'soon' : !open ? 'lock' : done ? 'done' : jj.cleared > 0 ? 'prog' : 'open';
       var pct = Math.round(Math.min(jj.cleared, J_TOTAL) / J_TOTAL * 100);
       var foot;
@@ -2603,7 +2696,7 @@
     var prevDone = true;
     MABAHETH.forEach(function (m, mi) {
       var jj = jGet(m.id), done = jj.cleared >= J_TOTAL;
-      var open = m.ready && (mi === 0 || prevDone);
+      var open = m.ready && (mi === 0 || prevDone || m.review);
       var cur2 = open && !done;
       var st = !m.ready ? 'soon' : !open ? 'lock' : done ? 'done' : 'cur';
       var th = jTheme(m);
@@ -2629,7 +2722,8 @@
     moshabeh2: { place: 'سالنِ آینه‌ها', title: 'استادِ آینه‌ها', intro: 'در سالنِ آینه‌ها هر شباهت یک آینه است؛ درست‌ها تو را جلو می‌برند.' },
     ejraye_qaede: { place: 'کارخانه‌ی قاعده‌ها', title: 'مهندسِ قاعده‌ها', intro: 'کارخانه‌ی قاعده‌ها منتظرِ توست؛ قانونِ هر ماشین را کشف کن تا چرخ‌ها بچرخند.' },
     dastebandi: { place: 'کتابخانه‌ی دسته‌ها', title: 'کتابدارِ بزرگ', intro: 'در کتابخانه‌ی دسته‌ها، شکل‌ها را درست گروه‌بندی کن تا قفسه‌ها مرتب شوند.' },
-    tarkibi: { place: 'قلعه‌ی استادان', title: 'استادِ بزرگِ شکل‌ها', intro: 'به قلعه‌ی استادان رسیدی، قهرمان! این‌جا سؤال‌ها از همه‌ی هفت مبحث با هم می‌آیند و پشتِ سرِ هم سخت‌تر می‌شوند. اگر این‌جا را فتح کنی، استادِ بزرگ می‌شوی.' }
+    penhan: { place: 'اتاقِ تصویرهای پنهان', title: 'کارآگاهِ تصویرهای پنهان', intro: 'وارد اتاقِ تصویرهای پنهان شدی! این‌جا هر تصویرِ X لابه‌لای خط‌های یک گزینه قایم شده. با ریزبینی خط‌ها را دنبال کن و مخفیگاهِ X را پیدا کن.' },
+    tarkibi: { place: 'قلعه‌ی استادان', title: 'استادِ بزرگِ شکل‌ها', intro: 'به قلعه‌ی استادان رسیدی، قهرمان! این‌جا سؤال‌ها از همه‌ی مباحث با هم می‌آیند و پشتِ سرِ هم سخت‌تر می‌شوند. اگر این‌جا را فتح کنی، استادِ بزرگ می‌شوی.' }
   };
   function jTheme(m) { return JOURNEY[m.id] || { place: 'سرزمینِ شکل‌ها', title: 'قهرمانِ شکل‌ها', intro: 'سفرت را شروع کن!' }; }
   // سطح‌بندیِ سفر: هر مرحله سخت‌تر از قبل (سطحِ موتور ۱→۳، درجه‌ی سختیِ نمایشی ۱→۵، تعدادِ سؤال بالارونده)
@@ -2770,7 +2864,21 @@
         '<rect width="340" height="1000" fill="url(#sk7)"/>' +
         '<rect x="0" y="150" width="340" height="60" fill="#8a5a2b" opacity=".85"/><text x="170" y="192" text-anchor="middle" font-size="30">📚</text>' + shelves;
     },
-    // ۸) قلعه‌ی استادان — نبردِ نهاییِ ترکیبِ همه‌ی مباحث
+    // ۸) اتاقِ تصویرهای پنهان — خط‌های درهم و ذره‌بین
+    penhan: function (c) {
+      var tangle = '';
+      for (var i = 0; i < 26; i++) { var x1 = 20 + (i * 47) % 300, y1 = 240 + (i * 83) % 700, x2 = x1 + ((i % 5) - 2) * 40, y2 = y1 + ((i % 4) - 1) * 46; tangle += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="#cfd6ea" stroke-width="2" opacity=".55"/>'; }
+      return '<defs><linearGradient id="sk8p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#20243f"/><stop offset="1" stop-color="#3a3560"/></linearGradient><radialGradient id="sk8pg" cx="52%" cy="42%" r="40%"><stop offset="0" stop-color="' + c + '" stop-opacity=".34"/><stop offset="1" stop-color="' + c + '" stop-opacity="0"/></radialGradient></defs>' +
+        '<rect width="340" height="1000" fill="url(#sk8p)"/>' +
+        '<g>' + tangle + '</g>' +
+        '<rect width="340" height="1000" fill="url(#sk8pg)"/>' +
+        // تصویرِ پنهانِ برجسته (X) لابه‌لای خط‌ها
+        '<g stroke="' + c + '" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".95"><path d="M120 430 L200 430 L160 500 Z"/></g>' +
+        // ذره‌بین
+        '<g><circle cx="168" cy="452" r="66" fill="none" stroke="#ffd76b" stroke-width="5" opacity=".8"/><line x1="214" y1="500" x2="250" y2="540" stroke="#ffd76b" stroke-width="8" stroke-linecap="round" opacity=".8"/></g>' +
+        '<text x="170" y="180" text-anchor="middle" font-size="40">🕵️</text>';
+    },
+    // ۹) قلعه‌ی استادان — نبردِ نهاییِ ترکیبِ همه‌ی مباحث
     tarkibi: function (c) {
       var stars = ''; var sp = [[40, 90], [120, 60], [210, 100], [300, 70], [70, 200], [270, 190], [160, 150], [30, 300], [310, 320]];
       sp.forEach(function (p, i) { stars += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + (1.2 + (i % 3) * 0.5) + '" fill="#fff" opacity="' + (0.55 + (i % 4) * 0.12) + '"/>'; });
@@ -3556,7 +3664,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
