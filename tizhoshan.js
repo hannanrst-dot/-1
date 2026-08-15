@@ -62,7 +62,7 @@
   }
 
   /* ---- پیشرفت و نشان‌های دستاورد (ذخیره روی CUR + fallbackِ localStorage) ---- */
-  function mergeProg(p) { p = p || {}; return { solved: p.solved || 0, bestStreak: p.bestStreak || 0, quizzes: p.quizzes || 0, badges: (p.badges || []).slice(), topics: p.topics || {}, journeys: p.journeys || {} }; }
+  function mergeProg(p) { p = p || {}; return { solved: p.solved || 0, bestStreak: p.bestStreak || 0, quizzes: p.quizzes || 0, badges: (p.badges || []).slice(), topics: p.topics || {}, journeys: p.journeys || {}, tags: p.tags || {} }; }
   function loadProg() {
     try { var c = cur(); if (c && c.activities && c.activities.tz_progress) return mergeProg(c.activities.tz_progress); } catch (e) {}
     try { var s = window.localStorage.getItem('tz_progress'); if (s) return mergeProg(JSON.parse(s)); } catch (e) {}
@@ -89,6 +89,9 @@
   function checkBadges(p) { var nw = []; BADGES.forEach(function (bd) { if (p.badges.indexOf(bd.id) < 0 && bd.cond(p)) { p.badges.push(bd.id); nw.push(bd); } }); return nw; }
   function progSolved(streak) { var p = loadProg(); p.solved++; if (streak > p.bestStreak) p.bestStreak = streak; var nw = checkBadges(p); saveProg(p); if (nw.length) badgeToast(nw); }
   function progQuiz(topicId, pct, bestStreak) { var p = loadProg(); p.quizzes++; if (bestStreak > p.bestStreak) p.bestStreak = bestStreak; if (!p.topics[topicId] || pct > p.topics[topicId]) p.topics[topicId] = pct; var nw = checkBadges(p); saveProg(p); if (nw.length) badgeToast(nw); }
+  // ---- سیستمِ هوشِ تطبیقی: کارنامه‌ی هر «تیپِ سؤال» به تفکیکِ مبحث ----
+  function loadTags(topicId) { var p = loadProg(); return (p.tags && p.tags[topicId]) || {}; }
+  function recordTag(topicId, tag, ok) { if (!tag) return; var p = loadProg(); if (!p.tags) p.tags = {}; if (!p.tags[topicId]) p.tags[topicId] = {}; var t = p.tags[topicId][tag] || { c: 0, w: 0 }; if (ok) t.c++; else t.w++; p.tags[topicId][tag] = t; saveProg(p); }
   function badgeToast(list) {
     if (!ROOT) return;
     var t = h('div', { class: 'tz-btoast' });
@@ -2924,6 +2927,9 @@
       h('div', { class: 'tz-jhead-t' }, m.icon + ' ' + th.place),
       h('div', { class: 'tz-jhead-s' }, 'مبحثِ ' + toFa(m.n) + ' — ' + m.title + '  •  ⭐ ' + toFa(jStars(j)) + '  •  ' + toFa(Math.min(j.cleared, J_TOTAL)) + '/' + toFa(J_TOTAL) + ' مرحله')));
     ROOT.appendChild(guideRow(won ? 'wow' : 'happy', jGuideMsg(m, st, j), 'tz-guide-sm'));
+    ROOT.appendChild(h('div', { class: 'tz-examrow' },
+      h('button', { class: 'tz-btn tz-exambtn', onclick: function () { runExam(m); } }, '📝 آزمونِ جامعِ ۲۰ سؤالی'),
+      h('span', { class: 'tz-examhint' }, '🤖 هوشمند: سؤال‌ها بر اساسِ عملکردِ تو انتخاب می‌شوند')));
     var map = h('div', { class: 'tz-map' + (won ? ' tz-map-won' : ''), style: { '--jc': m.color } });
     var sc = jScene(m, won); if (sc) map.appendChild(sc);
     if (won) map.appendChild(h('div', { class: 'tz-won-banner' }, '👑 سرزمینِ «' + th.place + '» فتح شد!'));
@@ -2982,13 +2988,38 @@
     box.appendChild(btn); wrap.appendChild(box);
   }
 
+  /* ==================================================================
+   * موتورِ انتخابِ تطبیقی (هوشِ برنامه): از تیپ‌هایی که دانش‌آموز در آن‌ها
+   * ضعیف است (یا تازه‌اند) بیشتر می‌آورد و تیپ‌های تسلط‌یافته را کمتر؛ در
+   * همین دور هم تیپِ تکراری را کم می‌کند.  wrongBias=true → تمرکزِ آزمون روی خطاها.
+   * ================================================================ */
+  function adaptivePick(m, level, seedRef, recent, wrongBias) {
+    var pool = m.pool(level), stats = loadTags(m.id);
+    function weight(tag) {
+      var s = stats[tag] || { c: 0, w: 0 }, seen = s.c + s.w, base;
+      if (seen === 0) base = 1.8;                                   // تیپِ تازه: کمی بیشتر دیده شود (اکتشاف)
+      else if (wrongBias) base = 0.35 + 3 * (s.w / seen);           // آزمون: هرچه بیشتر غلط زده، بیشتر بیاید
+      else base = 0.5 + 1.8 * (1 - s.c / seen);                     // دور: هرچه تسلط بیشتر، کمتر بیاید
+      if (recent && recent.indexOf(tag) >= 0) base *= 0.35;         // در همین دور تکرار نشود
+      return base;
+    }
+    var best = null, bestScore = -1;
+    for (var t = 0; t < 4; t++) {                                   // چند نامزد بساز و ضعیف‌ترین‌تیپ را انتخاب کن
+      var rng = new RNG(seedRef.s++), gen = rng.pick(pool), q = gen(new RNG(seedRef.s++), level);
+      var sc = weight(q.tag) * (0.7 + rng.next() * 0.6);
+      if (sc > bestScore) { bestScore = sc; best = q; }
+    }
+    if (best && recent) { recent.push(best.tag); if (recent.length > 3) recent.shift(); }
+    return best;
+  }
+
   function runRound(m, idx, s) {
     var wrap = jStageWrap(m, null);
     wrap.appendChild(guideRow(s.type === 'boss' ? 'think' : 'hi', jSay(s), 'tz-guide-sm'));
-    var hearts = 3, qi = 0, correct = 0, streak = 0, seed = ((Date.now() & 0xffffff) ^ (idx * 2654435761)) | 1, bag = [];
+    var hearts = 3, qi = 0, correct = 0, streak = 0, seed = ((Date.now() & 0xffffff) ^ (idx * 2654435761)) | 1;
     var N = s.n, level = s.level, boss = s.type === 'boss';
-    function pick() { if (!bag.length) bag = new RNG(seed++).shuffle(m.pool(level)); return bag.pop(); }
-    var qs = []; for (var i = 0; i < N; i++) qs.push(pick()(new RNG(seed++), level));
+    var seedRef = { s: seed }, recent = [];
+    var qs = []; for (var i = 0; i < N; i++) qs.push(adaptivePick(m, level, seedRef, recent, false));
     var head = h('div', { class: 'tz-roundhead' + (boss ? ' boss' : '') }); wrap.appendChild(head);
     var body = h('div', {}); wrap.appendChild(body);
     function heartsTxt() { var t = ''; for (var i = 0; i < 3; i++) t += i < hearts ? '❤️' : '🤍'; return t; }
@@ -3013,6 +3044,7 @@
           var ok = i === q.answer; b.classList.add(ok ? 'ok' : 'bad'); opts.children[q.answer].classList.add('ok');
           tzSound(ok ? 'ok' : 'bad');
           if (ok) { correct++; streak++; progSolved(streak); } else { hearts--; streak = 0; }
+          recordTag(m.id, q.tag, ok);
           head.querySelector('.tz-hearts').textContent = heartsTxt();
           body.appendChild(h('div', { class: 'tz-fb ' + (ok ? 'ok' : 'bad') }, (ok ? '✓ آفرین! ' : '✗ اشتباه — ') + q.why));
           var last = qi >= N - 1;
@@ -3044,6 +3076,69 @@
         h('div', { class: 'tz-lnav tz-lnav-wrap' },
           h('button', { class: 'tz-btn ghost', onclick: function () { renderJourney(m); } }, 'نقشه'),
           h('button', { class: 'tz-btn', onclick: function () { runRound(m, idx, s); } }, '🔁 دوباره امتحان کن'))));
+    }
+    draw();
+  }
+
+  /* ==================================================================
+   * آزمونِ جامعِ ۲۰ سؤالیِ تطبیقی (پایانِ هر مبحث): سؤال‌ها بلادرنگ و بر
+   * اساسِ عملکردِ دانش‌آموز انتخاب می‌شوند — بیشتر از تیپ‌های اشتباه‌زده، و
+   * پله‌پله سخت‌تر. در پایان، کارنامه‌ی تیپ‌ها و نقاطِ ضعف نشان داده می‌شود.
+   * ================================================================ */
+  function runExam(m) {
+    var wrap = jStageWrap(m, null);
+    wrap.appendChild(guideRow('think', 'آزمونِ جامعِ ' + toFa(20) + ' سؤالی! این آزمون هوشمند است: بیشتر از تیپ‌هایی سؤال می‌آورد که در آن‌ها ضعیف‌تری و پله‌پله سخت‌تر می‌شود. تا آخر برو تا نقشه‌ی قوّت و ضعفت را ببینیم.', 'tz-guide-sm'));
+    var N = 20, qi = 0, correct = 0, streak = 0, bestStreak = 0, seedRef = { s: ((Date.now() & 0xffffff) ^ 0x9e3779b1) | 1 }, recent = [], examTags = {};
+    function levelFor(i) { return i < 6 ? 1 : i < 13 ? 2 : 3; }
+    var head = h('div', { class: 'tz-roundhead' }); wrap.appendChild(head);
+    var bar = h('div', { class: 'tz-exambar' }, h('span', { class: 'tz-exambar-f' })); wrap.appendChild(bar);
+    var body = h('div', {}); wrap.appendChild(body);
+    function draw() {
+      clear(body); head.innerHTML = '';
+      head.appendChild(h('span', { class: 'tz-rh-title' }, '📝 آزمونِ جامع — ' + jTheme(m).place));
+      head.appendChild(h('span', { class: 'tz-rh-prog' }, 'سؤال ' + toFa(qi + 1) + ' از ' + toFa(N) + '  •  سطح ' + toFa(levelFor(qi))));
+      bar.querySelector('.tz-exambar-f').style.width = (qi / N * 100) + '%';
+      if (qi >= N) return finish();
+      var q = adaptivePick(m, levelFor(qi), seedRef, recent, true);
+      body.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
+      if (q.refs) body.appendChild(refsPanel(q.refs));
+      if (q.grid) body.appendChild(gridPanel(q.grid));
+      if (q.matrix) body.appendChild(matrixPanel(q.matrix));
+      if (q.series) body.appendChild(seriesPanel(q.series));
+      var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
+      q.options.forEach(function (o, i) {
+        var b = h('button', { class: 'tz-opt', onclick: function () {
+          if (done) return; done = true;
+          var ok = i === q.answer; b.classList.add(ok ? 'ok' : 'bad'); opts.children[q.answer].classList.add('ok');
+          tzSound(ok ? 'ok' : 'bad');
+          var et = examTags[q.tag] || { c: 0, w: 0 }; if (ok) { correct++; streak++; if (streak > bestStreak) bestStreak = streak; et.c++; } else { streak = 0; et.w++; } examTags[q.tag] = et;
+          recordTag(m.id, q.tag, ok);
+          body.appendChild(h('div', { class: 'tz-fb ' + (ok ? 'ok' : 'bad') }, (ok ? '✓ آفرین! ' : '✗ اشتباه — ') + q.why));
+          body.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: function () { qi++; draw(); } }, qi >= N - 1 ? 'دیدنِ نتیجه 🏁' : 'سؤالِ بعد ←')));
+        } }, q.render(o), h('span', { class: 'tz-opt-n' }, toFa(i + 1)));
+        opts.appendChild(b);
+      });
+      body.appendChild(opts);
+    }
+    function finish() {
+      var pct = Math.round(correct / N * 100); progQuiz(m.id, pct, bestStreak);
+      clear(body); head.innerHTML = ''; bar.querySelector('.tz-exambar-f').style.width = '100%';
+      tzConfetti(ROOT); tzSound('finish');
+      var rows = Object.keys(examTags).map(function (t) { var e = examTags[t]; return { tag: t, c: e.c, seen: e.c + e.w, w: e.w }; }).sort(function (a, b) { return (b.w / b.seen) - (a.w / a.seen); });
+      var weak = rows.filter(function (r) { return r.w > 0; }).slice(0, 4);
+      var stars = starsFor(pct);
+      var panel = h('div', { class: 'tz-report tz-celebrate' },
+        tzMascot(pct >= 55 ? 'wow' : 'hi', 104), starRow(stars, 3),
+        h('div', { class: 'tz-score' }, toFa(correct) + ' / ' + toFa(N) + '  (' + toFa(pct) + '٪)'),
+        h('p', { class: 'tz-msg' }, pct >= 85 ? 'فوق‌العاده بود! تسلطت عالیه 🌟' : pct >= 55 ? 'خوب بود! چند تیپ را کمی تمرین کن تا استاد شوی 💪' : 'اشکال ندارد — تیپ‌های ضعیف را تمرین کن، دفعه‌ی بعد می‌ترکانی!'));
+      var an = h('div', { class: 'tz-skillmap' }, h('div', { class: 'tz-analysis-h' }, '🎯 کارنامه‌ی تیپِ سؤال‌ها'));
+      rows.forEach(function (r) { var p2 = Math.round(r.c / r.seen * 100), cls = p2 >= 80 ? 'good' : p2 >= 50 ? 'ok' : 'weak'; an.appendChild(h('div', { class: 'tz-skrow ' + cls }, h('span', { class: 'tz-skname' }, r.tag), h('span', { class: 'tz-tagbar' }, h('span', { class: 'tz-tagfill', style: 'width:' + p2 + '%' })), h('span', { class: 'tz-sknum' }, toFa(r.c) + '/' + toFa(r.seen)))); });
+      an.appendChild(h('p', { class: 'tz-analysis-tip' }, weak.length ? 'برای تقویت، این تیپ‌ها را بیشتر تمرین کن: ' + weak.map(function (r) { return r.tag; }).join('، ') + '. درسنامه‌ی مبحث هم کمکت می‌کند.' : 'در هیچ تیپی خطا نداشتی — عالی بود! 🎉'));
+      panel.appendChild(an);
+      panel.appendChild(h('div', { class: 'tz-lnav tz-lnav-wrap' },
+        h('button', { class: 'tz-btn ghost', onclick: function () { renderJourney(m); } }, 'نقشه'),
+        h('button', { class: 'tz-btn', onclick: function () { runExam(m); } }, '🔁 آزمونِ دوباره')));
+      body.appendChild(panel);
     }
     draw();
   }
@@ -3402,6 +3497,15 @@
       '.tz-map-won{padding-top:58px;box-shadow:0 0 0 3px #ffcf6b,0 16px 44px rgba(255,176,32,.34);animation:tzWonGlow 2.4s ease-in-out infinite}',
       '@keyframes tzWonGlow{0%,100%{box-shadow:0 0 0 3px #ffcf6b,0 16px 44px rgba(255,176,32,.30)}50%{box-shadow:0 0 0 4px #ffd98a,0 18px 52px rgba(255,176,32,.5)}}',
       '.tz-won-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:4;background:linear-gradient(135deg,#ffcf6b,#ff9f43);color:#5a3a00;font-weight:800;font-size:.86rem;padding:6px 18px;border-radius:999px;box-shadow:0 8px 22px rgba(255,160,60,.5);white-space:nowrap;animation:tzpop .5s ease}',
+      // آزمونِ جامعِ تطبیقی
+      '.tz-examrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:2px 2px 14px;padding:10px 14px;border:1.5px dashed ' + PAL.lilac + ';border-radius:16px;background:' + PAL.lilacL + '}',
+      '.tz-dark .tz-examrow{background:rgba(0,194,168,.10)}',
+      '.tz-exambtn{background:linear-gradient(135deg,' + PAL.lilac + ',' + PAL.teal + ');font-size:.92rem}',
+      '.tz-examhint{font-size:.74rem;color:' + PAL.inkSoft + ';font-weight:700}',
+      '.tz-exambar{height:8px;border-radius:999px;background:' + PAL.border + ';overflow:hidden;margin:4px 0 12px}',
+      '.tz-dark .tz-exambar{background:#2c2f4d}',
+      '.tz-exambar-f{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,' + PAL.lilac + ',' + PAL.teal + ');transition:width .35s ease}',
+      '.tz-examanalysis,.tz-skillmap{width:100%}',
       '.tz-trail{position:absolute;inset:38px 0 22px;z-index:0;pointer-events:none;--jtrail:color-mix(in srgb,var(--jc) 42%,#fff)}',
       '.tz-node-diff{display:flex;align-items:center;gap:5px;margin-top:2px}.tz-node-dn{font-size:.64rem;font-weight:800;color:' + PAL.inkSoft + '}',
       '.tz-pips{display:inline-flex;gap:2px}.tz-pip{width:6px;height:6px;border-radius:50%;background:#d3d6ea}.tz-pip.on{background:' + PAL.gold + '}',
@@ -3660,7 +3764,7 @@
   window.renderTizHub = renderTizHub;
 
   if (window.__TZ_DEBUG === true) {
-    window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion,
+    window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion, adaptivePick: adaptivePick, MABAHETH: MABAHETH,
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
