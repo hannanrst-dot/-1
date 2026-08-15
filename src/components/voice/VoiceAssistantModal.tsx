@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp } from "lucide-react";
+import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp } from "lucide-react";
 import { formatToman, toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
-import { collapseRepeatedWords } from "@/lib/voice/persianNormalizer";
+import { pushUtterance, joinTranscript } from "@/lib/voice/transcript";
 
 type Mode = "menu" | "invoice" | "product" | "purchase" | "query" | "price";
 
@@ -51,7 +51,6 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const modeRef = useRef<Mode>(mode);
   const transcriptRef = useRef("");
   const shouldListenRef = useRef(false); // تا کاربر خودش «توقف» نزند، ضبط ادامه دارد
-  const finalRef = useRef("");           // متن نهاییِ انباشته‌شده
   modeRef.current = mode;
 
   useEffect(() => { if (isOpen) setMode(defaultMode); }, [isOpen, defaultMode]);
@@ -64,50 +63,73 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     return () => { document.body.style.overflow = prev; };
   }, [isOpen]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  // آرایهٔ عبارت‌های ضبط‌شده در طول یک بار «ضبط» (تا وقتی کاربر توقف نزده).
+  const utterancesRef = useRef<string[]>([]);
+  const sessionTextRef = useRef("");
+
+  const getSR = () => (typeof window === "undefined" ? null : (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+
+  // یک «سشنِ» تشخیصِ تک‌عبارتی (پایدارترین حالت، بدون تکرار داخلی). پس از پایانِ
+  // هر عبارت، اگر کاربر هنوز «توقف» نزده، سشن بعدی خودکار شروع می‌شود (برای گفتن
+  // چند کالا پشت‌سرهم). تکرار/بازپخش با منطق pushUtterance/joinTranscript حذف می‌شود.
+  const startSession = () => {
+    const SR = getSR();
     if (!SR) return;
     const rec = new SR();
     rec.lang = "fa-IR";
-    // پیوسته: از مکث‌های کوتاه رد می‌شود تا چند کالا در یک ضبط گفته شود.
-    // «شروع مجدد خودکار» را عمداً حذف کردیم چون منبع تکرار کلمات بود؛ در عوض متن را
-    // در هر رویداد از روی «همهٔ نتایج» بازسازی می‌کنیم (نه الحاق) تا هیچ تکراری نباشد.
-    rec.continuous = true;
+    rec.continuous = false;
     rec.interimResults = true;
     rec.maxAlternatives = 1;
+    sessionTextRef.current = "";
 
     rec.onresult = (event: any) => {
       let text = "";
       for (let i = 0; i < event.results.length; i++) text += event.results[i][0].transcript + " ";
-      const clean = collapseRepeatedWords(text.replace(/\s+/g, " ").trim());
-      transcriptRef.current = clean;
-      setTranscript(clean);
+      sessionTextRef.current = text.replace(/\s+/g, " ").trim();
+      // نمایش زنده هم با همان منطقِ ثبت دِدوپ می‌شود تا اگر سشن، عبارت قبلی را
+      // دوباره بگوید، متن دو برابر دیده نشود.
+      const disp = joinTranscript(pushUtterance(utterancesRef.current, sessionTextRef.current));
+      transcriptRef.current = disp;
+      setTranscript(disp);
     };
     rec.onerror = (event: any) => {
       if (event.error !== "no-speech" && event.error !== "aborted") console.error("Speech:", event.error);
     };
     rec.onend = () => {
-      setIsListening(false);
-      const text = transcriptRef.current.trim();
-      // چه کاربر «توقف» بزند چه مرورگر بعد از سکوت طولانی تمام کند، یک‌بار پردازش می‌شود.
-      if (shouldListenRef.current && text) {
-        shouldListenRef.current = false;
-        setTimeout(() => processText(text, modeRef.current), 150);
+      // عبارتِ این سشن را (با حذف تکرار/بازپخش) ثبت کن.
+      utterancesRef.current = pushUtterance(utterancesRef.current, sessionTextRef.current);
+      sessionTextRef.current = "";
+      const disp = joinTranscript(utterancesRef.current);
+      transcriptRef.current = disp;
+      setTranscript(disp);
+      if (shouldListenRef.current) {
+        // کاربر هنوز توقف نزده → سشن بعدی برای عبارت بعدی
+        try { startSession(); } catch { /* ignore */ }
+      } else {
+        // توقفِ کاربر → پردازشِ کلِ گفتار
+        setIsListening(false);
+        const finalText = disp.trim();
+        if (finalText) setTimeout(() => processText(finalText, modeRef.current), 150);
       }
     };
     recognitionRef.current = rec;
-    return () => { shouldListenRef.current = false; try { rec.stop(); } catch { /* ignore */ } };
-  }, []);
+    try { rec.start(); } catch { /* ignore */ }
+  };
+
+  useEffect(() => () => { shouldListenRef.current = false; try { recognitionRef.current?.stop(); } catch { /* ignore */ } }, []);
 
   const startRecording = () => {
-    if (!recognitionRef.current) { setNotice("مرورگر شما میکروفون را پشتیبانی نمی‌کند. می‌توانید تایپ کنید."); return; }
-    setTranscript(""); transcriptRef.current = ""; finalRef.current = ""; setNotice("");
+    if (!getSR()) { setNotice("مرورگر شما میکروفون را پشتیبانی نمی‌کند. می‌توانید متن را تایپ کنید."); return; }
+    utterancesRef.current = [];
+    sessionTextRef.current = "";
+    setTranscript(""); transcriptRef.current = ""; setNotice("");
     shouldListenRef.current = true;
-    try { recognitionRef.current.start(); setIsListening(true); } catch (e) { console.error(e); }
+    setIsListening(true);
+    startSession();
   };
-  // توقف دستی توسط کاربر
+  // توقف دستی توسط کاربر — گفتار جمع‌آوری‌شده پردازش می‌شود.
   const stopRecording = () => {
+    shouldListenRef.current = false;
     try { recognitionRef.current?.stop(); } catch { /* ignore */ }
     setIsListening(false);
   };
@@ -305,9 +327,9 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                   onClick={() => (isListening ? stopRecording() : startRecording())}
                   className={`w-20 h-20 rounded-full flex items-center justify-center text-white shadow-lg active:scale-95 transition ${isListening ? "bg-rose-500 animate-pulse ring-8 ring-rose-200 dark:ring-rose-900/40" : "bg-emerald-600 ring-8 ring-emerald-100 dark:ring-emerald-950/40"}`}
                 >
-                  <Mic className="w-9 h-9" />
+                  {isListening ? <Square className="w-8 h-8 fill-current" /> : <Mic className="w-9 h-9" />}
                 </button>
-                <span className="text-xs text-center text-gray-500 px-2">{isListening ? "🔴 در حال ضبط... چند کالا را پشت‌سرهم بگویید، بعد دکمهٔ توقف را بزنید." : "بزنید و صحبت کنید (توقف با خودتان)"}</span>
+                <span className={`text-xs text-center px-2 font-bold ${isListening ? "text-rose-600" : "text-gray-500"}`}>{isListening ? "🔴 در حال ضبط — چند کالا را پشت‌سرهم بگویید، بعد برای پایان، همین دکمه (⏹) را بزنید." : "میکروفون را بزنید و صحبت کنید"}</span>
               </div>
 
               <div className="space-y-2">

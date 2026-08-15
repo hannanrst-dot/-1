@@ -156,9 +156,10 @@ export function collapseRepeatedWords(text: string): string {
     }
     return out;
   };
+  // عبارت‌های تکراری تا ۶ کلمه را هم پوشش می‌دهیم (برای جمله‌های بلندتر).
   // دو بار اجرا می‌کنیم تا تکرارهای زنجیره‌ای هم پاک شوند.
   for (let pass = 0; pass < 2; pass++) {
-    for (const n of [3, 2, 1]) words = collapseN(words, n);
+    for (const n of [6, 5, 4, 3, 2, 1]) words = collapseN(words, n);
   }
   return words.join(" ");
 }

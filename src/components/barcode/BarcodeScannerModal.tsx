@@ -41,17 +41,19 @@ export function BarcodeScannerModal({ isOpen, onClose, onDetected }: BarcodeScan
       }
       const reader = new BrowserMultiFormatReader();
       readerRef.current = reader;
-      // decodeFromVideoDevice خودش دوربین را باز می‌کند و مدام اسکن می‌کند.
-      controlsRef.current = await reader.decodeFromVideoDevice(
-        undefined,
-        videoRef.current!,
-        (result, _err, controls) => {
-          if (result) {
-            controls.stop();
-            finish(result.getText());
-          }
-        }
-      );
+      const onResult = (result: any, _err: any, controls: any) => {
+        if (result) { controls.stop(); finish(result.getText()); }
+      };
+      // از دوربینِ پشت (environment) استفاده می‌کنیم؛ اگر پشتیبانی نشد، دوربین پیش‌فرض.
+      try {
+        controlsRef.current = await reader.decodeFromConstraints(
+          { video: { facingMode: { ideal: "environment" } } },
+          videoRef.current!,
+          onResult
+        );
+      } catch {
+        controlsRef.current = await reader.decodeFromVideoDevice(undefined, videoRef.current!, onResult);
+      }
     } catch (err) {
       console.error("Scanner error:", err);
       setStatus("دسترسی به دوربین ممکن نشد. مطمئن شوید سایت https است و اجازهٔ دوربین را داده‌اید — یا کد را دستی وارد کنید.");
