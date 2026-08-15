@@ -6,7 +6,7 @@ import { Settings, Download, Upload, Server, Save, Store, CheckCircle } from "lu
 import { IranianDeployGuideModal } from "@/components/deploy/IranianDeployGuideModal";
 
 export default function SettingsPage() {
-  const [storeName, setStoreName] = useState("فروشگاه مدرن پارس");
+  const [storeName, setStoreName] = useState("نوشت‌افزار حنان");
   const [phone, setPhone] = useState("02188776655");
   const [address, setAddress] = useState("تهران، خیابان آزادی، پلاک ۱۲");
   const [receiptFooter, setReceiptFooter] = useState("از خرید و اعتماد شما سپاسگزاریم");

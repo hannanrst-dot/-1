@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Printer, Download, X, Store, Calendar, FileText, CheckCircle2, CalendarClock } from "lucide-react";
 import { formatToman, toJalaliDateTime, toPersianDigits } from "@/lib/persian/utils";
 
@@ -36,6 +36,31 @@ interface PrintableInvoiceProps {
 
 export function PrintableInvoice({ invoice, isOpen, onClose }: PrintableInvoiceProps) {
   const [printLayout, setPrintLayout] = useState<"A4" | "THERMAL">("A4");
+  const [store, setStore] = useState<{ storeName: string; phone: string; address: string; receiptFooter: string }>({
+    storeName: "نوشت‌افزار حنان",
+    phone: "",
+    address: "",
+    receiptFooter: "از خرید و اعتماد شما سپاسگزاریم.",
+  });
+
+  // بارگذاری مشخصات فروشگاه (نام، تلفن، آدرس) از تنظیمات تا روی فاکتور چاپی نمایش داده شود.
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((data) => {
+        const info = data?.settings?.store_info;
+        if (info) {
+          setStore((prev) => ({
+            storeName: info.storeName || prev.storeName,
+            phone: info.phone || "",
+            address: info.address || "",
+            receiptFooter: info.receiptFooter || prev.receiptFooter,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -113,8 +138,10 @@ export function PrintableInvoice({ invoice, isOpen, onClose }: PrintableInvoiceP
                     <Store className="w-7 h-7" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">فروشگاه مدرن پارس</h2>
+                    <h2 className="text-xl font-bold text-gray-900">{store.storeName}</h2>
                     <p className="text-xs text-gray-500">فاکتور رسمی فروش کالا و خدمات</p>
+                    {store.phone && <p className="text-[11px] text-gray-600 mt-0.5">📞 {toPersianDigits(store.phone)}</p>}
+                    {store.address && <p className="text-[11px] text-gray-600">📍 {store.address}</p>}
                   </div>
                 </div>
                 <div className="text-left text-xs space-y-1">
@@ -163,7 +190,7 @@ export function PrintableInvoice({ invoice, isOpen, onClose }: PrintableInvoiceP
               <div className="flex justify-between items-start text-xs border-t pt-4">
                 <div className="w-1/2 space-y-1">
                   {invoice.notes && <p><strong>توضیحات:</strong> {invoice.notes}</p>}
-                  <p className="text-gray-500 pt-2">از خرید و اعتماد شما سپاسگزاریم.</p>
+                  <p className="text-gray-500 pt-2">{store.receiptFooter}</p>
                 </div>
                 <div className="w-1/2 space-y-2 text-left">
                   <div className="flex justify-between">
@@ -194,7 +221,9 @@ export function PrintableInvoice({ invoice, isOpen, onClose }: PrintableInvoiceP
             /* Thermal POS Receipt Layout (80mm) */
             <div id="printable-area" className="w-[80mm] bg-white border border-gray-300 p-4 rounded-xl text-center space-y-4 text-xs font-mono">
               <div className="border-b pb-2 space-y-1">
-                <h3 className="font-bold text-base">فروشگاه مدرن پارس</h3>
+                <h3 className="font-bold text-base">{store.storeName}</h3>
+                {store.phone && <p className="text-[10px]">📞 {toPersianDigits(store.phone)}</p>}
+                {store.address && <p className="text-[10px]">📍 {store.address}</p>}
                 <p>شماره فاکتور: {invoice.invoiceNumber}</p>
                 <p>{toJalaliDateTime(invoice.createdAt)}</p>
               </div>
@@ -228,7 +257,7 @@ export function PrintableInvoice({ invoice, isOpen, onClose }: PrintableInvoiceP
               </div>
 
               <div className="text-[10px] text-gray-500 pt-2 border-t border-dashed">
-                با تشکر از انتخاب شما
+                {store.receiptFooter}
               </div>
             </div>
           )}

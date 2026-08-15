@@ -12,7 +12,9 @@ import {
   ArrowLeft,
   Sparkles,
   Package,
+  AlertTriangle,
 } from "lucide-react";
+import { toPersianDigits } from "@/lib/persian/utils";
 import { BarcodeScannerModal } from "@/components/barcode/BarcodeScannerModal";
 import { VoiceAssistantModal } from "@/components/voice/VoiceAssistantModal";
 
@@ -24,6 +26,8 @@ export default function NewProductPage() {
   const [loading, setLoading] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+  // اطلاعات کالای مشابهِ کشف‌شده هنگام ثبت (برای پرسش «جدید است یا همان قبلی؟»)
+  const [dupInfo, setDupInfo] = useState<any>(null);
 
   // Form fields
   const [name, setName] = useState("");
@@ -48,14 +52,8 @@ export default function NewProductPage() {
       .then((d) => setBrands(d.brands || []));
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      alert("لطفاً نام کالا را وارد نمایید.");
-      return;
-    }
+  const doSubmit = async (confirmNew: boolean) => {
     setLoading(true);
-
     try {
       const res = await fetch("/api/products", {
         method: "POST",
@@ -73,11 +71,15 @@ export default function NewProductPage() {
           sellPrice,
           discount,
           description,
+          confirmNew,
         }),
       });
 
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.duplicate) {
+        // کالای مشابهی پیدا شد — از کاربر بپرس جدید است یا همان قبلی.
+        setDupInfo(data.duplicate);
+      } else if (res.ok) {
         alert("کالا با موفقیت ثبت شد.");
         router.push("/products");
       } else {
@@ -88,6 +90,16 @@ export default function NewProductPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      alert("لطفاً نام کالا را وارد نمایید.");
+      return;
+    }
+    setDupInfo(null);
+    await doSubmit(false);
   };
 
   return (
@@ -337,18 +349,55 @@ export default function NewProductPage() {
 
       </div>
 
+      {/* پرسش کالای تکراری: جدید است یا همان قبلی؟ */}
+      {dupInfo && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 border border-gray-200 dark:border-gray-800">
+            <div className="flex items-center gap-2 text-amber-600 font-bold text-sm">
+              <AlertTriangle className="w-5 h-5" /> کالای مشابه پیدا شد
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+              کالایی با نام <b className="text-gray-900 dark:text-white">«{dupInfo.name}»</b> از قبل در انبار ثبت شده است
+              (موجودی فعلی: {toPersianDigits(dupInfo.stock)} {dupInfo.unit}).
+              <br />
+              آیا این <b>همان کالای قبلی</b> است یا یک <b>کالای جدید</b>؟
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={() => { const nm = dupInfo.name; setDupInfo(null); router.push(`/products?search=${encodeURIComponent(nm)}`); }}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-bold transition"
+              >
+                همان کالای قبلی است (رفتن به کالا برای ویرایش/افزایش موجودی)
+              </button>
+              <button
+                onClick={() => { setDupInfo(null); doSubmit(true); }}
+                className="w-full bg-sky-600 hover:bg-sky-700 text-white py-2.5 rounded-xl text-xs font-bold transition"
+              >
+                کالای جدید است — به‌هرحال ثبت شود
+              </button>
+              <button
+                onClick={() => setDupInfo(null)}
+                className="w-full border border-gray-300 dark:border-gray-700 py-2.5 rounded-xl text-xs font-bold"
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <BarcodeScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onDetected={(code) => setBarcode(code)}
       />
 
+      {/* پس از ثبت هر کالا، مودال باز می‌ماند تا کالای بعدی را هم صوتی ثبت کنید
+          (به صفحهٔ لیست منتقل نمی‌شویم). */}
       <VoiceAssistantModal
         isOpen={isVoiceOpen}
         onClose={() => setIsVoiceOpen(false)}
-        onActionExecute={() => {
-          router.push("/products");
-        }}
+        onActionExecute={() => { /* در همین مودال بمانید و کالای بعدی را ثبت کنید */ }}
       />
     </MainLayout>
   );

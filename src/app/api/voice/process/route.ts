@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
     // 1. Process Voice Command through Intent Engine
     // mode (اختیاری): invoice | product | purchase — برای دکمه‌های جداگانه
-    const forceMode = mode === "invoice" || mode === "product" || mode === "purchase" ? mode : undefined;
+    const forceMode = mode === "invoice" || mode === "product" || mode === "purchase" || mode === "price" ? mode : undefined;
     const actionResult = processVoiceCommand(spokenText, forceMode);
 
     // 2. Fetch active products for smart matching
@@ -134,6 +134,30 @@ export async function POST(req: Request) {
         speechResponse,
         type: "PRICE_UPDATE_PREVIEW",
         data: { percent: p, direction: dir, filterName, affectedCount: targets.length, samples },
+      });
+    }
+
+    if (actionResult.intent === "STOCK_UPDATE") {
+      const mode = actionResult.entities.stockMode || "set";
+      const amount = Number(actionResult.entities.stock) || 0;
+      const filterName = actionResult.entities.filterName || null;
+      const nf = filterName ? normalizePersianText(filterName) : null;
+      const targets = nf ? allDbProducts.filter((x) => normalizePersianText(x.name).includes(nf)) : allDbProducts;
+
+      const calcNew = (cur: number) =>
+        mode === "increase" ? cur + amount : mode === "decrease" ? Math.max(0, cur - amount) : amount;
+      const samples = targets.slice(0, 6).map((x) => ({ name: x.name, oldStock: x.stock, newStock: calcNew(x.stock), unit: x.unit }));
+      const modeWord = mode === "increase" ? "افزایش" : mode === "decrease" ? "کاهش" : "تنظیم";
+      const scope = filterName ? `«${filterName}»` : "همهٔ کالاها";
+      const speechResponse = targets.length
+        ? `موجودی ${toPersianDigits(targets.length)} کالا (${scope}) — ${modeWord} به ${toPersianDigits(amount)}. تأیید می‌کنید؟`
+        : `کالایی با ${scope} پیدا نشد.`;
+
+      return NextResponse.json({
+        result: actionResult,
+        speechResponse,
+        type: "STOCK_UPDATE_PREVIEW",
+        data: { mode, amount, filterName, affectedCount: targets.length, samples },
       });
     }
 

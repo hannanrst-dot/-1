@@ -29,6 +29,8 @@ export default function ProductsPage() {
   const [selectedCat, setSelectedCat] = useState("");
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  // اسکنر مخصوص فرم ویرایش (برای افزودن/اصلاح بارکد کالای موجود)
+  const [isEditScannerOpen, setIsEditScannerOpen] = useState(false);
 
   // Edit Modal State
   const [editProduct, setEditProduct] = useState<any>(null);
@@ -309,6 +311,13 @@ export default function ProductsPage() {
         }}
       />
 
+      {/* Barcode Scanner for Edit Modal */}
+      <BarcodeScannerModal
+        isOpen={isEditScannerOpen}
+        onClose={() => setIsEditScannerOpen(false)}
+        onDetected={(code) => setEditProduct((prev: any) => (prev ? { ...prev, barcode: code } : prev))}
+      />
+
       {/* Edit Product Modal */}
       {editProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -329,6 +338,28 @@ export default function ProductsPage() {
                   onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })}
                   className="w-full bg-gray-100 dark:bg-gray-800 border p-2.5 rounded-xl"
                 />
+              </div>
+
+              {/* بارکد کالا با امکان اسکن با دوربین */}
+              <div>
+                <label className="block font-semibold mb-1">بارکد کالا</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editProduct.barcode || ""}
+                    onChange={(e) => setEditProduct({ ...editProduct, barcode: e.target.value })}
+                    placeholder="بارکد را وارد یا اسکن کنید"
+                    className="flex-1 bg-gray-100 dark:bg-gray-800 border p-2.5 rounded-xl font-mono text-left"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsEditScannerOpen(true)}
+                    className="bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-3 rounded-xl text-xs font-bold flex items-center gap-1 transition"
+                    title="اسکن بارکد"
+                  >
+                    <Barcode className="w-4 h-4" /> اسکن
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">

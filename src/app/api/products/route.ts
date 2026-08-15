@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { products, categories, brands, inventoryTransactions } from "@/db/schema";
 import { eq, like, or, lte, desc, sql, and } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
+import { calculateSimilarity, normalizePersianText } from "@/lib/persian/utils";
 
 export async function GET(req: Request) {
   try {
@@ -41,6 +42,8 @@ export async function GET(req: Request) {
       .$dynamic();
 
     const conditions = [];
+    // کالاهای بایگانی‌شده (حذف‌شده) در لیست نمایش داده نمی‌شوند.
+    conditions.push(eq(products.isActive, true));
 
     if (barcode) {
       conditions.push(eq(products.barcode, barcode));
@@ -83,6 +86,48 @@ export async function POST(req: Request) {
 
     if (!data.name || data.buyPrice === undefined || data.sellPrice === undefined) {
       return NextResponse.json({ error: "نام کالا، قیمت خرید و قیمت فروش الزامی است." }, { status: 400 });
+    }
+
+    // تشخیص کالای تکراری/مشابه: اگر کاربر تأیید نکرده که «کالای جدید است»، بررسی می‌کنیم
+    // آیا کالای هم‌نام/هم‌بارکدی از قبل وجود دارد و در صورت وجود، به‌جای ثبت، آن را برمی‌گردانیم
+    // تا کاربر تصمیم بگیرد «همان قبلی» است یا «کالای جدید».
+    if (!data.confirmNew) {
+      const inputName = normalizePersianText(String(data.name));
+      const inputBarcode = data.barcode ? String(data.barcode).trim() : "";
+      const existing = await db
+        .select({ id: products.id, name: products.name, barcode: products.barcode, stock: products.stock, buyPrice: products.buyPrice, sellPrice: products.sellPrice, unit: products.unit })
+        .from(products)
+        .where(eq(products.isActive, true));
+
+      let dup: any = null;
+      // ۱) تطبیق دقیق بارکد
+      if (inputBarcode) {
+        dup = existing.find((p) => p.barcode && String(p.barcode).trim() === inputBarcode) || null;
+      }
+      // ۲) تطبیق نام (شباهت بالا)
+      if (!dup) {
+        let best: { p: any; score: number } | null = null;
+        for (const p of existing) {
+          const score = calculateSimilarity(inputName, normalizePersianText(p.name));
+          if (score >= 0.72 && (!best || score > best.score)) best = { p, score };
+        }
+        if (best) dup = best.p;
+      }
+
+      if (dup) {
+        return NextResponse.json({
+          duplicate: {
+            id: dup.id,
+            name: dup.name,
+            barcode: dup.barcode,
+            stock: dup.stock,
+            buyPrice: dup.buyPrice,
+            sellPrice: dup.sellPrice,
+            unit: dup.unit,
+          },
+          message: `کالای مشابهی با نام «${dup.name}» از قبل ثبت شده است.`,
+        });
+      }
     }
 
     const stock = Number(data.stock ?? 0);

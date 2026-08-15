@@ -74,7 +74,7 @@ export default function DashboardPage() {
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" /> نسخه کامل هوشمند صوتی
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                مدیریت فروشگاه مدرن پارس
+                نوشت‌افزار حنان
               </h2>
               <p className="text-xs sm:text-sm text-emerald-100 leading-relaxed">
                 صدور سریع فاکتور، ثبت کالا و بررسی آمار فروش با گفتار مستقیم به زبان فارسی.

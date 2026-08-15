@@ -25,7 +25,7 @@ export function Header() {
             </div>
             <div>
               <h1 className="font-extrabold text-base text-gray-900 dark:text-white tracking-tight">
-                فروشگاه پارس
+                نوشت‌افزار حنان
               </h1>
               <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
                 سیستم فروشگاهی و مدیریت صوتی

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { products, inventoryTransactions } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { products, inventoryTransactions, invoiceItems, purchaseItems } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 
 export async function GET(
@@ -88,10 +88,37 @@ export async function DELETE(
   try {
     const { id } = await params;
     const productId = parseInt(id, 10);
+
+    // بررسی اینکه آیا کالا در فاکتور فروش یا فاکتور خرید استفاده شده است.
+    const [{ cnt: invUse }] = await db
+      .select({ cnt: sql<number>`count(*)` })
+      .from(invoiceItems)
+      .where(eq(invoiceItems.productId, productId));
+    const [{ cnt: purUse }] = await db
+      .select({ cnt: sql<number>`count(*)` })
+      .from(purchaseItems)
+      .where(eq(purchaseItems.productId, productId));
+
+    if (Number(invUse) > 0 || Number(purUse) > 0) {
+      // کالا در سوابق فروش/خرید استفاده شده؛ برای حفظ تاریخچه به‌جای حذف فیزیکی،
+      // آن را «بایگانی» (غیرفعال) می‌کنیم تا از لیست کالاها ناپدید شود اما سوابق سالم بماند.
+      await db
+        .update(products)
+        .set({ isActive: false, updatedAt: new Date().toISOString() })
+        .where(eq(products.id, productId));
+      return NextResponse.json({
+        success: true,
+        archived: true,
+        message: "این کالا در فاکتورها استفاده شده بود؛ برای حفظ سوابق، از لیست کالاها بایگانی (حذف) شد.",
+      });
+    }
+
+    // کالا در هیچ فاکتوری استفاده نشده؛ ابتدا تراکنش‌های انبارِ مرتبط را پاک و سپس حذف فیزیکی می‌کنیم.
+    await db.delete(inventoryTransactions).where(eq(inventoryTransactions.productId, productId));
     await db.delete(products).where(eq(products.id, productId));
     return NextResponse.json({ success: true, message: "کالا با موفقیت حذف شد." });
   } catch (error) {
     console.error("Delete product error:", error);
-    return NextResponse.json({ error: "حذف کالا امکان‌پذیر نیست زیرا در فاکتورها استفاده شده است." }, { status: 400 });
+    return NextResponse.json({ error: "حذف کالا با خطا مواجه شد. دوباره تلاش کنید." }, { status: 400 });
   }
 }

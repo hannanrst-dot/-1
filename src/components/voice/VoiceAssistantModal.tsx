@@ -37,6 +37,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const [customerName, setCustomerName] = useState("");
   // product
   const [product, setProduct] = useState<ProductDraft | null>(null);
+  const [productDup, setProductDup] = useState<any>(null); // کالای مشابهِ کشف‌شده
   // purchase
   const [supplierName, setSupplierName] = useState("");
   const [purchaseItems, setPurchaseItems] = useState<{ productName: string; quantity: number; unitPrice: number }[]>([]);
@@ -44,6 +45,8 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const [answer, setAnswer] = useState("");
   // price update
   const [pricePreview, setPricePreview] = useState<any>(null);
+  // stock update (from price panel)
+  const [stockPreview, setStockPreview] = useState<any>(null);
   // فاکتور ثبت‌شده (برای نمایش کامل پس از ثبت)
   const [createdInvoice, setCreatedInvoice] = useState<any>(null);
 
@@ -78,7 +81,12 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     if (processGuardRef.current) return;
     processGuardRef.current = true;
     setIsListening(false);
-    const finalText = fullText().trim();
+    // متنی که پردازش می‌شود دقیقاً همان چیزی است که کاربر در کادر می‌بیند و تأیید کرده
+    // (WYSIWYG). اگر کاربر متن را دستی اصلاح کرده باشد، همان اصلاح‌شده پردازش می‌شود؛
+    // این جلوی هر اختلافِ احتمالی میان «متنِ نمایش‌داده‌شده» و «متنِ بازساخته‌شده» را
+    // می‌گیرد (علت مشکل «تعداد اشتباه در فاکتور»).
+    const shown = (transcriptRef.current || "").trim();
+    const finalText = shown || fullText().trim();
     if (finalText) setTimeout(() => processText(finalText, modeRef.current), 120);
   };
 
@@ -179,7 +187,13 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
         setAnswer(data.speechResponse || "پاسخی یافت نشد.");
         speak(data.speechResponse || "");
       } else if (m === "price") {
-        setPricePreview(data.data || null);
+        if (data.type === "STOCK_UPDATE_PREVIEW") {
+          setStockPreview(data.data || null);
+          setPricePreview(null);
+        } else {
+          setPricePreview(data.data || null);
+          setStockPreview(null);
+        }
         setNotice(data.speechResponse || "");
       }
     } catch { setNotice("خطای ارتباط با سرور."); }
@@ -198,7 +212,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     });
   };
 
-  const resetAll = () => { setItems([]); setCustomerName(""); setProduct(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setCreatedInvoice(null); setNotice(""); setTranscript(""); };
+  const resetAll = () => { setItems([]); setCustomerName(""); setProduct(null); setProductDup(null); setStockPreview(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setCreatedInvoice(null); setNotice(""); setTranscript(""); };
 
   const applyPriceUpdate = async () => {
     if (!pricePreview) return;
@@ -211,6 +225,19 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
       const data = await res.json();
       if (res.ok) { speak("قیمت‌ها به‌روزرسانی شد"); setNotice(`قیمت ${toPersianDigits(data.count)} کالا به‌روزرسانی شد. ✅`); setPricePreview(null); setTranscript(""); onActionExecute?.("REFRESH_PRODUCTS", null); }
       else setNotice(data.error || "خطا در تغییر قیمت.");
+    } catch { setNotice("خطای ارتباط."); } finally { setLoading(false); }
+  };
+  const applyStockUpdate = async () => {
+    if (!stockPreview) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/products/stock-update", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: stockPreview.mode, amount: stockPreview.amount, filterName: stockPreview.filterName }),
+      });
+      const data = await res.json();
+      if (res.ok) { speak("موجودی به‌روزرسانی شد"); setNotice(`موجودی ${toPersianDigits(data.count)} کالا به‌روزرسانی شد. ✅`); setStockPreview(null); setTranscript(""); onActionExecute?.("REFRESH_PRODUCTS", null); }
+      else setNotice(data.error || "خطا در تغییر موجودی.");
     } catch { setNotice("خطای ارتباط."); } finally { setLoading(false); }
   };
   const goMenu = () => { resetAll(); setMode("menu"); };
@@ -241,13 +268,21 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     } catch { setNotice("خطای ارتباط."); } finally { setLoading(false); }
   };
 
-  const submitProduct = async () => {
+  const submitProduct = async (confirmNew = false) => {
     if (!product || !product.name) { setNotice("نام کالا را وارد کنید."); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(product) });
-      if (res.ok) { speak("کالا ثبت شد"); setNotice(`کالای «${product.name}» ثبت شد. ✅`); setProduct(null); setTranscript(""); onActionExecute?.("REFRESH_PRODUCTS", null); }
-      else setNotice("خطا در ثبت کالا.");
+      const res = await fetch("/api/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...product, confirmNew }) });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.duplicate) {
+        // کالای مشابهی پیدا شد — از کاربر بپرس جدید است یا همان قبلی.
+        setProductDup(data.duplicate);
+      } else if (res.ok) {
+        speak("کالا ثبت شد");
+        setNotice(`کالای «${product.name}» ثبت شد. ✅ می‌توانید کالای بعدی را بگویید.`);
+        setProduct(null); setProductDup(null); setTranscript("");
+        onActionExecute?.("REFRESH_PRODUCTS", null);
+      } else setNotice(data.error || "خطا در ثبت کالا.");
     } catch { setNotice("خطای ارتباط."); } finally { setLoading(false); }
   };
 
@@ -419,7 +454,18 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 <NumField label="قیمت خرید (تومان)" value={product.buyPrice} onChange={(v) => setProduct({ ...product, buyPrice: v })} />
                 <NumField label="قیمت فروش (تومان)" value={product.sellPrice} onChange={(v) => setProduct({ ...product, sellPrice: v })} />
               </div>
-              <button onClick={submitProduct} disabled={loading} className="w-full bg-sky-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><CheckCircle className="w-4 h-4" /> ثبت کالا</button>
+              {productDup ? (
+                <div className="border border-amber-300 bg-amber-50 dark:bg-amber-950/30 rounded-xl p-3 space-y-2">
+                  <div className="text-xs font-bold text-amber-700 dark:text-amber-300">❓ کالای مشابه «{productDup.name}» از قبل ثبت شده (موجودی {toPersianDigits(productDup.stock)}). این کالا جدید است یا همان قبلی؟</div>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    <a href={`/products?search=${encodeURIComponent(productDup.name)}`} className="w-full text-center bg-emerald-600 text-white py-2 rounded-lg text-xs font-bold">همان قبلی است (ویرایش/افزایش موجودی)</a>
+                    <button onClick={() => submitProduct(true)} disabled={loading} className="w-full bg-sky-600 text-white py-2 rounded-lg text-xs font-bold">کالای جدید است — ثبت شود</button>
+                    <button onClick={() => setProductDup(null)} className="w-full border border-gray-300 dark:border-gray-700 py-2 rounded-lg text-xs">انصراف</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => submitProduct(false)} disabled={loading} className="w-full bg-sky-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><CheckCircle className="w-4 h-4" /> ثبت کالا</button>
+              )}
             </div>
           )}
 
@@ -473,6 +519,28 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
               </div>
             </div>
           )}
+
+          {/* ---------- STOCK preview (from price panel) ---------- */}
+          {mode === "price" && stockPreview && stockPreview.affectedCount > 0 && (
+            <div className="border border-indigo-200 dark:border-indigo-900 rounded-2xl p-3 bg-indigo-50 dark:bg-indigo-950/20 space-y-2">
+              <div className="font-bold text-sm text-indigo-800 dark:text-indigo-300">
+                {stockPreview.mode === "increase" ? "افزایش" : stockPreview.mode === "decrease" ? "کاهش" : "تنظیم"} موجودی — {toPersianDigits(stockPreview.affectedCount)} کالا
+                {stockPreview.filterName ? ` («${stockPreview.filterName}»)` : " (همه)"}
+              </div>
+              <div className="space-y-1">
+                {stockPreview.samples.map((s: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-xs bg-white dark:bg-gray-900 rounded-lg px-2 py-1.5">
+                    <span className="truncate flex-1">{s.name}</span>
+                    <span className="text-gray-400 line-through mx-2">{toPersianDigits(s.oldStock)}</span>
+                    <span className="font-bold text-indigo-700 dark:text-indigo-400">{toPersianDigits(s.newStock)} {s.unit}</span>
+                  </div>
+                ))}
+                {stockPreview.affectedCount > stockPreview.samples.length && (
+                  <div className="text-[11px] text-gray-500 text-center">و {toPersianDigits(stockPreview.affectedCount - stockPreview.samples.length)} کالای دیگر...</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer actions */}
@@ -490,6 +558,11 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
         {mode === "price" && pricePreview && pricePreview.affectedCount > 0 && (
           <div className="shrink-0 border-t border-gray-200 dark:border-gray-800 p-3">
             <button onClick={applyPriceUpdate} disabled={loading} className="w-full bg-rose-600 disabled:opacity-50 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2"><CheckCircle className="w-5 h-5" /> اعمال قیمت‌های جدید</button>
+          </div>
+        )}
+        {mode === "price" && stockPreview && stockPreview.affectedCount > 0 && (
+          <div className="shrink-0 border-t border-gray-200 dark:border-gray-800 p-3">
+            <button onClick={applyStockUpdate} disabled={loading} className="w-full bg-indigo-600 disabled:opacity-50 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2"><CheckCircle className="w-5 h-5" /> اعمال موجودی جدید</button>
           </div>
         )}
       </div>
@@ -523,7 +596,7 @@ function Guide({ mode }: { mode: Mode }) {
     product: { pattern: "«[نام] قیمت خرید [عدد] قیمت فروش [عدد] تعداد [عدد]»", example: "دفتر پاپکو قیمت خرید ۴۵ هزار قیمت فروش ۶۰ هزار تعداد ۵۰" },
     purchase: { pattern: "«از [تأمین‌کننده] [تعداد] [نام کالا] دونه‌ای [عدد]»", example: "از پاپکو صد تا دفتر دونه‌ای ۴۵ هزار" },
     query: { pattern: "یک سؤال بپرسید", example: "فروش امروز چقدر بوده؟", note: "یا: «کدوم کالاها موجودیشون کمه؟»" },
-    price: { pattern: "«قیمت [همه/گروه] را [عدد] درصد زیاد/کم کن»", example: "قیمت همه کالاها رو ۱۰ درصد زیاد کن", note: "برای گروه خاص: «قیمت دفترها رو ۲۰ درصد زیاد کن». قبل از اعمال، پیش‌نمایش و تأیید می‌گیرید." },
+    price: { pattern: "«قیمت [همه/گروه] را [عدد] درصد زیاد/کم کن» یا «موجودی [کالا] را ...»", example: "قیمت همه کالاها رو ۱۰ درصد زیاد کن", note: "برای گروه خاص: «قیمت دفترها رو ۲۰ درصد زیاد کن». همچنین موجودی: «موجودی دفتر پاپکو رو ۵۰ کن» یا «موجودی مداد رو ۲۰ تا اضافه کن». قبل از اعمال، پیش‌نمایش و تأیید می‌گیرید." },
   };
   const g = data[mode];
   if (!g) return null;

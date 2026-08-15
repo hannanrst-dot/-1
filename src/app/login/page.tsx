@@ -55,7 +55,7 @@ export default function LoginPage() {
             <Store className="w-9 h-9" />
           </div>
           <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-            ورود به سیستم فروشگاه پارس
+            نوشت‌افزار حنان
           </h2>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             مدیریت فروش و صدور فاکتور هوشمند صوتی

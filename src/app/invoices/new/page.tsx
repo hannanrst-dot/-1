@@ -390,13 +390,14 @@ export default function NewInvoicePage() {
       <BarcodeScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
+        continuous
         onDetected={(code) => {
           const match = products.find((p) => p.barcode === code || p.sku === code);
           if (match) {
             addProductToInvoice(match);
-          } else {
-            alert(`کالایی با بارکد ${code} در دیتابیس یافت نشد.`);
+            return match.name; // نمایش نام کالا در لیست اسکن‌ها
           }
+          return null; // پیدا نشد
         }}
       />
 

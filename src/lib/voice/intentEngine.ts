@@ -5,6 +5,7 @@ export type VoiceIntentType =
   | "CREATE_INVOICE"
   | "CREATE_PURCHASE"
   | "BULK_PRICE_UPDATE"
+  | "STOCK_UPDATE"
   | "QUERY_TODAY_SALES"
   | "QUERY_LOW_STOCK"
   | "QUERY_CUSTOMER_INVOICE"
@@ -38,6 +39,7 @@ export interface VoiceActionResult {
     percent?: number;
     priceDirection?: "increase" | "decrease";
     filterName?: string | null;
+    stockMode?: "set" | "increase" | "decrease";
   };
   promptUser?: string; // If system needs to ask user for missing info
 }
@@ -259,6 +261,38 @@ export function buildPriceUpdateResult(raw: string, norm: string): VoiceActionRe
   };
 }
 
+/** ساخت نتیجهٔ «تغییر موجودی» از متن نرمال‌شده.
+ *  نمونه‌ها: «موجودی دفتر پاپکو رو ۵۰ کن» (تنظیم) ، «موجودی مداد رو ۲۰ تا اضافه کن» (افزایش) ،
+ *  «موجودی خودکار رو ۵ تا کم کن» (کاهش). */
+export function buildStockUpdateResult(raw: string, norm: string): VoiceActionResult {
+  const stockMode: "set" | "increase" | "decrease" =
+    /(اضافه|زیاد|بیشتر|افزایش|بالا)/.test(norm) ? "increase"
+    : /(کم|کاهش|کسر|کمتر|پایین)/.test(norm) ? "decrease"
+    : "set";
+
+  // نام کالا: بین «موجودی» و عدد/فعل
+  let filterName: string | null = null;
+  const nameMatch = norm.match(new RegExp(`موجودی\\s+(?:کالای\\s+)?(.+?)\\s+(?:رو|را|به|بشه|${NUMW})`));
+  if (nameMatch) filterName = nameMatch[1].replace(/(ها|های|هارو|هارا)$/, "").trim() || null;
+  if (/همه|تمام|کل\s*کالا|همگی/.test(norm)) filterName = null;
+
+  // مقدار: ترجیحاً عددِ بعد از «رو/را/به»، وگرنه اولین عددِ همراه «تا/عدد»، وگرنه اولین عدد.
+  let amountStr: string | null = null;
+  const after = norm.match(new RegExp(`(?:رو|را|به|بشه|بکن|تعدادش|بذار|بزار)\\s*(${NUMW}(?:\\s+و\\s+${NUMW})?)`));
+  if (after) amountStr = after[1];
+  if (!amountStr) { const withUnit = norm.match(new RegExp(`(${NUMW})\\s*(?:تا|عدد|بسته)`)); if (withUnit) amountStr = withUnit[1]; }
+  if (!amountStr) { const any = norm.match(new RegExp(`(${NUMW})`)); if (any) amountStr = any[1]; }
+  const stock = amountStr ? (parsePersianNumberWords(amountStr) || 0) : 0;
+
+  return {
+    intent: "STOCK_UPDATE",
+    rawText: raw,
+    normalizedText: norm,
+    confidence: 0.9,
+    entities: { filterName, stock, stockMode },
+  };
+}
+
 export type ForceMode = "invoice" | "product" | "purchase" | "price";
 
 /**
@@ -273,7 +307,14 @@ export function processVoiceCommand(spokenText: string, forceMode?: ForceMode): 
   if (forceMode === "product") return buildProductResult(raw, norm);
   if (forceMode === "purchase") return buildPurchaseResult(raw, norm);
   if (forceMode === "invoice") return buildInvoiceResult(raw, norm);
-  if (forceMode === "price") return buildPriceUpdateResult(raw, norm);
+  if (forceMode === "price") {
+    // در پنل «تغییر قیمت صوتی»، فرمانِ موجودی هم پشتیبانی می‌شود: اگر «موجودی» گفته شد
+    // و «درصد/قیمت» نبود، آن را تغییر موجودی در نظر می‌گیریم؛ وگرنه تغییر درصدی قیمت.
+    if (norm.includes("موجودی") && !norm.includes("درصد") && !norm.includes("قیمت")) {
+      return buildStockUpdateResult(raw, norm);
+    }
+    return buildPriceUpdateResult(raw, norm);
+  }
 
   // تغییر درصدی قیمت: «قیمت ... را ... درصد زیاد/کم کن»
   if (norm.includes("درصد") && norm.includes("قیمت") && /(زیاد|اضافه|گرون|گران|بالا|افزایش|کم|تخفیف|کاهش|ارزون|ارزان)/.test(norm)) {

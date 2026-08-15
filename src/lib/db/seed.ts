@@ -27,7 +27,7 @@ export async function seedDatabase() {
   await db.insert(settings).values({
     key: "store_info",
     value: {
-      storeName: "فروشگاه من",
+      storeName: "نوشت‌افزار حنان",
       phone: "",
       address: "",
       currency: "تومان",

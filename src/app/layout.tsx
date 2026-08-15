@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "نرم‌افزار فروشگاهی و مدیریت فاکتور صوتی پارس",
-  description: "سیستم کامل فروشگاهی، صدور فاکتور، مدیریت کالا و انبار با دستیار صوتی هوشمند فارسی",
+  title: "نوشت‌افزار حنان",
+  description: "سیستم کامل فروشگاهی، صدور فاکتور، مدیریت کالا و انبار با دستیار صوتی هوشمند فارسی — نوشت‌افزار حنان",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
