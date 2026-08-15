@@ -2025,8 +2025,8 @@
   }
   function m4_match(rng, level) { return matchMatrix(rng, level || 1, 4, 2); }
   var M4_EASY = [m4_match, m4_match, m4_oneShaded, m4_containsBoth, m4_symmetryPair, mirrorWater];
-  var M4_MED = [m4_match, m4_match, analogyPair, m4_sidesEqLines, m4_oneShaded, m4_containsBoth, analogyCompound, analogyRotate, mirrorWater];
-  var M4_HARD = [m4_match, m4_match, analogyPair, analogyPair, m4_chiralPair, m4_sidesEqLines, analogyCompound, analogyCompound, analogyRotate, mirrorWater];
+  var M4_MED = [m4_match, m4_match, analogyPair, m4_sidesEqLines, m4_oneShaded, m4_containsBoth, analogyCompound, analogyRotate, mirrorWater, nestedMatch];
+  var M4_HARD = [m4_match, m4_match, analogyPair, analogyPair, m4_chiralPair, m4_sidesEqLines, analogyCompound, analogyCompound, analogyRotate, mirrorWater, nestedMatch];
   function poolForM4(level) { return level >= 3 ? M4_HARD : level === 2 ? M4_MED : M4_EASY; }
   function genQuestionM4(rng, level) { return rng.pick(poolForM4(level))(rng, level || 1); }
 
@@ -2154,8 +2154,8 @@
     return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکلِ باز به‌تدریج بسته می‌شود (شکاف کم‌کم پر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'بسته‌شدنِ تدریجی', 'در گزینه‌ی درست، شکاف مرتب کوچک‌تر می‌شود تا دایره کامل و بسته شود؛ اما در بقیه این روند منظم نیست.');
   }
   var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair, matrix3x3, seriesComplete, seriesComplete, dominoNext];
-  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound, matrixLogic3x3, dominoNext];
-  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound, matrixLogic3x3, matrixLogic3x3, dominoNext];
+  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound, matrixLogic3x3, dominoNext, seriesPieDiv];
+  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound, matrixLogic3x3, matrixLogic3x3, dominoNext, seriesPieDiv];
   function poolForM6(level) { return level >= 3 ? M6_HARD : level === 2 ? M6_MED : M6_EASY; }
   function genQuestionM6(rng, level) { return rng.pick(poolForM6(level))(rng, level || 1); }
 
@@ -2485,6 +2485,57 @@
   // بسته‌بندیِ ۵-گزینه‌ایِ تیپ‌های تازه برای مبحث‌های ۵ (نوع ۲)
   function m5_mirror(rng, level) { return mirrorWater(rng, level, 5); }
   function m5_analogyRot(rng, level) { return analogyRotate(rng, level, 5); }
+
+  // سری: تقسیمِ دایره — دایره هر گام به یک بخشِ بیشتر تقسیم می‌شود (کتاب: مبحث ۶)
+  function pieDivFig(n, r) {
+    return function (g) {
+      add(g, 'circle', merge(DEF, { cx: 50, cy: 50, r: r }));
+      for (var i = 0; i < n; i++) { var a = (-90 + i * 360 / n) * Math.PI / 180; add(g, 'line', merge(DEF, { x1: 50, y1: 50, x2: (50 + r * Math.cos(a)).toFixed(1), y2: (50 + r * Math.sin(a)).toFixed(1), 'stroke-width': 2.8 })); }
+    };
+  }
+  function seriesPieDiv(rng, level, count) {
+    count = count || 4;
+    var start = rng.pick([2, 3]), R = 30;
+    var stemN = [start, start + 1, start + 2, start + 3], correctN = start + 4;
+    var stem = stemN.map(function (nn) { return (function (n) { return function () { return figure(pieDivFig(n, R), { size: 50 }); }; })(nn); });
+    var dvals = [correctN - 1, correctN + 1, correctN + 2];
+    var seen = {}; seen[correctN] = 1; var ds = [];
+    for (var i = 0; i < dvals.length && ds.length < count - 1; i++) { if (!seen[dvals[i]]) { seen[dvals[i]] = 1; ds.push(dvals[i]); } }
+    var opts = [{ n: correctN }].concat(ds.map(function (v) { return { n: v }; })); var order = rng.shuffle(opts);
+    return {
+      prompt: 'قاعده‌ی سری را پیدا کن. دایره‌ی بعدی به چند بخش تقسیم شده است؟', tag: 'سری: تقسیمِ دایره', series: stem, wide: true,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(pieDivFig(o.n, R), { size: 92 }); },
+      why: 'در هر گام یک شعاعِ تازه اضافه می‌شود و دایره به یک بخشِ بیشتر تقسیم می‌شود؛ پس دایره‌ی بعدی ' + toFa(correctN) + ' بخش دارد.'
+    };
+  }
+
+  // تصویرِ مشابهِ آشیانه‌ای: ویژگیِ مشترک = شکلِ درونی‌ترین (کتاب: مبحث ۴/۵، سؤال‌های تودرتو)
+  function nestedDraw(layers) {
+    var R = [34, 24, 15];
+    return function (g) { layers.forEach(function (sd, i) { if (sd === 0) add(g, 'circle', merge(DEF, { cx: 50, cy: 50, r: R[i] })); else add(g, 'polygon', merge(DEF, { points: ptsStr(polyPts(sd, R[i], 50, 50, -90)) })); }); };
+  }
+  function nestedMatch(rng, level, count) {
+    count = count || 4;
+    var SH = [0, 3, 4, 5, 6], SHIN = [3, 4, 5, 6];
+    var inner = rng.pick(SHIN);
+    function outerLayers(K) { var a = []; for (var i = 0; i < K - 1; i++) a.push(rng.pick(SH)); return a; }
+    function mk(innerShape) { var K = rng.pick([2, 3]); return outerLayers(K).concat([innerShape]); }
+    function key(a) { return a.join(','); }
+    var A = mk(inner), guard = 0, B; do { B = mk(inner); guard++; } while (key(B) === key(A) && guard < 20);
+    var correct = mk(inner);
+    var seen = {}; seen[key(correct)] = 1; seen[key(A)] = 1; seen[key(B)] = 1; var dists = [], g2 = 0;
+    while (dists.length < count - 1 && g2++ < 60) { var wrongIn = rng.pick(SHIN.filter(function (x) { return x !== inner; })); var d = mk(wrongIn); var k = key(d); if (!seen[k]) { seen[k] = 1; dists.push(d); } }
+    var opts = [correct].concat(dists); var order = rng.shuffle(opts);
+    var refs = [function () { return figure(nestedDraw(A), { size: 62 }); }, function () { return figure(nestedDraw(B), { size: 62 }); }];
+    var INFA = { 0: 'دایره', 3: 'مثلث', 4: 'چهارضلعی', 5: 'پنج‌ضلعی', 6: 'شش‌ضلعی' };
+    return {
+      prompt: 'کدام گزینه بیشترین شباهت را به تصویرهای A و B دارد؟ (به شکل‌های تودرتو دقت کن)', tag: 'آشیانه‌ای تودرتو',
+      refs: refs, options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(nestedDraw(o), { size: 96 }); },
+      why: 'ویژگیِ مشترکِ A و B، «شکلِ درونی‌ترین (مرکزی)» است که در هر دو ' + INFA[inner] + ' است. گزینه‌ی درست همان شکلِ مرکزی را دارد؛ لایه‌های بیرونی فریب‌اند.'
+    };
+  }
 
   /* ====================================================================
    * ۴) درسنامه‌ی کاملِ مبحث ۱ — متنِ اورجینال، آموزشِ ۵ سرنخ + تکنیک‌ها
@@ -4022,7 +4073,7 @@
         m5_curveLineMix: m5_curveLineMix, m5_arrowCount: m5_arrowCount, m5_containsTrio: m5_containsTrio, m5_symmetryPair5: m5_symmetryPair5, m5_chiralScene5: m5_chiralScene5 },
       m6: { m6_growDots: m6_growDots, m6_rotateStep: m6_rotateStep, m6_complexity: m6_complexity, m6_shrinkSplit: m6_shrinkSplit, m6_arcClose: m6_arcClose },
       m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill, m7_byHatchDir: m7_byHatchDir, m7_bySymmetry: m7_bySymmetry, m7_byCurvature: m7_byCurvature },
-      nw: { gridOverlay: gridOverlay, gridXor: gridXor, matrixLogic3x3: matrixLogic3x3, jigsawPiece: jigsawPiece, mirrorWater: mirrorWater, analogyRotate: analogyRotate, oddRotOrder: oddRotOrder, oddCurvature: oddCurvature, dominoNext: dominoNext },
+      nw: { gridOverlay: gridOverlay, gridXor: gridXor, matrixLogic3x3: matrixLogic3x3, jigsawPiece: jigsawPiece, mirrorWater: mirrorWater, analogyRotate: analogyRotate, oddRotOrder: oddRotOrder, oddCurvature: oddCurvature, dominoNext: dominoNext, seriesPieDiv: seriesPieDiv, nestedMatch: nestedMatch },
       book: { bkHouse: bkHouse, bkBentArrow: bkBentArrow, bkTwoCircles: bkTwoCircles, bkArrow: bkArrow } };
   }
 })();
