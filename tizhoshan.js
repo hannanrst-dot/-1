@@ -2486,6 +2486,99 @@
   function m5_mirror(rng, level) { return mirrorWater(rng, level, 5); }
   function m5_analogyRot(rng, level) { return analogyRotate(rng, level, 5); }
 
+  /* ==================================================================
+   * درک ساختار شکل‌ها (کتاب مبحث ۱۳ و ۱۶): یک شکل با یک برش به دو تکه
+   * تقسیم شده؛ تکه‌ی X داده می‌شود و باید تکه‌ای را پیدا کرد که دقیقاً
+   * کنارش بنشیند و شکلِ کامل (مربع/مثلثِ متساوی‌الاضلاع) را بسازد.
+   * ================================================================ */
+  function polyFill(pts, col) { return function (g) { add(g, 'polygon', merge(DEF, { points: ptsStr(pts), fill: col || PAL.tealL, 'stroke-width': 3 })); }; }
+  function applyT(pts, rot, mir) {
+    return pts.map(function (p) {
+      var x = p[0], y = p[1], nx, ny;
+      if (mir === 'v') x = 100 - x; if (mir === 'h') y = 100 - y;
+      if (rot === 180) { x = 100 - x; y = 100 - y; }
+      else if (rot === 90) { nx = 100 - y; ny = x; x = nx; y = ny; }
+      else if (rot === 270) { nx = y; ny = 100 - x; x = nx; y = ny; }
+      return [Math.round(x), Math.round(y)];
+    });
+  }
+  function polySig(pts) { return pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' '); }
+  function pickDistinct(rng, correct, cand, count) {
+    var seen = {}; seen[polySig(applyT(correct.poly, correct.rot || 0, correct.mir))] = 1;
+    var out = [], sh = rng.shuffle(cand);
+    for (var i = 0; i < sh.length && out.length < count - 1; i++) { var sg = polySig(applyT(sh[i].poly, sh[i].rot || 0, sh[i].mir)); if (!seen[sg]) { seen[sg] = 1; out.push(sh[i]); } }
+    return out;
+  }
+  // مبحث ۱۳: X + گزینه = مربعِ کامل (برشِ پله‌ای)
+  function stairCut(rng, kSteps) {
+    var ys = [10].concat(rng.sample([30, 45, 60, 75], kSteps).sort(function (a, b) { return a - b; }), [90]);
+    var xs = rng.sample([26, 34, 42, 50, 58, 66, 74], kSteps + 1).sort(function (a, b) { return a - b; });
+    var pts = [[xs[0], 10]];
+    for (var i = 1; i <= kSteps; i++) { pts.push([xs[i - 1], ys[i]]); pts.push([xs[i], ys[i]]); }
+    pts.push([xs[kSteps], 90]);
+    return pts;
+  }
+  function pieceSquare(rng, level, count) {
+    count = count || 4;
+    var kSteps = level >= 3 ? 3 : level >= 2 ? rng.pick([2, 3]) : 2;
+    var cut = stairCut(rng, kSteps), left = [[10, 10]].concat(cut).concat([[10, 90]]), right = cut.slice().concat([[90, 90], [90, 10]]);
+    var cut2 = stairCut(rng, kSteps), right2 = cut2.slice().concat([[90, 90], [90, 10]]);
+    var correct = { poly: right, rot: 0, mir: null };
+    var cand = [{ poly: right, rot: 180, mir: null }, { poly: right, rot: 0, mir: 'v' }, { poly: right, rot: 0, mir: 'h' }, { poly: right2, rot: 0, mir: null }];
+    var dists = pickDistinct(rng, correct, cand, count);
+    while (dists.length < count - 1) { var c3 = stairCut(rng, kSteps); dists.push({ poly: c3.slice().concat([[90, 90], [90, 10]]), rot: 0, mir: null }); }
+    var opts = [correct].concat(dists), order = rng.shuffle(opts);
+    var refs = [function () { return figure(polyFill(left, PAL.goldL), { size: 96 }); }]; refs.label = 'این تکه را داری (X):'; refs.letters = ['X'];
+    return {
+      prompt: 'کدام گزینه با تکه‌ی X یک «مربعِ کامل» می‌سازد؟ (تکه را همان‌طور که هست کنارِ X بگذار)', tag: 'تکمیل به مربع', refs: refs, wide: true,
+      options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(polyFill(o.poly), { rot: o.rot || 0, mirror: o.mir || null, size: 96 }); },
+      why: 'لبه‌ی پله‌پله‌ی تکه‌ی X و تکه‌ی درست دقیقاً در هم جفت می‌شوند و با هم یک مربعِ کامل می‌سازند. بقیه‌ی گزینه‌ها یا چرخیده/آینه شده‌اند یا لبه‌ی پله‌شان با X جور نیست.'
+    };
+  }
+  // مبحث ۱۶: X + گزینه = مثلثِ متساوی‌الاضلاع (برشِ رأس-به-قاعده)
+  function pieceTriangle(rng, level, count) {
+    count = count || 4;
+    var T = [50, 12], BL = [12, 84], BR = [88, 84];
+    var qx = rng.pick([34, 42, 50, 58, 66]), Q = [qx, 84];
+    var left = [T, BL, Q], right = [T, Q, BR];
+    var qx2 = rng.pick([34, 42, 50, 58, 66].filter(function (v) { return v !== qx; })), right2 = [T, [qx2, 84], BR];
+    var correct = { poly: right, rot: 0, mir: null };
+    var cand = [{ poly: right, rot: 180, mir: null }, { poly: right, rot: 0, mir: 'v' }, { poly: right, rot: 0, mir: 'h' }, { poly: right2, rot: 0, mir: null }];
+    var dists = pickDistinct(rng, correct, cand, count);
+    while (dists.length < count - 1) { var qx3 = rng.pick([30, 38, 46, 54, 62, 70]); dists.push({ poly: [T, [qx3, 84], BR], rot: rng.pick([90, 270]), mir: null }); }
+    var opts = [correct].concat(dists), order = rng.shuffle(opts);
+    var refs = [function () { return figure(polyFill(left, PAL.goldL), { size: 96 }); }]; refs.label = 'این تکه را داری (X):'; refs.letters = ['X'];
+    return {
+      prompt: 'کدام گزینه با تکه‌ی X یک «مثلثِ متساوی‌الاضلاعِ کامل» می‌سازد؟', tag: 'تکمیل به مثلث', refs: refs, wide: true,
+      options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(polyFill(o.poly), { rot: o.rot || 0, mirror: o.mir || null, size: 96 }); },
+      why: 'تکه‌ی X و تکه‌ی درست، لبه‌ی برشِ مشترکشان دقیقاً روی هم می‌افتد و با هم یک مثلثِ متساوی‌الاضلاعِ کامل می‌سازند. گزینه‌های دیگر چرخیده/آینه شده‌اند یا محلِ برششان فرق دارد.'
+    };
+  }
+  function poolForSakhtar(level) { return level >= 2 ? [pieceSquare, pieceSquare, pieceTriangle] : [pieceSquare, pieceTriangle]; }
+  function genSakhtar(rng, level) { return rng.pick(poolForSakhtar(level || 2))(rng, level || 2); }
+  function lessonSakhtar() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(gen, level) { return function () { return buildInteractive(toInter(gen(new RNG(seed++), level || 2))); }; }
+    return [
+      { title: 'مهندسِ شکل‌ها شو! 🧩',
+        body: 'به یکی از سخت‌ترین و جذاب‌ترین مبحث‌ها رسیدی! این‌جا یک شکلِ کامل (مثلِ مربع یا مثلث) را با یک برش به دو تکه بریده‌اند. یک تکه (به اسمِ X) به تو داده می‌شود، و تو باید از بینِ گزینه‌ها همان تکه‌ای را پیدا کنی که دقیقاً کنارِ X می‌نشیند و شکل را کامل می‌کند.',
+        art: function () { return figure(polyFill([[10, 10], [55, 10], [40, 50], [55, 90], [10, 90]], PAL.goldL), { size: 112, frame: true }); } },
+      { title: 'راز: به «لبه‌ی برش» نگاه کن ✂️',
+        body: 'مهم‌ترین سرنخ، لبه‌ی بریده‌شده است. لبه‌ی برشِ تکه‌ی X را خوب نگاه کن؛ تکه‌ی درست باید لبه‌ای داشته باشد که دقیقاً مثلِ قالبِ همان برش، در آن جفت شود — مثلِ دو قطعه‌ی پازل. اگر لبه‌ها روی هم ننشینند، شکلِ کامل ساخته نمی‌شود.',
+        art: function () { return figure(polyFill([[45, 10], [90, 10], [90, 90], [45, 90], [60, 50]], PAL.tealL), { size: 112, frame: true }); } },
+      { title: 'مواظبِ تله‌ها باش! 🔄',
+        body: 'گزینه‌های غلط اغلب «همان تکه‌ی درست‌اند ولی چرخیده یا آینه (قرینه) شده‌اند». این‌ها فریب‌اند! تکه‌ای که چرخیده باشد، دیگر لبه‌اش با X جفت نمی‌شود. پس اول جهتِ لبه‌ی برش را بسنج، بعد انتخاب کن.',
+        art: function () { return figure(mZig, { size: 104, frame: false }); } },
+      { title: 'تمرینِ مربع ✏️', interactive: ex(pieceSquare, 2) },
+      { title: 'تمرینِ مثلث ✏️', interactive: ex(pieceTriangle, 2) },
+      { title: 'آماده‌ای، مهندس! 🌟',
+        body: 'حالا بلدی تکه‌ها را در ذهنت کنارِ هم بگذاری و شکل را کامل کنی. هرچه جلوتر بروی، برش‌ها پیچیده‌تر و پله‌های بیشتری پیدا می‌کنند. با دقت به لبه‌ها نگاه کن و بترکان!',
+        art: function () { return figure(mBoot, { size: 104, frame: false }); } }
+    ];
+  }
+
   // سری: تقسیمِ دایره — دایره هر گام به یک بخشِ بیشتر تقسیم می‌شود (کتاب: مبحث ۶)
   function pieDivFig(n, r) {
     return function (g) {
@@ -2857,7 +2950,8 @@
     { id: 'ejraye_qaede', n: 6, title: 'اجرای قاعده', sub: 'قاعده را ادامه بده', icon: '⚙️', color: PAL.gold, ready: true, lesson: lessonM6, gen: genQuestionM6, pool: poolForM6 },
     { id: 'dastebandi', n: 7, title: 'دسته‌بندیِ شکل‌ها', sub: 'گروه‌بندیِ درست', icon: '🗂️', color: PAL.teal, ready: true, lesson: lessonM7, gen: genQuestionM7, pool: poolForM7 },
     { id: 'penhan', n: 8, title: 'تصویرِ پنهان', sub: 'X کجا پنهان شده؟', icon: '🕵️', color: PAL.gold, ready: true, review: true, lesson: lessonPenhan, gen: genPenhan, pool: poolForPenhan },
-    { id: 'tarkibi', n: 9, title: 'آزمونِ استادان', sub: 'ترکیبِ همه‌ی مباحث', icon: '🎲', color: PAL.lilac, ready: true, lesson: lessonMix, gen: genMix, pool: poolForMix }
+    { id: 'sakhtar', n: 13, title: 'درک ساختار شکل‌ها', sub: 'تکه‌ی مکمل را پیدا کن', icon: '🧩', color: PAL.teal, ready: true, review: true, lesson: lessonSakhtar, gen: genSakhtar, pool: poolForSakhtar },
+    { id: 'tarkibi', n: 17, title: 'آزمونِ استادان', sub: 'ترکیبِ همه‌ی مباحث', icon: '🎲', color: PAL.lilac, ready: true, lesson: lessonMix, gen: genMix, pool: poolForMix }
   ];
 
   /* ====================================================================
@@ -3024,6 +3118,7 @@
     ejraye_qaede: { place: 'کارخانه‌ی قاعده‌ها', title: 'مهندسِ قاعده‌ها', intro: 'کارخانه‌ی قاعده‌ها منتظرِ توست؛ قانونِ هر ماشین را کشف کن تا چرخ‌ها بچرخند.' },
     dastebandi: { place: 'کتابخانه‌ی دسته‌ها', title: 'کتابدارِ بزرگ', intro: 'در کتابخانه‌ی دسته‌ها، شکل‌ها را درست گروه‌بندی کن تا قفسه‌ها مرتب شوند.' },
     penhan: { place: 'اتاقِ تصویرهای پنهان', title: 'کارآگاهِ تصویرهای پنهان', intro: 'وارد اتاقِ تصویرهای پنهان شدی! این‌جا هر تصویرِ X لابه‌لای خط‌های یک گزینه قایم شده. با ریزبینی خط‌ها را دنبال کن و مخفیگاهِ X را پیدا کن.' },
+    sakhtar: { place: 'کارگاهِ مهندسیِ شکل‌ها', title: 'مهندسِ بزرگِ شکل‌ها', intro: 'به کارگاهِ مهندسیِ شکل‌ها خوش آمدی! این‌جا هر شکل با یک برش به دو تکه شده و تو باید تکه‌ی مکمل را پیدا کنی تا شکلِ کامل ساخته شود. به لبه‌های برش خوب دقت کن!' },
     tarkibi: { place: 'قلعه‌ی استادان', title: 'استادِ بزرگِ شکل‌ها', intro: 'به قلعه‌ی استادان رسیدی، قهرمان! این‌جا سؤال‌ها از همه‌ی مباحث با هم می‌آیند و پشتِ سرِ هم سخت‌تر می‌شوند. اگر این‌جا را فتح کنی، استادِ بزرگ می‌شوی.' }
   };
   function jTheme(m) { return JOURNEY[m.id] || { place: 'سرزمینِ شکل‌ها', title: 'قهرمانِ شکل‌ها', intro: 'سفرت را شروع کن!' }; }
@@ -4073,7 +4168,7 @@
         m5_curveLineMix: m5_curveLineMix, m5_arrowCount: m5_arrowCount, m5_containsTrio: m5_containsTrio, m5_symmetryPair5: m5_symmetryPair5, m5_chiralScene5: m5_chiralScene5 },
       m6: { m6_growDots: m6_growDots, m6_rotateStep: m6_rotateStep, m6_complexity: m6_complexity, m6_shrinkSplit: m6_shrinkSplit, m6_arcClose: m6_arcClose },
       m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill, m7_byHatchDir: m7_byHatchDir, m7_bySymmetry: m7_bySymmetry, m7_byCurvature: m7_byCurvature },
-      nw: { gridOverlay: gridOverlay, gridXor: gridXor, matrixLogic3x3: matrixLogic3x3, jigsawPiece: jigsawPiece, mirrorWater: mirrorWater, analogyRotate: analogyRotate, oddRotOrder: oddRotOrder, oddCurvature: oddCurvature, dominoNext: dominoNext, seriesPieDiv: seriesPieDiv, nestedMatch: nestedMatch },
+      nw: { gridOverlay: gridOverlay, gridXor: gridXor, matrixLogic3x3: matrixLogic3x3, jigsawPiece: jigsawPiece, mirrorWater: mirrorWater, analogyRotate: analogyRotate, oddRotOrder: oddRotOrder, oddCurvature: oddCurvature, dominoNext: dominoNext, seriesPieDiv: seriesPieDiv, nestedMatch: nestedMatch, pieceSquare: pieceSquare, pieceTriangle: pieceTriangle },
       book: { bkHouse: bkHouse, bkBentArrow: bkBentArrow, bkTwoCircles: bkTwoCircles, bkArrow: bkArrow } };
   }
 })();
