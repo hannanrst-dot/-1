@@ -26,7 +26,4 @@
 # generated download zips
 *.zip
 
-# lockfile removed so Liara uses npm install (avoids npm ci crash)
-package-lock.json
-
 *.tsbuildinfo

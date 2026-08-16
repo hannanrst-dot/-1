@@ -43,21 +43,34 @@ export function resolveVoiceItemsWithCatalog(
     .map((p) => ({ p, tokens: normalizePersianText(p.name).split(/\s+/).filter(Boolean) }))
     .filter((c) => c.tokens.length > 0);
 
-  // در موقعیت i بهترین محصولِ منطبق را پیدا می‌کند (طولانی‌ترین/دقیق‌ترین تطبیق).
+  // در موقعیت i بهترین محصولِ منطبق را پیدا می‌کند.
+  // نکته: کاربر معمولاً «بخشی» از نامِ کامل را می‌گوید (مثلاً «کاغذ a4» به‌جای «کاغذ a4 تکی»).
+  // پس برای هر محصول، پنجره‌هایی به طول‌های مختلف امتحان و بهترین تطبیق انتخاب می‌شود.
   const matchAt = (i: number): { c: CatEntry; len: number; score: number } | null => {
     let best: { c: CatEntry; len: number; score: number } | null = null;
     const firstTok = tokens[i];
+    const remaining = tokens.length - i;
     for (const c of cat) {
       const L = c.tokens.length;
-      const win = tokens.slice(i, i + L).join(" ");
-      if (!win) continue;
       const catName = c.tokens.join(" ");
-      const score = calculateSimilarity(win, catName);
       const firstSim = calculateSimilarity(firstTok, c.tokens[0]);
-      // آستانه‌ها: کل‌نام باید شبیه باشد و توکنِ اولِ نام هم نسبتاً منطبق باشد.
-      if (score >= 0.7 && firstSim >= 0.55) {
-        if (!best || L > best.len || (L === best.len && score > best.score)) {
-          best = { c, len: L, score };
+      if (firstSim < 0.5) continue; // توکنِ اولِ نام باید نسبتاً منطبق باشد (لنگرگاه)
+      const maxK = Math.min(L, remaining);
+      let localBest: { k: number; score: number } | null = null;
+      for (let k = 1; k <= maxK; k++) {
+        const tk = tokens[i + k - 1];
+        // جداکننده یا واحدِ صریح، مرزِ نام است (عددِ داخلِ نام مثل «۸۰ برگ» اجازه دارد بماند).
+        if (k > 1 && (SEP_WORDS.has(tk) || UNIT_WORDS.has(tk))) break;
+        const win = tokens.slice(i, i + k).join(" ");
+        const score = calculateSimilarity(win, catName);
+        if (!localBest || score > localBest.score || (score === localBest.score && k > localBest.k)) {
+          localBest = { k, score };
+        }
+      }
+      if (localBest && localBest.score >= 0.6) {
+        // ترجیح: امتیازِ بالاتر، سپس پنجرهٔ بلندتر (نامِ دقیق‌تر و بلندتر).
+        if (!best || localBest.score > best.score || (localBest.score === best.score && localBest.k > best.len)) {
+          best = { c, len: localBest.k, score: localBest.score };
         }
       }
     }
@@ -112,22 +125,25 @@ export function resolveVoiceItemsWithCatalog(
       continue;
     }
 
-    // اول تلاش می‌کنیم محصولی از کاتالوگ اینجا شروع شود (تا عددِ داخلِ نام قورت داده شود).
+    // عددِ «مستقل» را قبل از تطبیقِ محصول بررسی می‌کنیم: چون بعضی کلمه‌های عددی (مثل «یک»)
+    // اتفاقاً زیررشتهٔ نامِ کالا هستند (مثلِ «ماژیک»/«جیکسین») و نباید به‌اشتباه محصول شمرده شوند.
+    // نکته: عددِ داخلِ نام (مثل «۸۰ برگ» یا «منگنه ۵۰۶۳») هیچ‌وقت به‌صورت توکنِ مستقل به اینجا
+    // نمی‌رسد، چون matchAt آن را در پنجرهٔ نام (لنگرگاهش کلمهٔ قبلی است) می‌بلعد.
+    if (isNumTok(tok)) {
+      if (unknownBuf.length) flushUnknown(pendingQty ?? 1);
+      pendingQty = parsePersianNumberWords(tok) || 1;
+      if (tokens[i + 1] && UNIT_WORDS.has(tokens[i + 1])) i++; // واحد (تا/عدد/...) را مصرف کن
+      i++;
+      continue;
+    }
+
+    // تلاش برای تطبیقِ محصول از کاتالوگ در این موقعیت.
     const m = matchAt(i);
     if (m) {
       if (unknownBuf.length) flushUnknown(1); // بافرِ ناشناخته را با تعداد ۱ خالی کن
       emitProduct(m.c, pendingQty ?? 1);
       pendingQty = null;
       i += m.len;
-      continue;
-    }
-
-    if (isNumTok(tok)) {
-      // این عدد «تعدادِ قلمِ بعدی» است. اگر قلمِ ناشناختهٔ قبلی باز بود، آن را ببند.
-      if (unknownBuf.length) flushUnknown(pendingQty ?? 1);
-      pendingQty = parsePersianNumberWords(tok) || 1;
-      if (tokens[i + 1] && UNIT_WORDS.has(tokens[i + 1])) i++; // واحد (تا/عدد/...) را مصرف کن
-      i++;
       continue;
     }
 
