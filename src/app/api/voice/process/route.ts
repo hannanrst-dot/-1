@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { processVoiceCommand } from "@/lib/voice/intentEngine";
 import { resolveVoiceInvoiceItems } from "@/lib/voice/ambiguityResolver";
+import { resolveVoiceItemsWithCatalog } from "@/lib/voice/catalogParser";
 import { db } from "@/db";
 import { products, invoices } from "@/db/schema";
 import { eq, lte, sql, desc, like } from "drizzle-orm";
@@ -186,8 +187,9 @@ export async function POST(req: Request) {
     }
 
     if (actionResult.intent === "CREATE_INVOICE" && actionResult.entities.items) {
-      // Resolve fuzzy items against database
-      const resolution = resolveVoiceInvoiceItems(actionResult.entities.items, allDbProducts);
+      // تفکیک و شمارشِ کاتالوگ‌محور: نامِ کاملِ محصولات (با عددِ داخلِ نام) را در متن پیدا
+      // می‌کند تا تعداد و کالاها قاطی نشوند و عددِ داخلِ نام تعداد گرفته نشود.
+      const resolution = resolveVoiceItemsWithCatalog(actionResult.normalizedText, allDbProducts);
 
       let totalEstAmount = 0;
       const resolvedList = [];
