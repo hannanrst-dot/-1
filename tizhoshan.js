@@ -2742,6 +2742,60 @@
     ];
   }
 
+  // مبحث ۱۰: شمارشِ اجزا — چند [شکل] در تصویر هست؟ (شمردنِ دقیق لابه‌لای شکل‌های فریب)
+  function drawMini(g, kind, cx, cy, r, rot) {
+    if (kind === 'circle') { add(g, 'circle', merge(DEF, { cx: cx, cy: cy, r: r, 'stroke-width': 2.4 })); return; }
+    if (kind === 'square') { var sq = s('rect', merge(DEF, { x: cx - r, y: cy - r, width: 2 * r, height: 2 * r, rx: 1, 'stroke-width': 2.4 })); if (rot) sq.setAttribute('transform', 'rotate(' + rot + ' ' + cx + ' ' + cy + ')'); g.appendChild(sq); return; }
+    if (kind === 'triangle') { add(g, 'polygon', merge(DEF, { points: ptsStr(polyPts(3, r * 1.25, cx, cy, (rot || 0) - 90)), 'stroke-width': 2.4 })); return; }
+    if (kind === 'diamond') { add(g, 'polygon', merge(DEF, { points: ptsStr(polyPts(4, r * 1.15, cx, cy, -90)), 'stroke-width': 2.4 })); return; }
+  }
+  function drawScene2(items) {
+    return function (g) {
+      add(g, 'rect', { x: 5, y: 5, width: 90, height: 90, rx: 8, fill: 'none', stroke: '#c8cbe6', 'stroke-width': 1.6 });
+      items.forEach(function (it) { drawMini(g, it.kind, it.cx, it.cy, it.r, it.rot); });
+    };
+  }
+  function countShapes(rng, level) {
+    var kinds = ['triangle', 'square', 'circle', 'diamond'], TFA = { triangle: 'مثلث', square: 'مربع', circle: 'دایره', diamond: 'لوزی' };
+    var target = rng.pick(kinds), others = kinds.filter(function (x) { return x !== target; });
+    var k = level >= 3 ? rng.int(4, 7) : level >= 2 ? rng.int(3, 6) : rng.int(3, 5);
+    var dtot = level >= 2 ? rng.int(3, 6) : rng.int(2, 4);
+    var cells = []; for (var r = 0; r < 3; r++) for (var c = 0; c < 4; c++) cells.push([20 + c * 20, 24 + r * 24]); cells = rng.shuffle(cells);
+    var need = Math.min(k + dtot, cells.length), kindsSeq = [];
+    for (var i = 0; i < k; i++) kindsSeq.push(target); for (var j = 0; j < need - k; j++) kindsSeq.push(rng.pick(others)); kindsSeq = rng.shuffle(kindsSeq);
+    var items = []; for (var i2 = 0; i2 < need; i2++) { var p = cells[i2], kd = kindsSeq[i2]; items.push({ kind: kd, cx: p[0] + rng.int(-3, 3), cy: p[1] + rng.int(-3, 3), r: rng.int(7, 10), rot: kd === 'triangle' ? rng.pick([0, 90, 180, 270]) : 0 }); }
+    var kcount = 0; items.forEach(function (it) { if (it.kind === target) kcount++; });
+    var cand = [kcount - 1, kcount + 1, kcount + 2, kcount - 2].filter(function (v) { return v >= 1 && v !== kcount; });
+    var seen = {}; seen[kcount] = 1; var ds = []; for (var d = 0; d < cand.length && ds.length < 3; d++) { if (!seen[cand[d]]) { seen[cand[d]] = 1; ds.push(cand[d]); } }
+    var opts = [{ v: kcount }].concat(ds.map(function (v) { return { v: v }; })), order = rng.shuffle(opts);
+    var refs = [function () { return figure(drawScene2(items), { size: 152, frame: false }); }]; refs.label = 'با دقت و یکی‌یکی بشمار:';
+    return {
+      prompt: 'در این تصویر چند «' + TFA[target] + '» می‌بینی؟', tag: 'شمارشِ ' + TFA[target], refs: refs, wide: true,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { var n = h('div', {}, toFa(o.v)); n.style.cssText = 'font-size:2rem;font-weight:800;color:' + PAL.ink + ';padding:6px 12px'; return n; },
+      why: 'اگر با دقت و یکی‌یکی بشماری، دقیقاً ' + toFa(kcount) + ' تا «' + TFA[target] + '» در تصویر هست. شکل‌های دیگر را نشمار — فقط برای گمراه‌کردنِ تو آمده‌اند.'
+    };
+  }
+  function poolForShomaresh(level) { return [countShapes]; }
+  function genShomaresh(rng, level) { return countShapes(rng, level || 2); }
+  function lessonShomaresh() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(level) { return function () { return buildInteractive(toInter(countShapes(new RNG(seed++), level || 2))); }; }
+    return [
+      { title: 'چشمِ تیزبین، دستِ شمارنده 👁️🔢',
+        body: 'یکی از مهم‌ترین مهارت‌های تیزهوشان، «شمردنِ دقیق» است. در این مبحث یک تصویرِ پر از شکل به تو نشان داده می‌شود و باید تعدادِ یک شکلِ خاص (مثلاً مثلث) را دقیق بشماری. شکل‌های دیگر فقط برای شلوغ‌کردن و گمراه‌کردنِ تو آنجا هستند.',
+        art: function () { return figure(drawScene2([{ kind: 'triangle', cx: 32, cy: 34, r: 9, rot: 0 }, { kind: 'circle', cx: 64, cy: 32, r: 8 }, { kind: 'triangle', cx: 66, cy: 66, r: 9, rot: 30 }, { kind: 'square', cx: 34, cy: 66, r: 8, rot: 15 }]), { size: 118, frame: false }); } },
+      { title: 'راز: منظم بشمار، نه پراکنده 🧭',
+        body: 'برای اینکه هیچ شکلی را دوبار نشماری یا جا نیندازی، منظم پیش برو: از گوشه‌ی بالا-راست شروع کن و ردیف‌به‌ردیف یا ستون‌به‌ستون بیا پایین. با انگشت یا چشم روی هرکدام که شمردی یک علامت بگذار. شکلی که موردِ سؤال نیست را کلاً نادیده بگیر.',
+        art: function () { return figure(mHook, { size: 104, frame: false }); } },
+      { title: 'تمرینِ ۱ ✏️', interactive: ex(1) },
+      { title: 'تمرینِ ۲ ✏️', interactive: ex(2) },
+      { title: 'آماده‌ای! 🌟',
+        body: 'حالا با شمارشِ منظم و دقیق، هیچ شکلی از چشمت پنهان نمی‌ماند. هرچه جلوتر بروی، شکل‌ها بیشتر و شلوغ‌تر می‌شوند؛ آرام و منظم بشمار!',
+        art: function () { return figure(mBoot, { size: 104, frame: false }); } }
+    ];
+  }
+
   function poolForSakhtar(level) { return level >= 2 ? [pieceSquare, pieceSquare, pieceTriangle, pieceBent] : [pieceSquare, pieceTriangle]; }
   function genSakhtar(rng, level) { return rng.pick(poolForSakhtar(level || 2))(rng, level || 2); }
   function lessonSakhtar() {
@@ -3137,6 +3191,7 @@
     { id: 'dastebandi', n: 7, title: 'دسته‌بندیِ شکل‌ها', sub: 'گروه‌بندیِ درست', icon: '🗂️', color: PAL.teal, ready: true, lesson: lessonM7, gen: genQuestionM7, pool: poolForM7 },
     { id: 'penhan', n: 8, title: 'تصویرِ پنهان', sub: 'X کجا پنهان شده؟', icon: '🕵️', color: PAL.gold, ready: true, review: true, lesson: lessonPenhan, gen: genPenhan, pool: poolForPenhan },
     { id: 'penhan2', n: 9, title: 'تصویرِ پنهان (نوع ۲)', sub: 'شبکه‌ی شلوغ‌تر', icon: '🔬', color: PAL.sky, ready: true, review: true, lesson: lessonPenhan2, gen: genPenhan2, pool: poolForPenhan2 },
+    { id: 'shomaresh', n: 10, title: 'شمارشِ اجزا', sub: 'چند شکل می‌بینی؟', icon: '🔢', color: PAL.gold, ready: true, review: true, lesson: lessonShomaresh, gen: genShomaresh, pool: poolForShomaresh },
     { id: 'sakhtar', n: 13, title: 'درک ساختار شکل‌ها', sub: 'تکه‌ی مکمل را پیدا کن', icon: '🧩', color: PAL.teal, ready: true, review: true, lesson: lessonSakhtar, gen: genSakhtar, pool: poolForSakhtar },
     { id: 'takmil', n: 14, title: 'تکمیل به شکلِ دلخواه', sub: 'دایره/لوزی/ذوزنقه…', icon: '🔵', color: PAL.fun, ready: true, review: true, lesson: lessonTakmil, gen: genTakmil, pool: poolForTakmil },
     { id: 'takmil2', n: 15, title: 'تکمیل (برشِ خمیده)', sub: 'زبانه و شکاف', icon: '🧩', color: PAL.tealD, ready: true, review: true, lesson: lessonTakmil2, gen: genTakmil2, pool: poolForTakmil2 },
@@ -3307,6 +3362,7 @@
     ejraye_qaede: { place: 'کارخانه‌ی قاعده‌ها', title: 'مهندسِ قاعده‌ها', intro: 'کارخانه‌ی قاعده‌ها منتظرِ توست؛ قانونِ هر ماشین را کشف کن تا چرخ‌ها بچرخند.' },
     dastebandi: { place: 'کتابخانه‌ی دسته‌ها', title: 'کتابدارِ بزرگ', intro: 'در کتابخانه‌ی دسته‌ها، شکل‌ها را درست گروه‌بندی کن تا قفسه‌ها مرتب شوند.' },
     penhan: { place: 'اتاقِ تصویرهای پنهان', title: 'کارآگاهِ تصویرهای پنهان', intro: 'وارد اتاقِ تصویرهای پنهان شدی! این‌جا هر تصویرِ X لابه‌لای خط‌های یک گزینه قایم شده. با ریزبینی خط‌ها را دنبال کن و مخفیگاهِ X را پیدا کن.' },
+    shomaresh: { place: 'میدانِ شمارش', title: 'قهرمانِ شمارنده', intro: 'به میدانِ شمارش خوش آمدی! این‌جا تصویرها پر از شکل‌های جورواجورند و تو باید تعدادِ یک شکلِ خاص را دقیق بشماری. منظم و آرام بشمار تا هیچ‌کدام از قلم نیفتد.' },
     penhan2: { place: 'آزمایشگاهِ ذره‌بین', title: 'کارآگاهِ ارشدِ تصویرها', intro: 'به آزمایشگاهِ ذره‌بین خوش آمدی! این‌جا تصویرِ X در شبکه‌های شلوغ و پرخط پنهان شده. با ذره‌بین و صبر، خط‌به‌خط ردِّ X را بگیر و مخفیگاهش را پیدا کن.' },
     sakhtar: { place: 'کارگاهِ مهندسیِ شکل‌ها', title: 'مهندسِ بزرگِ شکل‌ها', intro: 'به کارگاهِ مهندسیِ شکل‌ها خوش آمدی! این‌جا هر شکل با یک برش به دو تکه شده و تو باید تکه‌ی مکمل را پیدا کنی تا شکلِ کامل ساخته شود. به لبه‌های برش خوب دقت کن!' },
     takmil2: { place: 'کارخانه‌ی پازل', title: 'استادِ پازلِ بزرگ', intro: 'به کارخانه‌ی پازل رسیدی — سخت‌ترین کارگاه! این‌جا لبه‌ی برش‌ها زبانه و شکاف دارند، مثلِ قطعه‌های پازلِ واقعی. تکه‌ای را پیدا کن که زبانه‌اش دقیقاً در شکافِ X بنشیند.' },
@@ -4353,7 +4409,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
