@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp } from "lucide-react";
+import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp, Check } from "lucide-react";
 import { formatToman, toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
 import { pushUtterance, joinTranscript } from "@/lib/voice/transcript";
+import { normalizeSpokenPersian, parsePersianNumberWords } from "@/lib/voice/persianNormalizer";
 
 type Mode = "menu" | "invoice" | "product" | "purchase" | "query" | "price";
 
@@ -35,6 +36,9 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   // invoice
   const [items, setItems] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
+  // حالت گام‌به‌گام: هر کالا را جدا می‌گویید، تأیید می‌کنید، بعد بعدی (پیشنهاد کاربر).
+  const [stepMode, setStepMode] = useState(true);
+  const [pendingItem, setPendingItem] = useState<CartItem | null>(null);
   // product
   const [product, setProduct] = useState<ProductDraft | null>(null);
   const [productDup, setProductDup] = useState<any>(null); // کالای مشابهِ کشف‌شده
@@ -55,6 +59,10 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const transcriptRef = useRef("");
   const shouldListenRef = useRef(false); // تا کاربر خودش «توقف» نزند، ضبط ادامه دارد
   modeRef.current = mode;
+  // refهای حالت گام‌به‌گام
+  const stepModeRef = useRef(stepMode); stepModeRef.current = stepMode;
+  const pendingItemRef = useRef<CartItem | null>(null);
+  const stepProcessedRef = useRef(0); // تعدادِ نتایجِ نهاییِ پردازش‌شده در سشنِ جاری
 
   useEffect(() => { if (isOpen) setMode(defaultMode); }, [isOpen, defaultMode]);
 
@@ -81,6 +89,8 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     if (processGuardRef.current) return;
     processGuardRef.current = true;
     setIsListening(false);
+    // در حالت گام‌به‌گامِ فاکتور، اقلام همان لحظه ثبت شده‌اند؛ نیازی به پردازشِ کلِ متن نیست.
+    if (stepModeRef.current && modeRef.current === "invoice") { setTranscript(""); return; }
     // متنی که پردازش می‌شود دقیقاً همان چیزی است که کاربر در کادر می‌بیند و تأیید کرده
     // (WYSIWYG). اگر کاربر متن را دستی اصلاح کرده باشد، همان اصلاح‌شده پردازش می‌شود؛
     // این جلوی هر اختلافِ احتمالی میان «متنِ نمایش‌داده‌شده» و «متنِ بازساخته‌شده» را
@@ -100,8 +110,26 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     rec.continuous = true;      // از مکث‌ها رد می‌شود → «فقط اولی» رفع می‌شود
     rec.interimResults = true;
     rec.maxAlternatives = 1;
+    stepProcessedRef.current = 0; // شمارندهٔ نتایجِ نهاییِ همین سشن از صفر
 
     rec.onresult = (event: any) => {
+      // حالت گام‌به‌گام (فقط فاکتور): هر عبارتِ نهایی به‌محضِ آماده‌شدن، جداگانه پردازش می‌شود.
+      if (stepModeRef.current && modeRef.current === "invoice") {
+        let finalCount = 0;
+        for (let i = 0; i < event.results.length; i++) if (event.results[i].isFinal) finalCount++;
+        if (finalCount > stepProcessedRef.current) {
+          for (let i = stepProcessedRef.current; i < finalCount; i++) {
+            const phrase = String(event.results[i][0].transcript).trim();
+            if (phrase) handleStepPhrase(phrase);
+          }
+          stepProcessedRef.current = finalCount;
+        }
+        // متنِ زنده را هم برای نمایش به‌روزرسانی می‌کنیم (interim آخر)
+        let live = "";
+        for (let i = 0; i < event.results.length; i++) if (!event.results[i].isFinal) live += event.results[i][0].transcript + " ";
+        setTranscript(live.trim());
+        return;
+      }
       // در حالت پیوسته، event.results همیشه همهٔ نتایجِ همین سشن را دارد؛ پس هر بار
       // متنِ سشن را «از نو» می‌سازیم (نه الحاق) تا دوبرابر نشود. تکرارهای پیاپیِ نهایی
       // با pushUtterance و joinTranscript حذف می‌شوند.
@@ -158,6 +186,69 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     try { if (!("speechSynthesis" in window) || !t) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = "fa-IR"; window.speechSynthesis.speak(u); } catch { /* ignore */ }
   };
 
+  // ---------- حالت گام‌به‌گام ----------
+  const CONFIRM_RE = /^(تایید|تاييد|تایید کن|درست|درسته|درست است|اوکی|اوکه|خوبه|بله|آره|همین|همینه|ثبت|ثبت کن|بعدی)$/;
+  const CANCEL_RE = /^(نه|نه بابا|پاک|پاک کن|غلط|اشتباه|اشتباهه|دوباره|رد|رد کن|بیخیال|بی خیال|حذف|حذف کن|نیست)$/;
+
+  // اگر عبارت «فقط یک عدد» باشد، همان را به‌عنوان تعداد برمی‌گرداند؛ وگرنه null.
+  const bareQuantity = (norm: string): number | null => {
+    const t = norm.replace(/(تا|عدد|بسته|دونه|دانه|کارتن|عددشو|تعداد|تعدادش|بذار|بزار|رو|را)/g, " ").replace(/\s+/g, " ").trim();
+    if (!t) return null;
+    if (/^\d+$/.test(toEnglishDigits(t))) return parseInt(toEnglishDigits(t), 10);
+    const words = t.split(/\s+/);
+    if (words.length <= 3) {
+      const n = parsePersianNumberWords(t);
+      if (n != null && n > 0) return n;
+    }
+    return null;
+  };
+
+  const commitPending = () => {
+    const p = pendingItemRef.current;
+    if (!p) { setNotice("چیزی برای تأیید نیست — نام کالا را بگویید."); return; }
+    if (p.productId == null) { setNotice(`«${p.productName}» در انبار نیست؛ اول کالا را ثبت کنید یا کالای دیگری بگویید.`); speak("پیدا نشد"); return; }
+    appendInvoiceItems([{ productId: p.productId, productName: p.productName, quantity: p.quantity, unitPrice: p.unitPrice, status: p.status, matches: p.matches }]);
+    setPendingItem(null); pendingItemRef.current = null;
+    setNotice(`«${p.productName}» (${toPersianDigits(p.quantity)}) به فاکتور اضافه شد. کالای بعدی را بگویید.`);
+    speak("اضافه شد");
+  };
+
+  const setPending = (p: CartItem | null) => { pendingItemRef.current = p; setPendingItem(p); };
+
+  const adjustPendingQty = (q: number) => {
+    const p = pendingItemRef.current; if (!p) return;
+    const up = { ...p, quantity: Math.max(1, q) };
+    setPending(up);
+  };
+
+  // پردازشِ یک عبارتِ گفتاری در حالت گام‌به‌گام
+  const handleStepPhrase = async (raw: string) => {
+    const norm = normalizeSpokenPersian(raw).trim();
+    if (!norm) return;
+    if (CONFIRM_RE.test(norm)) { commitPending(); return; }
+    if (CANCEL_RE.test(norm)) { setPending(null); setNotice("پاک شد — دوباره بگویید."); return; }
+
+    // اگر فقط یک عدد گفته شد و کالای در انتظار داریم → تعدادش را تنظیم کن.
+    const q = bareQuantity(norm);
+    if (q != null && pendingItemRef.current) { adjustPendingQty(q); speak(`تعداد ${toPersianDigits(q)}`); return; }
+
+    // در غیر این صورت این عبارت یک «کالا» است → با کاتالوگ تطبیق بده.
+    try {
+      const res = await fetch("/api/voice/process", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spokenText: norm, mode: "invoice" }),
+      });
+      const data = await res.json();
+      const it = data?.data?.items?.[0];
+      if (it) {
+        setPending({ productId: it.productId ?? null, productName: it.productName, quantity: Number(it.quantity || 1), unitPrice: Number(it.unitPrice || 0), status: it.status || "EXACT", matches: it.matches?.map((mm: any) => ({ id: mm.id, name: mm.name, sellPrice: mm.sellPrice })) || [] });
+        if (it.productId != null) speak(it.productName);
+      } else {
+        setPending({ productId: null, productName: norm, quantity: 1, unitPrice: 0, status: "NOT_FOUND" });
+      }
+    } catch { setNotice("خطای ارتباط."); }
+  };
+
   const processText = async (text: string, m: Mode) => {
     if (!text.trim()) return;
     setLoading(true); setNotice("");
@@ -212,7 +303,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     });
   };
 
-  const resetAll = () => { setItems([]); setCustomerName(""); setProduct(null); setProductDup(null); setStockPreview(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setCreatedInvoice(null); setNotice(""); setTranscript(""); };
+  const resetAll = () => { setItems([]); setCustomerName(""); setProduct(null); setProductDup(null); setStockPreview(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setCreatedInvoice(null); setNotice(""); setTranscript(""); pendingItemRef.current = null; setPendingItem(null); };
 
   const applyPriceUpdate = async () => {
     if (!pricePreview) return;
@@ -367,7 +458,21 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
           {/* ---------- SHARED: mic + guide (non-menu) ---------- */}
           {mode !== "menu" && !(mode === "invoice" && createdInvoice) && (
             <>
-              <Guide mode={mode} />
+              {/* انتخاب حالت (فقط فاکتور): گام‌به‌گام (تک‌به‌تک) یا یکجا */}
+              {mode === "invoice" && (
+                <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl flex gap-1 text-xs font-bold">
+                  <button onClick={() => { setStepMode(true); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${stepMode ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>گام‌به‌گام (تک‌به‌تک) ✅</button>
+                  <button onClick={() => { setStepMode(false); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${!stepMode ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>یکجا (پشت‌سرهم)</button>
+                </div>
+              )}
+
+              {mode === "invoice" && stepMode ? (
+                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-3 text-xs leading-relaxed text-emerald-800 dark:text-emerald-200">
+                  🎙️ میکروفون را بزنید و <b>نامِ یک کالا</b> را بگویید (مثلاً «دفتر ۸۰ برگ میکرو»). کالا پایین نشان داده می‌شود؛ اگر درست بود بگویید <b>«تأیید»</b> یا دکمهٔ سبز را بزنید. برای تعداد فقط عدد را بگویید («سه»). ضبط قطع نمی‌شود تا همهٔ کالاها را بگویید.
+                </div>
+              ) : (
+                <Guide mode={mode} />
+              )}
 
               <div className="flex flex-col items-center gap-2">
                 <button
@@ -376,16 +481,44 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 >
                   {isListening ? <Square className="w-8 h-8 fill-current" /> : <Mic className="w-9 h-9" />}
                 </button>
-                <span className={`text-xs text-center px-2 font-bold ${isListening ? "text-rose-600" : "text-gray-500"}`}>{isListening ? "🔴 در حال ضبط — چند کالا را پشت‌سرهم بگویید، بعد برای پایان، همین دکمه (⏹) را بزنید." : "میکروفون را بزنید و صحبت کنید"}</span>
+                <span className={`text-xs text-center px-2 font-bold ${isListening ? "text-rose-600" : "text-gray-500"}`}>{isListening ? (mode === "invoice" && stepMode ? "🔴 در حال شنیدن — یک کالا بگویید، تأیید کنید، بعد بعدی. پایان: دکمهٔ ⏹" : "🔴 در حال ضبط — چند کالا را پشت‌سرهم بگویید، بعد برای پایان، همین دکمه (⏹) را بزنید.") : "میکروفون را بزنید و صحبت کنید"}</span>
               </div>
 
-              <div className="space-y-2">
-                <textarea value={transcript} onChange={(e) => { setTranscript(e.target.value); transcriptRef.current = e.target.value; }} placeholder="متن گفتار شما اینجا می‌آید (قابل ویرایش)..." rows={2}
-                  className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                <button onClick={() => processText(transcript, mode)} disabled={loading || !transcript.trim()} className="w-full bg-emerald-600 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">
-                  <Plus className="w-4 h-4" /> {mode === "invoice" ? "افزودن به فاکتور" : mode === "purchase" ? "افزودن به خرید" : mode === "product" ? "پر کردن فرم" : mode === "price" ? "محاسبهٔ قیمت جدید" : "پرسیدن"}
-                </button>
-              </div>
+              {/* کارتِ کالای در انتظارِ تأیید (حالت گام‌به‌گام) */}
+              {mode === "invoice" && stepMode && pendingItem && (
+                <div className={`rounded-2xl p-3 border-2 ${pendingItem.productId == null ? "border-rose-400 bg-rose-50 dark:bg-rose-950/30" : "border-emerald-400 bg-white dark:bg-gray-900"}`}>
+                  <div className="text-[11px] text-gray-500 mb-1">کالای شنیده‌شده — تأیید می‌کنید؟</div>
+                  <div className="font-extrabold text-base text-gray-900 dark:text-white">{pendingItem.productName}</div>
+                  {pendingItem.productId == null ? (
+                    <div className="text-xs text-rose-600 mt-1">در انبار پیدا نشد. دوباره بگویید یا کالای دیگری بگویید.</div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mt-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 text-xs">تعداد:</span>
+                          <button onClick={() => adjustPendingQty(pendingItem.quantity - 1)} className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-700 font-bold text-lg">−</button>
+                          <span className="w-8 text-center font-extrabold">{toPersianDigits(pendingItem.quantity)}</span>
+                          <button onClick={() => adjustPendingQty(pendingItem.quantity + 1)} className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-700 font-bold text-lg">+</button>
+                        </div>
+                        <span className="text-emerald-600 font-bold">{formatToman(pendingItem.unitPrice * pendingItem.quantity)}</span>
+                      </div>
+                      <button onClick={commitPending} className="w-full mt-3 bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><Check className="w-4 h-4" /> تأیید و افزودن به فاکتور</button>
+                    </>
+                  )}
+                  <button onClick={() => setPending(null)} className="w-full mt-2 border border-gray-300 dark:border-gray-700 py-2 rounded-xl text-xs">رد / دوباره می‌گویم</button>
+                </div>
+              )}
+
+              {/* حالت یکجا: کادر متن + دکمهٔ افزودن */}
+              {!(mode === "invoice" && stepMode) && (
+                <div className="space-y-2">
+                  <textarea value={transcript} onChange={(e) => { setTranscript(e.target.value); transcriptRef.current = e.target.value; }} placeholder="متن گفتار شما اینجا می‌آید (قابل ویرایش)..." rows={2}
+                    className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  <button onClick={() => processText(transcript, mode)} disabled={loading || !transcript.trim()} className="w-full bg-emerald-600 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">
+                    <Plus className="w-4 h-4" /> {mode === "invoice" ? "افزودن به فاکتور" : mode === "purchase" ? "افزودن به خرید" : mode === "product" ? "پر کردن فرم" : mode === "price" ? "محاسبهٔ قیمت جدید" : "پرسیدن"}
+                  </button>
+                </div>
+              )}
 
               {loading && <div className="flex items-center justify-center gap-2 text-emerald-600 text-sm"><div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /> پردازش...</div>}
               {notice && <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-3 text-sm text-gray-700 dark:text-gray-200">{notice}</div>}
