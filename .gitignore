@@ -26,4 +26,7 @@
 # generated download zips
 *.zip
 
+# lockfile حذف شد تا لیارا با npm install نصب کند (npm ci روی لیارا خطا می‌داد)
+package-lock.json
+
 *.tsbuildinfo
