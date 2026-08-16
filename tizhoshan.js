@@ -2681,6 +2681,49 @@
   }
   function poolForTakmil(level) { return [pieceShape]; }
   function genTakmil(rng, level) { return pieceShape(rng, level || 2); }
+
+  // مبحث ۱۵: تکمیل با برشِ خمیده (زبانه/شکاف) — سخت‌ترین لایه، برشِ ۲-قطعه‌ای داخلِ مربع
+  function pieceBent(rng, level, count) {
+    count = count || 4;
+    var x1 = rng.pick([34, 42, 50, 58]), x2 = rng.pick([34, 42, 50, 58]), my = rng.pick([42, 50, 58]);
+    var off = (level >= 3 ? rng.pick([-22, -16, 16, 22]) : rng.pick([-16, -12, 12, 16]));
+    var mx = Math.max(20, Math.min(80, (x1 + x2) / 2 + off));
+    var P1 = [x1, 10], M = [mx, my], P2 = [x2, 90];
+    var left = [[10, 10], P1, M, P2, [10, 90]], right = [P1, [90, 10], [90, 90], P2, M];
+    var mx2 = Math.max(20, Math.min(80, (x1 + x2) / 2 - off));
+    var right2 = [[x1, 10], [90, 10], [90, 90], [x2, 90], [mx2, my]];
+    var correct = { poly: right, rot: 0, mir: null };
+    var cand = [{ poly: right, rot: 180 }, { poly: right, rot: 0, mir: 'v' }, { poly: right, rot: 0, mir: 'h' }, { poly: right2, rot: 0, mir: null }, { poly: right, rot: 90 }];
+    var dists = pickDistinct(rng, correct, cand, count);
+    while (dists.length < count - 1) dists.push({ poly: right, rot: rng.pick([90, 180, 270]), mir: rng.pick(['v', 'h']) });
+    var opts = [correct].concat(dists.slice(0, count - 1)), order = rng.shuffle(opts);
+    var refs = [function () { return figure(polyFill(left, PAL.goldL), { size: 96 }); }]; refs.label = 'این تکه را داری (X):'; refs.letters = ['X'];
+    return {
+      prompt: 'کدام گزینه با تکه‌ی X یک «مربعِ کامل» می‌سازد؟ (لبه‌ی برش این‌بار زبانه/شکاف دارد — خیلی دقت کن)', tag: 'تکمیل با برشِ خمیده', refs: refs, wide: true,
+      options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(polyFill(o.poly), { rot: o.rot || 0, mirror: o.mir || null, size: 96 }); },
+      why: 'لبه‌ی برشِ زبانه‌دارِ X فقط با یک تکه دقیقاً جفت می‌شود؛ زبانه‌ی یکی باید در شکافِ دیگری بنشیند. تکه‌های چرخیده/آینه یا با زبانه‌ی برعکس، شکاف را پر نمی‌کنند.'
+    };
+  }
+  function poolForTakmil2(level) { return level >= 3 ? [pieceBent, pieceBent, pieceShape] : [pieceBent, pieceShape]; }
+  function genTakmil2(rng, level) { return rng.pick(poolForTakmil2(level || 2))(rng, level || 3); }
+  function lessonTakmil2() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(gen, level) { return function () { return buildInteractive(toInter(gen(new RNG(seed++), level || 3))); }; }
+    return [
+      { title: 'استادِ زبانه و شکاف 🧩🔥',
+        body: 'به سخت‌ترین نوعِ تکمیل رسیدی! این‌بار لبه‌ی برش صاف نیست — «زبانه» (برجستگی) و «شکاف» (فرورفتگی) دارد، درست مثلِ قطعه‌های پازلِ واقعی. زبانه‌ی یک تکه باید دقیقاً در شکافِ تکه‌ی دیگر بنشیند تا شکل کامل شود.',
+        art: function () { return figure(polyFill([[10, 10], [55, 10], [40, 50], [55, 90], [10, 90]], PAL.goldL), { size: 112, frame: true }); } },
+      { title: 'راز: زبانه به شکاف 🔑',
+        body: 'به شکلِ لبه‌ی برشِ X خوب نگاه کن: کجا برجسته است و کجا فرورفته. تکه‌ی درست باید «برعکسِ» آن باشد — جایی که X برجستگی دارد، تکه‌ی مکمل باید فرورفتگی داشته باشد و برعکس. اگر زبانه‌ها روبه‌روی هم بیفتند، جفت نمی‌شوند.',
+        art: function () { return figure(polyFill([[45, 10], [90, 10], [90, 90], [45, 90], [62, 50]], PAL.tealL), { size: 112, frame: true }); } },
+      { title: 'تمرینِ ۱ ✏️', interactive: ex(pieceBent, 3) },
+      { title: 'تمرینِ ۲ ✏️', interactive: ex(pieceShape, 3) },
+      { title: 'آماده‌ای، استاد! 🌟',
+        body: 'حالا حتی با زبانه و شکاف هم می‌توانی تکه‌ی درست را پیدا کنی. این مهارت، اوجِ درکِ ساختارِ شکل‌هاست. با دقت به هر برجستگی و فرورفتگی نگاه کن و بترکان!',
+        art: function () { return figure(mBoot, { size: 104, frame: false }); } }
+    ];
+  }
   function lessonTakmil() {
     var seed = (Date.now() & 0xffff) | 1;
     function ex(level) { return function () { return buildInteractive(toInter(pieceShape(new RNG(seed++), level || 2))); }; }
@@ -2699,7 +2742,7 @@
     ];
   }
 
-  function poolForSakhtar(level) { return level >= 2 ? [pieceSquare, pieceSquare, pieceTriangle] : [pieceSquare, pieceTriangle]; }
+  function poolForSakhtar(level) { return level >= 2 ? [pieceSquare, pieceSquare, pieceTriangle, pieceBent] : [pieceSquare, pieceTriangle]; }
   function genSakhtar(rng, level) { return rng.pick(poolForSakhtar(level || 2))(rng, level || 2); }
   function lessonSakhtar() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -3096,6 +3139,7 @@
     { id: 'penhan2', n: 9, title: 'تصویرِ پنهان (نوع ۲)', sub: 'شبکه‌ی شلوغ‌تر', icon: '🔬', color: PAL.sky, ready: true, review: true, lesson: lessonPenhan2, gen: genPenhan2, pool: poolForPenhan2 },
     { id: 'sakhtar', n: 13, title: 'درک ساختار شکل‌ها', sub: 'تکه‌ی مکمل را پیدا کن', icon: '🧩', color: PAL.teal, ready: true, review: true, lesson: lessonSakhtar, gen: genSakhtar, pool: poolForSakhtar },
     { id: 'takmil', n: 14, title: 'تکمیل به شکلِ دلخواه', sub: 'دایره/لوزی/ذوزنقه…', icon: '🔵', color: PAL.fun, ready: true, review: true, lesson: lessonTakmil, gen: genTakmil, pool: poolForTakmil },
+    { id: 'takmil2', n: 15, title: 'تکمیل (برشِ خمیده)', sub: 'زبانه و شکاف', icon: '🧩', color: PAL.tealD, ready: true, review: true, lesson: lessonTakmil2, gen: genTakmil2, pool: poolForTakmil2 },
     { id: 'tarkibi', n: 17, title: 'آزمونِ استادان', sub: 'ترکیبِ همه‌ی مباحث', icon: '🎲', color: PAL.lilac, ready: true, lesson: lessonMix, gen: genMix, pool: poolForMix }
   ];
 
@@ -3265,6 +3309,7 @@
     penhan: { place: 'اتاقِ تصویرهای پنهان', title: 'کارآگاهِ تصویرهای پنهان', intro: 'وارد اتاقِ تصویرهای پنهان شدی! این‌جا هر تصویرِ X لابه‌لای خط‌های یک گزینه قایم شده. با ریزبینی خط‌ها را دنبال کن و مخفیگاهِ X را پیدا کن.' },
     penhan2: { place: 'آزمایشگاهِ ذره‌بین', title: 'کارآگاهِ ارشدِ تصویرها', intro: 'به آزمایشگاهِ ذره‌بین خوش آمدی! این‌جا تصویرِ X در شبکه‌های شلوغ و پرخط پنهان شده. با ذره‌بین و صبر، خط‌به‌خط ردِّ X را بگیر و مخفیگاهش را پیدا کن.' },
     sakhtar: { place: 'کارگاهِ مهندسیِ شکل‌ها', title: 'مهندسِ بزرگِ شکل‌ها', intro: 'به کارگاهِ مهندسیِ شکل‌ها خوش آمدی! این‌جا هر شکل با یک برش به دو تکه شده و تو باید تکه‌ی مکمل را پیدا کنی تا شکلِ کامل ساخته شود. به لبه‌های برش خوب دقت کن!' },
+    takmil2: { place: 'کارخانه‌ی پازل', title: 'استادِ پازلِ بزرگ', intro: 'به کارخانه‌ی پازل رسیدی — سخت‌ترین کارگاه! این‌جا لبه‌ی برش‌ها زبانه و شکاف دارند، مثلِ قطعه‌های پازلِ واقعی. تکه‌ای را پیدا کن که زبانه‌اش دقیقاً در شکافِ X بنشیند.' },
     takmil: { place: 'کارگاهِ قالب‌سازی', title: 'استادِ قالب‌ساز', intro: 'به کارگاهِ قالب‌سازی رسیدی! این‌جا شکل‌ها هر جور و قالبی دارند — دایره، لوزی، ذوزنقه، چندضلعی — و تو باید تکه‌ای را پیدا کنی که قالب را کامل کند. به خمِ لبه‌ها دقت کن!' },
     tarkibi: { place: 'قلعه‌ی استادان', title: 'استادِ بزرگِ شکل‌ها', intro: 'به قلعه‌ی استادان رسیدی، قهرمان! این‌جا سؤال‌ها از همه‌ی مباحث با هم می‌آیند و پشتِ سرِ هم سخت‌تر می‌شوند. اگر این‌جا را فتح کنی، استادِ بزرگ می‌شوی.' }
   };
@@ -4315,7 +4360,7 @@
         m5_curveLineMix: m5_curveLineMix, m5_arrowCount: m5_arrowCount, m5_containsTrio: m5_containsTrio, m5_symmetryPair5: m5_symmetryPair5, m5_chiralScene5: m5_chiralScene5 },
       m6: { m6_growDots: m6_growDots, m6_rotateStep: m6_rotateStep, m6_complexity: m6_complexity, m6_shrinkSplit: m6_shrinkSplit, m6_arcClose: m6_arcClose },
       m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill, m7_byHatchDir: m7_byHatchDir, m7_bySymmetry: m7_bySymmetry, m7_byCurvature: m7_byCurvature },
-      nw: { gridOverlay: gridOverlay, gridXor: gridXor, matrixLogic3x3: matrixLogic3x3, jigsawPiece: jigsawPiece, mirrorWater: mirrorWater, analogyRotate: analogyRotate, oddRotOrder: oddRotOrder, oddCurvature: oddCurvature, dominoNext: dominoNext, seriesPieDiv: seriesPieDiv, nestedMatch: nestedMatch, pieceSquare: pieceSquare, pieceTriangle: pieceTriangle, pieceShape: pieceShape },
+      nw: { gridOverlay: gridOverlay, gridXor: gridXor, matrixLogic3x3: matrixLogic3x3, jigsawPiece: jigsawPiece, mirrorWater: mirrorWater, analogyRotate: analogyRotate, oddRotOrder: oddRotOrder, oddCurvature: oddCurvature, dominoNext: dominoNext, seriesPieDiv: seriesPieDiv, nestedMatch: nestedMatch, pieceSquare: pieceSquare, pieceTriangle: pieceTriangle, pieceShape: pieceShape, pieceBent: pieceBent },
       book: { bkHouse: bkHouse, bkBentArrow: bkBentArrow, bkTwoCircles: bkTwoCircles, bkArrow: bkArrow } };
   }
 })();
