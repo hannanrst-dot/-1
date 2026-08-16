@@ -1688,6 +1688,90 @@
   function poolForPenhan(level) { return [embeddedFigure]; }
   function genPenhan(rng, level) { return embeddedFigure(rng, level || 2); }
 
+  // مبحث ۹: تصویرِ پنهانِ نوع ۲ — شبکه‌ی ۵×۵، مسیرِ بلندتر، خط‌های اضافه‌ی خیلی بیشتر (پرجزئیات‌تر و سخت‌تر)
+  function embeddedFigure2(rng, level, count) {
+    count = count || 4; level = level || 2;
+    var G = 5;
+    function xy(r, c) { return [14 + c * 18, 14 + r * 18]; }
+    var segs = [];
+    for (var r = 0; r < G; r++) for (var c = 0; c < G; c++) {
+      if (c < G - 1) segs.push([[r, c], [r, c + 1]]);
+      if (r < G - 1) segs.push([[r, c], [r + 1, c]]);
+      if (r < G - 1 && c < G - 1) segs.push([[r, c], [r + 1, c + 1]]);
+      if (r < G - 1 && c < G - 1) segs.push([[r, c + 1], [r + 1, c]]);
+    }
+    function key(s) { var a = s[0], b = s[1], p = a[0] * 10 + a[1], q = b[0] * 10 + b[1]; return p < q ? p + '_' + q : q + '_' + p; }
+    var byKey = {}; segs.forEach(function (s) { byKey[key(s)] = s; });
+    var allKeys = Object.keys(byKey);
+    function neighbors(node) { var res = []; segs.forEach(function (s) { if (s[0][0] === node[0] && s[0][1] === node[1]) res.push([key(s), s[1]]); else if (s[1][0] === node[0] && s[1][1] === node[1]) res.push([key(s), s[0]]); }); return res; }
+    var L = level >= 3 ? 9 : level >= 2 ? 7 : 6;
+    function genX() {
+      var node = [rng.int(0, G - 1), rng.int(0, G - 1)], used = {}, xk = [], tries = 0;
+      while (xk.length < L && tries++ < 60) {
+        var nb = neighbors(node).filter(function (n) { return !used[n[0]]; });
+        if (!nb.length) break;
+        var pick = nb[rng.int(0, nb.length - 1)];
+        used[pick[0]] = 1; xk.push(pick[0]); node = pick[1];
+      }
+      return xk;
+    }
+    var Xk = genX(), guard = 0;
+    while (Xk.length < Math.max(5, L - 1) && guard++ < 30) Xk = genX();
+    var Xset = {}; Xk.forEach(function (k) { Xset[k] = 1; });
+    var extraN = level >= 3 ? 13 : level >= 2 ? 11 : 9;
+    function randKeys(n, excludeObj) { var pool = allKeys.filter(function (k) { return !(excludeObj && excludeObj[k]); }); return rng.sample(pool, Math.min(n, pool.length)); }
+    var correctKeys = Xk.concat(randKeys(extraN, Xset));
+    function makeWrong() {
+      var g2 = 0;
+      while (g2++ < 60) {
+        var removeN = level >= 3 ? 1 : (rng.next() < 0.55 ? 1 : 2);
+        var removed = rng.sample(Xk, Math.min(removeN, Xk.length)), remObj = {};
+        removed.forEach(function (k) { remObj[k] = 1; });
+        var kept = Xk.filter(function (k) { return !remObj[k]; });
+        var excl = {}; kept.forEach(function (k) { excl[k] = 1; }); removed.forEach(function (k) { excl[k] = 1; });
+        var wk = kept.concat(randKeys(correctKeys.length - kept.length, excl));
+        var wobj = {}; wk.forEach(function (k) { wobj[k] = 1; });
+        if (!Xk.every(function (k) { return wobj[k]; })) return wk;
+      }
+      return null;
+    }
+    function sig(keys) { return keys.slice().sort().join(','); }
+    var wrongs = [], seenSig = {}, wguard = 0; seenSig[sig(correctKeys)] = 1;
+    while (wrongs.length < count - 1 && wguard++ < 400) { var w = makeWrong(); if (!w) continue; var s2 = sig(w); if (seenSig[s2]) continue; seenSig[s2] = 1; wrongs.push(w); }
+    while (wrongs.length < count - 1) wrongs.push(randKeys(correctKeys.length, Xset));
+    function drawKeys(keys, sw) { return function (g) { keys.forEach(function (k) { var s = byKey[k]; if (!s) return; var a = xy(s[0][0], s[0][1]), b = xy(s[1][0], s[1][1]); add(g, 'line', merge(DEF, { x1: a[0], y1: a[1], x2: b[0], y2: b[1], 'stroke-width': sw || 2.4 })); }); }; }
+    var ansIdx = rng.int(0, count - 1), opts = [], wi = 0;
+    for (var i = 0; i < count; i++) opts.push(i === ansIdx ? { keys: correctKeys } : { keys: wrongs[wi++] });
+    var refs = [function () { return figure(drawKeys(Xk, 3.2), { size: 82, frame: true }); }];
+    refs.label = 'تصویرِ «X» را خوب نگاه کن؛ داخلِ کدام گزینه‌ی شلوغ کاملاً پنهان شده است؟';
+    refs.letters = ['X'];
+    return {
+      prompt: 'تصویرِ X در کدام گزینه پنهان شده است؟ (این‌بار شبکه شلوغ‌تر و خط‌های اضافه بیشترند)', tag: 'تصویرِ پنهانِ نوع ۲', refs: refs, wide: true,
+      options: opts, answer: ansIdx,
+      render: function (o) { return figure(drawKeys(o.keys), { size: 96 }); },
+      why: 'همه‌ی خط‌های X را دنبال کن؛ فقط در همین گزینه همه‌ی آن‌ها کنارِ هم و به همان شکل آمده‌اند و لابه‌لای خط‌های اضافه پنهان شده‌اند. در گزینه‌های دیگر دستِ‌کم یکی از خط‌های X جا افتاده است.'
+    };
+  }
+  function poolForPenhan2(level) { return [embeddedFigure2]; }
+  function genPenhan2(rng, level) { return embeddedFigure2(rng, level || 2); }
+  function lessonPenhan2() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(level) { return function () { return buildInteractive(toInter(embeddedFigure2(new RNG(seed++), level || 2))); }; }
+    return [
+      { title: 'تصویرِ پنهان — سطحِ حرفه‌ای 🔎🔥',
+        body: 'حالا که در تصویرِ پنهانِ ساده استاد شدی، وقتِ نسخه‌ی سخت‌ترش است! این‌جا شبکه بزرگ‌تر (۵×۵) و شلوغ‌تر است، تصویرِ X بلندتر است، و خط‌های اضافه خیلی بیشتر شده‌اند تا مخفیگاهِ X را بهتر بپوشانند. صبر و ریزبینی، سلاحِ توست.',
+        art: function () { return figure(function (g) { [[24, 24, 60, 24], [60, 24, 60, 60], [60, 60, 40, 76], [40, 76, 24, 60]].forEach(function (l) { add(g, 'line', merge(DEF, { x1: l[0], y1: l[1], x2: l[2], y2: l[3], 'stroke-width': 3.2 })); }); }, { size: 110, frame: true }); } },
+      { title: 'تکنیک: زنجیره را دنبال کن ⛓️',
+        body: 'در شلوغی، بهترین روش این است: از یک سرِ X شروع کن و خط‌به‌خط، مثلِ دنبال‌کردنِ یک نخ، پیش برو. اگر در گزینه‌ای وسطِ راه نخ پاره شد (خطِ بعدی نبود)، همان‌جا آن گزینه را رد کن و برو بعدی. عجله نکن!',
+        art: function () { return figure(mHook, { size: 108, frame: false }); } },
+      { title: 'تمرینِ ۱ ✏️', interactive: ex(2) },
+      { title: 'تمرینِ ۲ ✏️', interactive: ex(3) },
+      { title: 'آماده‌ای، کارآگاهِ ارشد! 🌟',
+        body: 'حالا حتی در شلوغ‌ترین شبکه‌ها هم می‌توانی ردِّ X را بگیری. هرچه جلوتر بروی خط‌ها بیشتر می‌شوند؛ با تمرکز پیش برو و مخفیگاه را پیدا کن!',
+        art: function () { return figure(mBoot, { size: 104, frame: false }); } }
+    ];
+  }
+
   // دومینو: شمارشِ کلِ خال‌های دو نیمه؛ چیدمان گمراه‌کننده.
   var PIP = { 0: [], 1: [[.5, .5]], 2: [[.28, .28], [.72, .72]], 3: [[.28, .28], [.5, .5], [.72, .72]], 4: [[.28, .28], [.72, .28], [.28, .72], [.72, .72]], 5: [[.28, .28], [.72, .28], [.5, .5], [.28, .72], [.72, .72]], 6: [[.28, .24], [.72, .24], [.28, .5], [.72, .5], [.28, .76], [.72, .76]] };
   function pips(g, n, x, y, w, hh) { (PIP[n] || []).forEach(function (pt) { drawDot(g, x + pt[0] * w, y + pt[1] * hh, 3); }); }
@@ -3009,6 +3093,7 @@
     { id: 'ejraye_qaede', n: 6, title: 'اجرای قاعده', sub: 'قاعده را ادامه بده', icon: '⚙️', color: PAL.gold, ready: true, lesson: lessonM6, gen: genQuestionM6, pool: poolForM6 },
     { id: 'dastebandi', n: 7, title: 'دسته‌بندیِ شکل‌ها', sub: 'گروه‌بندیِ درست', icon: '🗂️', color: PAL.teal, ready: true, lesson: lessonM7, gen: genQuestionM7, pool: poolForM7 },
     { id: 'penhan', n: 8, title: 'تصویرِ پنهان', sub: 'X کجا پنهان شده؟', icon: '🕵️', color: PAL.gold, ready: true, review: true, lesson: lessonPenhan, gen: genPenhan, pool: poolForPenhan },
+    { id: 'penhan2', n: 9, title: 'تصویرِ پنهان (نوع ۲)', sub: 'شبکه‌ی شلوغ‌تر', icon: '🔬', color: PAL.sky, ready: true, review: true, lesson: lessonPenhan2, gen: genPenhan2, pool: poolForPenhan2 },
     { id: 'sakhtar', n: 13, title: 'درک ساختار شکل‌ها', sub: 'تکه‌ی مکمل را پیدا کن', icon: '🧩', color: PAL.teal, ready: true, review: true, lesson: lessonSakhtar, gen: genSakhtar, pool: poolForSakhtar },
     { id: 'takmil', n: 14, title: 'تکمیل به شکلِ دلخواه', sub: 'دایره/لوزی/ذوزنقه…', icon: '🔵', color: PAL.fun, ready: true, review: true, lesson: lessonTakmil, gen: genTakmil, pool: poolForTakmil },
     { id: 'tarkibi', n: 17, title: 'آزمونِ استادان', sub: 'ترکیبِ همه‌ی مباحث', icon: '🎲', color: PAL.lilac, ready: true, lesson: lessonMix, gen: genMix, pool: poolForMix }
@@ -3178,6 +3263,7 @@
     ejraye_qaede: { place: 'کارخانه‌ی قاعده‌ها', title: 'مهندسِ قاعده‌ها', intro: 'کارخانه‌ی قاعده‌ها منتظرِ توست؛ قانونِ هر ماشین را کشف کن تا چرخ‌ها بچرخند.' },
     dastebandi: { place: 'کتابخانه‌ی دسته‌ها', title: 'کتابدارِ بزرگ', intro: 'در کتابخانه‌ی دسته‌ها، شکل‌ها را درست گروه‌بندی کن تا قفسه‌ها مرتب شوند.' },
     penhan: { place: 'اتاقِ تصویرهای پنهان', title: 'کارآگاهِ تصویرهای پنهان', intro: 'وارد اتاقِ تصویرهای پنهان شدی! این‌جا هر تصویرِ X لابه‌لای خط‌های یک گزینه قایم شده. با ریزبینی خط‌ها را دنبال کن و مخفیگاهِ X را پیدا کن.' },
+    penhan2: { place: 'آزمایشگاهِ ذره‌بین', title: 'کارآگاهِ ارشدِ تصویرها', intro: 'به آزمایشگاهِ ذره‌بین خوش آمدی! این‌جا تصویرِ X در شبکه‌های شلوغ و پرخط پنهان شده. با ذره‌بین و صبر، خط‌به‌خط ردِّ X را بگیر و مخفیگاهش را پیدا کن.' },
     sakhtar: { place: 'کارگاهِ مهندسیِ شکل‌ها', title: 'مهندسِ بزرگِ شکل‌ها', intro: 'به کارگاهِ مهندسیِ شکل‌ها خوش آمدی! این‌جا هر شکل با یک برش به دو تکه شده و تو باید تکه‌ی مکمل را پیدا کنی تا شکلِ کامل ساخته شود. به لبه‌های برش خوب دقت کن!' },
     takmil: { place: 'کارگاهِ قالب‌سازی', title: 'استادِ قالب‌ساز', intro: 'به کارگاهِ قالب‌سازی رسیدی! این‌جا شکل‌ها هر جور و قالبی دارند — دایره، لوزی، ذوزنقه، چندضلعی — و تو باید تکه‌ای را پیدا کنی که قالب را کامل کند. به خمِ لبه‌ها دقت کن!' },
     tarkibi: { place: 'قلعه‌ی استادان', title: 'استادِ بزرگِ شکل‌ها', intro: 'به قلعه‌ی استادان رسیدی، قهرمان! این‌جا سؤال‌ها از همه‌ی مباحث با هم می‌آیند و پشتِ سرِ هم سخت‌تر می‌شوند. اگر این‌جا را فتح کنی، استادِ بزرگ می‌شوی.' }
@@ -4222,7 +4308,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
