@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Mic, Trash2, CheckCircle, Send, Lock, ChevronUp, FlaskConical } from "lucide-react";
 import { formatToman, toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
+import { collapseRepeatedWords } from "@/lib/voice/persianNormalizer";
 import { shareInvoice } from "@/lib/invoice/share";
 
 interface Row { productId: number | null; productName: string; quantity: number; unitPrice: number; status: string; }
@@ -25,6 +26,7 @@ export default function VoiceTestPage() {
   const startYRef = useRef(0);
   const lockedRef = useRef(false);
   const textRef = useRef("");
+  const finalRef = useRef(""); // متنِ نهاییِ انباشته (فقط نتایجِ جدید اضافه می‌شود)
 
   const getSR = () => (typeof window === "undefined" ? null : (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
 
@@ -33,17 +35,21 @@ export default function VoiceTestPage() {
   const beginRecording = () => {
     const SR = getSR();
     if (!SR) { setNotice("مرورگر شما میکروفون را پشتیبانی نمی‌کند."); return; }
-    setNotice(""); setLive(""); textRef.current = "";
+    setNotice(""); setLive(""); textRef.current = ""; finalRef.current = "";
     const rec = new SR();
     rec.lang = "fa-IR"; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
     rec.onresult = (e: any) => {
-      let final = "", interim = "";
-      for (let i = 0; i < e.results.length; i++) {
+      // فقط نتایجِ «جدید» (از resultIndex به بعد) را اضافه می‌کنیم تا کلمات تکرار نشوند،
+      // و در پایان تکرارهای پیاپیِ ناشی از موتورِ موبایل را هم حذف می‌کنیم.
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
-        if (r.isFinal) final += r[0].transcript + " "; else interim += r[0].transcript + " ";
+        if (r.isFinal) finalRef.current += r[0].transcript + " ";
+        else interim += r[0].transcript + " ";
       }
-      textRef.current = (final + interim).trim();
-      setLive(textRef.current);
+      const combined = collapseRepeatedWords((finalRef.current + interim).trim());
+      textRef.current = combined;
+      setLive(combined);
     };
     rec.onend = () => { setRecording(false); };
     recRef.current = rec;

@@ -39,7 +39,11 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   // حالت گام‌به‌گام: هر کالا را جدا می‌گویید، تأیید می‌کنید، بعد بعدی (پیشنهاد کاربر).
-  const [stepMode, setStepMode] = useState(true);
+  // سه حالتِ فاکتور صوتی: گام‌به‌گام | یکجا | نگه‌دار و بگو
+  const [invMode, setInvMode] = useState<"step" | "batch" | "hold">("step");
+  const stepMode = invMode === "step";
+  const holdMode = invMode === "hold";
+  const [holdLocked, setHoldLocked] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItem | null>(null);
   // product
   const [product, setProduct] = useState<ProductDraft | null>(null);
@@ -61,10 +65,14 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const transcriptRef = useRef("");
   const shouldListenRef = useRef(false); // تا کاربر خودش «توقف» نزند، ضبط ادامه دارد
   modeRef.current = mode;
-  // refهای حالت گام‌به‌گام
+  // refهای حالت‌های فاکتور
+  const invModeRef = useRef(invMode); invModeRef.current = invMode;
   const stepModeRef = useRef(stepMode); stepModeRef.current = stepMode;
   const pendingItemRef = useRef<CartItem | null>(null);
   const stepProcessedRef = useRef(0); // تعدادِ نتایجِ نهاییِ پردازش‌شده در سشنِ جاری
+  // refهای حالتِ «نگه‌دار و بگو» (فشار بده و نگه‌دار + بکش بالا برای قفل)
+  const holdStartYRef = useRef(0);
+  const holdLockedRef = useRef(false);
 
   useEffect(() => { if (isOpen) setMode(defaultMode); }, [isOpen, defaultMode]);
 
@@ -183,6 +191,25 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     try { recognitionRef.current?.stop(); } catch { /* ignore */ }
     setTimeout(finalizeAndProcess, 500);
   };
+
+  // --- حالتِ «نگه‌دار و بگو» (شبیه ویس تلگرام): فشار بده و نگه‌دار؛ رها کن تا ثبت شود؛
+  //     بکش بالا برای قفل. از همان موتورِ ضبطِ حذف‌تکرار (startSession) استفاده می‌کند،
+  //     پس مشکلِ تکرارِ کلمات را ندارد. ---
+  const beginHold = (e: React.PointerEvent) => {
+    e.preventDefault();
+    holdStartYRef.current = e.clientY;
+    holdLockedRef.current = false; setHoldLocked(false);
+    startRecording();
+  };
+  const moveHold = (e: React.PointerEvent) => {
+    if (!isListening || holdLockedRef.current) return;
+    if (holdStartYRef.current - e.clientY > 60) { holdLockedRef.current = true; setHoldLocked(true); }
+  };
+  const endHold = () => {
+    if (holdLockedRef.current) return; // قفل است؛ با دکمهٔ توقف پایان می‌یابد
+    stopRecording();
+  };
+  const stopHold = () => { holdLockedRef.current = false; setHoldLocked(false); stopRecording(); };
 
   const speak = (t: string) => {
     try { if (!("speechSynthesis" in window) || !t) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = "fa-IR"; window.speechSynthesis.speak(u); } catch { /* ignore */ }
@@ -469,11 +496,12 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
           {/* ---------- SHARED: mic + guide (non-menu) ---------- */}
           {mode !== "menu" && !(mode === "invoice" && createdInvoice) && (
             <>
-              {/* انتخاب حالت (فقط فاکتور): گام‌به‌گام (تک‌به‌تک) یا یکجا */}
+              {/* انتخاب حالت (فقط فاکتور): گام‌به‌گام | یکجا | نگه‌دار و بگو */}
               {mode === "invoice" && (
-                <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl flex gap-1 text-xs font-bold">
-                  <button onClick={() => { setStepMode(true); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${stepMode ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>گام‌به‌گام (تک‌به‌تک) ✅</button>
-                  <button onClick={() => { setStepMode(false); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${!stepMode ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>یکجا (پشت‌سرهم)</button>
+                <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl flex gap-1 text-[11px] font-bold">
+                  <button onClick={() => { setInvMode("step"); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${invMode === "step" ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>گام‌به‌گام ✅</button>
+                  <button onClick={() => { setInvMode("hold"); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${invMode === "hold" ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>نگه‌دار و بگو 🎙️</button>
+                  <button onClick={() => { setInvMode("batch"); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${invMode === "batch" ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>یکجا</button>
                 </div>
               )}
 
@@ -481,18 +509,41 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-3 text-xs leading-relaxed text-emerald-800 dark:text-emerald-200">
                   🎙️ میکروفون را بزنید و <b>نامِ یک کالا</b> را بگویید (مثلاً «دفتر ۸۰ برگ میکرو»). کالا پایین نشان داده می‌شود؛ اگر درست بود بگویید <b>«تأیید»</b> یا دکمهٔ سبز را بزنید. برای تعداد فقط عدد را بگویید («سه»). ضبط قطع نمی‌شود تا همهٔ کالاها را بگویید.
                 </div>
+              ) : mode === "invoice" && holdMode ? (
+                <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-2xl p-3 text-xs leading-relaxed text-purple-800 dark:text-purple-200">
+                  🎙️ دکمهٔ میکروفون را <b>نگه دارید</b> و بگویید (مثلاً «دو تا دفتر ۸۰ برگ»)؛ وقتی <b>رها کردید</b> به فاکتور اضافه می‌شود. برای اینکه دستتان آزاد بماند، همان‌طور که نگه داشته‌اید <b>به بالا بکشید</b> تا قفل شود. (بدونِ تکرارِ کلمات ✅)
+                </div>
               ) : (
                 <Guide mode={mode} />
               )}
 
               <div className="flex flex-col items-center gap-2">
-                <button
-                  onClick={() => (isListening ? stopRecording() : startRecording())}
-                  className={`w-20 h-20 rounded-full flex items-center justify-center text-white shadow-lg active:scale-95 transition ${isListening ? "bg-rose-500 animate-pulse ring-8 ring-rose-200 dark:ring-rose-900/40" : "bg-emerald-600 ring-8 ring-emerald-100 dark:ring-emerald-950/40"}`}
-                >
-                  {isListening ? <Square className="w-8 h-8 fill-current" /> : <Mic className="w-9 h-9" />}
-                </button>
-                <span className={`text-xs text-center px-2 font-bold ${isListening ? "text-rose-600" : "text-gray-500"}`}>{isListening ? (mode === "invoice" && stepMode ? "🔴 در حال شنیدن — یک کالا بگویید، تأیید کنید، بعد بعدی. پایان: دکمهٔ ⏹" : "🔴 در حال ضبط — چند کالا را پشت‌سرهم بگویید، بعد برای پایان، همین دکمه (⏹) را بزنید.") : "میکروفون را بزنید و صحبت کنید"}</span>
+                {mode === "invoice" && holdMode && isListening && !holdLocked && (
+                  <div className="text-[11px] font-bold text-gray-500 flex items-center gap-1 animate-bounce"><ArrowRight className="w-3.5 h-3.5 -rotate-90" /> برای قفل به بالا بکشید</div>
+                )}
+                {mode === "invoice" && holdMode ? (
+                  <button
+                    onPointerDown={beginHold}
+                    onPointerMove={moveHold}
+                    onPointerUp={endHold}
+                    onPointerCancel={endHold}
+                    style={{ touchAction: "none" }}
+                    className={`w-20 h-20 rounded-full flex items-center justify-center text-white shadow-lg select-none transition ${isListening ? "bg-rose-500 ring-8 ring-rose-200 dark:ring-rose-900/40 scale-110" : "bg-purple-600 ring-8 ring-purple-100 dark:ring-purple-950/40"}`}
+                  >
+                    <Mic className="w-9 h-9" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => (isListening ? stopRecording() : startRecording())}
+                    className={`w-20 h-20 rounded-full flex items-center justify-center text-white shadow-lg active:scale-95 transition ${isListening ? "bg-rose-500 animate-pulse ring-8 ring-rose-200 dark:ring-rose-900/40" : "bg-emerald-600 ring-8 ring-emerald-100 dark:ring-emerald-950/40"}`}
+                  >
+                    {isListening ? <Square className="w-8 h-8 fill-current" /> : <Mic className="w-9 h-9" />}
+                  </button>
+                )}
+                {mode === "invoice" && holdMode && holdLocked && (
+                  <button onClick={stopHold} className="bg-rose-600 text-white px-6 py-2 rounded-xl text-xs font-bold">🔒 توقف و ثبت</button>
+                )}
+                <span className={`text-xs text-center px-2 font-bold ${isListening ? "text-rose-600" : "text-gray-500"}`}>{isListening ? (mode === "invoice" && stepMode ? "🔴 در حال شنیدن — یک کالا بگویید، تأیید کنید، بعد بعدی. پایان: دکمهٔ ⏹" : mode === "invoice" && holdMode ? "🔴 در حال شنیدن — بگویید و رها کنید" : "🔴 در حال ضبط — چند کالا را پشت‌سرهم بگویید، بعد برای پایان، همین دکمه (⏹) را بزنید.") : (mode === "invoice" && holdMode ? "دکمه را نگه دارید و بگویید" : "میکروفون را بزنید و صحبت کنید")}</span>
               </div>
 
               {/* کارتِ کالای در انتظارِ تأیید (حالت گام‌به‌گام) */}
@@ -520,8 +571,13 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 </div>
               )}
 
-              {/* حالت یکجا: کادر متن + دکمهٔ افزودن */}
-              {!(mode === "invoice" && stepMode) && (
+              {/* نمایشِ زندهٔ متن در حالتِ «نگه‌دار و بگو» */}
+              {mode === "invoice" && holdMode && transcript && (
+                <div className="w-full text-center text-sm bg-gray-100 dark:bg-gray-800 rounded-xl px-3 py-2 text-gray-700 dark:text-gray-200">{transcript}</div>
+              )}
+
+              {/* کادر متن + دکمهٔ افزودن (در حالت گام‌به‌گام و نگه‌دار نمایش داده نمی‌شود) */}
+              {!(mode === "invoice" && (stepMode || holdMode)) && (
                 <div className="space-y-2">
                   <textarea value={transcript} onChange={(e) => { setTranscript(e.target.value); transcriptRef.current = e.target.value; }} placeholder="متن گفتار شما اینجا می‌آید (قابل ویرایش)..." rows={2}
                     className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500" />
