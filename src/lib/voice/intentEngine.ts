@@ -297,10 +297,18 @@ export function buildPriceUpdateResult(raw: string, norm: string): VoiceActionRe
   const priceDirection: "increase" | "decrease" = decrease ? "decrease" : "increase";
 
   // اگر «همه/تمام کالاها» گفته شود → همهٔ کالاها؛ وگرنه نامِ فیلتر استخراج می‌شود.
+  // نکته مهم: نامِ کالا را «تا خودِ عبارتِ درصد» می‌گیریم تا عددِ داخلِ نام (مثل «۵۰» در
+  // «دفتر ۵۰ برگ میکرو») باعث نشود نام زودتر قطع شود و به «دفتر» تبدیل شود (که همهٔ دفترها
+  // را می‌گرفت).
   let filterName: string | null = null;
   if (!/همه|تمام|کل\s*کالا|همگی/.test(norm)) {
-    const fm = norm.match(/قیمت\s+(.+?)\s+(?:رو|را|به|\d|درصد|ده|بیست|سی|چهل|پنجاه|شصت|هفتاد|هشتاد|نود|صد)/);
-    if (fm) filterName = fm[1].replace(/(ها|های|هارو|هارا)$/, "").trim() || null;
+    const fm = norm.match(new RegExp(`قیمت\\s+(.+?)\\s+(?:(?:را|رو|به)\\s+)?(?:${NUMW})\\s*درصد`));
+    if (fm) {
+      filterName = fm[1]
+        .replace(/\s+(را|رو|به)$/, "")
+        .replace(/(ها|های|هارو|هارا)$/, "")
+        .trim() || null;
+    }
   }
 
   return {

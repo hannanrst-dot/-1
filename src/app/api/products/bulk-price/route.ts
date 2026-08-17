@@ -11,7 +11,7 @@ import { normalizePersianText } from "@/lib/persian/utils";
  */
 export async function POST(req: Request) {
   try {
-    const { percent, direction, filterName, applyToBuy } = await req.json();
+    const { percent, direction, filterName, applyToBuy, productIds } = await req.json();
     const p = Number(percent) || 0;
     if (p <= 0) {
       return NextResponse.json({ error: "درصد نامعتبر است." }, { status: 400 });
@@ -19,8 +19,12 @@ export async function POST(req: Request) {
     const factor = direction === "decrease" ? 1 - p / 100 : 1 + p / 100;
 
     const all = await db.select().from(products);
+    // اگر فهرستِ شناسه‌ها داده شود (کاربر از لیستِ پیش‌نمایش بعضی را حذف کرده)، فقط روی همان‌ها.
+    const ids: number[] | null = Array.isArray(productIds) && productIds.length ? productIds.map((x: any) => Number(x)) : null;
     const nf = filterName ? normalizePersianText(String(filterName)) : null;
-    const targets = nf ? all.filter((x) => normalizePersianText(x.name).includes(nf)) : all;
+    const targets = ids
+      ? all.filter((x) => ids.includes(x.id))
+      : nf ? all.filter((x) => normalizePersianText(x.name).includes(nf)) : all;
 
     for (const prod of targets) {
       const patch: Record<string, unknown> = {

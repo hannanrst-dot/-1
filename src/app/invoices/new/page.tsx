@@ -59,6 +59,8 @@ export default function NewInvoicePage() {
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [createdInvoice, setCreatedInvoice] = useState<any>(null);
 
+  const [stockAlert, setStockAlert] = useState(false);
+
   useEffect(() => {
     fetch("/api/products")
       .then((r) => r.json())
@@ -67,6 +69,11 @@ export default function NewInvoicePage() {
     fetch("/api/customers")
       .then((r) => r.json())
       .then((d) => setCustomers(d.customers || []));
+
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => setStockAlert(!!d?.settings?.store_info?.stockAlert))
+      .catch(() => {});
   }, []);
 
   const handleCustomerChange = (idStr: string) => {
@@ -131,6 +138,15 @@ export default function NewInvoicePage() {
     if (items.length === 0) {
       alert("لطفاً حداقل یک کالا به فاکتور اضافه کنید.");
       return;
+    }
+    // هشدارِ (غیرمسدودکنندهٔ) کمبود موجودی — فقط اگر در تنظیمات فعال باشد.
+    if (stockAlert) {
+      const short = items.filter((it) => it.quantity > it.stock);
+      if (short.length > 0) {
+        const list = short.map((it) => `• ${it.productName}: موجودی ${it.stock}، درخواست ${it.quantity}`).join("\n");
+        const ok = confirm(`⚠️ موجودیِ این کالاها کافی نیست:\n\n${list}\n\nبا این حال فاکتور ثبت شود؟`);
+        if (!ok) return;
+      }
     }
     setLoading(true);
 

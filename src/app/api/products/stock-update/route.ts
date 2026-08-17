@@ -13,13 +13,16 @@ import { getSession } from "@/lib/auth/session";
 export async function POST(req: Request) {
   try {
     const session = await getSession();
-    const { mode, amount, filterName } = await req.json();
+    const { mode, amount, filterName, productIds } = await req.json();
     const amt = Number(amount) || 0;
     const m: "set" | "increase" | "decrease" = mode === "increase" || mode === "decrease" ? mode : "set";
 
     const all = await db.select().from(products).where(eq(products.isActive, true));
+    const ids: number[] | null = Array.isArray(productIds) && productIds.length ? productIds.map((x: any) => Number(x)) : null;
     const nf = filterName ? normalizePersianText(String(filterName)) : null;
-    const targets = nf ? all.filter((x) => normalizePersianText(x.name).includes(nf)) : all;
+    const targets = ids
+      ? all.filter((x) => ids.includes(x.id))
+      : nf ? all.filter((x) => normalizePersianText(x.name).includes(nf)) : all;
 
     for (const prod of targets) {
       const newStock = m === "increase" ? prod.stock + amt : m === "decrease" ? Math.max(0, prod.stock - amt) : amt;

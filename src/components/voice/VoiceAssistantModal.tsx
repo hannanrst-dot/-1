@@ -22,6 +22,7 @@ interface CartItem {
   quantity: number;
   unitPrice: number;
   status: string;
+  stock?: number | null;
   matches?: { id: number; name: string; sellPrice: number }[];
 }
 
@@ -45,6 +46,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const holdMode = invMode === "hold";
   const [holdLocked, setHoldLocked] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItem | null>(null);
+  const [stockAlert, setStockAlert] = useState(false);
   // product
   const [product, setProduct] = useState<ProductDraft | null>(null);
   const [productDup, setProductDup] = useState<any>(null); // کالای مشابهِ کشف‌شده
@@ -75,6 +77,12 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const holdLockedRef = useRef(false);
 
   useEffect(() => { if (isOpen) setMode(defaultMode); }, [isOpen, defaultMode]);
+
+  // بارگذاری تنظیمِ «هشدار موجودی»
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch("/api/settings").then((r) => r.json()).then((d) => setStockAlert(!!d?.settings?.store_info?.stockAlert)).catch(() => {});
+  }, [isOpen]);
 
   // قفل اسکرول پس‌زمینه (موبایل)
   useEffect(() => {
@@ -326,7 +334,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
       for (const it of newItems) {
         const idx = it.productId != null ? next.findIndex((x) => x.productId === it.productId) : -1;
         if (idx > -1) next[idx] = { ...next[idx], quantity: next[idx].quantity + Number(it.quantity || 1) };
-        else next.push({ productId: it.productId ?? null, productName: it.productName, quantity: Number(it.quantity || 1), unitPrice: Number(it.unitPrice || 0), status: it.status || "EXACT", matches: it.matches?.map((mm: any) => ({ id: mm.id, name: mm.name, sellPrice: mm.sellPrice })) || [] });
+        else next.push({ productId: it.productId ?? null, productName: it.productName, quantity: Number(it.quantity || 1), unitPrice: Number(it.unitPrice || 0), status: it.status || "EXACT", stock: it.stock ?? null, matches: it.matches?.map((mm: any) => ({ id: mm.id, name: mm.name, sellPrice: mm.sellPrice })) || [] });
       }
       return next;
     });
@@ -334,13 +342,17 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
 
   const resetAll = () => { setItems([]); setCustomerName(""); setCustomerPhone(""); setProduct(null); setProductDup(null); setStockPreview(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setCreatedInvoice(null); setNotice(""); setTranscript(""); pendingItemRef.current = null; setPendingItem(null); };
 
+  // حذفِ یک کالا از لیستِ پیش‌نمایشِ قیمت/موجودی (تا در اعمال دخالت نکند).
+  const removePricePreviewItem = (id: number) => setPricePreview((prev: any) => prev ? { ...prev, items: prev.items.filter((x: any) => x.id !== id), affectedCount: prev.items.filter((x: any) => x.id !== id).length } : prev);
+  const removeStockPreviewItem = (id: number) => setStockPreview((prev: any) => prev ? { ...prev, items: prev.items.filter((x: any) => x.id !== id), affectedCount: prev.items.filter((x: any) => x.id !== id).length } : prev);
+
   const applyPriceUpdate = async () => {
-    if (!pricePreview) return;
+    if (!pricePreview || !pricePreview.items?.length) return;
     setLoading(true);
     try {
       const res = await fetch("/api/products/bulk-price", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ percent: pricePreview.percent, direction: pricePreview.direction, filterName: pricePreview.filterName }),
+        body: JSON.stringify({ percent: pricePreview.percent, direction: pricePreview.direction, productIds: pricePreview.items.map((x: any) => x.id) }),
       });
       const data = await res.json();
       if (res.ok) { speak("قیمت‌ها به‌روزرسانی شد"); setNotice(`قیمت ${toPersianDigits(data.count)} کالا به‌روزرسانی شد. ✅`); setPricePreview(null); setTranscript(""); onActionExecute?.("REFRESH_PRODUCTS", null); }
@@ -348,12 +360,12 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     } catch { setNotice("خطای ارتباط."); } finally { setLoading(false); }
   };
   const applyStockUpdate = async () => {
-    if (!stockPreview) return;
+    if (!stockPreview || !stockPreview.items?.length) return;
     setLoading(true);
     try {
       const res = await fetch("/api/products/stock-update", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: stockPreview.mode, amount: stockPreview.amount, filterName: stockPreview.filterName }),
+        body: JSON.stringify({ mode: stockPreview.mode, amount: stockPreview.amount, productIds: stockPreview.items.map((x: any) => x.id) }),
       });
       const data = await res.json();
       if (res.ok) { speak("موجودی به‌روزرسانی شد"); setNotice(`موجودی ${toPersianDigits(data.count)} کالا به‌روزرسانی شد. ✅`); setStockPreview(null); setTranscript(""); onActionExecute?.("REFRESH_PRODUCTS", null); }
@@ -367,6 +379,14 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
 
   const submitInvoice = async () => {
     if (!items.length) { setNotice("لیست خالی است."); return; }
+    // هشدارِ غیرمسدودکنندهٔ موجودی (اگر در تنظیمات فعال باشد)
+    if (stockAlert) {
+      const short = items.filter((it) => it.stock != null && it.quantity > (it.stock as number));
+      if (short.length > 0) {
+        const list = short.map((it) => `• ${it.productName}: موجودی ${toPersianDigits(it.stock as number)}، درخواست ${toPersianDigits(it.quantity)}`).join("\n");
+        if (!window.confirm(`⚠️ موجودیِ این کالاها کافی نیست:\n\n${list}\n\nبا این حال فاکتور ثبت شود؟`)) return;
+      }
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/invoices", {
@@ -709,17 +729,16 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 {pricePreview.direction === "decrease" ? "کاهش" : "افزایش"} {toPersianDigits(pricePreview.percent)}٪ قیمت — {toPersianDigits(pricePreview.affectedCount)} کالا
                 {pricePreview.filterName ? ` («${pricePreview.filterName}»)` : " (همه)"}
               </div>
-              <div className="space-y-1">
-                {pricePreview.samples.map((s: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between text-xs bg-white dark:bg-gray-900 rounded-lg px-2 py-1.5">
+              <div className="text-[11px] text-gray-500">کالاهایی که نمی‌خواهید را با 🗑 حذف کنید تا تغییر نکنند:</div>
+              <div className="space-y-1 max-h-64 overflow-y-auto">
+                {pricePreview.items.map((s: any) => (
+                  <div key={s.id} className="flex items-center justify-between gap-2 text-xs bg-white dark:bg-gray-900 rounded-lg px-2 py-1.5">
+                    <button onClick={() => removePricePreviewItem(s.id)} className="w-6 h-6 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 flex items-center justify-center shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
                     <span className="truncate flex-1">{s.name}</span>
-                    <span className="text-gray-400 line-through mx-2">{formatToman(s.oldPrice)}</span>
+                    <span className="text-gray-400 line-through mx-1">{formatToman(s.oldPrice)}</span>
                     <span className="font-bold text-rose-700 dark:text-rose-400">{formatToman(s.newPrice)}</span>
                   </div>
                 ))}
-                {pricePreview.affectedCount > pricePreview.samples.length && (
-                  <div className="text-[11px] text-gray-500 text-center">و {toPersianDigits(pricePreview.affectedCount - pricePreview.samples.length)} کالای دیگر...</div>
-                )}
               </div>
             </div>
           )}
@@ -731,17 +750,16 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 {stockPreview.mode === "increase" ? "افزایش" : stockPreview.mode === "decrease" ? "کاهش" : "تنظیم"} موجودی — {toPersianDigits(stockPreview.affectedCount)} کالا
                 {stockPreview.filterName ? ` («${stockPreview.filterName}»)` : " (همه)"}
               </div>
-              <div className="space-y-1">
-                {stockPreview.samples.map((s: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between text-xs bg-white dark:bg-gray-900 rounded-lg px-2 py-1.5">
+              <div className="text-[11px] text-gray-500">کالاهایی که نمی‌خواهید را با 🗑 حذف کنید:</div>
+              <div className="space-y-1 max-h-64 overflow-y-auto">
+                {stockPreview.items.map((s: any) => (
+                  <div key={s.id} className="flex items-center justify-between gap-2 text-xs bg-white dark:bg-gray-900 rounded-lg px-2 py-1.5">
+                    <button onClick={() => removeStockPreviewItem(s.id)} className="w-6 h-6 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 flex items-center justify-center shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
                     <span className="truncate flex-1">{s.name}</span>
-                    <span className="text-gray-400 line-through mx-2">{toPersianDigits(s.oldStock)}</span>
+                    <span className="text-gray-400 line-through mx-1">{toPersianDigits(s.oldStock)}</span>
                     <span className="font-bold text-indigo-700 dark:text-indigo-400">{toPersianDigits(s.newStock)} {s.unit}</span>
                   </div>
                 ))}
-                {stockPreview.affectedCount > stockPreview.samples.length && (
-                  <div className="text-[11px] text-gray-500 text-center">و {toPersianDigits(stockPreview.affectedCount - stockPreview.samples.length)} کالای دیگر...</div>
-                )}
               </div>
             </div>
           )}

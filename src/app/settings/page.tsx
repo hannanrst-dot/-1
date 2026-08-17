@@ -10,6 +10,7 @@ export default function SettingsPage() {
   const [phone, setPhone] = useState("02188776655");
   const [address, setAddress] = useState("تهران، خیابان آزادی، پلاک ۱۲");
   const [receiptFooter, setReceiptFooter] = useState("از خرید و اعتماد شما سپاسگزاریم");
+  const [stockAlert, setStockAlert] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
 
@@ -23,6 +24,7 @@ export default function SettingsPage() {
           setPhone(info.phone || phone);
           setAddress(info.address || address);
           setReceiptFooter(info.receiptFooter || receiptFooter);
+          setStockAlert(!!info.stockAlert);
         }
       });
   }, []);
@@ -36,7 +38,7 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           key: "store_info",
-          value: { storeName, phone, address, receiptFooter },
+          value: { storeName, phone, address, receiptFooter, stockAlert },
         }),
       });
       if (res.ok) {
@@ -118,6 +120,15 @@ export default function SettingsPage() {
                 className="w-full bg-gray-50 dark:bg-gray-800 border rounded-xl p-2.5"
               />
             </div>
+
+            {/* هشدار موجودی */}
+            <label className="flex items-start gap-2 cursor-pointer bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
+              <input type="checkbox" checked={stockAlert} onChange={(e) => setStockAlert(e.target.checked)} className="mt-0.5 w-4 h-4 accent-amber-600" />
+              <span>
+                <span className="font-bold text-amber-800 dark:text-amber-300">هشدار کمبود موجودی هنگام فروش</span>
+                <span className="block text-[11px] text-gray-600 dark:text-gray-300 mt-0.5">اگر روشن باشد، وقتی موجودی کالایی کافی نباشد یا تمام شده باشد، هنگام ثبت فاکتور هشدار می‌دهد — ولی باز هم می‌توانید تأیید کنید و ادامه دهید (جلوی فروش گرفته نمی‌شود).</span>
+              </span>
+            </label>
           </div>
 
           <button

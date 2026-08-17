@@ -119,7 +119,10 @@ export async function POST(req: Request) {
 
       const nf = filterName ? normalizePersianText(filterName) : null;
       const targets = nf ? allDbProducts.filter((x) => normalizePersianText(x.name).includes(nf)) : allDbProducts;
-      const samples = targets.slice(0, 6).map((x) => ({
+      // لیستِ کاملِ کالاهای هدف با شناسه، تا کاربر بتواند از لیست حذف کند و فقط روی
+      // موارد دلخواه اعمال شود.
+      const items = targets.slice(0, 100).map((x) => ({
+        id: x.id,
         name: x.name,
         oldPrice: x.sellPrice,
         newPrice: Math.max(0, Math.round(x.sellPrice * factor)),
@@ -134,7 +137,7 @@ export async function POST(req: Request) {
         result: actionResult,
         speechResponse,
         type: "PRICE_UPDATE_PREVIEW",
-        data: { percent: p, direction: dir, filterName, affectedCount: targets.length, samples },
+        data: { percent: p, direction: dir, filterName, affectedCount: targets.length, items },
       });
     }
 
@@ -147,7 +150,7 @@ export async function POST(req: Request) {
 
       const calcNew = (cur: number) =>
         mode === "increase" ? cur + amount : mode === "decrease" ? Math.max(0, cur - amount) : amount;
-      const samples = targets.slice(0, 6).map((x) => ({ name: x.name, oldStock: x.stock, newStock: calcNew(x.stock), unit: x.unit }));
+      const items = targets.slice(0, 100).map((x) => ({ id: x.id, name: x.name, oldStock: x.stock, newStock: calcNew(x.stock), unit: x.unit }));
       const modeWord = mode === "increase" ? "افزایش" : mode === "decrease" ? "کاهش" : "تنظیم";
       const scope = filterName ? `«${filterName}»` : "همهٔ کالاها";
       const speechResponse = targets.length
@@ -158,7 +161,7 @@ export async function POST(req: Request) {
         result: actionResult,
         speechResponse,
         type: "STOCK_UPDATE_PREVIEW",
-        data: { mode, amount, filterName, affectedCount: targets.length, samples },
+        data: { mode, amount, filterName, affectedCount: targets.length, items },
       });
     }
 
@@ -203,6 +206,7 @@ export async function POST(req: Request) {
           quantity: resItem.quantity,
           unitPrice: itemPrice,
           totalPrice: itemPrice * resItem.quantity,
+          stock: resItem.selectedProduct?.stock ?? null,
           matches: resItem.matches,
           status: resItem.status,
         });
