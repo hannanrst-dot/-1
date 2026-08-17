@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp, Check, Send } from "lucide-react";
+import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp, Check, Send, Image as ImageIcon } from "lucide-react";
 import { formatToman, toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
 import { pushUtterance, joinTranscript } from "@/lib/voice/transcript";
 import { normalizeSpokenPersian, parsePersianNumberWords } from "@/lib/voice/persianNormalizer";
-import { shareInvoice, sendToWhatsapp } from "@/lib/invoice/share";
+import { shareInvoice, sendToWhatsapp, shareInvoiceImage } from "@/lib/invoice/share";
 
 type Mode = "menu" | "invoice" | "product" | "purchase" | "query" | "price";
 
@@ -352,7 +352,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     try {
       const res = await fetch("/api/products/bulk-price", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ percent: pricePreview.percent, direction: pricePreview.direction, productIds: pricePreview.items.map((x: any) => x.id) }),
+        body: JSON.stringify({ percent: pricePreview.percent, amount: pricePreview.amount, changeMode: pricePreview.changeMode, direction: pricePreview.direction, productIds: pricePreview.items.map((x: any) => x.id) }),
       });
       const data = await res.json();
       if (res.ok) { speak("قیمت‌ها به‌روزرسانی شد"); setNotice(`قیمت ${toPersianDigits(data.count)} کالا به‌روزرسانی شد. ✅`); setPricePreview(null); setTranscript(""); onActionExecute?.("REFRESH_PRODUCTS", null); }
@@ -499,13 +499,12 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
               </div>
               {/* ارسال فاکتور برای مشتری */}
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => shareInvoice({ invoiceNumber: createdInvoice.number, customerName: createdInvoice.customerName, items: createdInvoice.items, total: createdInvoice.total }, createdInvoice.customerPhone)} className="bg-sky-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><Send className="w-4 h-4" /> ارسال فاکتور</button>
-                {createdInvoice.customerPhone ? (
-                  <button onClick={() => sendToWhatsapp({ invoiceNumber: createdInvoice.number, customerName: createdInvoice.customerName, items: createdInvoice.items, total: createdInvoice.total }, createdInvoice.customerPhone)} className="bg-green-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">واتساپ مشتری</button>
-                ) : (
-                  <a href={`/installments?invoiceId=${createdInvoice.id ?? ""}&invoiceNumber=${encodeURIComponent(createdInvoice.number)}&customer=${encodeURIComponent(createdInvoice.customerName)}&total=${Math.round(createdInvoice.total)}`} className="bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">فروش قسطی</a>
-                )}
+                <button onClick={() => shareInvoiceImage({ invoiceNumber: createdInvoice.number, customerName: createdInvoice.customerName, items: createdInvoice.items, total: createdInvoice.total }, createdInvoice.customerPhone)} className="bg-sky-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><ImageIcon className="w-4 h-4" /> ارسال عکسِ فاکتور</button>
+                <button onClick={() => shareInvoice({ invoiceNumber: createdInvoice.number, customerName: createdInvoice.customerName, items: createdInvoice.items, total: createdInvoice.total }, createdInvoice.customerPhone)} className="bg-gray-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><Send className="w-4 h-4" /> ارسال متن</button>
               </div>
+              {createdInvoice.customerPhone && (
+                <button onClick={() => sendToWhatsapp({ invoiceNumber: createdInvoice.number, customerName: createdInvoice.customerName, items: createdInvoice.items, total: createdInvoice.total }, createdInvoice.customerPhone)} className="w-full bg-green-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">واتساپ به {toPersianDigits(createdInvoice.customerPhone)}</button>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => { resetAll(); }} className="bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><Plus className="w-4 h-4" /> فاکتور جدید</button>
                 <button onClick={() => { resetAll(); onActionExecute?.("NAVIGATE_INVOICE", createdInvoice.id); onClose(); }} className="border border-gray-300 dark:border-gray-700 py-2.5 rounded-xl text-sm">بستن</button>
@@ -726,7 +725,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
           {mode === "price" && pricePreview && pricePreview.affectedCount > 0 && (
             <div className="border border-rose-200 dark:border-rose-900 rounded-2xl p-3 bg-rose-50 dark:bg-rose-950/20 space-y-2">
               <div className="font-bold text-sm text-rose-800 dark:text-rose-300">
-                {pricePreview.direction === "decrease" ? "کاهش" : "افزایش"} {toPersianDigits(pricePreview.percent)}٪ قیمت — {toPersianDigits(pricePreview.affectedCount)} کالا
+                {pricePreview.direction === "decrease" ? "کاهش" : "افزایش"} {pricePreview.changeMode === "amount" ? formatToman(pricePreview.amount) : `${toPersianDigits(pricePreview.percent)}٪`} قیمت — {toPersianDigits(pricePreview.affectedCount)} کالا
                 {pricePreview.filterName ? ` («${pricePreview.filterName}»)` : " (همه)"}
               </div>
               <div className="text-[11px] text-gray-500">کالاهایی که نمی‌خواهید را با 🗑 حذف کنید تا تغییر نکنند:</div>
@@ -818,7 +817,7 @@ function Guide({ mode }: { mode: Mode }) {
     product: { pattern: "«[نام] قیمت خرید [عدد] قیمت فروش [عدد] تعداد [عدد]»", example: "دفتر پاپکو قیمت خرید ۴۵ هزار قیمت فروش ۶۰ هزار تعداد ۵۰" },
     purchase: { pattern: "«از [تأمین‌کننده] [تعداد] [نام کالا] دونه‌ای [عدد]»", example: "از پاپکو صد تا دفتر دونه‌ای ۴۵ هزار" },
     query: { pattern: "یک سؤال بپرسید", example: "فروش امروز چقدر بوده؟", note: "یا: «کدوم کالاها موجودیشون کمه؟»" },
-    price: { pattern: "«قیمت [همه/گروه] را [عدد] درصد زیاد/کم کن» یا «موجودی [کالا] را ...»", example: "قیمت همه کالاها رو ۱۰ درصد زیاد کن", note: "برای گروه خاص: «قیمت دفترها رو ۲۰ درصد زیاد کن». همچنین موجودی: «موجودی دفتر پاپکو رو ۵۰ کن» یا «موجودی مداد رو ۲۰ تا اضافه کن». قبل از اعمال، پیش‌نمایش و تأیید می‌گیرید." },
+    price: { pattern: "«قیمت [کالا/گروه/همه] را [عدد] درصد یا [عدد] تومان زیاد/کم کن»", example: "قیمت دفتر ۵۰ برگ میکرو رو ۵۰ هزار تومان زیاد کن", note: "درصدی: «قیمت دفترها رو ۲۰ درصد زیاد کن». مبلغی: «قیمت خودکار رو ۵ هزار تومان بیشتر کن». یک کالای خاص یا همه. موجودی هم: «موجودی دفتر پاپکو رو ۵۰ کن». قبل از اعمال، پیش‌نمایش و امکانِ حذفِ موارد را دارید." },
   };
   const g = data[mode];
   if (!g) return null;

@@ -37,6 +37,8 @@ export interface VoiceActionResult {
     items?: ParsedVoiceItem[];
     searchQuery?: string;
     percent?: number;
+    amount?: number;
+    changeMode?: "percent" | "amount";
     priceDirection?: "increase" | "decrease";
     filterName?: string | null;
     stockMode?: "set" | "increase" | "decrease";
@@ -289,20 +291,38 @@ export function buildPurchaseResult(raw: string, norm: string): VoiceActionResul
   };
 }
 
-/** ساخت نتیجهٔ «تغییر درصدی قیمت» از متن نرمال‌شده */
+/** ساخت نتیجهٔ «تغییر قیمت» (درصدی یا مبلغی) از متن نرمال‌شده.
+ *  درصدی: «... ۱۰ درصد زیاد کن». مبلغی: «... ۵۰ هزار تومان بیشتر کن». */
 export function buildPriceUpdateResult(raw: string, norm: string): VoiceActionResult {
-  const pm = norm.match(new RegExp(`(${NUMW})\\s*درصد`));
-  const percent = pm ? parsePersianNumberWords(pm[1]) ?? 0 : 0;
-  const decrease = /کم|تخفیف|پایین|کاهش|ارزون|ارزان/.test(norm);
+  const decrease = /کم|تخفیف|پایین|کاهش|ارزون|ارزان|کمتر/.test(norm);
   const priceDirection: "increase" | "decrease" = decrease ? "decrease" : "increase";
 
-  // اگر «همه/تمام کالاها» گفته شود → همهٔ کالاها؛ وگرنه نامِ فیلتر استخراج می‌شود.
-  // نکته مهم: نامِ کالا را «تا خودِ عبارتِ درصد» می‌گیریم تا عددِ داخلِ نام (مثل «۵۰» در
-  // «دفتر ۵۰ برگ میکرو») باعث نشود نام زودتر قطع شود و به «دفتر» تبدیل شود (که همهٔ دفترها
-  // را می‌گرفت).
+  const isPercent = norm.includes("درصد");
+  const changeMode: "percent" | "amount" = isPercent ? "percent" : "amount";
+  const NUM_RUN = `(?:${NUMW})(?:\\s+(?:و\\s+)?(?:${NUMW}))*`; // «۵۰ هزار» یا «چهل و پنج هزار»
+
+  let percent = 0;
+  let amount = 0;
+  if (isPercent) {
+    const pm = norm.match(new RegExp(`(${NUMW})\\s*درصد`));
+    percent = pm ? parsePersianNumberWords(pm[1]) ?? 0 : 0;
+  } else {
+    // مبلغ: عبارتِ عددیِ نزدیکِ «تومان/تومن»، وگرنه عددِ بعد از «رو/را» و پیش از فعل.
+    let am = norm.match(new RegExp(`(${NUM_RUN})\\s*(?:تومان|تومن|ریال)`));
+    if (!am) am = norm.match(new RegExp(`(?:رو|را|به)\\s+(${NUM_RUN})\\s*(?:بیشتر|کمتر|زیاد|کم|اضافه|کاهش|گران|گرون)`));
+    if (am) amount = parsePersianNumberWords(am[1]) ?? 0;
+  }
+
+  // نامِ فیلتر: «همه» → همهٔ کالاها؛ وگرنه نامِ بینِ «قیمت» و عبارتِ درصد/مبلغ.
   let filterName: string | null = null;
   if (!/همه|تمام|کل\s*کالا|همگی/.test(norm)) {
-    const fm = norm.match(new RegExp(`قیمت\\s+(.+?)\\s+(?:(?:را|رو|به)\\s+)?(?:${NUMW})\\s*درصد`));
+    let fm: RegExpMatchArray | null = null;
+    if (isPercent) {
+      fm = norm.match(new RegExp(`قیمت\\s+(.+?)\\s+(?:(?:را|رو|به)\\s+)?(?:${NUMW})\\s*درصد`));
+    } else {
+      fm = norm.match(new RegExp(`قیمت\\s+(.+?)\\s+(?:را|رو|به)\\s`));
+      if (!fm) fm = norm.match(new RegExp(`قیمت\\s+(.+?)\\s+(?:${NUM_RUN})\\s*(?:تومان|تومن|ریال|بیشتر|کمتر|زیاد|کم)`));
+    }
     if (fm) {
       filterName = fm[1]
         .replace(/\s+(را|رو|به)$/, "")
@@ -316,7 +336,7 @@ export function buildPriceUpdateResult(raw: string, norm: string): VoiceActionRe
     rawText: raw,
     normalizedText: norm,
     confidence: 0.9,
-    entities: { percent, priceDirection, filterName },
+    entities: { percent, amount, changeMode, priceDirection, filterName },
   };
 }
 

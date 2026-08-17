@@ -113,9 +113,14 @@ export async function POST(req: Request) {
 
     if (actionResult.intent === "BULK_PRICE_UPDATE") {
       const p = Number(actionResult.entities.percent) || 0;
+      const amount = Number(actionResult.entities.amount) || 0;
+      const changeMode = actionResult.entities.changeMode || "percent";
       const dir = actionResult.entities.priceDirection || "increase";
       const filterName = actionResult.entities.filterName || null;
       const factor = dir === "decrease" ? 1 - p / 100 : 1 + p / 100;
+      const calcNew = (old: number) => changeMode === "amount"
+        ? Math.max(0, Math.round(old + (dir === "decrease" ? -amount : amount)))
+        : Math.max(0, Math.round(old * factor));
 
       const nf = filterName ? normalizePersianText(filterName) : null;
       const targets = nf ? allDbProducts.filter((x) => normalizePersianText(x.name).includes(nf)) : allDbProducts;
@@ -125,19 +130,20 @@ export async function POST(req: Request) {
         id: x.id,
         name: x.name,
         oldPrice: x.sellPrice,
-        newPrice: Math.max(0, Math.round(x.sellPrice * factor)),
+        newPrice: calcNew(x.sellPrice),
       }));
       const dirWord = dir === "decrease" ? "کاهش" : "افزایش";
+      const changeText = changeMode === "amount" ? `${formatToman(amount)}` : `${toPersianDigits(p)} درصد`;
       const scope = filterName ? `«${filterName}»` : "همهٔ کالاها";
       const speechResponse = targets.length
-        ? `${toPersianDigits(targets.length)} کالا (${scope}) با ${dirWord} ${toPersianDigits(p)} درصدی قیمت. تأیید می‌کنید؟`
+        ? `${toPersianDigits(targets.length)} کالا (${scope}) با ${dirWord} ${changeText} قیمت. تأیید می‌کنید؟`
         : `کالایی با ${scope} پیدا نشد.`;
 
       return NextResponse.json({
         result: actionResult,
         speechResponse,
         type: "PRICE_UPDATE_PREVIEW",
-        data: { percent: p, direction: dir, filterName, affectedCount: targets.length, items },
+        data: { percent: p, amount, changeMode, direction: dir, filterName, affectedCount: targets.length, items },
       });
     }
 

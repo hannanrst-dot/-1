@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Printer, Download, X, Store, Calendar, FileText, CheckCircle2, CalendarClock, Send } from "lucide-react";
+import { Printer, Download, X, Store, Calendar, FileText, CheckCircle2, CalendarClock, Send, Image as ImageIcon } from "lucide-react";
 import { formatToman, toJalaliDateTime, toPersianDigits } from "@/lib/persian/utils";
-import { shareInvoice } from "@/lib/invoice/share";
+import { shareInvoiceImage } from "@/lib/invoice/share";
 
 interface InvoicePrintItem {
   productName: string;
@@ -113,7 +113,7 @@ export function PrintableInvoice({ invoice, isOpen, onClose }: PrintableInvoiceP
               <CalendarClock className="w-4 h-4" /> فروش قسطی
             </a>
             <button
-              onClick={() => shareInvoice({
+              onClick={() => shareInvoiceImage({
                 storeName: store.storeName, storePhone: store.phone,
                 invoiceNumber: invoice.invoiceNumber, customerName: invoice.customerName,
                 items: invoice.items.map((it) => ({ productName: it.productName, quantity: it.quantity, unitPrice: it.unitPrice, totalPrice: it.totalPrice })),
@@ -121,7 +121,7 @@ export function PrintableInvoice({ invoice, isOpen, onClose }: PrintableInvoiceP
               }, invoice.customerPhone)}
               className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-sky-600/30"
             >
-              <Send className="w-4 h-4" /> ارسال برای مشتری
+              <ImageIcon className="w-4 h-4" /> ارسال عکسِ فاکتور
             </button>
             <button
               onClick={handlePrint}

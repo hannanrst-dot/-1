@@ -6,7 +6,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Mic, Trash2, CheckCircle, Send, Lock, ChevronUp, FlaskConical } from "lucide-react";
 import { formatToman, toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
 import { collapseRepeatedWords } from "@/lib/voice/persianNormalizer";
-import { shareInvoice } from "@/lib/invoice/share";
+import { shareInvoiceImage } from "@/lib/invoice/share";
 
 interface Row { productId: number | null; productName: string; quantity: number; unitPrice: number; status: string; }
 
@@ -136,7 +136,7 @@ export default function VoiceTestPage() {
               <div className="text-xs text-gray-500 mt-1">شماره: {toPersianDigits(created.number)}</div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => shareInvoice(created, created.customerPhone)} className="bg-sky-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><Send className="w-4 h-4" /> ارسال فاکتور</button>
+              <button onClick={() => shareInvoiceImage(created, created.customerPhone)} className="bg-sky-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><Send className="w-4 h-4" /> ارسال عکسِ فاکتور</button>
               <button onClick={() => { setCreated(null); setItems([]); setCustomerName(""); setCustomerPhone(""); }} className="bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-bold">فاکتور جدید</button>
             </div>
           </div>
