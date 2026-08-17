@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FilePlus, Package, Receipt, MoreHorizontal, X,
-  Users, Truck, ShoppingCart, Boxes, BarChart3, Settings, PlusCircle, CalendarClock,
+  Users, Truck, ShoppingCart, Boxes, BarChart3, Settings, PlusCircle, CalendarClock, FlaskConical,
 } from "lucide-react";
 
 export function MobileNav() {
@@ -28,6 +28,7 @@ export function MobileNav() {
     { href: "/products/new", label: "ثبت کالا", icon: PlusCircle },
     { href: "/inventory", label: "انبار و موجودی", icon: Boxes },
     { href: "/reports", label: "گزارش‌ها", icon: BarChart3 },
+    { href: "/voice-test", label: "فاکتور صوتی (آزمایشی) 🧪", icon: FlaskConical },
     { href: "/settings", label: "تنظیمات و پشتیبان", icon: Settings },
   ];
 

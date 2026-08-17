@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   invoice_number TEXT NOT NULL UNIQUE,
   customer_id INTEGER REFERENCES customers(id),
   customer_name TEXT NOT NULL DEFAULT 'مشتری عمومی',
+  customer_phone TEXT,
   total_amount REAL NOT NULL DEFAULT 0,
   discount_amount REAL NOT NULL DEFAULT 0,
   tax_amount REAL NOT NULL DEFAULT 0,
@@ -228,6 +229,17 @@ function createConnection(): Database.Database {
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.exec(SCHEMA_SQL);
+  // مهاجرت‌های سبک: افزودنِ ستون‌های جدید به دیتابیس‌های موجود (CREATE TABLE IF NOT EXISTS
+  // ستونِ جدید را به جدولِ ازقبل‌موجود اضافه نمی‌کند). این کار بی‌خطر و تکرارپذیر است.
+  const ensureColumn = (table: string, col: string, def: string) => {
+    try {
+      const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+      if (!cols.some((c) => c.name === col)) {
+        sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+      }
+    } catch { /* ignore */ }
+  };
+  ensureColumn("invoices", "customer_phone", "TEXT");
   console.log("[sabtyar] مسیر دیتابیس:", dbFile);
   return sqlite;
 }

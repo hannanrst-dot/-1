@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Printer, Download, X, Store, Calendar, FileText, CheckCircle2, CalendarClock } from "lucide-react";
+import { Printer, Download, X, Store, Calendar, FileText, CheckCircle2, CalendarClock, Send } from "lucide-react";
 import { formatToman, toJalaliDateTime, toPersianDigits } from "@/lib/persian/utils";
+import { shareInvoice } from "@/lib/invoice/share";
 
 interface InvoicePrintItem {
   productName: string;
@@ -16,6 +17,7 @@ interface InvoicePrintData {
   id?: number;
   invoiceNumber: string;
   customerName: string;
+  customerPhone?: string;
   createdAt: string;
   totalAmount: number;
   discountAmount: number;
@@ -110,6 +112,17 @@ export function PrintableInvoice({ invoice, isOpen, onClose }: PrintableInvoiceP
             >
               <CalendarClock className="w-4 h-4" /> فروش قسطی
             </a>
+            <button
+              onClick={() => shareInvoice({
+                storeName: store.storeName, storePhone: store.phone,
+                invoiceNumber: invoice.invoiceNumber, customerName: invoice.customerName,
+                items: invoice.items.map((it) => ({ productName: it.productName, quantity: it.quantity, unitPrice: it.unitPrice, totalPrice: it.totalPrice })),
+                total: invoice.finalAmount,
+              }, invoice.customerPhone)}
+              className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-sky-600/30"
+            >
+              <Send className="w-4 h-4" /> ارسال برای مشتری
+            </button>
             <button
               onClick={handlePrint}
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-lg shadow-emerald-600/30"

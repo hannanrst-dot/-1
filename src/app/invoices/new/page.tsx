@@ -30,6 +30,7 @@ export default function NewInvoicePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [customerName, setCustomerName] = useState("مشتری عمومی");
+  const [customerPhone, setCustomerPhone] = useState("");
 
   // Invoice Items state
   const [items, setItems] = useState<
@@ -74,7 +75,7 @@ export default function NewInvoicePage() {
       setCustomerName("مشتری عمومی");
     } else {
       const cust = customers.find((c) => String(c.id) === idStr);
-      if (cust) setCustomerName(cust.name);
+      if (cust) { setCustomerName(cust.name); if (cust.phone) setCustomerPhone(cust.phone); }
     }
   };
 
@@ -140,6 +141,7 @@ export default function NewInvoicePage() {
         body: JSON.stringify({
           customerId: selectedCustomerId || null,
           customerName,
+          customerPhone: customerPhone || null,
           items,
           discountAmount,
           taxAmount,
@@ -150,7 +152,7 @@ export default function NewInvoicePage() {
 
       const data = await res.json();
       if (res.ok) {
-        setCreatedInvoice({ ...data.invoice, items });
+        setCreatedInvoice({ ...data.invoice, items, customerPhone });
       } else {
         alert(data.error || "خطا در صدور فاکتور");
       }
@@ -267,6 +269,13 @@ export default function NewInvoicePage() {
                     </option>
                   ))}
                 </select>
+                <input
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  inputMode="tel"
+                  placeholder="📱 موبایل مشتری"
+                  className="w-36 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-1.5 text-xs text-left font-mono focus:outline-none"
+                />
               </div>
 
               {/* Items Table */}

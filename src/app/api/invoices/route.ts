@@ -50,6 +50,7 @@ export async function POST(req: Request) {
 
     const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
     const customerName = data.customerName?.trim() || "مشتری عمومی";
+    const customerPhone = data.customerPhone ? String(data.customerPhone).trim() : null;
     const customerId = data.customerId ? Number(data.customerId) : null;
     const paymentMethod = data.paymentMethod || "cash";
 
@@ -99,6 +100,7 @@ export async function POST(req: Request) {
         invoiceNumber,
         customerId,
         customerName,
+        customerPhone,
         totalAmount,
         discountAmount,
         taxAmount,

@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp, Check } from "lucide-react";
+import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp, Check, Send } from "lucide-react";
 import { formatToman, toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
 import { pushUtterance, joinTranscript } from "@/lib/voice/transcript";
 import { normalizeSpokenPersian, parsePersianNumberWords } from "@/lib/voice/persianNormalizer";
+import { shareInvoice, sendToWhatsapp } from "@/lib/invoice/share";
 
 type Mode = "menu" | "invoice" | "product" | "purchase" | "query" | "price";
 
@@ -36,6 +37,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   // invoice
   const [items, setItems] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   // حالت گام‌به‌گام: هر کالا را جدا می‌گویید، تأیید می‌کنید، بعد بعدی (پیشنهاد کاربر).
   const [stepMode, setStepMode] = useState(true);
   const [pendingItem, setPendingItem] = useState<CartItem | null>(null);
@@ -303,7 +305,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     });
   };
 
-  const resetAll = () => { setItems([]); setCustomerName(""); setProduct(null); setProductDup(null); setStockPreview(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setCreatedInvoice(null); setNotice(""); setTranscript(""); pendingItemRef.current = null; setPendingItem(null); };
+  const resetAll = () => { setItems([]); setCustomerName(""); setCustomerPhone(""); setProduct(null); setProductDup(null); setStockPreview(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setCreatedInvoice(null); setNotice(""); setTranscript(""); pendingItemRef.current = null; setPendingItem(null); };
 
   const applyPriceUpdate = async () => {
     if (!pricePreview) return;
@@ -342,7 +344,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     try {
       const res = await fetch("/api/invoices", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerName: customerName || "مشتری عمومی", items: items.map((it) => ({ productId: it.productId, productName: it.productName, quantity: it.quantity, unitPrice: it.unitPrice, totalPrice: it.unitPrice * it.quantity })), notes: "ثبت صوتی" }),
+        body: JSON.stringify({ customerName: customerName || "مشتری عمومی", customerPhone: customerPhone || null, items: items.map((it) => ({ productId: it.productId, productName: it.productName, quantity: it.quantity, unitPrice: it.unitPrice, totalPrice: it.unitPrice * it.quantity })), notes: "ثبت صوتی" }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -352,6 +354,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
           id: data.invoice?.id,
           number: data.invoice?.invoiceNumber || "",
           customerName: customerName || "مشتری عمومی",
+          customerPhone: customerPhone || "",
           items: items.map((it) => ({ productName: it.productName, quantity: it.quantity, unitPrice: it.unitPrice, totalPrice: it.unitPrice * it.quantity })),
           total: invoiceTotal,
         });
@@ -447,11 +450,19 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                   <span>مبلغ کل</span><span className="text-emerald-700 dark:text-emerald-400">{formatToman(createdInvoice.total)}</span>
                 </div>
               </div>
+              {/* ارسال فاکتور برای مشتری */}
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => { const inv = createdInvoice; resetAll(); }} className="bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><Plus className="w-4 h-4" /> فاکتور جدید</button>
-                <a href={`/installments?invoiceId=${createdInvoice.id ?? ""}&invoiceNumber=${encodeURIComponent(createdInvoice.number)}&customer=${encodeURIComponent(createdInvoice.customerName)}&total=${Math.round(createdInvoice.total)}`} className="bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">فروش قسطی</a>
+                <button onClick={() => shareInvoice({ invoiceNumber: createdInvoice.number, customerName: createdInvoice.customerName, items: createdInvoice.items, total: createdInvoice.total }, createdInvoice.customerPhone)} className="bg-sky-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><Send className="w-4 h-4" /> ارسال فاکتور</button>
+                {createdInvoice.customerPhone ? (
+                  <button onClick={() => sendToWhatsapp({ invoiceNumber: createdInvoice.number, customerName: createdInvoice.customerName, items: createdInvoice.items, total: createdInvoice.total }, createdInvoice.customerPhone)} className="bg-green-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">واتساپ مشتری</button>
+                ) : (
+                  <a href={`/installments?invoiceId=${createdInvoice.id ?? ""}&invoiceNumber=${encodeURIComponent(createdInvoice.number)}&customer=${encodeURIComponent(createdInvoice.customerName)}&total=${Math.round(createdInvoice.total)}`} className="bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">فروش قسطی</a>
+                )}
               </div>
-              <button onClick={() => { resetAll(); onActionExecute?.("NAVIGATE_INVOICE", createdInvoice.id); onClose(); }} className="w-full border border-gray-300 dark:border-gray-700 py-2.5 rounded-xl text-sm">بستن</button>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => { resetAll(); }} className="bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><Plus className="w-4 h-4" /> فاکتور جدید</button>
+                <button onClick={() => { resetAll(); onActionExecute?.("NAVIGATE_INVOICE", createdInvoice.id); onClose(); }} className="border border-gray-300 dark:border-gray-700 py-2.5 rounded-xl text-sm">بستن</button>
+              </div>
             </div>
           )}
 
@@ -531,6 +542,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
               <div>
                 <label className="text-xs text-gray-500">مشتری (اختیاری)</label>
                 <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="مشتری عمومی" className="w-full mt-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm" />
+                <input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} inputMode="tel" placeholder="📱 شماره موبایل مشتری (برای ارسال فاکتور)" className="w-full mt-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm text-left font-mono" />
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-bold text-sm">🧾 اقلام ({toPersianDigits(items.length)})</span>
