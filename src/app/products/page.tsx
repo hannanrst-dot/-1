@@ -153,6 +153,12 @@ export default function ProductsPage() {
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> خروجی Excel
             </button>
             <Link
+              href="/products/import"
+              className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-sky-600/30 transition"
+            >
+              <FileSpreadsheet className="w-4 h-4" /> ورود از اکسل/عکس
+            </Link>
+            <Link
               href="/products/new"
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition"
             >

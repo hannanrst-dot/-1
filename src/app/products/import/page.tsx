@@ -1,0 +1,220 @@
+"use client";
+
+import React, { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { FileSpreadsheet, Camera, Trash2, Plus, CheckCircle, Download, Loader2, ArrowLeft } from "lucide-react";
+import { toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
+import * as XLSX from "xlsx";
+
+interface Row { name: string; buyPrice: number; sellPrice: number; stock: number; barcode: string; }
+
+const emptyRow = (): Row => ({ name: "", buyPrice: 0, sellPrice: 0, stock: 0, barcode: "" });
+const parseNum = (v: any): number => {
+  if (v == null) return 0;
+  const s = toEnglishDigits(String(v)).replace(/[^\d.]/g, "");
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : Math.round(n);
+};
+
+export default function ImportProductsPage() {
+  const router = useRouter();
+  const [rows, setRows] = useState<Row[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const [ocrStatus, setOcrStatus] = useState("");
+  const excelInput = useRef<HTMLInputElement>(null);
+  const camInput = useRef<HTMLInputElement>(null);
+
+  // ---------- اکسل ----------
+  const handleExcel = async (file: File) => {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      if (!json.length) { alert("فایل خالی است یا خوانده نشد."); return; }
+
+      const findVal = (obj: any, pats: string[]) => {
+        for (const k of Object.keys(obj)) { const kk = k.trim(); if (pats.some((p) => kk.includes(p)) && String(obj[k]).trim() !== "") return obj[k]; }
+        return undefined;
+      };
+      const parsed: Row[] = [];
+      for (const obj of json) {
+        const name = String(findVal(obj, ["نام", "کالا", "محصول", "name", "title", "شرح"]) ?? "").trim();
+        if (!name) continue;
+        const buy = findVal(obj, ["خرید", "buy"]);
+        const sell = findVal(obj, ["فروش", "sell"]);
+        const anyPrice = findVal(obj, ["قیمت", "price", "مبلغ"]);
+        const stock = findVal(obj, ["موجودی", "تعداد", "انبار", "stock", "qty", "quantity", "count"]);
+        const barcode = findVal(obj, ["بارکد", "barcode", "کد"]);
+        parsed.push({
+          name,
+          buyPrice: parseNum(buy ?? (sell ? undefined : anyPrice)),
+          sellPrice: parseNum(sell ?? anyPrice),
+          stock: parseNum(stock),
+          barcode: barcode ? String(barcode).trim() : "",
+        });
+      }
+      if (!parsed.length) { alert("هیچ ردیفی با نامِ کالا پیدا نشد. ستون «نام کالا» را بررسی کنید."); return; }
+      setRows((prev) => [...prev, ...parsed]);
+    } catch (e) {
+      console.error(e); alert("خطا در خواندن فایل اکسل.");
+    }
+  };
+
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet([
+      { "نام کالا": "دفتر ۸۰ برگ میکرو", "قیمت خرید": 150000, "قیمت فروش": 200000, "موجودی": 50, "بارکد": "6260000111" },
+      { "نام کالا": "مداد آریا", "قیمت خرید": 20000, "قیمت فروش": 30000, "موجودی": 100, "بارکد": "" },
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "کالاها");
+    XLSX.writeFile(wb, "نمونه-لیست-کالا.xlsx");
+  };
+
+  // ---------- دوربین / عکس (OCR) ----------
+  const loadTesseract = (): Promise<any> => new Promise((resolve, reject) => {
+    if ((window as any).Tesseract) return resolve((window as any).Tesseract);
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+    s.onload = () => resolve((window as any).Tesseract);
+    s.onerror = () => reject(new Error("بارگذاری موتور تشخیص ناموفق بود"));
+    document.head.appendChild(s);
+  });
+
+  const parseOcrText = (text: string): Row[] => {
+    const out: Row[] = [];
+    for (const lineRaw of text.split(/\n+/)) {
+      const line = toEnglishDigits(lineRaw).trim();
+      if (line.length < 3) continue;
+      // گروه‌های عددیِ ۳ رقم به بالا را به‌عنوان قیمت در نظر می‌گیریم
+      const nums = (line.match(/\d[\d.,٬\s]{2,}\d|\d{3,}/g) || []).map((x) => parseNum(x)).filter((n) => n >= 100);
+      const name = line.replace(/[\d.,٬]+/g, " ").replace(/\s+/g, " ").trim();
+      if (name.replace(/[^آ-یa-zA-Z]/g, "").length < 2) continue; // بدونِ حروف ⇒ نادیده
+      const sorted = [...nums].sort((a, b) => a - b);
+      const buy = sorted[0] || 0;
+      const sell = sorted.length > 1 ? sorted[sorted.length - 1] : 0;
+      out.push({ name, buyPrice: buy, sellPrice: sell, stock: 0, barcode: "" });
+    }
+    return out;
+  };
+
+  const handlePhoto = async (file: File) => {
+    setOcrBusy(true); setOcrStatus("در حال بارگذاری موتور تشخیص متن...");
+    try {
+      const Tesseract = await loadTesseract();
+      setOcrStatus("در حال خواندن عکس (کمی صبر کنید)...");
+      const url = URL.createObjectURL(file);
+      const res = await Tesseract.recognize(url, "fas+eng", {
+        logger: (m: any) => { if (m.status === "recognizing text") setOcrStatus(`در حال تشخیص... ${Math.round((m.progress || 0) * 100)}٪`); },
+      });
+      URL.revokeObjectURL(url);
+      const parsed = parseOcrText(res?.data?.text || "");
+      if (!parsed.length) { alert("متنی از عکس تشخیص داده نشد. عکسِ واضح‌تر و صاف‌تری بگیرید."); }
+      else setRows((prev) => [...prev, ...parsed]);
+    } catch (e) {
+      console.error(e); alert("تشخیص از عکس ممکن نشد. برای این قابلیت به اینترنت نیاز است و عکس باید واضح باشد.");
+    } finally { setOcrBusy(false); setOcrStatus(""); }
+  };
+
+  // ---------- ویرایش جدول ----------
+  const setCell = (i: number, key: keyof Row, value: any) => setRows((prev) => prev.map((r, idx) => idx === i ? { ...r, [key]: value } : r));
+
+  const submitAll = async () => {
+    const valid = rows.filter((r) => r.name.trim());
+    if (!valid.length) { alert("حداقل یک کالا با نام لازم است."); return; }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/products/bulk-create", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: valid }),
+      });
+      const data = await res.json();
+      if (res.ok) { alert(`${toPersianDigits(data.count)} کالا با موفقیت ثبت شد.`); router.push("/products"); }
+      else alert(data.error || "خطا در ثبت کالاها");
+    } catch { alert("خطا در ارتباط با سرور"); } finally { setSaving(false); }
+  };
+
+  return (
+    <MainLayout>
+      <div className="max-w-4xl mx-auto space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg"><FileSpreadsheet className="w-6 h-6" /></div>
+          <div>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white">ورودِ گروهیِ کالا (اکسل / عکس)</h2>
+            <p className="text-xs text-gray-500">لیست کالاها را از اکسل بیاورید یا از فاکتور عکس بگیرید، بعد ویرایش و ثبت کنید.</p>
+          </div>
+        </div>
+
+        {/* روش‌های ورود */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4 space-y-2">
+            <div className="font-bold text-sm flex items-center gap-2 text-emerald-700 dark:text-emerald-300"><FileSpreadsheet className="w-5 h-5" /> از فایل اکسل</div>
+            <p className="text-[11px] text-gray-600 dark:text-gray-300">ستون‌ها: نام کالا، قیمت خرید، قیمت فروش، موجودی، بارکد.</p>
+            <input ref={excelInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleExcel(f); e.target.value = ""; }} />
+            <div className="flex gap-2">
+              <button onClick={() => excelInput.current?.click()} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl text-xs font-bold">انتخاب فایل اکسل</button>
+              <button onClick={downloadTemplate} className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1" title="دانلود نمونه"><Download className="w-4 h-4" /></button>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 space-y-2">
+            <div className="font-bold text-sm flex items-center gap-2 text-purple-700 dark:text-purple-300"><Camera className="w-5 h-5" /> از عکسِ فاکتور (آزمایشی)</div>
+            <p className="text-[11px] text-gray-600 dark:text-gray-300">از فاکتورِ خرید عکسِ واضح بگیرید؛ نام و قیمت‌ها خوانده می‌شوند (نیاز به اینترنت). سپس اصلاح کنید.</p>
+            <input ref={camInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhoto(f); e.target.value = ""; }} />
+            <button onClick={() => camInput.current?.click()} disabled={ocrBusy} className="w-full bg-purple-600 disabled:opacity-50 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
+              {ocrBusy ? <><Loader2 className="w-4 h-4 animate-spin" /> {ocrStatus}</> : <><Camera className="w-4 h-4" /> گرفتن عکس / انتخاب تصویر</>}
+            </button>
+          </div>
+        </div>
+
+        {/* جدولِ قابل ویرایش */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-800">
+            <span className="font-bold text-sm">کالاها ({toPersianDigits(rows.length)}) — قابل ویرایش</span>
+            <div className="flex gap-2">
+              <button onClick={() => setRows((p) => [...p, emptyRow()])} className="text-xs text-emerald-600 flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> ردیف خالی</button>
+              {rows.length > 0 && <button onClick={() => setRows([])} className="text-xs text-rose-600">پاک کردن همه</button>}
+            </div>
+          </div>
+          {rows.length === 0 ? (
+            <div className="p-10 text-center text-xs text-gray-400">هنوز کالایی وارد نشده — از اکسل یا عکس شروع کنید، یا «ردیف خالی» بزنید.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-bold">
+                  <tr>
+                    <th className="p-2 text-right">نام کالا</th>
+                    <th className="p-2">قیمت خرید</th>
+                    <th className="p-2">قیمت فروش</th>
+                    <th className="p-2">موجودی</th>
+                    <th className="p-2">بارکد</th>
+                    <th className="p-2"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {rows.map((r, i) => (
+                    <tr key={i}>
+                      <td className="p-1.5"><input value={r.name} onChange={(e) => setCell(i, "name", e.target.value)} className="w-40 min-w-[120px] bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5" /></td>
+                      <td className="p-1.5"><input inputMode="numeric" value={toPersianDigits(r.buyPrice)} onChange={(e) => setCell(i, "buyPrice", parseNum(e.target.value))} className="w-24 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
+                      <td className="p-1.5"><input inputMode="numeric" value={toPersianDigits(r.sellPrice)} onChange={(e) => setCell(i, "sellPrice", parseNum(e.target.value))} className="w-24 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
+                      <td className="p-1.5"><input inputMode="numeric" value={toPersianDigits(r.stock)} onChange={(e) => setCell(i, "stock", parseNum(e.target.value))} className="w-16 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
+                      <td className="p-1.5"><input value={r.barcode} onChange={(e) => setCell(i, "barcode", e.target.value)} className="w-28 text-center font-mono bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
+                      <td className="p-1.5"><button onClick={() => setRows((p) => p.filter((_, idx) => idx !== i))} className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 flex items-center justify-center"><Trash2 className="w-4 h-4" /></button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <button onClick={() => router.push("/products")} className="px-4 border border-gray-300 dark:border-gray-700 rounded-2xl text-sm flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> بازگشت</button>
+          <button onClick={submitAll} disabled={saving || !rows.some((r) => r.name.trim())} className="flex-1 bg-emerald-600 disabled:opacity-50 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2"><CheckCircle className="w-5 h-5" /> ثبت همهٔ کالاها</button>
+        </div>
+      </div>
+    </MainLayout>
+  );
+}
