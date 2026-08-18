@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { invoices, invoiceItems, products, customers, inventoryTransactions } from "@/db/schema";
-import { eq, desc, like, or, and, gte, lte } from "drizzle-orm";
+import { eq, desc, like, or, and, gte, lte, inArray } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 
 export async function GET(req: Request) {
@@ -32,6 +32,14 @@ export async function GET(req: Request) {
     }
 
     const list = await query.orderBy(desc(invoices.id));
+    // محاسبهٔ سودِ هر فاکتور (قیمت فروش منهای قیمت خرید) از روی اقلام
+    const ids = list.map((i) => i.id);
+    if (ids.length) {
+      const items = await db.select().from(invoiceItems).where(inArray(invoiceItems.invoiceId, ids));
+      const profitMap: Record<number, number> = {};
+      for (const it of items) profitMap[it.invoiceId] = (profitMap[it.invoiceId] || 0) + (it.unitPrice - it.buyPrice) * it.quantity - it.discount;
+      for (const inv of list as any[]) inv.profit = Math.round(profitMap[inv.id] || 0);
+    }
     return NextResponse.json({ invoices: list });
   } catch (error) {
     console.error("Fetch invoices error:", error);

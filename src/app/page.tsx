@@ -178,7 +178,39 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Receivables (طلب از مشتریان) */}
+          <Link href="/customers" className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-2 hover:border-rose-300 transition">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">طلب از مشتریان (نسیه)</span>
+              <div className="p-2 bg-rose-100 dark:bg-rose-950/50 text-rose-600 rounded-xl">
+                <Wallet className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-xs sm:text-sm font-black text-rose-600 dark:text-rose-400">
+              {formatToman(summary.totalReceivables || 0)}
+            </div>
+            <div className="text-[10px] text-gray-400">{toPersianDigits(summary.debtorCount || 0)} بدهکار</div>
+          </Link>
+
         </div>
+
+        {/* بدهکاران در یک نگاه */}
+        {summaryData?.topDebtors && summaryData.topDebtors.length > 0 && (
+          <div className="bg-white dark:bg-gray-900 p-5 rounded-3xl border border-rose-200 dark:border-rose-900/50 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <Wallet className="w-4 h-4 text-rose-600" />
+              <span className="font-bold text-sm text-gray-900 dark:text-white">بدهکاران (طلب از مشتریان)</span>
+            </div>
+            <div className="space-y-1.5">
+              {summaryData.topDebtors.map((d: any, i: number) => (
+                <div key={i} className="flex items-center justify-between text-xs bg-rose-50 dark:bg-rose-950/20 rounded-xl px-3 py-2">
+                  <span className="font-medium">{d.name}</span>
+                  <span className="font-black text-rose-700 dark:text-rose-400">{formatToman(d.amount)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions Shortcuts */}
         <div className="bg-white dark:bg-gray-900 p-5 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-3">

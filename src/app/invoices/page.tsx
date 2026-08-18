@@ -26,6 +26,7 @@ export default function InvoicesPage() {
   // ویرایشِ فاکتور: افزودنِ کالا
   const [products, setProducts] = useState<any[]>([]);
   const [editInv, setEditInv] = useState<any>(null); // {id, invoiceNumber}
+  const [editItems, setEditItems] = useState<any[]>([]); // اقلامِ فعلیِ فاکتور
   const [addRows, setAddRows] = useState<any[]>([]);
   const [prodSearch, setProdSearch] = useState("");
   const [savingAdd, setSavingAdd] = useState(false);
@@ -51,7 +52,24 @@ export default function InvoicesPage() {
     fetch("/api/products").then((r) => r.json()).then((d) => setProducts(d.products || [])).catch(() => {});
   }, []);
 
-  const openEdit = (inv: any) => { setEditInv(inv); setAddRows([]); setProdSearch(""); };
+  const openEdit = async (inv: any) => {
+    setEditInv(inv); setAddRows([]); setProdSearch(""); setEditItems([]);
+    try { const res = await fetch(`/api/invoices/${inv.id}`); const d = await res.json(); if (res.ok) setEditItems(d.items || []); } catch { /* ignore */ }
+  };
+  const patchItem = async (itemId: number, quantity: number) => {
+    if (!editInv) return;
+    try {
+      const res = await fetch(`/api/invoices/${editInv.id}/items`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId, quantity }) });
+      const d = await res.json(); if (res.ok) { setEditItems(d.items || []); fetchInvoices(); }
+    } catch { /* ignore */ }
+  };
+  const deleteItem = async (itemId: number) => {
+    if (!editInv) return;
+    try {
+      const res = await fetch(`/api/invoices/${editInv.id}/items?itemId=${itemId}`, { method: "DELETE" });
+      const d = await res.json(); if (res.ok) { setEditItems(d.items || []); fetchInvoices(); }
+    } catch { /* ignore */ }
+  };
   const addProdRow = (p: any) => {
     setAddRows((prev) => {
       const idx = prev.findIndex((x) => x.productId === p.id);
@@ -148,6 +166,7 @@ export default function InvoicesPage() {
                     <th className="p-3">تاریخ و زمان</th>
                     <th className="p-3">روش پرداخت</th>
                     <th className="p-3">مبلغ نهایی</th>
+                    <th className="p-3">سود</th>
                     <th className="p-3 text-center">عملیات</th>
                   </tr>
                 </thead>
@@ -159,6 +178,7 @@ export default function InvoicesPage() {
                       <td className="p-3 text-gray-500">{toJalaliDateTime(inv.createdAt)}</td>
                       <td className="p-3 font-semibold">{inv.paymentMethod === "cash" ? "نقدی" : inv.paymentMethod === "card" ? "کارت‌خوان" : inv.paymentMethod}</td>
                       <td className="p-3 font-black text-gray-900 dark:text-gray-100">{formatToman(inv.finalAmount)}</td>
+                      <td className="p-3 font-bold text-emerald-600 dark:text-emerald-400">{inv.profit != null ? formatToman(inv.profit) : "—"}</td>
                       <td className="p-3 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
@@ -170,9 +190,9 @@ export default function InvoicesPage() {
                           <button
                             onClick={() => openEdit(inv)}
                             className="px-3 py-1.5 bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 hover:bg-sky-100 rounded-xl font-bold transition flex items-center gap-1"
-                            title="افزودن کالا به فاکتور"
+                            title="ویرایش فاکتور"
                           >
-                            <PlusCircle className="w-3.5 h-3.5" /> افزودن کالا
+                            <PlusCircle className="w-3.5 h-3.5" /> ویرایش
                           </button>
                         </div>
                       </td>
@@ -199,10 +219,33 @@ export default function InvoicesPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
           <div className="bg-white dark:bg-gray-900 w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
             <div className="p-4 bg-sky-600 text-white flex items-center justify-between shrink-0">
-              <div className="font-bold text-sm">افزودن کالا به فاکتور {toPersianDigits(editInv.invoiceNumber)}</div>
+              <div className="font-bold text-sm">ویرایش فاکتور {toPersianDigits(editInv.invoiceNumber)}</div>
               <button onClick={() => setEditInv(null)} className="p-1 rounded-lg hover:bg-sky-700"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-4 space-y-3 overflow-y-auto">
+              {/* اقلامِ فعلیِ فاکتور — قابلِ حذف و تغییرِ تعداد */}
+              {editItems.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-xs font-bold text-gray-700 dark:text-gray-200">اقلامِ فعلی:</div>
+                  {editItems.map((it) => (
+                    <div key={it.id} className="rounded-xl p-2.5 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium flex-1 truncate">{it.productName}</span>
+                        <button onClick={() => deleteItem(it.id)} className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 flex items-center justify-center shrink-0"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                      <div className="flex items-center justify-between mt-2 text-xs">
+                        <div className="flex items-center gap-1"><span className="text-gray-500">تعداد:</span>
+                          <button onClick={() => patchItem(it.id, it.quantity - 1)} disabled={it.quantity <= 1} className="w-6 h-6 rounded-lg bg-gray-200 dark:bg-gray-700 font-bold disabled:opacity-40">−</button>
+                          <span className="w-8 text-center font-bold">{toPersianDigits(it.quantity)}</span>
+                          <button onClick={() => patchItem(it.id, it.quantity + 1)} className="w-6 h-6 rounded-lg bg-gray-200 dark:bg-gray-700 font-bold">+</button>
+                        </div>
+                        <span className="font-bold">{formatToman(it.totalPrice)}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="border-t border-dashed border-gray-300 dark:border-gray-700 pt-2 text-xs font-bold text-gray-600 dark:text-gray-300">افزودنِ کالای جدید:</div>
+                </div>
+              )}
               <div className="relative">
                 <Search className="w-4 h-4 text-gray-400 absolute right-3 top-3" />
                 <input value={prodSearch} onChange={(e) => setProdSearch(e.target.value)} placeholder="جستجوی کالا برای افزودن..." className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pr-10 pl-3 py-2.5 text-xs" />

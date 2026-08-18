@@ -77,6 +77,19 @@ export async function GET() {
       });
     }
 
+    // مطالبات (طلب از مشتریان): مجموعِ ماندهٔ فاکتورهای پرداخت‌نشده (نسیه/اقساط)
+    const unpaidInvoices = await db.select().from(invoices).where(sql`${invoices.balance} > 0`);
+    const totalReceivables = unpaidInvoices.reduce((s, inv) => s + (inv.balance || 0), 0);
+    const debtorMap: Record<string, number> = {};
+    for (const inv of unpaidInvoices) {
+      const key = inv.customerName || "مشتری عمومی";
+      debtorMap[key] = (debtorMap[key] || 0) + (inv.balance || 0);
+    }
+    const topDebtors = Object.entries(debtorMap)
+      .map(([name, amount]) => ({ name, amount }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 6);
+
     return NextResponse.json({
       summary: {
         todaySales,
@@ -85,10 +98,13 @@ export async function GET() {
         lowStockCount,
         totalInventoryValue,
         todayEstimatedProfit,
+        totalReceivables,
+        debtorCount: Object.keys(debtorMap).length,
       },
       lowStockProducts: lowStockProducts.slice(0, 5),
       recentInvoices,
       topSellingProducts: topItemsQuery,
+      topDebtors,
       weeklyData,
     });
   } catch (error) {

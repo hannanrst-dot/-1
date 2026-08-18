@@ -162,6 +162,8 @@ export default function NewInvoicePage() {
           discountAmount,
           taxAmount,
           paymentMethod,
+          // فروشِ «نسیه/اعتباری» به‌صورت پرداخت‌نشده ثبت می‌شود تا در «طلب از مشتریان» بیاید.
+          paidAmount: paymentMethod === "credit" ? 0 : undefined,
           notes,
         }),
       });
@@ -225,9 +227,11 @@ export default function NewInvoicePage() {
                 <Search className="w-4 h-4 text-gray-400 absolute right-3 top-3.5" />
                 <input
                   type="text"
+                  autoFocus
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="جستجوی کالا یا بارکد..."
+                  onKeyDown={(e) => { if (e.key === "Enter" && filteredProducts.length > 0) { addProductToInvoice(filteredProducts[0]); setSearchTerm(""); } }}
+                  placeholder="جستجوی کالا یا بارکد... (Enter = افزودنِ اولین نتیجه)"
                   className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pr-10 pl-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
