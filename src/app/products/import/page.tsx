@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { FileSpreadsheet, Camera, Trash2, Plus, CheckCircle, Download, Loader2, ArrowLeft } from "lucide-react";
-import { toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
+import { FileSpreadsheet, Trash2, Plus, CheckCircle, Download, ArrowLeft, AlertTriangle } from "lucide-react";
+import { toPersianDigits, toEnglishDigits, normalizePersianText, calculateSimilarity } from "@/lib/persian/utils";
 import * as XLSX from "xlsx";
 
 interface Row { name: string; buyPrice: number; sellPrice: number; stock: number; barcode: string; }
@@ -21,10 +21,20 @@ export default function ImportProductsPage() {
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
-  const [ocrBusy, setOcrBusy] = useState(false);
-  const [ocrStatus, setOcrStatus] = useState("");
   const excelInput = useRef<HTMLInputElement>(null);
-  const camInput = useRef<HTMLInputElement>(null);
+  // کالاهای موجود (برای هشدارِ تکراری داخلِ جدول، پیش از ثبت)
+  const [existing, setExisting] = useState<{ name: string; n: string; bc: string }[]>([]);
+  useEffect(() => {
+    fetch("/api/products").then((r) => r.json()).then((d) => setExisting((d.products || []).map((p: any) => ({ name: p.name, n: normalizePersianText(p.name), bc: (p.barcode || "").trim() })))).catch(() => {});
+  }, []);
+  const dupOf = (r: Row): string | null => {
+    const nn = normalizePersianText(r.name);
+    if (!nn) return null;
+    const bc = (r.barcode || "").trim();
+    let m = bc ? existing.find((p) => p.bc && p.bc === bc) : undefined;
+    if (!m) m = existing.find((p) => calculateSimilarity(nn, p.n) >= 0.8);
+    return m ? m.name : null;
+  };
 
   // ---------- اکسل ----------
   const handleExcel = async (file: File) => {
@@ -47,7 +57,7 @@ export default function ImportProductsPage() {
         const sell = findVal(obj, ["فروش", "sell"]);
         const anyPrice = findVal(obj, ["قیمت", "price", "مبلغ"]);
         const stock = findVal(obj, ["موجودی", "تعداد", "انبار", "stock", "qty", "quantity", "count"]);
-        const barcode = findVal(obj, ["بارکد", "barcode", "کد"]);
+        const barcode = findVal(obj, ["بارکد", "barcode"]);
         parsed.push({
           name,
           buyPrice: parseNum(buy ?? (sell ? undefined : anyPrice)),
@@ -73,66 +83,45 @@ export default function ImportProductsPage() {
     XLSX.writeFile(wb, "نمونه-لیست-کالا.xlsx");
   };
 
-  // ---------- دوربین / عکس (OCR) ----------
-  const loadTesseract = (): Promise<any> => new Promise((resolve, reject) => {
-    if ((window as any).Tesseract) return resolve((window as any).Tesseract);
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
-    s.onload = () => resolve((window as any).Tesseract);
-    s.onerror = () => reject(new Error("بارگذاری موتور تشخیص ناموفق بود"));
-    document.head.appendChild(s);
-  });
-
-  const parseOcrText = (text: string): Row[] => {
-    const out: Row[] = [];
-    for (const lineRaw of text.split(/\n+/)) {
-      const line = toEnglishDigits(lineRaw).trim();
-      if (line.length < 3) continue;
-      // گروه‌های عددیِ ۳ رقم به بالا را به‌عنوان قیمت در نظر می‌گیریم
-      const nums = (line.match(/\d[\d.,٬\s]{2,}\d|\d{3,}/g) || []).map((x) => parseNum(x)).filter((n) => n >= 100);
-      const name = line.replace(/[\d.,٬]+/g, " ").replace(/\s+/g, " ").trim();
-      if (name.replace(/[^آ-یa-zA-Z]/g, "").length < 2) continue; // بدونِ حروف ⇒ نادیده
-      const sorted = [...nums].sort((a, b) => a - b);
-      const buy = sorted[0] || 0;
-      const sell = sorted.length > 1 ? sorted[sorted.length - 1] : 0;
-      out.push({ name, buyPrice: buy, sellPrice: sell, stock: 0, barcode: "" });
-    }
-    return out;
-  };
-
-  const handlePhoto = async (file: File) => {
-    setOcrBusy(true); setOcrStatus("در حال بارگذاری موتور تشخیص متن...");
-    try {
-      const Tesseract = await loadTesseract();
-      setOcrStatus("در حال خواندن عکس (کمی صبر کنید)...");
-      const url = URL.createObjectURL(file);
-      const res = await Tesseract.recognize(url, "fas+eng", {
-        logger: (m: any) => { if (m.status === "recognizing text") setOcrStatus(`در حال تشخیص... ${Math.round((m.progress || 0) * 100)}٪`); },
-      });
-      URL.revokeObjectURL(url);
-      const parsed = parseOcrText(res?.data?.text || "");
-      if (!parsed.length) { alert("متنی از عکس تشخیص داده نشد. عکسِ واضح‌تر و صاف‌تری بگیرید."); }
-      else setRows((prev) => [...prev, ...parsed]);
-    } catch (e) {
-      console.error(e); alert("تشخیص از عکس ممکن نشد. برای این قابلیت به اینترنت نیاز است و عکس باید واضح باشد.");
-    } finally { setOcrBusy(false); setOcrStatus(""); }
-  };
-
   // ---------- ویرایش جدول ----------
   const setCell = (i: number, key: keyof Row, value: any) => setRows((prev) => prev.map((r, idx) => idx === i ? { ...r, [key]: value } : r));
+
+  const postItems = async (items: any[]) => {
+    const res = await fetch("/api/products/bulk-create", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items }),
+    });
+    return { ok: res.ok, data: await res.json() };
+  };
 
   const submitAll = async () => {
     const valid = rows.filter((r) => r.name.trim());
     if (!valid.length) { alert("حداقل یک کالا با نام لازم است."); return; }
     setSaving(true);
     try {
-      const res = await fetch("/api/products/bulk-create", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: valid }),
-      });
-      const data = await res.json();
-      if (res.ok) { alert(`${toPersianDigits(data.count)} کالا با موفقیت ثبت شد.`); router.push("/products"); }
-      else alert(data.error || "خطا در ثبت کالاها");
+      const { ok, data } = await postItems(valid.map((r) => ({ ...r })));
+      if (!ok) { alert(data.error || "خطا در ثبت کالاها"); return; }
+
+      const skipped = (data.skipped || []) as { name: string; matchedName: string }[];
+      if (skipped.length > 0) {
+        const list = skipped.slice(0, 15).map((s) => `• ${s.name}  (مشابهِ: ${s.matchedName})`).join("\n");
+        const more = skipped.length > 15 ? `\n… و ${toPersianDigits(skipped.length - 15)} مورد دیگر` : "";
+        const ok2 = window.confirm(
+          `${toPersianDigits(data.count)} کالا ثبت شد.\n\n${toPersianDigits(skipped.length)} کالا چون «مشابهِ کالای موجود» بودند ثبت نشدند:\n${list}${more}\n\nاین‌ها را هم به‌عنوانِ کالای جدید ثبت کنم؟`
+        );
+        if (ok2) {
+          const skipNames = new Set(skipped.map((s) => s.name));
+          const forceItems = valid.filter((r) => skipNames.has(r.name.trim())).map((r) => ({ ...r, force: true }));
+          const r2 = await postItems(forceItems);
+          if (r2.ok) alert(`در مجموع ${toPersianDigits((data.count || 0) + (r2.data.count || 0))} کالا ثبت شد.`);
+          router.push("/products");
+        } else {
+          router.push("/products");
+        }
+      } else {
+        alert(`${toPersianDigits(data.count)} کالا با موفقیت ثبت شد.`);
+        router.push("/products");
+      }
     } catch { alert("خطا در ارتباط با سرور"); } finally { setSaving(false); }
   };
 
@@ -142,30 +131,19 @@ export default function ImportProductsPage() {
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg"><FileSpreadsheet className="w-6 h-6" /></div>
           <div>
-            <h2 className="text-xl font-black text-gray-900 dark:text-white">ورودِ گروهیِ کالا (اکسل / عکس)</h2>
-            <p className="text-xs text-gray-500">لیست کالاها را از اکسل بیاورید یا از فاکتور عکس بگیرید، بعد ویرایش و ثبت کنید.</p>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white">ورودِ گروهیِ کالا از اکسل</h2>
+            <p className="text-xs text-gray-500">لیست کالاها را از اکسل بیاورید، تک‌تک ویرایش کنید و یکجا ثبت کنید. کالاهای مشابهِ موجود، هشدار داده می‌شوند.</p>
           </div>
         </div>
 
-        {/* روش‌های ورود */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4 space-y-2">
-            <div className="font-bold text-sm flex items-center gap-2 text-emerald-700 dark:text-emerald-300"><FileSpreadsheet className="w-5 h-5" /> از فایل اکسل</div>
-            <p className="text-[11px] text-gray-600 dark:text-gray-300">ستون‌ها: نام کالا، قیمت خرید، قیمت فروش، موجودی، بارکد.</p>
-            <input ref={excelInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleExcel(f); e.target.value = ""; }} />
-            <div className="flex gap-2">
-              <button onClick={() => excelInput.current?.click()} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl text-xs font-bold">انتخاب فایل اکسل</button>
-              <button onClick={downloadTemplate} className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1" title="دانلود نمونه"><Download className="w-4 h-4" /></button>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 space-y-2">
-            <div className="font-bold text-sm flex items-center gap-2 text-purple-700 dark:text-purple-300"><Camera className="w-5 h-5" /> از عکسِ فاکتور (آزمایشی)</div>
-            <p className="text-[11px] text-gray-600 dark:text-gray-300">از فاکتورِ خرید عکسِ واضح بگیرید؛ نام و قیمت‌ها خوانده می‌شوند (نیاز به اینترنت). سپس اصلاح کنید.</p>
-            <input ref={camInput} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhoto(f); e.target.value = ""; }} />
-            <button onClick={() => camInput.current?.click()} disabled={ocrBusy} className="w-full bg-purple-600 disabled:opacity-50 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
-              {ocrBusy ? <><Loader2 className="w-4 h-4 animate-spin" /> {ocrStatus}</> : <><Camera className="w-4 h-4" /> گرفتن عکس / انتخاب تصویر</>}
-            </button>
+        {/* روش ورود: اکسل */}
+        <div className="bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4 space-y-2">
+          <div className="font-bold text-sm flex items-center gap-2 text-emerald-700 dark:text-emerald-300"><FileSpreadsheet className="w-5 h-5" /> از فایل اکسل</div>
+          <p className="text-[11px] text-gray-600 dark:text-gray-300">ستون‌ها: نام کالا، قیمت خرید، قیمت فروش، موجودی، بارکد. (ارقام فارسی و جداکنندهٔ هزارگان پشتیبانی می‌شود.)</p>
+          <input ref={excelInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleExcel(f); e.target.value = ""; }} />
+          <div className="flex gap-2">
+            <button onClick={() => excelInput.current?.click()} className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold">انتخاب فایل اکسل</button>
+            <button onClick={downloadTemplate} className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1" title="دانلود فایل نمونه"><Download className="w-4 h-4" /> نمونه</button>
           </div>
         </div>
 
@@ -179,7 +157,7 @@ export default function ImportProductsPage() {
             </div>
           </div>
           {rows.length === 0 ? (
-            <div className="p-10 text-center text-xs text-gray-400">هنوز کالایی وارد نشده — از اکسل یا عکس شروع کنید، یا «ردیف خالی» بزنید.</div>
+            <div className="p-10 text-center text-xs text-gray-400">هنوز کالایی وارد نشده — فایل اکسل را انتخاب کنید، یا «ردیف خالی» بزنید.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -194,16 +172,22 @@ export default function ImportProductsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {rows.map((r, i) => (
-                    <tr key={i}>
-                      <td className="p-1.5"><input value={r.name} onChange={(e) => setCell(i, "name", e.target.value)} className="w-40 min-w-[120px] bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5" /></td>
-                      <td className="p-1.5"><input inputMode="numeric" value={toPersianDigits(r.buyPrice)} onChange={(e) => setCell(i, "buyPrice", parseNum(e.target.value))} className="w-24 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
-                      <td className="p-1.5"><input inputMode="numeric" value={toPersianDigits(r.sellPrice)} onChange={(e) => setCell(i, "sellPrice", parseNum(e.target.value))} className="w-24 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
-                      <td className="p-1.5"><input inputMode="numeric" value={toPersianDigits(r.stock)} onChange={(e) => setCell(i, "stock", parseNum(e.target.value))} className="w-16 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
+                  {rows.map((r, i) => {
+                    const dn = dupOf(r);
+                    return (
+                    <tr key={i} className={dn ? "bg-amber-50 dark:bg-amber-950/20" : ""}>
+                      <td className="p-1.5">
+                        <input value={r.name} onChange={(e) => setCell(i, "name", e.target.value)} className="w-40 min-w-[120px] bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5" />
+                        {dn && <div className="text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-0.5 mt-0.5"><AlertTriangle className="w-3 h-3" /> مشابهِ «{dn}» موجود است</div>}
+                      </td>
+                      <td className="p-1.5"><input inputMode="numeric" value={r.buyPrice ? toPersianDigits(r.buyPrice) : ""} onChange={(e) => setCell(i, "buyPrice", parseNum(e.target.value))} className="w-24 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
+                      <td className="p-1.5"><input inputMode="numeric" value={r.sellPrice ? toPersianDigits(r.sellPrice) : ""} onChange={(e) => setCell(i, "sellPrice", parseNum(e.target.value))} className="w-24 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
+                      <td className="p-1.5"><input inputMode="numeric" value={r.stock ? toPersianDigits(r.stock) : ""} onChange={(e) => setCell(i, "stock", parseNum(e.target.value))} className="w-16 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
                       <td className="p-1.5"><input value={r.barcode} onChange={(e) => setCell(i, "barcode", e.target.value)} className="w-28 text-center font-mono bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
                       <td className="p-1.5"><button onClick={() => setRows((p) => p.filter((_, idx) => idx !== i))} className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 flex items-center justify-center"><Trash2 className="w-4 h-4" /></button></td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

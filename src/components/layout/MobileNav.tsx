@@ -26,7 +26,7 @@ export function MobileNav() {
     { href: "/suppliers", label: "تأمین‌کنندگان", icon: Truck },
     { href: "/purchases", label: "ثبت خرید", icon: ShoppingCart },
     { href: "/products/new", label: "ثبت کالا", icon: PlusCircle },
-    { href: "/products/import", label: "ورود از اکسل/عکس", icon: FileSpreadsheet },
+    { href: "/products/import", label: "ورود از اکسل", icon: FileSpreadsheet },
     { href: "/inventory", label: "انبار و موجودی", icon: Boxes },
     { href: "/reports", label: "گزارش‌ها", icon: BarChart3 },
     { href: "/voice-test", label: "فاکتور صوتی (آزمایشی) 🧪", icon: FlaskConical },

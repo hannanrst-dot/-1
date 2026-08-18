@@ -156,7 +156,7 @@ export default function ProductsPage() {
               href="/products/import"
               className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-sky-600/30 transition"
             >
-              <FileSpreadsheet className="w-4 h-4" /> ورود از اکسل/عکس
+              <FileSpreadsheet className="w-4 h-4" /> ورود از اکسل
             </Link>
             <Link
               href="/products/new"
