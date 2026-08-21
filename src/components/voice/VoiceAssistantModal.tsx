@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp, Check, Send, Image as ImageIcon, Users, Pause } from "lucide-react";
+import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp, Check, Send, Image as ImageIcon, Users, Pause, Barcode } from "lucide-react";
+import { BarcodeScannerModal } from "@/components/barcode/BarcodeScannerModal";
 import { formatToman, toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
 import { pushUtterance, joinTranscript } from "@/lib/voice/transcript";
 import { normalizeSpokenPersian, parsePersianNumberWords } from "@/lib/voice/persianNormalizer";
@@ -26,7 +27,7 @@ interface CartItem {
   matches?: { id: number; name: string; sellPrice: number }[];
 }
 
-interface ProductDraft { name: string; stock: number; buyPrice: number; sellPrice: number; }
+interface ProductDraft { name: string; stock: number; buyPrice: number; sellPrice: number; barcode?: string; }
 
 export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultMode = "menu" }: VoiceAssistantModalProps) {
   const [mode, setMode] = useState<Mode>(defaultMode);
@@ -53,6 +54,10 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   // product
   const [product, setProduct] = useState<ProductDraft | null>(null);
   const [productDup, setProductDup] = useState<any>(null); // کالای مشابهِ کشف‌شده
+  // فهرستِ کالاهای صوتی: هر بار که یک کالا را می‌گویید، یک ردیفِ جدید به این جدول اضافه
+  // می‌شود؛ می‌توانید ۴-۵ کالا را پشت‌سرِ هم بگویید، همه را ویرایش کنید و یکجا ثبت کنید.
+  const [productDrafts, setProductDrafts] = useState<ProductDraft[]>([]);
+  const [scanRowIdx, setScanRowIdx] = useState<number | null>(null); // ردیفی که برایش بارکد اسکن می‌شود
   // purchase
   const [supplierName, setSupplierName] = useState("");
   const [purchaseItems, setPurchaseItems] = useState<{ productName: string; quantity: number; unitPrice: number }[]>([]);
@@ -308,7 +313,12 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
         setNotice(added.length ? `«${added.map((x: any) => x.productName).join("، ")}» اضافه شد.` : "کالایی تشخیص داده نشد. دوباره واضح‌تر بگویید.");
       } else if (m === "product") {
         const p = data.data?.product;
-        if (p) { setProduct({ name: p.name, stock: p.stock || 1, buyPrice: p.buyPrice || 0, sellPrice: p.sellPrice || 0 }); setNotice("اطلاعات پر شد؛ بررسی و در صورت نیاز اصلاح کنید."); }
+        if (p && (p.name || "").trim()) {
+          // به‌جای جایگزینی، یک ردیفِ جدید اضافه می‌شود تا چند کالا را پشت‌سرِ هم بگویید.
+          setProductDrafts((prev) => [...prev, { name: p.name, stock: p.stock || 1, buyPrice: p.buyPrice || 0, sellPrice: p.sellPrice || 0, barcode: "" }]);
+          setNotice(`«${p.name}» به جدول اضافه شد. کالای بعدی را بگویید یا قیمت/بارکد را همین‌جا اصلاح کنید.`);
+          setTranscript("");
+        } else setNotice("کالایی تشخیص داده نشد. دوباره واضح‌تر بگویید.");
       } else if (m === "purchase") {
         if (data.data?.supplierName && data.data.supplierName !== "تامین‌کننده عمومی") setSupplierName(data.data.supplierName);
         const its = (data.data?.items || []).map((x: any) => ({ productName: x.productName, quantity: x.quantity || 1, unitPrice: x.unitPrice || 0 }));
@@ -343,7 +353,38 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     });
   };
 
-  const resetAll = () => { setItems([]); setCustomerName(""); setCustomerPhone(""); setProduct(null); setProductDup(null); setStockPreview(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setCreatedInvoice(null); setNotice(""); setTranscript(""); pendingItemRef.current = null; setPendingItem(null); };
+  const resetAll = () => { setItems([]); setCustomerName(""); setCustomerPhone(""); setProduct(null); setProductDup(null); setProductDrafts([]); setScanRowIdx(null); setStockPreview(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setCreatedInvoice(null); setNotice(""); setTranscript(""); pendingItemRef.current = null; setPendingItem(null); };
+
+  // ---------- جدولِ کالاهای صوتی: ویرایش/افزودن/حذفِ ردیف + ثبتِ گروهی ----------
+  const setDraftCell = (i: number, key: keyof ProductDraft, value: any) => setProductDrafts((prev) => prev.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
+  const addDraftRow = () => setProductDrafts((prev) => [...prev, { name: "", stock: 1, buyPrice: 0, sellPrice: 0, barcode: "" }]);
+  const removeDraftRow = (i: number) => setProductDrafts((prev) => prev.filter((_, idx) => idx !== i));
+
+  const submitAllProducts = async () => {
+    const list = productDrafts.filter((p) => p.name.trim());
+    if (!list.length) { setNotice("حداقل یک کالا با نام لازم است."); return; }
+    setLoading(true);
+    try {
+      let created = 0;
+      const dups: { p: ProductDraft; matchedName: string }[] = [];
+      for (const p of list) {
+        const res = await fetch("/api/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...p, confirmNew: false }) });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.duplicate) dups.push({ p, matchedName: data.duplicate.name });
+        else if (res.ok) created++;
+      }
+      if (dups.length > 0) {
+        const listTxt = dups.map((d) => `• ${d.p.name}  (مشابهِ: ${d.matchedName})`).join("\n");
+        if (window.confirm(`${toPersianDigits(created)} کالا ثبت شد.\n\n${toPersianDigits(dups.length)} کالا مشابهِ کالای موجود بودند:\n${listTxt}\n\nاین‌ها را هم به‌عنوانِ کالای جدید ثبت کنم؟`)) {
+          for (const d of dups) { const r = await fetch("/api/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...d.p, confirmNew: true }) }); if (r.ok) created++; }
+        }
+      }
+      speak("کالاها ثبت شد");
+      setNotice(`${toPersianDigits(created)} کالا با موفقیت ثبت شد. ✅`);
+      setProductDrafts([]); setTranscript("");
+      onActionExecute?.("REFRESH_PRODUCTS", null);
+    } catch { setNotice("خطای ارتباط."); } finally { setLoading(false); }
+  };
 
   // حذفِ یک کالا از لیستِ پیش‌نمایشِ قیمت/موجودی (تا در اعمال دخالت نکند).
   const removePricePreviewItem = (id: number) => setPricePreview((prev: any) => prev ? { ...prev, items: prev.items.filter((x: any) => x.id !== id), affectedCount: prev.items.filter((x: any) => x.id !== id).length } : prev);
@@ -636,7 +677,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                   <textarea value={transcript} onChange={(e) => { setTranscript(e.target.value); transcriptRef.current = e.target.value; }} placeholder="متن گفتار شما اینجا می‌آید (قابل ویرایش)..." rows={2}
                     className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                   <button onClick={() => processText(transcript, mode)} disabled={loading || !transcript.trim()} className="w-full bg-emerald-600 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">
-                    <Plus className="w-4 h-4" /> {mode === "invoice" ? "افزودن به فاکتور" : mode === "purchase" ? "افزودن به خرید" : mode === "product" ? "پر کردن فرم" : mode === "price" ? "محاسبهٔ قیمت جدید" : "پرسیدن"}
+                    <Plus className="w-4 h-4" /> {mode === "invoice" ? "افزودن به فاکتور" : mode === "purchase" ? "افزودن به خرید" : mode === "product" ? "افزودن کالا به جدول" : mode === "price" ? "محاسبهٔ قیمت جدید" : "پرسیدن"}
                   </button>
                 </div>
               )}
@@ -712,27 +753,45 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
             </div>
           )}
 
-          {/* ---------- PRODUCT form ---------- */}
-          {mode === "product" && product && (
-            <div className="space-y-3 border border-sky-200 dark:border-sky-900 rounded-2xl p-3 bg-sky-50 dark:bg-sky-950/30">
-              <div className="font-bold text-sm text-sky-800 dark:text-sky-300">فرم کالا (قابل ویرایش):</div>
-              <Field label="نام کالا" value={product.name} onChange={(v) => setProduct({ ...product, name: v })} />
-              <div className="grid grid-cols-2 gap-2">
-                <NumField label="تعداد موجودی" value={product.stock} onChange={(v) => setProduct({ ...product, stock: v })} />
-                <NumField label="قیمت خرید (تومان)" value={product.buyPrice} onChange={(v) => setProduct({ ...product, buyPrice: v })} />
-                <NumField label="قیمت فروش (تومان)" value={product.sellPrice} onChange={(v) => setProduct({ ...product, sellPrice: v })} />
-              </div>
-              {productDup ? (
-                <div className="border border-amber-300 bg-amber-50 dark:bg-amber-950/30 rounded-xl p-3 space-y-2">
-                  <div className="text-xs font-bold text-amber-700 dark:text-amber-300">❓ کالای مشابه «{productDup.name}» از قبل ثبت شده (موجودی {toPersianDigits(productDup.stock)}). این کالا جدید است یا همان قبلی؟</div>
-                  <div className="grid grid-cols-1 gap-1.5">
-                    <a href={`/products?search=${encodeURIComponent(productDup.name)}`} className="w-full text-center bg-emerald-600 text-white py-2 rounded-lg text-xs font-bold">همان قبلی است (ویرایش/افزایش موجودی)</a>
-                    <button onClick={() => submitProduct(true)} disabled={loading} className="w-full bg-sky-600 text-white py-2 rounded-lg text-xs font-bold">کالای جدید است — ثبت شود</button>
-                    <button onClick={() => setProductDup(null)} className="w-full border border-gray-300 dark:border-gray-700 py-2 rounded-lg text-xs">انصراف</button>
-                  </div>
+          {/* ---------- PRODUCT: جدولِ چند کالا (قابل ویرایش + اسکنِ بارکد در هر ردیف) ---------- */}
+          {mode === "product" && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm text-sky-800 dark:text-sky-300">📦 کالاها ({toPersianDigits(productDrafts.length)})</span>
+                <div className="flex gap-2">
+                  <button onClick={addDraftRow} className="text-xs text-sky-600 flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> ردیف خالی</button>
+                  {productDrafts.length > 0 && <button onClick={() => setProductDrafts([])} className="text-xs text-rose-600">پاک کردن</button>}
                 </div>
+              </div>
+
+              {productDrafts.length === 0 ? (
+                <div className="text-center text-xs text-gray-400 py-4 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl">هنوز کالایی گفته نشده — میکروفون را بزنید و نامِ کالا را بگویید (مثلاً «دفتر ۸۰ برگ خرید ۵۰ فروش ۸۰»). هر کالا یک ردیفِ جدید می‌سازد.</div>
               ) : (
-                <button onClick={() => submitProduct(false)} disabled={loading} className="w-full bg-sky-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><CheckCircle className="w-4 h-4" /> ثبت کالا</button>
+                <div className="space-y-2">
+                  {productDrafts.map((p, i) => (
+                    <div key={i} className="border border-sky-200 dark:border-sky-900 rounded-2xl p-3 bg-sky-50 dark:bg-sky-950/30 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-lg bg-sky-600 text-white text-xs font-bold flex items-center justify-center shrink-0">{toPersianDigits(i + 1)}</span>
+                        <input value={p.name} onChange={(e) => setDraftCell(i, "name", e.target.value)} placeholder="نام کالا" className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 text-sm font-bold" />
+                        <button onClick={() => removeDraftRow(i)} className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 flex items-center justify-center shrink-0"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <label className="block"><span className="text-[10px] text-gray-500">موجودی</span>
+                          <input inputMode="numeric" value={p.stock ? toPersianDigits(p.stock) : ""} onChange={(e) => setDraftCell(i, "stock", Number(toEnglishDigits(e.target.value)) || 0)} className="w-full text-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg py-1.5 text-sm" /></label>
+                        <label className="block"><span className="text-[10px] text-gray-500">قیمت خرید</span>
+                          <input inputMode="numeric" value={p.buyPrice ? toPersianDigits(p.buyPrice) : ""} onChange={(e) => setDraftCell(i, "buyPrice", Number(toEnglishDigits(e.target.value)) || 0)} className="w-full text-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg py-1.5 text-sm" /></label>
+                        <label className="block"><span className="text-[10px] text-gray-500">قیمت فروش</span>
+                          <input inputMode="numeric" value={p.sellPrice ? toPersianDigits(p.sellPrice) : ""} onChange={(e) => setDraftCell(i, "sellPrice", Number(toEnglishDigits(e.target.value)) || 0)} className="w-full text-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg py-1.5 text-sm" /></label>
+                      </div>
+                      {/* بارکد + دستیارِ اسکن */}
+                      <div className="flex gap-2">
+                        <input value={p.barcode || ""} onChange={(e) => setDraftCell(i, "barcode", e.target.value)} placeholder="بارکد (اختیاری)" className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 text-sm font-mono text-left" />
+                        <button onClick={() => setScanRowIdx(i)} className="bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-3 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0"><Barcode className="w-4 h-4" /> اسکن</button>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={submitAllProducts} disabled={loading} className="w-full bg-sky-600 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><CheckCircle className="w-4 h-4" /> ثبتِ همهٔ کالاها ({toPersianDigits(productDrafts.filter((p) => p.name.trim()).length)})</button>
+                </div>
               )}
             </div>
           )}
@@ -832,6 +891,13 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
           </div>
         )}
       </div>
+
+      {/* اسکنِ بارکد برای یک ردیفِ کالای صوتی — روی همین پنجره باز می‌شود (z بالاتر) */}
+      <BarcodeScannerModal
+        isOpen={scanRowIdx !== null}
+        onClose={() => setScanRowIdx(null)}
+        onDetected={(code) => { if (scanRowIdx !== null) setDraftCell(scanRowIdx, "barcode", code); }}
+      />
     </div>
   );
 }

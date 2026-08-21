@@ -114,7 +114,7 @@ export function BarcodeScannerModal({ isOpen, onClose, onDetected, continuous = 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4">
+    <div className="fixed inset-0 z-[80] flex items-stretch sm:items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4">
       <div className="bg-white dark:bg-gray-900 w-full h-full sm:h-auto sm:max-w-lg sm:rounded-3xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-800 sm:max-h-[95vh] flex flex-col">
         <div className="p-4 bg-emerald-600 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 font-bold text-sm"><Barcode className="w-5 h-5" /> {continuous ? "اسکن چندتایی بارکد" : "اسکن بارکد کالا"}</div>
