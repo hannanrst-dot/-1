@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp, Check, Send, Image as ImageIcon, Users, Pause, Barcode } from "lucide-react";
+import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp, Check, Send, Image as ImageIcon, Users, Pause, Barcode, Search } from "lucide-react";
 import { BarcodeScannerModal } from "@/components/barcode/BarcodeScannerModal";
-import { formatToman, toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
+import { formatToman, toPersianDigits, toEnglishDigits, normalizePersianText } from "@/lib/persian/utils";
 import { pushUtterance, joinTranscript } from "@/lib/voice/transcript";
 import { normalizeSpokenPersian, parsePersianNumberWords } from "@/lib/voice/persianNormalizer";
 import { shareInvoice, sendToWhatsapp, shareInvoiceImage } from "@/lib/invoice/share";
@@ -43,6 +43,11 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   // حالت گام‌به‌گام: هر کالا را جدا می‌گویید، تأیید می‌کنید، بعد بعدی (پیشنهاد کاربر).
   // سه حالتِ فاکتور صوتی: گام‌به‌گام | یکجا | نگه‌دار و بگو
   const [invMode, setInvMode] = useState<"step" | "batch" | "hold">("step");
+  // روشِ افزودن به فاکتور: سرچ‌وانتخاب | بارکد | صوتی (هر سه به همان سبدِ فاکتور اضافه می‌کنند)
+  const [invInput, setInvInput] = useState<"search" | "barcode" | "voice">("search");
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [invSearch, setInvSearch] = useState("");
+  const [invScanOpen, setInvScanOpen] = useState(false);
   const stepMode = invMode === "step";
   const holdMode = invMode === "hold";
   const [holdLocked, setHoldLocked] = useState(false);
@@ -90,6 +95,8 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   useEffect(() => {
     if (!isOpen) return;
     fetch("/api/settings").then((r) => r.json()).then((d) => setStockAlert(!!d?.settings?.store_info?.stockAlert)).catch(() => {});
+    // فهرستِ کالاها برای سرچ‌وانتخاب و بارکد در فاکتور
+    fetch("/api/products").then((r) => r.json()).then((d) => setAllProducts(d.products || [])).catch(() => {});
   }, [isOpen]);
 
   // قفل اسکرول پس‌زمینه (موبایل)
@@ -341,6 +348,26 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     finally { setLoading(false); }
   };
 
+  // افزودنِ یک کالای انتخاب‌شده (از سرچ یا بارکد) به سبدِ فاکتور
+  const addProductToInvoice = (p: any) => {
+    appendInvoiceItems([{ productId: p.id, productName: p.name, quantity: 1, unitPrice: p.sellPrice, status: "EXACT", stock: p.stock }]);
+    setNotice(`«${p.name}» به فاکتور اضافه شد.`);
+  };
+  // بارکدِ خوانده‌شده در فاکتور → کالای متناظر را اضافه کن (حالت پیوسته: برچسب برمی‌گرداند)
+  const onInvBarcode = (code: string): string | void | null => {
+    const c = String(code).trim();
+    const p = allProducts.find((x) => (x.barcode || "").trim() === c);
+    if (p) { addProductToInvoice(p); return p.name; }
+    setNotice(`بارکد ${toPersianDigits(c)} در انبار پیدا نشد.`);
+    return null;
+  };
+  // نتایجِ سرچ (نام یا بارکد؛ ارقام فارسی/انگلیسی یکسان)
+  const invSearchResults = (() => {
+    const q = normalizePersianText(invSearch.trim());
+    if (!q) return [] as any[];
+    return allProducts.filter((p) => normalizePersianText(p.name).includes(q) || (p.barcode || "").includes(toEnglishDigits(invSearch.trim()))).slice(0, 20);
+  })();
+
   const appendInvoiceItems = (newItems: any[]) => {
     setItems((prev) => {
       const next = [...prev];
@@ -353,7 +380,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     });
   };
 
-  const resetAll = () => { setItems([]); setCustomerName(""); setCustomerPhone(""); setProduct(null); setProductDup(null); setProductDrafts([]); setScanRowIdx(null); setStockPreview(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setCreatedInvoice(null); setNotice(""); setTranscript(""); pendingItemRef.current = null; setPendingItem(null); };
+  const resetAll = () => { setItems([]); setCustomerName(""); setCustomerPhone(""); setProduct(null); setProductDup(null); setProductDrafts([]); setScanRowIdx(null); setStockPreview(null); setSupplierName(""); setPurchaseItems([]); setAnswer(""); setPricePreview(null); setCreatedInvoice(null); setNotice(""); setTranscript(""); setInvSearch(""); setInvScanOpen(false); pendingItemRef.current = null; setPendingItem(null); };
 
   // ---------- جدولِ کالاهای صوتی: ویرایش/افزودن/حذفِ ردیف + ثبتِ گروهی ----------
   const setDraftCell = (i: number, key: keyof ProductDraft, value: any) => setProductDrafts((prev) => prev.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
@@ -503,7 +530,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   if (!isOpen) return null;
 
   const MENU_TITLE: Record<Mode, string> = {
-    menu: "دستیار صوتی", invoice: "🧾 فاکتور صوتی", product: "📦 ثبت کالای صوتی", purchase: "🛒 خرید صوتی", query: "💬 پرسش صوتی", price: "📈 تغییر قیمت صوتی",
+    menu: "دستیار صوتی", invoice: "🧾 ثبت فاکتور", product: "📦 ثبت کالای صوتی", purchase: "🛒 خرید صوتی", query: "💬 پرسش صوتی", price: "📈 تغییر قیمت صوتی",
   };
 
   return (
@@ -525,7 +552,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
           {mode === "menu" && (
             <div className="space-y-3">
               <p className="text-center text-sm text-gray-500 dark:text-gray-400">می‌خواهید با صدا چه کاری انجام دهید؟</p>
-              <MenuButton icon={<ShoppingBag />} title="فاکتور صوتی" desc="فروش کالا به مشتری با گفتن نام و تعداد" color="emerald" onClick={() => { resetAll(); setMode("invoice"); }} />
+              <MenuButton icon={<ShoppingBag />} title="ثبت فاکتور" desc="با سرچ و انتخاب، بارکد، یا صدا — هر سه در یک صفحه" color="emerald" onClick={() => { resetAll(); setMode("invoice"); }} />
               <MenuButton icon={<PackagePlus />} title="ثبت کالای صوتی" desc="افزودن کالای جدید همراه قیمت خرید و فروش" color="sky" onClick={() => { resetAll(); setMode("product"); }} />
               <MenuButton icon={<Truck />} title="خرید صوتی" desc="ثبت خرید از تأمین‌کننده و افزایش موجودی" color="amber" onClick={() => { resetAll(); setMode("purchase"); }} />
               <MenuButton icon={<TrendingUp />} title="تغییر قیمت صوتی" desc="افزایش/کاهش درصدی قیمت همه یا گروهی از کالاها" color="rose" onClick={() => { resetAll(); setMode("price"); }} />
@@ -591,8 +618,53 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
           {/* ---------- SHARED: mic + guide (non-menu) ---------- */}
           {mode !== "menu" && !(mode === "invoice" && createdInvoice) && (
             <>
-              {/* انتخاب حالت (فقط فاکتور): گام‌به‌گام | یکجا | نگه‌دار و بگو */}
+              {/* روشِ افزودن به فاکتور: سرچ‌وانتخاب | بارکد | صوتی */}
               {mode === "invoice" && (
+                <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl grid grid-cols-3 gap-1 text-xs font-bold">
+                  <button onClick={() => setInvInput("search")} className={`py-2 rounded-xl transition flex items-center justify-center gap-1 ${invInput === "search" ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}><Search className="w-4 h-4" /> سرچ و انتخاب</button>
+                  <button onClick={() => setInvInput("barcode")} className={`py-2 rounded-xl transition flex items-center justify-center gap-1 ${invInput === "barcode" ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}><Barcode className="w-4 h-4" /> بارکد</button>
+                  <button onClick={() => setInvInput("voice")} className={`py-2 rounded-xl transition flex items-center justify-center gap-1 ${invInput === "voice" ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}><Mic className="w-4 h-4" /> صوتی</button>
+                </div>
+              )}
+
+              {/* پنل سرچ و انتخاب */}
+              {mode === "invoice" && invInput === "search" && (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                    <input autoFocus value={invSearch} onChange={(e) => setInvSearch(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && invSearchResults.length > 0) { addProductToInvoice(invSearchResults[0]); setInvSearch(""); } }}
+                      placeholder="نامِ کالا یا بارکد را بنویسید…" className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pr-9 pl-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  </div>
+                  {invSearch.trim() && (
+                    invSearchResults.length === 0 ? (
+                      <div className="text-center text-xs text-gray-400 py-3 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl">کالایی پیدا نشد.</div>
+                    ) : (
+                      <div className="max-h-60 overflow-y-auto space-y-1">
+                        {invSearchResults.map((p) => (
+                          <button key={p.id} onClick={() => { addProductToInvoice(p); setInvSearch(""); }} className="w-full flex items-center justify-between gap-2 text-right bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition">
+                            <span className="text-sm font-medium truncate flex-1">{p.name}</span>
+                            <span className="text-xs text-gray-500 shrink-0">موجودی {toPersianDigits(p.stock)}</span>
+                            <span className="text-sm font-bold text-emerald-600 shrink-0">{formatToman(p.sellPrice)}</span>
+                            <Plus className="w-4 h-4 text-emerald-600 shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+
+              {/* پنل بارکد */}
+              {mode === "invoice" && invInput === "barcode" && (
+                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4 text-center space-y-3">
+                  <p className="text-xs text-emerald-800 dark:text-emerald-200">دوربین را روی بارکدِ کالا بگیرید تا به فاکتور اضافه شود. می‌توانید چند بارکد را پشت‌سرِ هم بزنید.</p>
+                  <button onClick={() => setInvScanOpen(true)} className="w-full bg-emerald-600 text-white py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2"><Barcode className="w-5 h-5" /> باز کردن دوربینِ بارکد</button>
+                </div>
+              )}
+
+              {/* انتخاب حالتِ صوتی (فقط وقتی روشِ «صوتی» فعال است): گام‌به‌گام | یکجا | نگه‌دار و بگو */}
+              {mode === "invoice" && invInput === "voice" && (
                 <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl flex gap-1 text-[11px] font-bold">
                   <button onClick={() => { setInvMode("step"); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${invMode === "step" ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>گام‌به‌گام ✅</button>
                   <button onClick={() => { setInvMode("hold"); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${invMode === "hold" ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>نگه‌دار و بگو 🎙️</button>
@@ -600,6 +672,8 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 </div>
               )}
 
+              {/* بخشِ صوتی: راهنما + میکروفون (برای فاکتور فقط وقتی روشِ «صوتی» است؛ برای بقیهٔ حالت‌ها همیشه) */}
+              {(mode !== "invoice" || invInput === "voice") && (<>
               {mode === "invoice" && stepMode ? (
                 <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-3 text-xs leading-relaxed text-emerald-800 dark:text-emerald-200">
                   🎙️ میکروفون را بزنید و <b>نامِ یک کالا</b> را بگویید (مثلاً «دفتر ۸۰ برگ میکرو»). کالا پایین نشان داده می‌شود؛ اگر درست بود بگویید <b>«تأیید»</b> یا دکمهٔ سبز را بزنید. برای تعداد فقط عدد را بگویید («سه»). ضبط قطع نمی‌شود تا همهٔ کالاها را بگویید.
@@ -681,6 +755,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                   </button>
                 </div>
               )}
+              </>)}
 
               {loading && <div className="flex items-center justify-center gap-2 text-emerald-600 text-sm"><div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /> پردازش...</div>}
               {notice && <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-3 text-sm text-gray-700 dark:text-gray-200">{notice}</div>}
@@ -897,6 +972,14 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
         isOpen={scanRowIdx !== null}
         onClose={() => setScanRowIdx(null)}
         onDetected={(code) => { if (scanRowIdx !== null) setDraftCell(scanRowIdx, "barcode", code); }}
+      />
+
+      {/* اسکنِ بارکد برای افزودن به فاکتور (پیوسته: چند بارکد پشت‌سرِ هم) */}
+      <BarcodeScannerModal
+        isOpen={invScanOpen}
+        continuous
+        onClose={() => setInvScanOpen(false)}
+        onDetected={onInvBarcode}
       />
     </div>
   );
