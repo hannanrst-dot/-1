@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp, Check, Send, Image as ImageIcon } from "lucide-react";
+import { Mic, Square, X, CheckCircle, Trash2, Plus, ArrowRight, ShoppingBag, PackagePlus, Truck, MessageCircle, TrendingUp, Check, Send, Image as ImageIcon, Users, Pause } from "lucide-react";
 import { formatToman, toPersianDigits, toEnglishDigits } from "@/lib/persian/utils";
 import { pushUtterance, joinTranscript } from "@/lib/voice/transcript";
 import { normalizeSpokenPersian, parsePersianNumberWords } from "@/lib/voice/persianNormalizer";
@@ -47,6 +47,9 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const [holdLocked, setHoldLocked] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItem | null>(null);
   const [stockAlert, setStockAlert] = useState(false);
+  // چند مشتریِ هم‌زمان در فاکتور صوتی: فاکتورِ فعلی را «پارک» کن، مشتریِ بعدی را شروع کن،
+  // بعداً هرکدام را برگردان و ادامه بده. هر فاکتور جدا ثبت می‌شود.
+  const [parkedInv, setParkedInv] = useState<{ items: CartItem[]; customerName: string; customerPhone: string; label: string; total: number }[]>([]);
   // product
   const [product, setProduct] = useState<ProductDraft | null>(null);
   const [productDup, setProductDup] = useState<any>(null); // کالای مشابهِ کشف‌شده
@@ -76,7 +79,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const holdStartYRef = useRef(0);
   const holdLockedRef = useRef(false);
 
-  useEffect(() => { if (isOpen) setMode(defaultMode); }, [isOpen, defaultMode]);
+  useEffect(() => { if (isOpen) setMode(defaultMode); else setParkedInv([]); }, [isOpen, defaultMode]);
 
   // بارگذاری تنظیمِ «هشدار موجودی»
   useEffect(() => {
@@ -372,10 +375,29 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
       else setNotice(data.error || "خطا در تغییر موجودی.");
     } catch { setNotice("خطای ارتباط."); } finally { setLoading(false); }
   };
-  const goMenu = () => { resetAll(); setMode("menu"); };
+  const goMenu = () => { resetAll(); setParkedInv([]); setMode("menu"); };
 
   const invoiceTotal = items.reduce((s, it) => s + it.unitPrice * it.quantity, 0);
   const invoiceUnresolved = items.some((it) => it.productId == null);
+
+  // ---------- پارک کردن فاکتورِ فعلی و رفتن به مشتریِ دیگر ----------
+  const labelFor = (name: string, n: number) => (name && name.trim() ? name.trim() : `مشتری ${toPersianDigits(n)}`);
+  const parkCurrentInv = () => {
+    if (!items.length) { setNotice("فاکتور خالی است — چیزی برای پارک نیست."); return; }
+    setParkedInv((p) => [...p, { items, customerName, customerPhone, label: labelFor(customerName, p.length + 1), total: invoiceTotal }]);
+    setItems([]); setCustomerName(""); setCustomerPhone(""); setPending(null); setTranscript("");
+    setNotice("فاکتور پارک شد ⏸ — حالا مشتریِ بعدی را شروع کنید. برای برگشت، روی نامِ مشتری بزنید.");
+  };
+  const resumeParkedInv = (idx: number) => {
+    const target = parkedInv[idx];
+    if (!target) return;
+    const rest = parkedInv.filter((_, i) => i !== idx);
+    // اگر فاکتورِ فعلی خالی نیست، آن را هم پارک کن تا از دست نرود.
+    if (items.length) rest.push({ items, customerName, customerPhone, label: labelFor(customerName, parkedInv.length + 1), total: invoiceTotal });
+    setParkedInv(rest);
+    setItems(target.items); setCustomerName(target.customerName || ""); setCustomerPhone(target.customerPhone || ""); setPending(null); setTranscript("");
+    setNotice(`برگشتید به فاکتورِ «${target.label}». ادامه دهید.`);
+  };
 
   const submitInvoice = async () => {
     if (!items.length) { setNotice("لیست خالی است."); return; }
@@ -509,6 +531,19 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 <button onClick={() => { resetAll(); }} className="bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5"><Plus className="w-4 h-4" /> فاکتور جدید</button>
                 <button onClick={() => { resetAll(); onActionExecute?.("NAVIGATE_INVOICE", createdInvoice.id); onClose(); }} className="border border-gray-300 dark:border-gray-700 py-2.5 rounded-xl text-sm">بستن</button>
               </div>
+              {/* مشتریانِ پارک‌شده — برای ادامهٔ فاکتورِ نفرِ بعدی */}
+              {parkedInv.length > 0 && (
+                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-2.5 space-y-2">
+                  <div className="text-xs font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1"><Users className="w-4 h-4" /> مشتریانِ پارک‌شده — ادامه دهید:</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {parkedInv.map((p, i) => (
+                      <button key={i} onClick={() => { setCreatedInvoice(null); resumeParkedInv(i); }} className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1">
+                        {p.label} <span className="opacity-60">({toPersianDigits(p.items.length)})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -614,6 +649,16 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
           {/* ---------- INVOICE list ---------- */}
           {mode === "invoice" && !createdInvoice && (
             <div className="space-y-3">
+              {/* نوارِ چند مشتریِ هم‌زمان: پارک و رفتن به مشتریِ بعدی/قبلی */}
+              <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-2 flex items-center gap-1.5 flex-wrap">
+                <button onClick={parkCurrentInv} disabled={!items.length} className="bg-amber-500 disabled:opacity-40 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 shrink-0"><Pause className="w-3.5 h-3.5" /> پارک و مشتریِ بعدی</button>
+                {parkedInv.map((p, i) => (
+                  <button key={i} onClick={() => resumeParkedInv(i)} className="bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-gray-300 dark:border-gray-700 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1" title="برگشت به این مشتری">
+                    <Users className="w-3.5 h-3.5 text-amber-600" /> {p.label} <span className="opacity-60">({toPersianDigits(p.items.length)})</span>
+                  </button>
+                ))}
+                {parkedInv.length === 0 && <span className="text-[11px] text-gray-400">مشتریِ دیگری منتظر است؟ فاکتور را «پارک» کنید، بعد برگردید.</span>}
+              </div>
               <div>
                 <label className="text-xs text-gray-500">مشتری (اختیاری)</label>
                 <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="مشتری عمومی" className="w-full mt-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl px-3 py-2 text-sm" />

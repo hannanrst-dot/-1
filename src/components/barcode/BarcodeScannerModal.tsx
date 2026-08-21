@@ -114,19 +114,20 @@ export function BarcodeScannerModal({ isOpen, onClose, onDetected, continuous = 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-800 max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4">
+      <div className="bg-white dark:bg-gray-900 w-full h-full sm:h-auto sm:max-w-lg sm:rounded-3xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-800 sm:max-h-[95vh] flex flex-col">
         <div className="p-4 bg-emerald-600 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 font-bold text-sm"><Barcode className="w-5 h-5" /> {continuous ? "اسکن چندتایی بارکد" : "اسکن بارکد کالا"}</div>
-          <button onClick={handleClose} className="p-1 rounded-lg hover:bg-emerald-700 transition"><X className="w-5 h-5" /></button>
+          <button onClick={handleClose} className="p-1.5 rounded-lg hover:bg-emerald-700 transition"><X className="w-6 h-6" /></button>
         </div>
 
-        <div className="p-5 space-y-4 overflow-y-auto">
-          <div className="relative aspect-video bg-black rounded-2xl overflow-hidden flex items-center justify-center border-2 border-emerald-500">
+        <div className="p-3 sm:p-5 space-y-4 overflow-y-auto flex-1">
+          {/* دوربینِ بزرگ — روی موبایل بیشترِ صفحه را می‌گیرد تا اسکن آسان باشد */}
+          <div className="relative h-[58vh] sm:h-auto sm:aspect-[4/5] bg-black rounded-2xl overflow-hidden flex items-center justify-center border-2 border-emerald-500">
             <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-            <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-4/5 h-0.5 bg-rose-500 animate-pulse" />
-            <div className="absolute inset-0 border-2 border-dashed border-emerald-400 opacity-50 rounded-xl pointer-events-none m-8" />
-            <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-white bg-black/60 px-3 py-1 text-xs rounded-full text-center">{status}</span>
+            <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-4/5 h-0.5 bg-rose-500 animate-pulse shadow-[0_0_12px_2px_rgba(244,63,94,0.9)]" />
+            <div className="absolute inset-0 border-2 border-dashed border-emerald-400 opacity-50 rounded-xl pointer-events-none m-10" />
+            <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-white bg-black/70 px-4 py-1.5 text-sm rounded-full text-center max-w-[90%]">{status}</span>
           </div>
 
           {/* لیست اسکن‌ها (فقط در حالت پیوسته) */}
