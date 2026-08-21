@@ -64,6 +64,17 @@ export async function PUT(
         minStock: data.minStock !== undefined ? Number(data.minStock) : existing.minStock,
         buyPrice: data.buyPrice !== undefined ? Number(data.buyPrice) : existing.buyPrice,
         sellPrice: data.sellPrice !== undefined ? Number(data.sellPrice) : existing.sellPrice,
+        // اگر قیمتِ خرید یا فروش تغییر کرد، تاریخِ تغییرِ قیمت به‌روز و «تأییدِ ادامه» صفر می‌شود.
+        priceUpdatedAt:
+          (data.sellPrice !== undefined && Number(data.sellPrice) !== existing.sellPrice) ||
+          (data.buyPrice !== undefined && Number(data.buyPrice) !== existing.buyPrice)
+            ? new Date().toISOString()
+            : (existing as any).priceUpdatedAt,
+        priceReviewedAt:
+          (data.sellPrice !== undefined && Number(data.sellPrice) !== existing.sellPrice) ||
+          (data.buyPrice !== undefined && Number(data.buyPrice) !== existing.buyPrice)
+            ? null
+            : (existing as any).priceReviewedAt,
         discount: data.discount !== undefined ? Number(data.discount) : existing.discount,
         taxPercent: data.taxPercent !== undefined ? Number(data.taxPercent) : existing.taxPercent,
         description: data.description ?? existing.description,

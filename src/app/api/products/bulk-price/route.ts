@@ -39,6 +39,8 @@ export async function POST(req: Request) {
       const patch: Record<string, unknown> = {
         sellPrice: calc(prod.sellPrice),
         updatedAt: new Date().toISOString(),
+        priceUpdatedAt: new Date().toISOString(),
+        priceReviewedAt: null,
       };
       if (applyToBuy) patch.buyPrice = calc(prod.buyPrice);
       await db.update(products).set(patch).where(eq(products.id, prod.id));

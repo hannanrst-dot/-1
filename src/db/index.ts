@@ -76,7 +76,9 @@ CREATE TABLE IF NOT EXISTS products (
   image TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  price_updated_at TEXT,
+  price_reviewed_at TEXT
 );
 CREATE TABLE IF NOT EXISTS customers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -240,6 +242,8 @@ function createConnection(): Database.Database {
     } catch { /* ignore */ }
   };
   ensureColumn("invoices", "customer_phone", "TEXT");
+  ensureColumn("products", "price_updated_at", "TEXT");
+  ensureColumn("products", "price_reviewed_at", "TEXT");
   console.log("[sabtyar] مسیر دیتابیس:", dbFile);
   return sqlite;
 }
@@ -250,4 +254,6 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 export const db = drizzle(sqlite);
+// دسترسیِ خام به اتصال (برای بازیابیِ بک‌آپ: خاموش‌کردنِ موقتِ کلیدهای خارجی)
+export const rawSqlite = sqlite;
 export { sqlite };

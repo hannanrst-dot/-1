@@ -17,7 +17,7 @@ import {
   Save,
   Filter,
 } from "lucide-react";
-import { formatToman, toPersianDigits } from "@/lib/persian/utils";
+import { formatToman, toPersianDigits, toJalaliDate } from "@/lib/persian/utils";
 import { BarcodeScannerModal } from "@/components/barcode/BarcodeScannerModal";
 import * as XLSX from "xlsx";
 
@@ -277,7 +277,10 @@ export default function ProductsPage() {
                           </span>
                         </td>
                         <td className="p-3 font-medium text-gray-600 dark:text-gray-400">{formatToman(p.buyPrice)}</td>
-                        <td className="p-3 font-extrabold text-emerald-600 dark:text-emerald-400">{formatToman(p.sellPrice)}</td>
+                        <td className="p-3 font-extrabold text-emerald-600 dark:text-emerald-400">
+                          {formatToman(p.sellPrice)}
+                          {(p.priceUpdatedAt || p.createdAt) && <div className="text-[10px] text-gray-400 font-normal">قیمت از {toJalaliDate(p.priceUpdatedAt || p.createdAt)}</div>}
+                        </td>
                         <td className="p-3 text-center">
                           <div className="flex items-center justify-center gap-1">
                             <button

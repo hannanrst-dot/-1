@@ -36,37 +36,97 @@ export default function ImportProductsPage() {
     return m ? m.name : null;
   };
 
-  // ---------- اکسل ----------
+  // ---------- اکسل (تشخیصِ مقاومِ ستون‌ها) ----------
+  const isNumericish = (v: any): boolean => {
+    const s = toEnglishDigits(String(v ?? "")).replace(/[،,٬\s]/g, "").trim();
+    return s !== "" && /^\d+(\.\d+)?$/.test(s);
+  };
+  const KW = {
+    name: ["نام", "کالا", "محصول", "شرح", "عنوان", "name", "title", "product", "item", "کالاها"],
+    buy: ["خرید", "خريد", "buy", "cost", "قیمت خرید"],
+    sell: ["فروش", "سیل", "sell", "قیمت فروش"],
+    price: ["قیمت", "نرخ", "مبلغ", "price", "amount"],
+    stock: ["موجودی", "تعداد", "انبار", "stock", "qty", "quantity", "count", "inventory"],
+    barcode: ["بارکد", "بارکود", "barcode", "کد کالا", "کد محصول"],
+  };
+  const lc = (s: any) => String(s ?? "").trim().toLowerCase();
+  const cellHits = (cell: string, pats: string[]) => { const c = lc(cell); return !!c && pats.some((p) => c.includes(lc(p))); };
+  const parseSheetRows = (rows2d: any[][]): Row[] => {
+    const nonEmpty = rows2d.filter((r) => Array.isArray(r) && r.some((c) => String(c ?? "").trim() !== ""));
+    if (!nonEmpty.length) return [];
+    const cats = ["name", "buy", "sell", "price", "stock", "barcode"] as const;
+    // ۱) ردیفِ سرستون: ردیفی که «ستونِ نام» دارد و حداقل یک دستهٔ قیمت/موجودی؛ و بیشترین تطبیق.
+    //    (ردیفِ عنوانِ فاکتور معمولاً ستونِ «نام» ندارد، پس اشتباه گرفته نمی‌شود.)
+    let headerIdx = -1, headerScore = 1;
+    for (let i = 0; i < Math.min(nonEmpty.length, 6); i++) {
+      const cells = nonEmpty[i].map((c) => String(c ?? "").trim());
+      const matchedCats = cats.filter((cat) => cells.some((c) => cellHits(c, KW[cat])));
+      const numeric = cells.filter((c) => c && isNumericish(c)).length;
+      if (matchedCats.includes("name") && matchedCats.length >= 2 && numeric <= 1 && matchedCats.length > headerScore) {
+        headerScore = matchedCats.length; headerIdx = i;
+      }
+    }
+    const col: Record<string, number> = { name: -1, buy: -1, sell: -1, price: -1, stock: -1, barcode: -1 };
+    let dataRows: any[][];
+    if (headerIdx >= 0) {
+      const header = nonEmpty[headerIdx].map((c) => String(c ?? "").trim());
+      const findCol = (pats: string[]) => header.findIndex((h) => cellHits(h, pats));
+      col.name = findCol(KW.name); col.buy = findCol(KW.buy); col.sell = findCol(KW.sell);
+      col.price = findCol(KW.price); col.stock = findCol(KW.stock); col.barcode = findCol(KW.barcode);
+      dataRows = nonEmpty.slice(headerIdx + 1);
+    } else {
+      dataRows = nonEmpty; // بدونِ سرستون → همه داده
+    }
+    const ncols = Math.max(...dataRows.map((r) => r.length), 1);
+    // ۲) اگر ستونِ نام پیدا نشد، ستونی که «بیشترین متنِ غیرعددی» دارد نام است.
+    if (col.name < 0) {
+      let best = 0, bestScore = -1;
+      for (let c = 0; c < ncols; c++) {
+        let t = 0;
+        for (const r of dataRows) { const v = String(r[c] ?? "").trim(); if (v && !isNumericish(v)) t++; }
+        if (t > bestScore) { bestScore = t; best = c; }
+      }
+      col.name = best;
+    }
+    // ۳) اگر ستون‌های قیمت پیدا نشدند، ستون‌های عددی (غیر از نام) را به‌ترتیب قیمت خرید/فروش/موجودی می‌گیریم.
+    if (col.buy < 0 && col.sell < 0 && col.price < 0) {
+      const numCols: number[] = [];
+      for (let c = 0; c < ncols; c++) {
+        if (c === col.name) continue;
+        let n = 0; for (const r of dataRows) { const v = String(r[c] ?? "").trim(); if (v && isNumericish(v)) n++; }
+        if (n > 0) numCols.push(c);
+      }
+      if (numCols.length >= 2) { col.buy = numCols[0]; col.sell = numCols[1]; if (numCols[2] !== undefined && col.stock < 0) col.stock = numCols[2]; }
+      else if (numCols.length === 1) { col.sell = numCols[0]; }
+    }
+    const parsed: Row[] = [];
+    for (const r of dataRows) {
+      const name = String(r[col.name] ?? "").trim();
+      if (!name || isNumericish(name)) continue;
+      if (KW.name.some((k) => name === k) || KW.price.some((k) => name === k)) continue; // ردیفِ سرستونِ تکراری
+      const buy = col.buy >= 0 ? r[col.buy] : undefined;
+      const sell = col.sell >= 0 ? r[col.sell] : undefined;
+      const price = col.price >= 0 ? r[col.price] : undefined;
+      const stock = col.stock >= 0 ? r[col.stock] : undefined;
+      const barcode = col.barcode >= 0 ? r[col.barcode] : undefined;
+      parsed.push({
+        name,
+        buyPrice: parseNum(buy ?? (sell ? undefined : price)),
+        sellPrice: parseNum(sell ?? price),
+        stock: parseNum(stock),
+        barcode: barcode ? String(barcode).trim() : "",
+      });
+    }
+    return parsed;
+  };
   const handleExcel = async (file: File) => {
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array" });
       const sheet = wb.Sheets[wb.SheetNames[0]];
-      const json: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-      if (!json.length) { alert("فایل خالی است یا خوانده نشد."); return; }
-
-      const findVal = (obj: any, pats: string[]) => {
-        for (const k of Object.keys(obj)) { const kk = k.trim(); if (pats.some((p) => kk.includes(p)) && String(obj[k]).trim() !== "") return obj[k]; }
-        return undefined;
-      };
-      const parsed: Row[] = [];
-      for (const obj of json) {
-        const name = String(findVal(obj, ["نام", "کالا", "محصول", "name", "title", "شرح"]) ?? "").trim();
-        if (!name) continue;
-        const buy = findVal(obj, ["خرید", "buy"]);
-        const sell = findVal(obj, ["فروش", "sell"]);
-        const anyPrice = findVal(obj, ["قیمت", "price", "مبلغ"]);
-        const stock = findVal(obj, ["موجودی", "تعداد", "انبار", "stock", "qty", "quantity", "count"]);
-        const barcode = findVal(obj, ["بارکد", "barcode"]);
-        parsed.push({
-          name,
-          buyPrice: parseNum(buy ?? (sell ? undefined : anyPrice)),
-          sellPrice: parseNum(sell ?? anyPrice),
-          stock: parseNum(stock),
-          barcode: barcode ? String(barcode).trim() : "",
-        });
-      }
-      if (!parsed.length) { alert("هیچ ردیفی با نامِ کالا پیدا نشد. ستون «نام کالا» را بررسی کنید."); return; }
+      const rows2d: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", blankrows: false });
+      const parsed = parseSheetRows(rows2d);
+      if (!parsed.length) { alert("هیچ کالایی از فایل خوانده نشد. مطمئن شوید فایل، ستونِ نامِ کالا و قیمت دارد."); return; }
       setRows((prev) => [...prev, ...parsed]);
     } catch (e) {
       console.error(e); alert("خطا در خواندن فایل اکسل.");

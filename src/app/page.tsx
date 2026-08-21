@@ -40,6 +40,11 @@ export default function DashboardPage() {
   const [summaryData, setSummaryData] = useState<any>(null);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [stale, setStale] = useState<{ count: number; products: any[] }>({ count: 0, products: [] });
+
+  useEffect(() => {
+    fetch("/api/products/stale-prices").then((r) => r.json()).then((d) => setStale({ count: d.count || 0, products: d.products || [] })).catch(() => {});
+  }, []);
 
   const fetchSummary = async () => {
     try {
@@ -210,6 +215,29 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* هشدارِ قیمت‌های قدیمی */}
+        {stale.count > 0 && (
+          <Link href="/price-review" className="block bg-white dark:bg-gray-900 p-5 rounded-3xl border-2 border-rose-300 dark:border-rose-900/60 shadow-sm hover:border-rose-400 transition">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-rose-600" />
+                <span className="font-bold text-sm text-rose-700 dark:text-rose-400">کالاهایی با قیمتِ قدیمی ({toPersianDigits(stale.count)})</span>
+              </div>
+              <span className="text-[11px] text-rose-600 font-bold">بازبینی ←</span>
+            </div>
+            <div className="space-y-1.5">
+              {stale.products.slice(0, 4).map((p: any) => (
+                <div key={p.id} className="flex items-center justify-between text-xs bg-rose-50 dark:bg-rose-950/20 rounded-xl px-3 py-2">
+                  <span className="font-medium truncate flex-1">{p.name}</span>
+                  <span className="text-gray-500 mx-2">{formatToman(p.sellPrice)}</span>
+                  <span className="text-rose-600 font-bold shrink-0">{toPersianDigits(p.ageDays)} روز</span>
+                </div>
+              ))}
+              {stale.count > 4 && <div className="text-[11px] text-gray-500 text-center">و {toPersianDigits(stale.count - 4)} کالای دیگر…</div>}
+            </div>
+          </Link>
         )}
 
         {/* Quick Actions Shortcuts */}

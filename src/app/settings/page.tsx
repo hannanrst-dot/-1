@@ -57,6 +57,18 @@ export default function SettingsPage() {
     window.location.href = "/api/backup";
   };
 
+  const handleRestore = async (file: File) => {
+    if (!window.confirm("⚠️ بازیابی، همهٔ اطلاعاتِ فعلی را با محتوای این فایل جایگزین می‌کند. مطمئنید؟")) return;
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const res = await fetch("/api/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(json) });
+      const data = await res.json();
+      if (res.ok) { alert("اطلاعات با موفقیت بازیابی شد ✅ (کالاها: " + (data.counts?.products ?? 0) + ")"); window.location.reload(); }
+      else alert(data.error || "خطا در بازیابی");
+    } catch { alert("فایل بک‌آپ نامعتبر است یا خوانده نشد."); }
+  };
+
   return (
     <MainLayout>
       <div className="max-w-3xl mx-auto space-y-6">
@@ -160,6 +172,20 @@ export default function SettingsPage() {
               >
                 دانلود بک‌آپ کامل
               </button>
+            </div>
+
+            {/* Restore from backup */}
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800/40 space-y-2">
+              <div className="font-bold text-xs text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                <Upload className="w-4 h-4" /> بازیابی از فایل پشتیبان
+              </div>
+              <p className="text-[11px] text-gray-600 dark:text-gray-300">
+                فایل بک‌آپ (JSON) را بارگذاری کنید تا اطلاعات برگردد. مثلاً بعد از وصل‌کردنِ دیسکِ دائمی.
+              </p>
+              <label className="w-full block text-center cursor-pointer bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-xl text-xs font-bold transition mt-2">
+                انتخاب فایل بک‌آپ و بازیابی
+                <input type="file" accept="application/json,.json" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleRestore(f); e.target.value = ""; }} />
+              </label>
             </div>
 
             {/* Iranian Deploy Guide */}

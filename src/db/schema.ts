@@ -54,6 +54,9 @@ export const products = sqliteTable("products", {
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   createdAt: text("created_at").notNull().$defaultFn(nowIso),
   updatedAt: text("updated_at").notNull().$defaultFn(nowIso),
+  // تاریخِ آخرین تغییرِ قیمت (خرید/فروش) و تاریخِ آخرین «تأییدِ ادامه با همین قیمت»
+  priceUpdatedAt: text("price_updated_at"),
+  priceReviewedAt: text("price_reviewed_at"),
 });
 
 // Customers Table

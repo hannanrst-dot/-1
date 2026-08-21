@@ -35,6 +35,7 @@ export async function GET(req: Request) {
         isActive: products.isActive,
         createdAt: products.createdAt,
         updatedAt: products.updatedAt,
+        priceUpdatedAt: products.priceUpdatedAt,
       })
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
@@ -149,6 +150,7 @@ export async function POST(req: Request) {
         description: data.description || null,
         image: data.image || null,
         isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
+        priceUpdatedAt: new Date().toISOString(),
       })
       .returning();
 

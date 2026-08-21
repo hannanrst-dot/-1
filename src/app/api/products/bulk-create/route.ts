@@ -60,6 +60,7 @@ export async function POST(req: Request) {
           buyPrice: Number(raw.buyPrice ?? 0) || 0,
           sellPrice: Number(raw.sellPrice ?? 0) || 0,
           isActive: true,
+          priceUpdatedAt: new Date().toISOString(),
         })
         .returning();
       created++;

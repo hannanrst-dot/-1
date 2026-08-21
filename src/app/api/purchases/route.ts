@@ -86,6 +86,7 @@ export async function POST(req: Request) {
               stock: newStock,
               buyPrice: item.unitPrice > 0 ? item.unitPrice : prod.buyPrice,
               updatedAt: new Date().toISOString(),
+              priceUpdatedAt: item.unitPrice > 0 && item.unitPrice !== prod.buyPrice ? new Date().toISOString() : (prod as any).priceUpdatedAt,
             })
             .where(eq(products.id, item.productId));
 
