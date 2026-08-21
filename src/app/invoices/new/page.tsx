@@ -59,6 +59,37 @@ export default function NewInvoicePage() {
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [createdInvoice, setCreatedInvoice] = useState<any>(null);
 
+  // چند مشتریِ هم‌زمان: فاکتورهای «پارک‌شده» (کنارگذاشته‌شده تا بعد ادامه دهید)
+  const [parked, setParked] = useState<any[]>([]);
+  const snapshot = () => ({ items, selectedCustomerId, customerName, customerPhone, discountAmount, taxAmount, paymentMethod, notes });
+  const loadSnapshot = (s: any) => {
+    setItems(s.items || []); setSelectedCustomerId(s.selectedCustomerId || ""); setCustomerName(s.customerName || "مشتری عمومی");
+    setCustomerPhone(s.customerPhone || ""); setDiscountAmount(s.discountAmount || 0); setTaxAmount(s.taxAmount || 0);
+    setPaymentMethod(s.paymentMethod || "cash"); setNotes(s.notes || "");
+  };
+  const resetWorkspace = () => {
+    setItems([]); setSelectedCustomerId(""); setCustomerName("مشتری عمومی"); setCustomerPhone("");
+    setDiscountAmount(0); setTaxAmount(0); setPaymentMethod("cash"); setNotes(""); setSearchTerm("");
+  };
+  // پارکِ فاکتورِ فعلی و شروعِ مشتریِ جدید
+  const parkCurrent = () => {
+    if (items.length === 0) return;
+    const label = customerName && customerName !== "مشتری عمومی" ? customerName : `مشتری ${toPersianDigits(parked.length + 1)}`;
+    setParked((p) => [...p, { ...snapshot(), label, _total: items.reduce((s, it) => s + it.totalPrice, 0) }]);
+    resetWorkspace();
+  };
+  // بازگشت به یک فاکتورِ پارک‌شده (فاکتورِ فعلی هم اگر خالی نبود پارک می‌شود)
+  const resumeParked = (idx: number) => {
+    const target = parked[idx];
+    const rest = parked.filter((_, i) => i !== idx);
+    if (items.length > 0) {
+      const label = customerName && customerName !== "مشتری عمومی" ? customerName : `مشتری ${toPersianDigits(parked.length + 1)}`;
+      rest.push({ ...snapshot(), label, _total: items.reduce((s, it) => s + it.totalPrice, 0) });
+    }
+    setParked(rest);
+    loadSnapshot(target);
+  };
+
   const [stockAlert, setStockAlert] = useState(false);
 
   useEffect(() => {
@@ -214,6 +245,20 @@ export default function NewInvoicePage() {
             <Mic className="w-4 h-4 animate-pulse text-emerald-200" />
             <span>🎙️ صدور صوتی فاکتور («برای علی رضایی سه تا دفتر...»)</span>
           </button>
+        </div>
+
+        {/* نوارِ چند مشتریِ هم‌زمان (پارکِ فاکتور) */}
+        <div className="flex items-center gap-2 flex-wrap bg-white dark:bg-gray-900 p-2.5 rounded-2xl border border-gray-200 dark:border-gray-800">
+          <span className="text-[11px] font-bold text-gray-500 px-1">مشتریان هم‌زمان:</span>
+          <button onClick={parkCurrent} disabled={items.length === 0} className="bg-amber-500 disabled:opacity-40 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1">
+            <UserPlus className="w-3.5 h-3.5" /> پارک و مشتریِ جدید
+          </button>
+          {parked.map((p, i) => (
+            <button key={i} onClick={() => resumeParked(i)} className="bg-gray-100 dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-gray-300 dark:border-gray-700 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
+              🅿️ {p.label} <span className="text-emerald-600">({formatToman(p._total)})</span>
+            </button>
+          ))}
+          {parked.length === 0 && <span className="text-[11px] text-gray-400">فاکتوری پارک نشده — برای رسیدگی به مشتریِ دیگر «پارک» را بزنید و بعد برگردید.</span>}
         </div>
 
         {/* POS Workspace Grid */}
@@ -442,7 +487,16 @@ export default function NewInvoicePage() {
           isOpen={!!createdInvoice}
           onClose={() => {
             setCreatedInvoice(null);
-            router.push("/invoices");
+            // اگر مشتریِ پارک‌شده‌ای هست، به آن برگرد؛ وگرنه به لیست فاکتورها.
+            if (parked.length > 0) {
+              const first = parked[0];
+              setParked((p) => p.slice(1));
+              loadSnapshot(first);
+              fetch("/api/products").then((r) => r.json()).then((d) => setProducts(d.products || [])).catch(() => {});
+            } else {
+              resetWorkspace();
+              router.push("/invoices");
+            }
           }}
         />
       )}

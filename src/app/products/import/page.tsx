@@ -7,7 +7,8 @@ import { FileSpreadsheet, Trash2, Plus, CheckCircle, Download, ArrowLeft, AlertT
 import { toPersianDigits, toEnglishDigits, normalizePersianText, calculateSimilarity } from "@/lib/persian/utils";
 import * as XLSX from "xlsx";
 
-interface Row { name: string; buyPrice: number; sellPrice: number; stock: number; barcode: string; }
+interface Row { name: string; buyPrice: number; sellPrice: number; stock: number; barcode: string; action?: "new" | "update"; }
+interface Existing { id: number; name: string; n: string; bc: string; stock: number; sellPrice: number; buyPrice: number; }
 
 const emptyRow = (): Row => ({ name: "", buyPrice: 0, sellPrice: 0, stock: 0, barcode: "" });
 const parseNum = (v: any): number => {
@@ -22,18 +23,23 @@ export default function ImportProductsPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
   const excelInput = useRef<HTMLInputElement>(null);
-  // کالاهای موجود (برای هشدارِ تکراری داخلِ جدول، پیش از ثبت)
-  const [existing, setExisting] = useState<{ name: string; n: string; bc: string }[]>([]);
+  // کالاهای موجود (برای هشدارِ تکراری/مشابه داخلِ جدول، پیش از ثبت)
+  const [existing, setExisting] = useState<Existing[]>([]);
   useEffect(() => {
-    fetch("/api/products").then((r) => r.json()).then((d) => setExisting((d.products || []).map((p: any) => ({ name: p.name, n: normalizePersianText(p.name), bc: (p.barcode || "").trim() })))).catch(() => {});
+    fetch("/api/products").then((r) => r.json()).then((d) => setExisting((d.products || []).map((p: any) => ({ id: p.id, name: p.name, n: normalizePersianText(p.name), bc: (p.barcode || "").trim(), stock: p.stock, sellPrice: p.sellPrice, buyPrice: p.buyPrice })))).catch(() => {});
   }, []);
-  const dupOf = (r: Row): string | null => {
+  // بهترین تطبیق: بارکدِ یکسان یا نامِ نزدیک. score>=0.8 «تکراری/قوی»، ۰.۶ تا ۰.۸ «مشابه/ضعیف».
+  const matchOf = (r: Row): { m: Existing; score: number } | null => {
     const nn = normalizePersianText(r.name);
     if (!nn) return null;
     const bc = (r.barcode || "").trim();
-    let m = bc ? existing.find((p) => p.bc && p.bc === bc) : undefined;
-    if (!m) m = existing.find((p) => calculateSimilarity(nn, p.n) >= 0.8);
-    return m ? m.name : null;
+    if (bc) { const b = existing.find((p) => p.bc && p.bc === bc); if (b) return { m: b, score: 1 }; }
+    let best: { m: Existing; score: number } | null = null;
+    for (const p of existing) {
+      const s = calculateSimilarity(nn, p.n);
+      if (s >= 0.6 && (!best || s > best.score)) best = { m: p, score: s };
+    }
+    return best;
   };
 
   // ---------- اکسل (تشخیصِ مقاومِ ستون‌ها) ----------
@@ -154,34 +160,70 @@ export default function ImportProductsPage() {
     return { ok: res.ok, data: await res.json() };
   };
 
+  // به‌روزرسانیِ یک کالای موجود: قیمتِ جدید + افزودنِ موجودیِ واردشده به موجودیِ فعلی.
+  const putUpdate = async (m: Existing, r: Row) => {
+    const body: any = { stock: m.stock + (r.stock || 0) };
+    if (r.sellPrice > 0) body.sellPrice = r.sellPrice;
+    if (r.buyPrice > 0) body.buyPrice = r.buyPrice;
+    const res = await fetch(`/api/products/${m.id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    return res.ok;
+  };
+
   const submitAll = async () => {
     const valid = rows.filter((r) => r.name.trim());
     if (!valid.length) { alert("حداقل یک کالا با نام لازم است."); return; }
     setSaving(true);
     try {
-      const { ok, data } = await postItems(valid.map((r) => ({ ...r })));
-      if (!ok) { alert(data.error || "خطا در ثبت کالاها"); return; }
+      // تفکیکِ ردیف‌ها: «به‌روزرسانیِ کالای موجود» (تطبیقِ قویِ ≥۰.۸ و انتخابِ «به‌روزرسانی») در برابرِ «کالای جدید».
+      const updates: { m: Existing; r: Row }[] = [];
+      const creates: Row[] = [];
+      for (const r of valid) {
+        const match = matchOf(r);
+        const strong = !!match && match.score >= 0.8;
+        if (strong && r.action !== "new") updates.push({ m: match!.m, r });
+        else creates.push(r);
+      }
 
-      const skipped = (data.skipped || []) as { name: string; matchedName: string }[];
+      // ۱) به‌روزرسانیِ کالاهای موجود
+      let updated = 0;
+      for (const u of updates) { if (await putUpdate(u.m, u.r)) updated++; }
+
+      // ۲) ثبتِ کالاهای جدید (کالاهایی که کاربر «کالای جدید» را انتخاب کرده با force ثبت می‌شوند تا رد نشوند)
+      let created = 0;
+      let skipped: { name: string; matchedName: string }[] = [];
+      if (creates.length) {
+        const items = creates.map((r) => {
+          const match = matchOf(r);
+          const strong = !!match && match.score >= 0.8;
+          // اگر کاربر با وجودِ تطبیقِ قوی «کالای جدید» را انتخاب کرد، force بزن تا سرور ردش نکند.
+          return strong && r.action === "new" ? { ...r, force: true } : { ...r };
+        });
+        const { ok, data } = await postItems(items);
+        if (!ok) { alert(data.error || "خطا در ثبت کالاها"); return; }
+        created = data.count || 0;
+        skipped = (data.skipped || []) as { name: string; matchedName: string }[];
+      }
+
+      // ۳) خلاصهٔ نتیجه + پیشنهادِ ثبتِ ردیف‌های ردشده به‌عنوانِ کالای جدید
+      const summary = `${toPersianDigits(updated)} کالا به‌روزرسانی شد و ${toPersianDigits(created)} کالای جدید ثبت شد.`;
       if (skipped.length > 0) {
         const list = skipped.slice(0, 15).map((s) => `• ${s.name}  (مشابهِ: ${s.matchedName})`).join("\n");
         const more = skipped.length > 15 ? `\n… و ${toPersianDigits(skipped.length - 15)} مورد دیگر` : "";
         const ok2 = window.confirm(
-          `${toPersianDigits(data.count)} کالا ثبت شد.\n\n${toPersianDigits(skipped.length)} کالا چون «مشابهِ کالای موجود» بودند ثبت نشدند:\n${list}${more}\n\nاین‌ها را هم به‌عنوانِ کالای جدید ثبت کنم؟`
+          `${summary}\n\n${toPersianDigits(skipped.length)} کالا چون «مشابهِ کالای موجود» بودند ثبت نشدند:\n${list}${more}\n\nاین‌ها را هم به‌عنوانِ کالای جدید ثبت کنم؟`
         );
         if (ok2) {
           const skipNames = new Set(skipped.map((s) => s.name));
-          const forceItems = valid.filter((r) => skipNames.has(r.name.trim())).map((r) => ({ ...r, force: true }));
+          const forceItems = creates.filter((r) => skipNames.has(r.name.trim())).map((r) => ({ ...r, force: true }));
           const r2 = await postItems(forceItems);
-          if (r2.ok) alert(`در مجموع ${toPersianDigits((data.count || 0) + (r2.data.count || 0))} کالا ثبت شد.`);
-          router.push("/products");
-        } else {
-          router.push("/products");
+          if (r2.ok) alert(`در مجموع ${toPersianDigits(updated + created + (r2.data.count || 0))} کالا ثبت/به‌روزرسانی شد.`);
         }
       } else {
-        alert(`${toPersianDigits(data.count)} کالا با موفقیت ثبت شد.`);
-        router.push("/products");
+        alert(summary);
       }
+      router.push("/products");
     } catch { alert("خطا در ارتباط با سرور"); } finally { setSaving(false); }
   };
 
@@ -233,12 +275,24 @@ export default function ImportProductsPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {rows.map((r, i) => {
-                    const dn = dupOf(r);
+                    const match = matchOf(r);
+                    const strong = !!match && match.score >= 0.8;
+                    const doUpdate = strong && r.action !== "new";
                     return (
-                    <tr key={i} className={dn ? "bg-amber-50 dark:bg-amber-950/20" : ""}>
+                    <tr key={i} className={strong ? "bg-amber-50 dark:bg-amber-950/20" : match ? "bg-yellow-50/40 dark:bg-yellow-950/10" : ""}>
                       <td className="p-1.5">
                         <input value={r.name} onChange={(e) => setCell(i, "name", e.target.value)} className="w-40 min-w-[120px] bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5" />
-                        {dn && <div className="text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-0.5 mt-0.5"><AlertTriangle className="w-3 h-3" /> مشابهِ «{dn}» موجود است</div>}
+                        {strong ? (
+                          <div className="mt-1 space-y-1">
+                            <div className="text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" /> «{match!.m.name}» از قبل هست</div>
+                            <div className="flex gap-1">
+                              <button onClick={() => setCell(i, "action", "update")} className={`text-[10px] px-2 py-0.5 rounded-lg border ${doUpdate ? "bg-emerald-600 text-white border-emerald-600" : "border-gray-300 dark:border-gray-600"}`}>به‌روزرسانیِ همان</button>
+                              <button onClick={() => setCell(i, "action", "new")} className={`text-[10px] px-2 py-0.5 rounded-lg border ${!doUpdate ? "bg-sky-600 text-white border-sky-600" : "border-gray-300 dark:border-gray-600"}`}>کالای جدید</button>
+                            </div>
+                          </div>
+                        ) : match ? (
+                          <div className="text-[10px] text-yellow-700 dark:text-yellow-500 mt-0.5">شبیهِ «{match.m.name}» — مطمئن شوید تکراری نباشد</div>
+                        ) : null}
                       </td>
                       <td className="p-1.5"><input inputMode="numeric" value={r.buyPrice ? toPersianDigits(r.buyPrice) : ""} onChange={(e) => setCell(i, "buyPrice", parseNum(e.target.value))} className="w-24 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
                       <td className="p-1.5"><input inputMode="numeric" value={r.sellPrice ? toPersianDigits(r.sellPrice) : ""} onChange={(e) => setCell(i, "sellPrice", parseNum(e.target.value))} className="w-24 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
