@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { formatToman, toPersianDigits, toJalaliDateTime } from "@/lib/persian/utils";
 import { VoiceAssistantModal } from "@/components/voice/VoiceAssistantModal";
+import { SafeBoundary } from "@/components/common/SafeBoundary";
 import { PrintableInvoice } from "@/components/invoice/PrintableInvoice";
 import {
   AreaChart,
@@ -398,11 +399,13 @@ export default function DashboardPage() {
 
       </div>
 
-      <VoiceAssistantModal
-        isOpen={isVoiceOpen}
-        onClose={() => setIsVoiceOpen(false)}
-        onActionExecute={() => fetchSummary()}
-      />
+      <SafeBoundary label="دستیار صوتی">
+        <VoiceAssistantModal
+          isOpen={isVoiceOpen}
+          onClose={() => setIsVoiceOpen(false)}
+          onActionExecute={() => fetchSummary()}
+        />
+      </SafeBoundary>
 
       {selectedInvoice && (
         <PrintableInvoice

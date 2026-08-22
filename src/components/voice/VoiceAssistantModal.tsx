@@ -92,6 +92,10 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   // پایشِ خطاهای موتورِ تشخیص (برای جلوگیری از حلقهٔ بی‌پایانِ تلاشِ دوباره)
   const lastErrRef = useRef("");
   const netErrStreakRef = useRef(0);
+  // نگهبانِ حلقهٔ راه‌اندازیِ دوباره (تا صفحه هرگز قفل نشود)
+  const lastStartAtRef = useRef(0);
+  const quickEndStreakRef = useRef(0);
+  const restartCountRef = useRef(0);
   // آیا تشخیصِ گفتارِ فارسی «روی خودِ دستگاه» در دسترس است؟ (امروز معمولاً نه)
   const onDeviceRef = useRef(false);
   // تبدیلِ گفتار روی «سرورِ خودمان» — اگر تنظیم شده باشد، جایگزینِ موتورِ گوگل می‌شود:
@@ -254,28 +258,49 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
         netErrStreakRef.current = 0;
       }
 
-      // بی‌درنگ و با همان شیء دوباره شروع کن (کمترین فاصله و کمترین بوق).
-      // فقط وقتی خطای شبکه داشتیم کمی مکث می‌کنیم تا حلقهٔ داغ نشود.
-      const delay = netErrStreakRef.current > 0 ? 400 * netErrStreakRef.current : 0;
+      // ⚠️ هرگز اینجا rec.start() را «مستقیم» صدا نزن.
+      // اگر موتور نتواند شروع کند (مثلاً اینترنت به سرویس نرسد) بی‌درنگ دوباره onend
+      // می‌دهد؛ صدا زدنِ مستقیم یعنی بازگشتِ بی‌پایانِ هم‌زمان → صفحه قفل و برنامه
+      // بسته می‌شود. پس همیشه با تایمر و با فاصلهٔ حداقلی شروع می‌کنیم.
+      const now = Date.now();
+      const since = now - lastStartAtRef.current;
+      restartCountRef.current += 1;
+
+      // نگهبانِ حلقهٔ خراب: اگر سشن‌ها پشتِ‌سرِ هم و خیلی سریع تمام شوند، یعنی موتور
+      // اصلاً بالا نمی‌آید. به‌جای تلاشِ بی‌پایان، متوقف و اطلاع می‌دهیم.
+      if (since < 400) {
+        quickEndStreakRef.current += 1;
+      } else {
+        quickEndStreakRef.current = 0;
+      }
+      if (quickEndStreakRef.current >= 4 || restartCountRef.current > 60) {
+        shouldListenRef.current = false;
+        setIsListening(false);
+        setNotice("تشخیصِ گفتار روی این گوشی بالا نیامد. می‌توانید متن را دستی بنویسید، یا از «سرچ و انتخاب» و «بارکد» استفاده کنید.");
+        finalizeAndProcess();
+        return;
+      }
+
+      const delay = Math.max(250, netErrStreakRef.current * 400);
       stepProcessedRef.current = 0;
-      const tryStart = () => {
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = setTimeout(() => {
         if (!shouldListenRef.current) return;
+        lastStartAtRef.current = Date.now();
         try { rec.start(); } catch {
-          // موتور هنوز در حالِ بسته‌شدن است؛ یک تلاشِ کوتاهِ دیگر. اگر باز هم نشد،
-          // به‌جای «در حال شنیدن»ِ دروغین، صادقانه متوقف و اطلاع می‌دهیم.
+          // موتور هنوز در حالِ بسته‌شدن است؛ یک تلاشِ کوتاهِ دیگر (باز هم با تایمر).
           restartTimerRef.current = setTimeout(() => {
             if (!shouldListenRef.current) return;
+            lastStartAtRef.current = Date.now();
             try { rec.start(); } catch {
               shouldListenRef.current = false;
               setIsListening(false);
               setNotice("ضبط ادامه پیدا نکرد. یک بار دیگر میکروفون را بزنید.");
               finalizeAndProcess();
             }
-          }, 120);
+          }, 300);
         }
-      };
-      if (delay === 0) tryStart();
-      else restartTimerRef.current = setTimeout(tryStart, delay);
+      }, delay);
     };
     return rec;
   };
@@ -324,6 +349,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     setTranscript(""); transcriptRef.current = ""; setNotice("");
     processGuardRef.current = false;
     lastErrRef.current = ""; netErrStreakRef.current = 0;
+    quickEndStreakRef.current = 0; restartCountRef.current = 0; lastStartAtRef.current = Date.now();
     shouldListenRef.current = true;
     setIsListening(true);
     startSession();

@@ -21,6 +21,7 @@ import {
 import { formatToman, toPersianDigits } from "@/lib/persian/utils";
 import { BarcodeScannerModal } from "@/components/barcode/BarcodeScannerModal";
 import { VoiceAssistantModal } from "@/components/voice/VoiceAssistantModal";
+import { SafeBoundary } from "@/components/common/SafeBoundary";
 import { PrintableInvoice } from "@/components/invoice/PrintableInvoice";
 
 export default function NewInvoicePage() {
@@ -475,11 +476,13 @@ export default function NewInvoicePage() {
         }}
       />
 
-      <VoiceAssistantModal
-        isOpen={isVoiceOpen}
-        onClose={() => setIsVoiceOpen(false)}
-        onActionExecute={() => router.push("/invoices")}
-      />
+      <SafeBoundary label="دستیار صوتی">
+        <VoiceAssistantModal
+          isOpen={isVoiceOpen}
+          onClose={() => setIsVoiceOpen(false)}
+          onActionExecute={() => router.push("/invoices")}
+        />
+      </SafeBoundary>
 
       {createdInvoice && (
         <PrintableInvoice

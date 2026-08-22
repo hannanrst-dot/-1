@@ -16,9 +16,16 @@ export function InstallApp() {
   const [hidden, setHidden] = useState(true);
 
   useEffect(() => {
-    // ثبتِ سرویس‌ورکر (فقط روی https یا localhost کار می‌کند)
+    // سرویس‌ورکر دیگر ثبت نمی‌شود. نسخهٔ ۲۸ یک سرویس‌ورکرِ کش‌دار داشت که باعثِ
+    // خطای ماندگارِ بارگیری می‌شد؛ اینجا هر ثبتِ باقی‌مانده روی گوشی پاک می‌شود تا
+    // دستگاه‌های گرفتار آزاد شوند. (نصبِ برنامه روی صفحهٔ خانه بدونِ آن هم کار می‌کند.)
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => { /* مهم نیست */ });
+      navigator.serviceWorker.getRegistrations()
+        .then((regs) => regs.forEach((r) => r.unregister().catch(() => {})))
+        .catch(() => {});
+      if (typeof caches !== "undefined") {
+        caches.keys().then((keys) => keys.forEach((k) => caches.delete(k).catch(() => {}))).catch(() => {});
+      }
     }
 
     const onPrompt = (e: any) => {
