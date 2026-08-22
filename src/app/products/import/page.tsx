@@ -1,0 +1,318 @@
+"use client";
+
+import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { FileSpreadsheet, Trash2, Plus, CheckCircle, Download, ArrowLeft, AlertTriangle } from "lucide-react";
+import { toPersianDigits, toEnglishDigits, normalizePersianText, calculateSimilarity } from "@/lib/persian/utils";
+import * as XLSX from "xlsx";
+
+interface Row { name: string; buyPrice: number; sellPrice: number; stock: number; barcode: string; action?: "new" | "update"; }
+interface Existing { id: number; name: string; n: string; bc: string; stock: number; sellPrice: number; buyPrice: number; }
+
+const emptyRow = (): Row => ({ name: "", buyPrice: 0, sellPrice: 0, stock: 0, barcode: "" });
+const parseNum = (v: any): number => {
+  if (v == null) return 0;
+  const s = toEnglishDigits(String(v)).replace(/[^\d.]/g, "");
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : Math.round(n);
+};
+
+export default function ImportProductsPage() {
+  const router = useRouter();
+  const [rows, setRows] = useState<Row[]>([]);
+  const [saving, setSaving] = useState(false);
+  const excelInput = useRef<HTMLInputElement>(null);
+  // کالاهای موجود (برای هشدارِ تکراری/مشابه داخلِ جدول، پیش از ثبت)
+  const [existing, setExisting] = useState<Existing[]>([]);
+  useEffect(() => {
+    fetch("/api/products").then((r) => r.json()).then((d) => setExisting((d.products || []).map((p: any) => ({ id: p.id, name: p.name, n: normalizePersianText(p.name), bc: (p.barcode || "").trim(), stock: p.stock, sellPrice: p.sellPrice, buyPrice: p.buyPrice })))).catch(() => {});
+  }, []);
+  // بهترین تطبیق: بارکدِ یکسان یا نامِ نزدیک. score>=0.8 «تکراری/قوی»، ۰.۶ تا ۰.۸ «مشابه/ضعیف».
+  const matchOf = (r: Row): { m: Existing; score: number } | null => {
+    const nn = normalizePersianText(r.name);
+    if (!nn) return null;
+    const bc = (r.barcode || "").trim();
+    if (bc) { const b = existing.find((p) => p.bc && p.bc === bc); if (b) return { m: b, score: 1 }; }
+    let best: { m: Existing; score: number } | null = null;
+    for (const p of existing) {
+      const s = calculateSimilarity(nn, p.n);
+      if (s >= 0.6 && (!best || s > best.score)) best = { m: p, score: s };
+    }
+    return best;
+  };
+
+  // ---------- اکسل (تشخیصِ مقاومِ ستون‌ها) ----------
+  const isNumericish = (v: any): boolean => {
+    const s = toEnglishDigits(String(v ?? "")).replace(/[،,٬\s]/g, "").trim();
+    return s !== "" && /^\d+(\.\d+)?$/.test(s);
+  };
+  const KW = {
+    name: ["نام", "کالا", "محصول", "شرح", "عنوان", "name", "title", "product", "item", "کالاها"],
+    buy: ["خرید", "خريد", "buy", "cost", "قیمت خرید"],
+    sell: ["فروش", "سیل", "sell", "قیمت فروش"],
+    price: ["قیمت", "نرخ", "مبلغ", "price", "amount"],
+    stock: ["موجودی", "تعداد", "انبار", "stock", "qty", "quantity", "count", "inventory"],
+    barcode: ["بارکد", "بارکود", "barcode", "کد کالا", "کد محصول"],
+  };
+  const lc = (s: any) => String(s ?? "").trim().toLowerCase();
+  const cellHits = (cell: string, pats: string[]) => { const c = lc(cell); return !!c && pats.some((p) => c.includes(lc(p))); };
+  const parseSheetRows = (rows2d: any[][]): Row[] => {
+    const nonEmpty = rows2d.filter((r) => Array.isArray(r) && r.some((c) => String(c ?? "").trim() !== ""));
+    if (!nonEmpty.length) return [];
+    const cats = ["name", "buy", "sell", "price", "stock", "barcode"] as const;
+    // ۱) ردیفِ سرستون: ردیفی که «ستونِ نام» دارد و حداقل یک دستهٔ قیمت/موجودی؛ و بیشترین تطبیق.
+    //    (ردیفِ عنوانِ فاکتور معمولاً ستونِ «نام» ندارد، پس اشتباه گرفته نمی‌شود.)
+    let headerIdx = -1, headerScore = 1;
+    for (let i = 0; i < Math.min(nonEmpty.length, 6); i++) {
+      const cells = nonEmpty[i].map((c) => String(c ?? "").trim());
+      const matchedCats = cats.filter((cat) => cells.some((c) => cellHits(c, KW[cat])));
+      const numeric = cells.filter((c) => c && isNumericish(c)).length;
+      if (matchedCats.includes("name") && matchedCats.length >= 2 && numeric <= 1 && matchedCats.length > headerScore) {
+        headerScore = matchedCats.length; headerIdx = i;
+      }
+    }
+    const col: Record<string, number> = { name: -1, buy: -1, sell: -1, price: -1, stock: -1, barcode: -1 };
+    let dataRows: any[][];
+    if (headerIdx >= 0) {
+      const header = nonEmpty[headerIdx].map((c) => String(c ?? "").trim());
+      const findCol = (pats: string[]) => header.findIndex((h) => cellHits(h, pats));
+      col.name = findCol(KW.name); col.buy = findCol(KW.buy); col.sell = findCol(KW.sell);
+      col.price = findCol(KW.price); col.stock = findCol(KW.stock); col.barcode = findCol(KW.barcode);
+      dataRows = nonEmpty.slice(headerIdx + 1);
+    } else {
+      dataRows = nonEmpty; // بدونِ سرستون → همه داده
+    }
+    const ncols = Math.max(...dataRows.map((r) => r.length), 1);
+    // ۲) اگر ستونِ نام پیدا نشد، ستونی که «بیشترین متنِ غیرعددی» دارد نام است.
+    if (col.name < 0) {
+      let best = 0, bestScore = -1;
+      for (let c = 0; c < ncols; c++) {
+        let t = 0;
+        for (const r of dataRows) { const v = String(r[c] ?? "").trim(); if (v && !isNumericish(v)) t++; }
+        if (t > bestScore) { bestScore = t; best = c; }
+      }
+      col.name = best;
+    }
+    // ۳) اگر ستون‌های قیمت پیدا نشدند، ستون‌های عددی (غیر از نام) را به‌ترتیب قیمت خرید/فروش/موجودی می‌گیریم.
+    if (col.buy < 0 && col.sell < 0 && col.price < 0) {
+      const numCols: number[] = [];
+      for (let c = 0; c < ncols; c++) {
+        if (c === col.name) continue;
+        let n = 0; for (const r of dataRows) { const v = String(r[c] ?? "").trim(); if (v && isNumericish(v)) n++; }
+        if (n > 0) numCols.push(c);
+      }
+      if (numCols.length >= 2) { col.buy = numCols[0]; col.sell = numCols[1]; if (numCols[2] !== undefined && col.stock < 0) col.stock = numCols[2]; }
+      else if (numCols.length === 1) { col.sell = numCols[0]; }
+    }
+    const parsed: Row[] = [];
+    for (const r of dataRows) {
+      const name = String(r[col.name] ?? "").trim();
+      if (!name || isNumericish(name)) continue;
+      if (KW.name.some((k) => name === k) || KW.price.some((k) => name === k)) continue; // ردیفِ سرستونِ تکراری
+      const buy = col.buy >= 0 ? r[col.buy] : undefined;
+      const sell = col.sell >= 0 ? r[col.sell] : undefined;
+      const price = col.price >= 0 ? r[col.price] : undefined;
+      const stock = col.stock >= 0 ? r[col.stock] : undefined;
+      const barcode = col.barcode >= 0 ? r[col.barcode] : undefined;
+      parsed.push({
+        name,
+        buyPrice: parseNum(buy ?? (sell ? undefined : price)),
+        sellPrice: parseNum(sell ?? price),
+        stock: parseNum(stock),
+        barcode: barcode ? String(barcode).trim() : "",
+      });
+    }
+    return parsed;
+  };
+  const handleExcel = async (file: File) => {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows2d: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", blankrows: false });
+      const parsed = parseSheetRows(rows2d);
+      if (!parsed.length) { alert("هیچ کالایی از فایل خوانده نشد. مطمئن شوید فایل، ستونِ نامِ کالا و قیمت دارد."); return; }
+      setRows((prev) => [...prev, ...parsed]);
+    } catch (e) {
+      console.error(e); alert("خطا در خواندن فایل اکسل.");
+    }
+  };
+
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet([
+      { "نام کالا": "دفتر ۸۰ برگ میکرو", "قیمت خرید": 150000, "قیمت فروش": 200000, "موجودی": 50, "بارکد": "6260000111" },
+      { "نام کالا": "مداد آریا", "قیمت خرید": 20000, "قیمت فروش": 30000, "موجودی": 100, "بارکد": "" },
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "کالاها");
+    XLSX.writeFile(wb, "نمونه-لیست-کالا.xlsx");
+  };
+
+  // ---------- ویرایش جدول ----------
+  const setCell = (i: number, key: keyof Row, value: any) => setRows((prev) => prev.map((r, idx) => idx === i ? { ...r, [key]: value } : r));
+
+  const postItems = async (items: any[]) => {
+    const res = await fetch("/api/products/bulk-create", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items }),
+    });
+    return { ok: res.ok, data: await res.json() };
+  };
+
+  // به‌روزرسانیِ یک کالای موجود: قیمتِ جدید + افزودنِ موجودیِ واردشده به موجودیِ فعلی.
+  const putUpdate = async (m: Existing, r: Row) => {
+    const body: any = { stock: m.stock + (r.stock || 0) };
+    if (r.sellPrice > 0) body.sellPrice = r.sellPrice;
+    if (r.buyPrice > 0) body.buyPrice = r.buyPrice;
+    const res = await fetch(`/api/products/${m.id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    return res.ok;
+  };
+
+  const submitAll = async () => {
+    const valid = rows.filter((r) => r.name.trim());
+    if (!valid.length) { alert("حداقل یک کالا با نام لازم است."); return; }
+    setSaving(true);
+    try {
+      // تفکیکِ ردیف‌ها: «به‌روزرسانیِ کالای موجود» (تطبیقِ قویِ ≥۰.۸ و انتخابِ «به‌روزرسانی») در برابرِ «کالای جدید».
+      const updates: { m: Existing; r: Row }[] = [];
+      const creates: Row[] = [];
+      for (const r of valid) {
+        const match = matchOf(r);
+        const strong = !!match && match.score >= 0.8;
+        if (strong && r.action !== "new") updates.push({ m: match!.m, r });
+        else creates.push(r);
+      }
+
+      // ۱) به‌روزرسانیِ کالاهای موجود
+      let updated = 0;
+      for (const u of updates) { if (await putUpdate(u.m, u.r)) updated++; }
+
+      // ۲) ثبتِ کالاهای جدید (کالاهایی که کاربر «کالای جدید» را انتخاب کرده با force ثبت می‌شوند تا رد نشوند)
+      let created = 0;
+      let skipped: { name: string; matchedName: string }[] = [];
+      if (creates.length) {
+        const items = creates.map((r) => {
+          const match = matchOf(r);
+          const strong = !!match && match.score >= 0.8;
+          // اگر کاربر با وجودِ تطبیقِ قوی «کالای جدید» را انتخاب کرد، force بزن تا سرور ردش نکند.
+          return strong && r.action === "new" ? { ...r, force: true } : { ...r };
+        });
+        const { ok, data } = await postItems(items);
+        if (!ok) { alert(data.error || "خطا در ثبت کالاها"); return; }
+        created = data.count || 0;
+        skipped = (data.skipped || []) as { name: string; matchedName: string }[];
+      }
+
+      // ۳) خلاصهٔ نتیجه + پیشنهادِ ثبتِ ردیف‌های ردشده به‌عنوانِ کالای جدید
+      const summary = `${toPersianDigits(updated)} کالا به‌روزرسانی شد و ${toPersianDigits(created)} کالای جدید ثبت شد.`;
+      if (skipped.length > 0) {
+        const list = skipped.slice(0, 15).map((s) => `• ${s.name}  (مشابهِ: ${s.matchedName})`).join("\n");
+        const more = skipped.length > 15 ? `\n… و ${toPersianDigits(skipped.length - 15)} مورد دیگر` : "";
+        const ok2 = window.confirm(
+          `${summary}\n\n${toPersianDigits(skipped.length)} کالا چون «مشابهِ کالای موجود» بودند ثبت نشدند:\n${list}${more}\n\nاین‌ها را هم به‌عنوانِ کالای جدید ثبت کنم؟`
+        );
+        if (ok2) {
+          const skipNames = new Set(skipped.map((s) => s.name));
+          const forceItems = creates.filter((r) => skipNames.has(r.name.trim())).map((r) => ({ ...r, force: true }));
+          const r2 = await postItems(forceItems);
+          if (r2.ok) alert(`در مجموع ${toPersianDigits(updated + created + (r2.data.count || 0))} کالا ثبت/به‌روزرسانی شد.`);
+        }
+      } else {
+        alert(summary);
+      }
+      router.push("/products");
+    } catch { alert("خطا در ارتباط با سرور"); } finally { setSaving(false); }
+  };
+
+  return (
+    <MainLayout>
+      <div className="max-w-4xl mx-auto space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg"><FileSpreadsheet className="w-6 h-6" /></div>
+          <div>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white">ورودِ گروهیِ کالا از اکسل</h2>
+            <p className="text-xs text-gray-500">لیست کالاها را از اکسل بیاورید، تک‌تک ویرایش کنید و یکجا ثبت کنید. کالاهای مشابهِ موجود، هشدار داده می‌شوند.</p>
+          </div>
+        </div>
+
+        {/* روش ورود: اکسل */}
+        <div className="bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4 space-y-2">
+          <div className="font-bold text-sm flex items-center gap-2 text-emerald-700 dark:text-emerald-300"><FileSpreadsheet className="w-5 h-5" /> از فایل اکسل</div>
+          <p className="text-[11px] text-gray-600 dark:text-gray-300">ستون‌ها: نام کالا، قیمت خرید، قیمت فروش، موجودی، بارکد. (ارقام فارسی و جداکنندهٔ هزارگان پشتیبانی می‌شود.)</p>
+          <input ref={excelInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleExcel(f); e.target.value = ""; }} />
+          <div className="flex gap-2">
+            <button onClick={() => excelInput.current?.click()} className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold">انتخاب فایل اکسل</button>
+            <button onClick={downloadTemplate} className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1" title="دانلود فایل نمونه"><Download className="w-4 h-4" /> نمونه</button>
+          </div>
+        </div>
+
+        {/* جدولِ قابل ویرایش */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-800">
+            <span className="font-bold text-sm">کالاها ({toPersianDigits(rows.length)}) — قابل ویرایش</span>
+            <div className="flex gap-2">
+              <button onClick={() => setRows((p) => [...p, emptyRow()])} className="text-xs text-emerald-600 flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> ردیف خالی</button>
+              {rows.length > 0 && <button onClick={() => setRows([])} className="text-xs text-rose-600">پاک کردن همه</button>}
+            </div>
+          </div>
+          {rows.length === 0 ? (
+            <div className="p-10 text-center text-xs text-gray-400">هنوز کالایی وارد نشده — فایل اکسل را انتخاب کنید، یا «ردیف خالی» بزنید.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-500 font-bold">
+                  <tr>
+                    <th className="p-2 text-right">نام کالا</th>
+                    <th className="p-2">قیمت خرید</th>
+                    <th className="p-2">قیمت فروش</th>
+                    <th className="p-2">موجودی</th>
+                    <th className="p-2">بارکد</th>
+                    <th className="p-2"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {rows.map((r, i) => {
+                    const match = matchOf(r);
+                    const strong = !!match && match.score >= 0.8;
+                    const doUpdate = strong && r.action !== "new";
+                    return (
+                    <tr key={i} className={strong ? "bg-amber-50 dark:bg-amber-950/20" : match ? "bg-yellow-50/40 dark:bg-yellow-950/10" : ""}>
+                      <td className="p-1.5">
+                        <input value={r.name} onChange={(e) => setCell(i, "name", e.target.value)} className="w-40 min-w-[120px] bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5" />
+                        {strong ? (
+                          <div className="mt-1 space-y-1">
+                            <div className="text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" /> «{match!.m.name}» از قبل هست</div>
+                            <div className="flex gap-1">
+                              <button onClick={() => setCell(i, "action", "update")} className={`text-[10px] px-2 py-0.5 rounded-lg border ${doUpdate ? "bg-emerald-600 text-white border-emerald-600" : "border-gray-300 dark:border-gray-600"}`}>به‌روزرسانیِ همان</button>
+                              <button onClick={() => setCell(i, "action", "new")} className={`text-[10px] px-2 py-0.5 rounded-lg border ${!doUpdate ? "bg-sky-600 text-white border-sky-600" : "border-gray-300 dark:border-gray-600"}`}>کالای جدید</button>
+                            </div>
+                          </div>
+                        ) : match ? (
+                          <div className="text-[10px] text-yellow-700 dark:text-yellow-500 mt-0.5">شبیهِ «{match.m.name}» — مطمئن شوید تکراری نباشد</div>
+                        ) : null}
+                      </td>
+                      <td className="p-1.5"><input inputMode="numeric" value={r.buyPrice ? toPersianDigits(r.buyPrice) : ""} onChange={(e) => setCell(i, "buyPrice", parseNum(e.target.value))} className="w-24 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
+                      <td className="p-1.5"><input inputMode="numeric" value={r.sellPrice ? toPersianDigits(r.sellPrice) : ""} onChange={(e) => setCell(i, "sellPrice", parseNum(e.target.value))} className="w-24 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
+                      <td className="p-1.5"><input inputMode="numeric" value={r.stock ? toPersianDigits(r.stock) : ""} onChange={(e) => setCell(i, "stock", parseNum(e.target.value))} className="w-16 text-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
+                      <td className="p-1.5"><input value={r.barcode} onChange={(e) => setCell(i, "barcode", e.target.value)} className="w-28 text-center font-mono bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-1.5" /></td>
+                      <td className="p-1.5"><button onClick={() => setRows((p) => p.filter((_, idx) => idx !== i))} className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 flex items-center justify-center"><Trash2 className="w-4 h-4" /></button></td>
+                    </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <button onClick={() => router.push("/products")} className="px-4 border border-gray-300 dark:border-gray-700 rounded-2xl text-sm flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> بازگشت</button>
+          <button onClick={submitAll} disabled={saving || !rows.some((r) => r.name.trim())} className="flex-1 bg-emerald-600 disabled:opacity-50 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2"><CheckCircle className="w-5 h-5" /> ثبت همهٔ کالاها</button>
+        </div>
+      </div>
+    </MainLayout>
+  );
+}

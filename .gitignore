@@ -1,0 +1,32 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# database & backups (runtime data)
+/data
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# env
+.env
+.env*.local
+
+# misc
+*.log
+.DS_Store
+
+# generated download zips
+*.zip
+
+# lockfile حذف شد تا لیارا با npm install نصب کند (npm ci روی لیارا خطا می‌داد)
+package-lock.json
+
+*.tsbuildinfo
