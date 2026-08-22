@@ -1852,9 +1852,42 @@
   }
 
   // سوالاتِ خیلی ساده (تک‌ویژگیِ بدیهی: oddDots/oddSides/oddArrow/oddDice/…) از ریلِ اصلی حذف شدند؛ کفِ سختی بالا رفت.
+  // مکعبِ سه‌بعدی (تجسمِ فضایی): سه مکعب چرخش‌های یک مکعب‌اند (جایگشتِ چرخه‌ایِ وجه‌ها)، یکی نقشش فرق دارد
+  function cubeSym(g, kind, cx, cy, r) {
+    var o = merge(DEF, { 'stroke-width': 2 });
+    if (kind === 'circle') add(g, 'circle', merge(o, { cx: cx, cy: cy, r: r }));
+    else if (kind === 'square') add(g, 'rect', merge(o, { x: cx - r, y: cy - r, width: 2 * r, height: 2 * r }));
+    else if (kind === 'triangle') add(g, 'polygon', merge(o, { points: ptsStr(polyPts(3, r * 1.25, cx, cy, -90)) }));
+    else if (kind === 'plus') add(g, 'path', merge(o, { 'stroke-width': 2.6, d: 'M' + cx + ' ' + (cy - r) + ' V' + (cy + r) + ' M' + (cx - r) + ' ' + cy + ' H' + (cx + r) }));
+    else if (kind === 'dot') add(g, 'circle', merge(o, { cx: cx, cy: cy, r: 2.8, fill: PAL.line }));
+    else if (kind === 'ex') add(g, 'path', merge(o, { d: 'M' + (cx - r) + ' ' + (cy - r) + ' L' + (cx + r) + ' ' + (cy + r) + ' M' + (cx + r) + ' ' + (cy - r) + ' L' + (cx - r) + ' ' + (cy + r) }));
+  }
+  function drawCube(t) {
+    return function (g) {
+      add(g, 'polygon', merge(DEF, { points: '50,16 79,33 50,50 21,33', fill: '#ffffff' }));   // بالا
+      add(g, 'polygon', merge(DEF, { points: '21,33 50,50 50,84 21,67', fill: PAL.cream }));      // چپ
+      add(g, 'polygon', merge(DEF, { points: '50,50 79,33 79,67 50,84', fill: '#f1f2fb' }));      // راست
+      cubeSym(g, t[0], 50, 33, 6); cubeSym(g, t[1], 35.5, 58, 6); cubeSym(g, t[2], 64.5, 58, 6);
+    };
+  }
+  function oddCube3D(rng, level, count) {
+    count = count || 4;
+    var syms = rng.sample(['circle', 'square', 'triangle', 'plus', 'dot', 'ex'], 4);
+    var s1 = syms[0], s2 = syms[1], s3 = syms[2], sOdd = syms[3];
+    var rots = [[s1, s2, s3], [s3, s1, s2], [s2, s3, s1]];   // سه چرخشِ ممکنِ همان مکعب (جایگشتِ چرخه‌ای)
+    var same = rots.slice(0, count - 1).map(function (t) { return { t: t }; });
+    var base = rots[rng.int(0, 2)].slice(); base[rng.int(0, 2)] = sOdd;   // مکعبِ متفاوت: یک نقش عوض شده
+    var pa = placeAnswer(rng, same, { t: base }, count);
+    return {
+      prompt: 'کدام مکعب با بقیه فرق دارد؟', tag: 'مکعبِ سه‌بعدی',
+      options: pa.options, answer: pa.answer,
+      render: function (o) { return figure(drawCube(o.t), { size: 96 }); },
+      why: 'سه مکعب یکی‌اند و فقط چرخیده‌اند — همان سه نقش روی وجه‌هایشان است و فقط جای وجه‌ها به‌صورتِ چرخشی عوض شده. اما یکی از نقش‌های این مکعب با بقیه فرق دارد؛ پس با هیچ چرخشی مثلِ آن‌ها نمی‌شود.'
+    };
+  }
   var GENS_EASY = [oddMatrix, oddMatrix, oddMatrix, dominoOdd, oddChirality, oddTextureFill, oddArrowType, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGear, oddGridSym, oddCombo, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddCurvature];
-  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, dominoOdd, oddChirality, oddGlyph, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddTextureFill, oddSize, oddNested, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddRule, sceneArrowHead, sceneInnerSwap, oddRotOrder, oddCurvature];
-  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddRule, oddRule, oddRotOrder, oddCurvature];
+  var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, dominoOdd, oddChirality, oddGlyph, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddTextureFill, oddSize, oddNested, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddRule, sceneArrowHead, sceneInnerSwap, oddRotOrder, oddCurvature, oddCube3D];
+  var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddRule, oddRule, oddRotOrder, oddCurvature, oddCube3D];
   function poolFor(level) { return level >= 3 ? GENS_HARD : level === 2 ? GENS_MED : GENS_EASY; }
   function genQuestion(rng, level) { return rng.pick(poolFor(level))(rng, level || 1); }
 
@@ -4571,7 +4604,7 @@
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion, adaptivePick: adaptivePick, MABAHETH: MABAHETH,
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
-        oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
+        oddCube3D: oddCube3D, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
         oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, paperPunch: paperPunch, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
