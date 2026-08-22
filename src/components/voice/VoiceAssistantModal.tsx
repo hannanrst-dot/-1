@@ -7,6 +7,7 @@ import { formatToman, toPersianDigits, toEnglishDigits, normalizePersianText } f
 import { pushUtterance, joinTranscript } from "@/lib/voice/transcript";
 import { normalizeSpokenPersian, parsePersianNumberWords } from "@/lib/voice/persianNormalizer";
 import { shareInvoice, sendToWhatsapp, shareInvoiceImage } from "@/lib/invoice/share";
+import { recorderSupported, startRecording as startBlobRecording, transcribeBlob, type VoiceRecorder } from "@/lib/voice/recorder";
 
 type Mode = "menu" | "invoice" | "product" | "purchase" | "query" | "price";
 
@@ -93,6 +94,15 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const netErrStreakRef = useRef(0);
   // آیا تشخیصِ گفتارِ فارسی «روی خودِ دستگاه» در دسترس است؟ (امروز معمولاً نه)
   const onDeviceRef = useRef(false);
+  // تبدیلِ گفتار روی «سرورِ خودمان» — اگر تنظیم شده باشد، جایگزینِ موتورِ گوگل می‌شود:
+  // صدا یکجا ضبط و یکجا فرستاده می‌شود (بدونِ بوق، بدونِ قطع‌شدنِ هر چند ثانیه).
+  const [serverStt, setServerStt] = useState(false);
+  const serverSttRef = useRef(false); serverSttRef.current = serverStt;
+  const blobRecRef = useRef<VoiceRecorder | null>(null);
+  const wantRecRef = useRef(false); // آیا هنوز ضبط را می‌خواهیم؟ (برای رهاکردنِ زودهنگام)
+  // حالتِ «گام‌به‌گام» به نتیجهٔ لحظه‌به‌لحظه نیاز دارد که در ضبطِ یکپارچه وجود ندارد؛
+  // پس با روشن‌بودنِ سرورِ خودمان، خودکار به «نگه‌دار و بگو» می‌رویم.
+  useEffect(() => { if (serverStt && invMode === "step") setInvMode("hold"); }, [serverStt, invMode]);
 
   useEffect(() => { if (isOpen) setMode(defaultMode); else setParkedInv([]); }, [isOpen, defaultMode]);
 
@@ -102,6 +112,11 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     fetch("/api/settings").then((r) => r.json()).then((d) => setStockAlert(!!d?.settings?.store_info?.stockAlert)).catch(() => {});
     // فهرستِ کالاها برای سرچ‌وانتخاب و بارکد در فاکتور
     fetch("/api/products").then((r) => r.json()).then((d) => setAllProducts(d.products || [])).catch(() => {});
+    // آیا سرورِ خودمان تبدیلِ گفتار دارد؟ (اگر بله، به‌جای موتورِ گوگل از آن استفاده می‌کنیم)
+    fetch("/api/voice/transcribe")
+      .then((r) => r.json())
+      .then((d) => setServerStt(Boolean(d?.available) && recorderSupported()))
+      .catch(() => setServerStt(false));
     // بررسیِ «تشخیصِ روی دستگاه» برای فارسی (اگر مرورگر پشتیبانی کند، آفلاین و سریع‌تر است)
     try {
       const SR: any = getSR();
@@ -273,9 +288,36 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     try { rec.start(); } catch { /* ignore */ }
   };
 
-  useEffect(() => () => { shouldListenRef.current = false; if (restartTimerRef.current) clearTimeout(restartTimerRef.current); try { recognitionRef.current?.stop(); } catch { /* ignore */ } }, []);
+  useEffect(() => () => {
+    shouldListenRef.current = false;
+    if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+    try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+    // میکروفونِ ضبطِ یکپارچه هم حتماً آزاد شود.
+    wantRecRef.current = false;
+    try { blobRecRef.current?.cancel(); } catch { /* ignore */ }
+    blobRecRef.current = null;
+  }, []);
 
   const startRecording = () => {
+    // مسیرِ «سرورِ خودمان»: یک ضبطِ یکپارچه، بدونِ بوق و بدونِ قطع‌شدن.
+    if (serverSttRef.current) {
+      setTranscript(""); transcriptRef.current = ""; setNotice("");
+      wantRecRef.current = true;
+      setIsListening(true);
+      startBlobRecording()
+        .then((r) => {
+          // اگر کاربر پیش از بازشدنِ میکروفون دکمه را رها کرده باشد، همان‌جا ببند
+          // (وگرنه میکروفون باز می‌ماند).
+          if (!wantRecRef.current) { r.cancel(); return; }
+          blobRecRef.current = r;
+        })
+        .catch(() => {
+          wantRecRef.current = false;
+          setIsListening(false);
+          setNotice("دسترسی به میکروفون ممکن نشد. اجازهٔ میکروفون را برای این سایت بدهید.");
+        });
+      return;
+    }
     if (!getSR()) { setNotice("مرورگر شما میکروفون را پشتیبانی نمی‌کند. می‌توانید متن را تایپ کنید."); return; }
     committedRef.current = "";
     currentSessionRef.current = "";
@@ -288,6 +330,27 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   };
   // توقف دستی توسط کاربر — گفتار جمع‌آوری‌شده پردازش می‌شود.
   const stopRecording = () => {
+    if (serverSttRef.current) {
+      wantRecRef.current = false;
+      const r = blobRecRef.current;
+      blobRecRef.current = null;
+      setIsListening(false);
+      if (!r) return;
+      setLoading(true);
+      setNotice("در حالِ تبدیلِ گفتار به متن…");
+      r.stop()
+        .then(async (blob) => {
+          if (!blob || blob.size < 1200) { setNotice("صدایی ضبط نشد. دوباره امتحان کنید."); return; }
+          const text = await transcribeBlob(blob);
+          if (!text) { setNotice("چیزی تشخیص داده نشد. کمی واضح‌تر بگویید."); return; }
+          setTranscript(text); transcriptRef.current = text;
+          setNotice("");
+          await processText(text, modeRef.current);
+        })
+        .catch((e) => setNotice(e?.message || "خطا در تبدیلِ گفتار به متن."))
+        .finally(() => setLoading(false));
+      return;
+    }
     shouldListenRef.current = false;
     if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
     try { recognitionRef.current?.stop(); } catch { /* ignore */ }
@@ -760,9 +823,18 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
               {/* انتخاب حالتِ صوتی (فقط وقتی روشِ «صوتی» فعال است): گام‌به‌گام | یکجا | نگه‌دار و بگو */}
               {mode === "invoice" && invInput === "voice" && (
                 <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl flex gap-1 text-[11px] font-bold">
-                  <button onClick={() => { setInvMode("step"); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${invMode === "step" ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>گام‌به‌گام ✅</button>
+                  {!serverStt && (
+                    <button onClick={() => { setInvMode("step"); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${invMode === "step" ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>گام‌به‌گام ✅</button>
+                  )}
                   <button onClick={() => { setInvMode("hold"); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${invMode === "hold" ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>نگه‌دار و بگو 🎙️</button>
                   <button onClick={() => { setInvMode("batch"); setPending(null); }} className={`flex-1 py-2 rounded-xl transition ${invMode === "batch" ? "bg-emerald-600 text-white shadow" : "text-gray-600 dark:text-gray-300"}`}>یکجا</button>
+                </div>
+              )}
+
+              {/* نشانگرِ موتورِ تشخیص */}
+              {serverStt && (
+                <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl px-3 py-1.5 text-center">
+                  ✅ تشخیصِ گفتار روی سرورِ خودمان — بدونِ بوق و بدونِ قطع‌شدن
                 </div>
               )}
 
