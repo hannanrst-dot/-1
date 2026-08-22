@@ -135,15 +135,20 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
 
   // یک ضبطِ «پیوسته» که از مکث‌های کوتاه رد می‌شود (تا چند کالا پشت‌سرهم گفته شود)
   // و تا وقتی کاربر خودش «توقف» نزند ادامه دارد.
-  const startSession = () => {
+  //
+  // نکتهٔ مهم (رفعِ «هر یکی دو ثانیه ضبط قطع می‌شود و گوشی بوق می‌زند»):
+  // موتورِ تشخیصِ گفتارِ اندروید، `continuous` را نادیده می‌گیرد و بعد از هر مکث خودش
+  // تمام می‌شود. ما همان‌جا دوباره شروع می‌کنیم. قبلاً هر بار یک شیءِ تازه ساخته می‌شد و
+  // ۲۵۰ میلی‌ثانیه هم صبر می‌کرد؛ یعنی هم بوقِ شروع تکرار می‌شد و هم آن فاصله صدا از
+  // دست می‌رفت. حالا همان شیء بازاستفاده و بی‌درنگ شروع می‌شود تا فاصله به کمترین برسد.
+  const buildRecognizer = () => {
     const SR = getSR();
-    if (!SR) return;
+    if (!SR) return null;
     const rec = new SR();
     rec.lang = "fa-IR";
     rec.continuous = true;      // از مکث‌ها رد می‌شود → «فقط اولی» رفع می‌شود
     rec.interimResults = true;
     rec.maxAlternatives = 1;
-    stepProcessedRef.current = 0; // شمارندهٔ نتایجِ نهاییِ همین سشن از صفر
 
     rec.onresult = (event: any) => {
       // حالت گام‌به‌گام (فقط فاکتور): هر عبارتِ نهایی به‌محضِ آماده‌شدن، جداگانه پردازش می‌شود.
@@ -186,11 +191,23 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
       committedRef.current = joinTranscript([committedRef.current, currentSessionRef.current].filter(Boolean));
       currentSessionRef.current = "";
       if (shouldListenRef.current) {
-        restartTimerRef.current = setTimeout(() => { if (shouldListenRef.current) { try { startSession(); } catch { /* ignore */ } } }, 250);
+        // بی‌درنگ و با همان شیء دوباره شروع کن (کمترین فاصله و کمترین بوق).
+        stepProcessedRef.current = 0;
+        try { rec.start(); } catch {
+          // اگر موتور هنوز در حالِ بسته‌شدن بود، یک تلاشِ کوتاهِ دیگر.
+          restartTimerRef.current = setTimeout(() => { if (shouldListenRef.current) { try { rec.start(); } catch { /* ignore */ } } }, 80);
+        }
       } else {
         finalizeAndProcess();
       }
     };
+    return rec;
+  };
+
+  const startSession = () => {
+    const rec = buildRecognizer();
+    if (!rec) return;
+    stepProcessedRef.current = 0; // شمارندهٔ نتایجِ نهاییِ همین سشن از صفر
     recognitionRef.current = rec;
     try { rec.start(); } catch { /* ignore */ }
   };
@@ -234,8 +251,22 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   };
   const stopHold = () => { holdLockedRef.current = false; setHoldLocked(false); stopRecording(); };
 
+  // پاسخِ صوتی — فقط اگر گوشی واقعاً «صدای فارسی» داشته باشد.
+  // (علتِ «وسطِ کار به انگلیسی یه چیزی می‌گفت»: وقتی صدای فارسی نصب نیست، مرورگر متنِ
+  //  فارسی را با صدای انگلیسی می‌خواند و نتیجه‌اش وزوزِ نامفهومِ انگلیسی است. حالا در
+  //  نبودِ صدای فارسی، ساکت می‌ماند.)
   const speak = (t: string) => {
-    try { if (!("speechSynthesis" in window) || !t) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = "fa-IR"; window.speechSynthesis.speak(u); } catch { /* ignore */ }
+    try {
+      if (!("speechSynthesis" in window) || !t) return;
+      const voices = window.speechSynthesis.getVoices() || [];
+      const fa = voices.find((v) => /^fa/i.test(v.lang));
+      if (!fa) return; // بدونِ صدای فارسی، حرف نزن
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(t);
+      u.lang = "fa-IR";
+      u.voice = fa;
+      window.speechSynthesis.speak(u);
+    } catch { /* ignore */ }
   };
 
   // ---------- حالت گام‌به‌گام ----------
@@ -258,6 +289,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   const commitPending = () => {
     const p = pendingItemRef.current;
     if (!p) { setNotice("چیزی برای تأیید نیست — نام کالا را بگویید."); return; }
+    if (p.productId == null && p.matches && p.matches.length > 1) { setNotice(`«${p.productName}» چند کالای مشابه دارد — یکی را از بالا انتخاب کنید.`); return; }
     if (p.productId == null) { setNotice(`«${p.productName}» در انبار نیست؛ اول کالا را ثبت کنید یا کالای دیگری بگویید.`); speak("پیدا نشد"); return; }
     appendInvoiceItems([{ productId: p.productId, productName: p.productName, quantity: p.quantity, unitPrice: p.unitPrice, status: p.status, matches: p.matches }]);
     setPendingItem(null); pendingItemRef.current = null;
@@ -720,7 +752,20 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 <div className={`rounded-2xl p-3 border-2 ${pendingItem.productId == null ? "border-rose-400 bg-rose-50 dark:bg-rose-950/30" : "border-emerald-400 bg-white dark:bg-gray-900"}`}>
                   <div className="text-[11px] text-gray-500 mb-1">کالای شنیده‌شده — تأیید می‌کنید؟</div>
                   <div className="font-extrabold text-base text-gray-900 dark:text-white">{pendingItem.productName}</div>
-                  {pendingItem.productId == null ? (
+                  {pendingItem.productId == null && pendingItem.matches && pendingItem.matches.length > 1 ? (
+                    // چند کالای مشابه: به‌جای انتخابِ دلبخواه، کاربر انتخاب می‌کند.
+                    <div className="mt-2">
+                      <div className="text-[11px] font-bold text-amber-700 dark:text-amber-300 mb-1">❓ چند کالا با این نام هست — کدام؟</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {pendingItem.matches.map((mm) => (
+                          <button key={mm.id} onClick={() => setPending({ ...pendingItem, productId: mm.id, productName: mm.name, unitPrice: mm.sellPrice, status: "EXACT", matches: [] })}
+                            className="text-[11px] px-2 py-1 rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700">
+                            {mm.name} <span className="opacity-70">({formatToman(mm.sellPrice)})</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : pendingItem.productId == null ? (
                     <div className="text-xs text-rose-600 mt-1">در انبار پیدا نشد. دوباره بگویید یا کالای دیگری بگویید.</div>
                   ) : (
                     <>

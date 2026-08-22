@@ -203,12 +203,15 @@ export async function POST(req: Request) {
       let totalEstAmount = 0;
       const resolvedList = [];
 
+      // نامِ کالای پیدانشده با ارقامِ فارسی نمایش داده می‌شود (پردازش با ارقام انگلیسی است).
+      const faDigits = (s: string) => s.replace(/\d/g, (x) => "۰۱۲۳۴۵۶۷۸۹"[Number(x)]);
+
       for (const resItem of resolution.resolvedItems) {
         const itemPrice = resItem.selectedProduct ? resItem.selectedProduct.sellPrice : 0;
         totalEstAmount += itemPrice * resItem.quantity;
         resolvedList.push({
           productId: resItem.selectedProduct?.id || null,
-          productName: resItem.selectedProduct?.name || resItem.requestedName,
+          productName: resItem.selectedProduct?.name || faDigits(resItem.requestedName),
           quantity: resItem.quantity,
           unitPrice: itemPrice,
           totalPrice: itemPrice * resItem.quantity,

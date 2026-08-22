@@ -1,4 +1,4 @@
-import { calculateSimilarity, normalizePersianText } from "../persian/utils";
+import { normalizePersianText } from "../persian/utils";
 import { parsePersianNumberWords } from "./persianNormalizer";
 import type { DatabaseProductSummary, ResolvedVoiceItem, VoiceResolutionResult } from "./ambiguityResolver";
 
@@ -12,20 +12,44 @@ const NUM_WORDS = new Set([
 const UNIT_WORDS = new Set(["تا", "عدد", "بسته", "کارتن", "دونه", "دانه", "عددی", "تایی", "جین", "دست", "جفت"]);
 const SEP_WORDS = new Set(["و", "بعدی", "بعدا", "بعدش", "همچنین", "بعد", "سپس", "بعدشم"]);
 const FILLER_WORDS = new Set(["رو", "را", "برای", "لطفا", "میخوام", "بده", "بزن", "بنویس", "اضافه", "کن", "هم"]);
-const isNumTok = (t: string) => /^\d+$/.test(t) || NUM_WORDS.has(t);
+
+const isDigitTok = (t: string) => /^\d+$/.test(t);
+const isNumTok = (t: string) => isDigitTok(t) || NUM_WORDS.has(t);
+/** توکنِ لاتین (a4 و مانندش رقم/حرف مخلوط‌اند و لاتینِ خالص حساب نمی‌شوند). */
+const isLatinTok = (t: string) => /^[a-z]+$/i.test(t);
 
 interface CatEntry { p: DatabaseProductSummary; tokens: string[]; }
 
 /**
+ * آیا توکنِ گفته‌شده با توکنِ نامِ کالا یکی است؟
+ * قاعدهٔ سخت‌گیرانه‌ای که از تطبیق‌های غلط جلوگیری می‌کند:
+ *  - رقم فقط با رقمِ دقیقاً برابر یکی است («۸۰» هرگز با «۱۰۰» یا «۸۰۰» یکی نیست).
+ *  - کلمه‌ها یا برابرند یا یکی پیشوندِ دیگری با حداقل ۳ حرف است (برای «ماژیک/ماژیکی»).
+ */
+const tokEq = (spoken: string, cat: string): boolean => {
+  if (spoken === cat) return true;
+  if (isDigitTok(spoken) || isDigitTok(cat)) return false; // رقم‌ها باید عیناً برابر باشند
+  const a = spoken, b = cat;
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length <= b.length ? b : a;
+  return shorter.length >= 3 && longer.startsWith(shorter);
+};
+
+/** نامزدهای تطبیق برای یک «پنجرهٔ» گفته‌شده در موقعیت i. */
+interface Candidate { c: CatEntry; complete: boolean; covCat: number; }
+
+/**
  * تفکیک و شمارشِ اقلامِ فاکتور/خرید «با کمکِ لیست محصولات».
  *
- * برخلاف تفکیکِ کورِ قبلی، این تابع نامِ کاملِ محصولاتِ ثبت‌شده را (همراه عددهای
- * داخلِ نام مثل «دفتر ۸۰ برگ» یا «منگنه ۵۰۶۳» یا کلمه‌ای مثل «سی» در «خودکار سی کلاس»)
- * به‌صورت یک واحد در متن پیدا می‌کند و فقط عددهایی را «تعداد» می‌گیرد که واقعاً بین/پیش از
- * محصولات هستند. این کار سه ایراد اصلی را حل می‌کند:
- *   ۱) عددِ داخلِ نام به‌اشتباه تعداد گرفته نشود.
- *   ۲) وقتی «و» بین کالاها گفته نشود، کالاها قاطی/گم نشوند.
- *   ۳) کلمه‌های عددیِ داخلِ نام (سی، صد، ...) تعداد حساب نشوند.
+ * اصولِ این تفکیک‌گر (بازنویسیِ کامل — نسخهٔ ۲۷):
+ *  ۱) هر کلمه‌ای که کاربر داخلِ نام گفته باید در نامِ کالا باشد (پوششِ گفتار = ۱۰۰٪).
+ *     پس «دفتر ۸۰ برگ» هرگز به «دفتر ۱۰۰ برگ» نمی‌چسبد.
+ *  ۲) رقم‌ها باید عیناً برابر باشند؛ کدِ ناموجود («کد ۹۹۹») باعثِ انتخابِ کدِ دیگر نمی‌شود،
+ *     بلکه صادقانه «پیدا نشد» گزارش می‌شود.
+ *  ۳) اگر گفتار فقط بخشی از نام باشد و چند کالا با آن جور دربیایند، به‌جای انتخابِ
+ *     دلبخواه، وضعیت «مبهم» با فهرستِ گزینه‌ها برگردانده می‌شود تا کاربر انتخاب کند.
+ *  ۴) عددهای مرکب («بیست و پنج»، «چهل و دو»، «دو هزار») یکجا خوانده می‌شوند.
+ *  ۵) واژه‌های لاتینِ بی‌ربط (نویزِ موتور تشخیص مثل ok/thanks) دور ریخته می‌شوند.
  */
 export function resolveVoiceItemsWithCatalog(
   normText: string,
@@ -36,45 +60,47 @@ export function resolveVoiceItemsWithCatalog(
   text = text.replace(/فاکتور بزن|فاکتور ثبت کن|ثبت کن/g, "");
   text = text.replace(/[،,؛]/g, " و ");
 
-  const tokens = text.split(/\s+/).filter(Boolean);
-
-  // آماده‌سازیِ کاتالوگ: نامِ هر محصول را نرمال و توکن‌بندی می‌کنیم.
+  // آماده‌سازیِ کاتالوگ.
   const cat: CatEntry[] = products
     .map((p) => ({ p, tokens: normalizePersianText(p.name).split(/\s+/).filter(Boolean) }))
     .filter((c) => c.tokens.length > 0);
+  const maxCatLen = cat.reduce((m, c) => Math.max(m, c.tokens.length), 1);
+  // واژگانِ کاتالوگ — برای دور ریختنِ نویزِ لاتینِ بی‌ربط.
+  const vocab = new Set<string>();
+  for (const c of cat) for (const t of c.tokens) vocab.add(t);
 
-  // در موقعیت i بهترین محصولِ منطبق را پیدا می‌کند.
-  // نکته: کاربر معمولاً «بخشی» از نامِ کامل را می‌گوید (مثلاً «کاغذ a4» به‌جای «کاغذ a4 تکی»).
-  // پس برای هر محصول، پنجره‌هایی به طول‌های مختلف امتحان و بهترین تطبیق انتخاب می‌شود.
-  const matchAt = (i: number): { c: CatEntry; len: number; score: number } | null => {
-    let best: { c: CatEntry; len: number; score: number } | null = null;
-    const firstTok = tokens[i];
-    const remaining = tokens.length - i;
+  const tokens = text
+    .split(/\s+/)
+    .filter(Boolean)
+    // نویزِ لاتین که در هیچ نامِ کالایی نیست (ok, thanks, …) حذف می‌شود.
+    .filter((t) => !(isLatinTok(t) && !vocab.has(t)));
+
+  /**
+   * نامزدهای یک پنجره: کالاهایی که «همهٔ» کلماتِ گفته‌شده در نامشان هست و از کلمهٔ اولِ
+   * نام شروع می‌شود. complete یعنی پنجره تمامِ کلماتِ نامِ کالا را پوشانده است.
+   */
+  const candidatesFor = (win: string[]): Candidate[] => {
+    const out: Candidate[] = [];
     for (const c of cat) {
-      const L = c.tokens.length;
-      const catName = c.tokens.join(" ");
-      const firstSim = calculateSimilarity(firstTok, c.tokens[0]);
-      if (firstSim < 0.5) continue; // توکنِ اولِ نام باید نسبتاً منطبق باشد (لنگرگاه)
-      const maxK = Math.min(L, remaining);
-      let localBest: { k: number; score: number } | null = null;
-      for (let k = 1; k <= maxK; k++) {
-        const tk = tokens[i + k - 1];
-        // جداکننده یا واحدِ صریح، مرزِ نام است (عددِ داخلِ نام مثل «۸۰ برگ» اجازه دارد بماند).
-        if (k > 1 && (SEP_WORDS.has(tk) || UNIT_WORDS.has(tk))) break;
-        const win = tokens.slice(i, i + k).join(" ");
-        const score = calculateSimilarity(win, catName);
-        if (!localBest || score > localBest.score || (score === localBest.score && k > localBest.k)) {
-          localBest = { k, score };
+      if (win.length > c.tokens.length) continue;
+      if (!tokEq(win[0], c.tokens[0])) continue; // لنگرگاه: کلمهٔ اولِ نام
+      // هر کلمهٔ گفته‌شده باید جایی در نامِ کالا باشد (به‌ترتیب، بدونِ مصرفِ دوباره).
+      const used = new Array(c.tokens.length).fill(false);
+      let ok = true;
+      let matched = 0;
+      for (const w of win) {
+        let found = -1;
+        for (let j = 0; j < c.tokens.length; j++) {
+          if (!used[j] && tokEq(w, c.tokens[j])) { found = j; break; }
         }
+        if (found < 0) { ok = false; break; }
+        used[found] = true;
+        matched++;
       }
-      if (localBest && localBest.score >= 0.6) {
-        // ترجیح: امتیازِ بالاتر، سپس پنجرهٔ بلندتر (نامِ دقیق‌تر و بلندتر).
-        if (!best || localBest.score > best.score || (localBest.score === best.score && localBest.k > best.len)) {
-          best = { c, len: localBest.k, score: localBest.score };
-        }
-      }
+      if (!ok) continue;
+      out.push({ c, complete: win.length === c.tokens.length, covCat: matched / c.tokens.length });
     }
-    return best;
+    return out;
   };
 
   const resolvedItems: ResolvedVoiceItem[] = [];
@@ -83,15 +109,6 @@ export function resolveVoiceItemsWithCatalog(
   let pendingQty: number | null = null;
   let unknownBuf: string[] = [];
 
-  const emitProduct = (c: CatEntry, qty: number) => {
-    resolvedItems.push({
-      requestedName: c.tokens.join(" "),
-      quantity: qty,
-      selectedProduct: c.p,
-      matches: [c.p],
-      status: "EXACT",
-    });
-  };
   const flushUnknown = (qty: number) => {
     const name = unknownBuf.join(" ").trim();
     unknownBuf = [];
@@ -106,61 +123,133 @@ export function resolveVoiceItemsWithCatalog(
   while (i < tokens.length) {
     const tok = tokens[i];
 
-    // جداکننده → پایانِ قلمِ ناشناختهٔ جاری (اگر بود)
+    // ── جداکننده ──────────────────────────────────────────────────────────
     if (SEP_WORDS.has(tok)) {
-      const prev = tokens[i - 1];
-      const next = tokens[i + 1];
-      if (tok === "و" && prev && next && isNumTok(prev) && isNumTok(next)) { i++; continue; } // عددِ مرکب
       if (unknownBuf.length) {
         flushUnknown(pendingQty ?? 1);
         pendingQty = null;
       } else if (pendingQty != null && resolvedItems.length > 0) {
-        // عددی که بعد از یک محصول و پیش از جداکننده آمده، «تعدادِ پسوندیِ» همان محصول است
-        // (مثل «دفتر ۸۰ برگ سه تا و ...»).
+        // عددی که پس از یک کالا و پیش از جداکننده آمده، «تعدادِ پسوندیِ» همان کالاست.
         resolvedItems[resolvedItems.length - 1].quantity = pendingQty;
         pendingQty = null;
       }
-      // اگر هنوز محصولی نداشته‌ایم، pendingQty را نگه می‌داریم تا به محصولِ بعدی بچسبد.
       i++;
       continue;
     }
 
-    // عددِ «مستقل» را قبل از تطبیقِ محصول بررسی می‌کنیم: چون بعضی کلمه‌های عددی (مثل «یک»)
-    // اتفاقاً زیررشتهٔ نامِ کالا هستند (مثلِ «ماژیک»/«جیکسین») و نباید به‌اشتباه محصول شمرده شوند.
-    // نکته: عددِ داخلِ نام (مثل «۸۰ برگ» یا «منگنه ۵۰۶۳») هیچ‌وقت به‌صورت توکنِ مستقل به اینجا
-    // نمی‌رسد، چون matchAt آن را در پنجرهٔ نام (لنگرگاهش کلمهٔ قبلی است) می‌بلعد.
+    // ── تلاش برای تطبیقِ نامِ کالا (بلندترین پنجرهٔ ممکن، اول) ───────────────
+    // پیش از بررسیِ عدد انجام می‌شود تا نامی که با رقم شروع می‌شود هم گرفته شود؛
+    // ولی فقط وقتی پنجره بیش از یک توکن باشد یا توکن عدد نباشد (تا «یک» به‌عنوانِ
+    // زیررشتهٔ «ماژیک» کالا حساب نشود).
+    let matchedHere = false;
+    const maxSpan = Math.min(maxCatLen, tokens.length - i);
+    for (let k = maxSpan; k >= 1; k--) {
+      const win = tokens.slice(i, i + k);
+      // مرزِ نام: جداکننده یا واحدِ صریح نمی‌تواند داخلِ نام باشد.
+      if (win.some((w, idx) => idx > 0 && (SEP_WORDS.has(w) || UNIT_WORDS.has(w)))) continue;
+      // پنجرهٔ تک‌کلمه‌ایِ عددی هرگز نامِ کالا نیست (تعداد است).
+      if (k === 1 && isNumTok(win[0])) continue;
+      const cands = candidatesFor(win);
+      if (!cands.length) continue;
+
+      // ترجیح: تطبیق‌های کامل بر ناقص.
+      const complete = cands.filter((x) => x.complete);
+      let chosen = complete.length ? complete : cands;
+
+      // تطبیقِ ناقص + ادامهٔ نام: کاربر دارد نامِ کالا را کامل می‌گوید ولی هیچ کالایی با
+      // نامِ کاملِ گفته‌شده جور در نمی‌آید («خودکار طلایی بیک» یا «مداد پروتون کد ۹۹۹»).
+      // در این حالت به‌جای ساختنِ یک ردیفِ ناقص + یک ردیفِ زباله، صادقانه یک ردیفِ
+      // «پیدا نشد» با نامِ کاملِ گفته‌شده می‌سازیم.
+      // ملاکِ «ادامهٔ نام» در برابر «کالای بعدی»: اگر کلمهٔ بعدی خودش سرِ یک کالای معتبر
+      // باشد («… پاک‌کن تراش فلزی») ادامهٔ نام نیست و دو کالای جداست.
+      if (!complete.length) {
+        const candsHaveDigits = chosen.some((x) => x.c.tokens.some(isDigitTok));
+        const absorbable = (t: string): boolean => {
+          if (!t || SEP_WORDS.has(t) || UNIT_WORDS.has(t) || FILLER_WORDS.has(t)) return false;
+          if (candidatesFor([t]).length > 0) return false;      // خودش سرِ کالای دیگری است
+          if (isDigitTok(t)) return candsHaveDigits;            // رقم = کدِ کالا (نه تعداد)
+          return !isNumTok(t);                                  // «سه/پنج/…» تعدادند، نه نام
+        };
+        const nameToks = [...win];
+        let j = i + k;
+        while (j < tokens.length && absorbable(tokens[j])) { nameToks.push(tokens[j]); j++; }
+        if (nameToks.length > win.length) {
+          if (unknownBuf.length) flushUnknown(1);
+          unknownBuf = nameToks;
+          flushUnknown(pendingQty ?? 1);
+          pendingQty = null;
+          i = j;
+          matchedHere = true;
+          break;
+        }
+      }
+
+      // انتخابِ نهایی: اگر بیش از یک کالا نامزد باشد → «مبهم» (کاربر انتخاب می‌کند).
+      if (unknownBuf.length) flushUnknown(1);
+      const qty = pendingQty ?? 1;
+      pendingQty = null;
+      if (chosen.length === 1) {
+        const c = chosen[0].c;
+        resolvedItems.push({
+          requestedName: win.join(" "),
+          quantity: qty,
+          selectedProduct: c.p,
+          matches: [c.p],
+          status: "EXACT",
+        });
+      } else {
+        // بهترین‌ها را بر اساسِ پوششِ نام مرتب می‌کنیم تا گزینهٔ محتمل‌تر اول باشد.
+        const sorted = [...chosen].sort((a, b) => b.covCat - a.covCat);
+        hasAmbiguity = true;
+        promptParts.push(`«${win.join(" ")}» چند کالای مشابه دارد — کدام را می‌خواهید؟`);
+        resolvedItems.push({
+          requestedName: win.join(" "),
+          quantity: qty,
+          selectedProduct: undefined,
+          matches: sorted.map((x) => x.c.p),
+          status: "AMBIGUOUS",
+        });
+      }
+      i += k;
+      matchedHere = true;
+      break;
+    }
+    if (matchedHere) continue;
+
+    // ── عدد (تعداد) — دنبالهٔ کاملِ عدد را یکجا می‌خوانیم ────────────────────
+    // «بیست و پنج» → ۲۵، «چهل و دو» → ۴۲، «دو هزار» → ۲۰۰۰، «صد و بیست» → ۱۲۰.
     if (isNumTok(tok)) {
       if (unknownBuf.length) flushUnknown(pendingQty ?? 1);
-      pendingQty = parsePersianNumberWords(tok) || 1;
-      if (tokens[i + 1] && UNIT_WORDS.has(tokens[i + 1])) i++; // واحد (تا/عدد/...) را مصرف کن
-      i++;
+      const run: string[] = [tok];
+      let j = i + 1;
+      while (j < tokens.length) {
+        if (isNumTok(tokens[j])) { run.push(tokens[j]); j++; continue; }
+        // «و» فقط وقتی جزوِ عدد است که پس از آن هم عدد بیاید («بیست و پنج»).
+        if (tokens[j] === "و" && j + 1 < tokens.length && isNumTok(tokens[j + 1])) { run.push("و"); j++; continue; }
+        break;
+      }
+      const parsed = parsePersianNumberWords(run.join(" "));
+      pendingQty = parsed != null && parsed > 0 ? parsed : 1;
+      if (tokens[j] && UNIT_WORDS.has(tokens[j])) j++; // واحد (تا/عدد/…) را مصرف کن
+      i = j;
       continue;
     }
 
-    // تلاش برای تطبیقِ محصول از کاتالوگ در این موقعیت.
-    const m = matchAt(i);
-    if (m) {
-      if (unknownBuf.length) flushUnknown(1); // بافرِ ناشناخته را با تعداد ۱ خالی کن
-      emitProduct(m.c, pendingQty ?? 1);
-      pendingQty = null;
-      i += m.len;
-      continue;
-    }
-
-    // واحدهای آزاد یا کلمه‌های پرکننده را نادیده بگیر.
+    // ── واحدها و کلماتِ پرکننده ────────────────────────────────────────────
     if (UNIT_WORDS.has(tok) || FILLER_WORDS.has(tok) || tok === "تومان" || tok === "تومن" || tok === "ریال") {
       i++;
       continue;
     }
 
-    // کلمهٔ نامعلوم → به بافرِ نامِ ناشناخته اضافه کن.
+    // ── کلمهٔ نامعلوم ──────────────────────────────────────────────────────
     unknownBuf.push(tok);
     i++;
   }
+
   if (unknownBuf.length) {
     flushUnknown(pendingQty ?? 1);
   } else if (pendingQty != null && resolvedItems.length > 0) {
-    // عددِ انتهایی بدونِ محصولِ بعدی → تعدادِ پسوندیِ آخرین محصول («دفتر ۸۰ برگ سه تا»).
+    // عددِ انتهایی بدونِ کالای بعدی → تعدادِ پسوندیِ آخرین کالا («دفتر ۸۰ برگ سه تا»).
     resolvedItems[resolvedItems.length - 1].quantity = pendingQty;
   }
 
