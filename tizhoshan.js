@@ -2719,6 +2719,7 @@
     return { A: A, B: B };
   }
   function shapeVerts(kind) {
+    if (kind === 'square') return [[16, 16], [84, 16], [84, 84], [16, 84]];
     if (kind === 'diamond') return polyPts(4, 40, 50, 50, -90);
     if (kind === 'pentagon') return polyPts(5, 38, 50, 50, -90);
     if (kind === 'hexagon') return polyPts(6, 38, 50, 50, -90);
@@ -2727,10 +2728,10 @@
     if (kind === 'trapezoid') return [[22, 70], [78, 70], [63, 30], [37, 30]];
     return polyPts(4, 38, 50, 50, -45);
   }
-  var SHAPEFA = { diamond: 'لوزی', pentagon: 'پنج‌ضلعی', hexagon: 'شش‌ضلعی', octagon: 'هشت‌ضلعی', circle: 'دایره', trapezoid: 'ذوزنقه' };
-  function pieceShape(rng, level, count) {
+  var SHAPEFA = { square: 'مربع', diamond: 'لوزی', pentagon: 'پنج‌ضلعی', hexagon: 'شش‌ضلعی', octagon: 'هشت‌ضلعی', circle: 'دایره', trapezoid: 'ذوزنقه' };
+  function pieceShape(rng, level, count, forceKind) {
     count = count || 4;
-    var kind = rng.pick(level >= 2 ? ['circle', 'hexagon', 'pentagon', 'diamond', 'trapezoid', 'octagon'] : ['diamond', 'trapezoid', 'hexagon', 'pentagon']);
+    var kind = forceKind || rng.pick(level >= 2 ? ['circle', 'hexagon', 'pentagon', 'diamond', 'trapezoid', 'octagon', 'square'] : ['diamond', 'trapezoid', 'hexagon', 'square']);
     var V = shapeVerts(kind), n = V.length, minSep = Math.max(1, Math.floor(n / 6));
     var e1 = rng.int(0, n - 1), eB = e1 + minSep + rng.int(0, n - 2 * minSep);
     var sp = chordSplit(V, e1, rng.pick([0.32, 0.5, 0.68]), eB, rng.pick([0.36, 0.52, 0.64]));
@@ -2846,7 +2847,27 @@
       why: 'اگر با دقت و یکی‌یکی بشماری، دقیقاً ' + toFa(kcount) + ' تا «' + TFA[target] + '» در تصویر هست. شکل‌های دیگر را نشمار — فقط برای گمراه‌کردنِ تو آمده‌اند.'
     };
   }
-  function poolForShomaresh(level) { return [countShapes]; }
+  // شمارشِ مثلث‌های ترکیبی: مثلثِ بزرگ با چند خطِ رأس-به-قاعده؛ تعدادِ کلِ مثلث‌ها = C(n,2)
+  function countTrianglesFan(rng, level) {
+    var c = level >= 3 ? rng.int(2, 3) : level >= 2 ? rng.int(1, 2) : 1;  // تعدادِ خط‌های داخلی
+    var nBase = c + 2, A = [50, 18], yb = 84, left = 16, right = 84, xs = [];
+    for (var i = 0; i < nBase; i++) xs.push(Math.round(left + (right - left) * i / (nBase - 1)));
+    var total = nBase * (nBase - 1) / 2;
+    function draw() { return function (g) { xs.forEach(function (x) { add(g, 'line', merge(DEF, { x1: A[0], y1: A[1], x2: x, y2: yb, 'stroke-width': 2.6 })); }); add(g, 'line', merge(DEF, { x1: xs[0], y1: yb, x2: xs[nBase - 1], y2: yb, 'stroke-width': 2.6 })); }; }
+    var cand = [total - 1, total + 1, total - 2, total + 2, c + 1].filter(function (v) { return v >= 2 && v !== total; });
+    var seen = {}; seen[total] = 1; var ds = []; for (var d = 0; d < cand.length && ds.length < 3; d++) { if (!seen[cand[d]]) { seen[cand[d]] = 1; ds.push(cand[d]); } }
+    var opts = [{ v: total }].concat(ds.map(function (v) { return { v: v }; })), order = rng.shuffle(opts);
+    var refs = [function () { return figure(draw(), { size: 176, frame: true }); }]; refs.label = 'همه‌ی مثلث‌ها را بشمار (کوچک و بزرگ):'; refs.letters = [''];
+    return {
+      prompt: 'در این شکل، رویِ‌هم چند «مثلث» می‌بینی؟ (مثلث‌های بزرگ‌تر را هم بشمار)', tag: 'شمارشِ مثلث (ترکیبی)', refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { var n = h('div', {}, toFa(o.v)); n.style.cssText = 'font-size:2rem;font-weight:800;color:' + PAL.ink + ';padding:6px 12px'; return n; },
+      why: 'هر مثلث از رأسِ بالا و دو نقطه‌ی روی قاعده ساخته می‌شود. با ' + toFa(nBase) + ' نقطه روی قاعده، تعدادِ مثلث‌ها برابرِ تعدادِ جفت‌های این نقطه‌هاست = ' + toFa(total) + '. مثلث‌های بزرگ‌تر (که چند خانه را می‌پوشانند) را هم باید بشماری!'
+    };
+  }
+  // برشِ مستقیمِ مربع (به‌جای پله‌ای) — تنوعِ بیشتر برای «تکمیل به مربع»
+  function pieceSquareCut(rng, level) { return pieceShape(rng, level, 4, 'square'); }
+  function poolForShomaresh(level) { return level >= 2 ? [countShapes, countShapes, countTrianglesFan] : [countShapes, countTrianglesFan]; }
   function genShomaresh(rng, level) { return countShapes(rng, level || 2); }
   function lessonShomaresh() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -2918,7 +2939,7 @@
     ];
   }
 
-  function poolForSakhtar(level) { return level >= 2 ? [pieceSquare, pieceSquare, pieceTriangle, pieceBent] : [pieceSquare, pieceTriangle]; }
+  function poolForSakhtar(level) { return level >= 2 ? [pieceSquare, pieceSquare, pieceTriangle, pieceBent, pieceSquareCut] : [pieceSquare, pieceTriangle, pieceSquareCut]; }
   function genSakhtar(rng, level) { return rng.pick(poolForSakhtar(level || 2))(rng, level || 2); }
   function lessonSakhtar() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -4535,7 +4556,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, paperPunch: paperPunch,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, paperPunch: paperPunch, countTrianglesFan: countTrianglesFan, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
