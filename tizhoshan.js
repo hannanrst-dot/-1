@@ -1383,6 +1383,66 @@
     };
   }
 
+  /* ==== مبحث ۱۲: کاغذِ تاخورده و سوراخ — قرینه‌ی دقیقِ سوراخ‌ها نسبت به هر خطِ تا ==== */
+  function pp_paper(g) { add(g, 'rect', merge(DEF, { x: 12, y: 12, width: 76, height: 76, rx: 5 })); }
+  function pp_dot(g, x, y) { add(g, 'circle', merge(DEF, { cx: (+x).toFixed(1), cy: (+y).toFixed(1), r: 4.4, fill: PAL.line, 'stroke-width': 2 })); }
+  function pp_crease(g, x1, y1, x2, y2) { add(g, 'line', { x1: x1, y1: y1, x2: x2, y2: y2, stroke: PAL.teal, 'stroke-width': 1.8, 'stroke-dasharray': '5 4' }); }
+  function pp_reflect(pts, creases) {
+    creases.forEach(function (cr) { var np = []; pts.forEach(function (p) { np.push(p); np.push(cr === 'v' ? [100 - p[0], p[1]] : [p[0], 100 - p[1]]); }); pts = np; });
+    var seen = {}, out = []; pts.forEach(function (p) { var k = Math.round(p[0]) + ',' + Math.round(p[1]); if (!seen[k]) { seen[k] = 1; out.push([Math.round(p[0]), Math.round(p[1])]); } }); return out;
+  }
+  function paperPunch(rng, level, count) {
+    count = count || 4;
+    var nFolds = level >= 3 ? 2 : level >= 2 ? rng.pick([1, 2]) : 1;
+    var creases = nFolds === 2 ? ['v', 'h'] : [rng.pick(['v', 'h'])];
+    var hasV = creases.indexOf('v') >= 0, hasH = creases.indexOf('h') >= 0;
+    var xr = hasV ? [22, 44] : [24, 76], yr = hasH ? [22, 44] : [24, 76];
+    var nHoles = level >= 3 ? rng.int(1, 2) : 1, holes = [], hg = 0;
+    while (holes.length < nHoles && hg++ < 40) { var p = [rng.int(xr[0], xr[1]), rng.int(yr[0], yr[1])]; if (holes.every(function (q) { return Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]) > 20; })) holes.push(p); }
+    function keyOf(a) { return a.map(function (q) { return q[0] + ',' + q[1]; }).sort().join(';'); }
+    var correct = pp_reflect(holes.map(function (q) { return [q[0], q[1]]; }), creases);
+    var cand = [];
+    if (correct.length > 1) { var c0 = correct.slice(); c0.splice(rng.int(0, c0.length - 1), 1); cand.push(c0); }   // یک سوراخ جاافتاده
+    cand.push(holes.slice());                                                                                       // بدونِ قرینه (فقط جای سوراخ)
+    if (creases.length === 2) { cand.push(pp_reflect(holes.slice(), ['v'])); cand.push(pp_reflect(holes.slice(), ['h'])); } // فقط یک تا حساب شده
+    else cand.push(pp_reflect(holes.slice(), [creases[0] === 'v' ? 'h' : 'v']));                                    // قرینه از محورِ اشتباه
+    (function () { var c1 = correct.slice(); c1.push([rng.int(24, 76), rng.int(24, 76)]); cand.push(c1); })();       // یک سوراخِ اضافه
+    var seen = {}; seen[keyOf(correct)] = 1; var dists = [];
+    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { var k = keyOf(cand[i]); if (cand[i].length > 0 && !seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    var gg = 0; while (dists.length < count - 1 && gg++ < 50) { var c2 = correct.slice(); c2[rng.int(0, c2.length - 1)] = [rng.int(24, 76), rng.int(24, 76)]; var k2 = keyOf(c2); if (!seen[k2]) { seen[k2] = 1; dists.push(c2); } }
+    var opts = [{ h: correct }].concat(dists.map(function (d) { return { h: d }; })), order = rng.shuffle(opts);
+    var ref1 = function () { return figure(function (g) { pp_paper(g); if (hasV) pp_crease(g, 50, 12, 50, 88); if (hasH) pp_crease(g, 12, 50, 88, 50); if (hasV) add(g, 'path', merge(DEF, { d: 'M78 32 q-10 -8 -20 0', fill: 'none', 'stroke-width': 2, stroke: PAL.fun })); if (hasH) add(g, 'path', merge(DEF, { d: 'M32 78 q-8 -10 0 -20', fill: 'none', 'stroke-width': 2, stroke: PAL.fun })); }, { size: 74 }); };
+    var fr = hasV && hasH ? [12, 12, 38, 38] : hasV ? [12, 12, 38, 76] : [12, 12, 76, 38];
+    var ref2 = function () { return figure(function (g) { add(g, 'rect', merge(DEF, { x: fr[0], y: fr[1], width: fr[2], height: fr[3], rx: 4, fill: PAL.tealL })); holes.forEach(function (q) { pp_dot(g, q[0], q[1]); }); }, { size: 74 }); };
+    var refs = [ref1, ref2]; refs.label = 'کاغذ را این‌طور تا بزن، بعد سوراخ کن:'; refs.letters = ['تا زدن', 'سوراخ'];
+    return {
+      prompt: 'کاغذِ مربع را ' + (creases.length === 2 ? 'دو بار (عمودی و افقی)' : (hasV ? 'یک بار از وسطِ عمودی' : 'یک بار از وسطِ افقی')) + ' تا می‌زنیم و سوراخ می‌کنیم. اگر بازش کنیم، سوراخ‌ها کجا می‌افتند؟',
+      tag: 'کاغذِ تاخورده' + (creases.length === 2 ? ' (دو تا)' : ''), refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(function (g) { pp_paper(g); if (hasV) pp_crease(g, 50, 12, 50, 88); if (hasH) pp_crease(g, 12, 50, 88, 50); o.h.forEach(function (q) { pp_dot(g, q[0], q[1]); }); }, { size: 96 }); },
+      why: 'هر سوراخ نسبت به هر خطِ تا «قرینه» می‌شود. ' + (creases.length === 2 ? 'با دو تا، هر سوراخ به ۴ سوراخِ قرینه تبدیل می‌شود.' : 'با یک تا، هر سوراخ به ۲ سوراخِ قرینه نسبت به خطِ تا تبدیل می‌شود.') + ' گزینه‌های دیگر یا قرینه‌ی کامل نیستند، یا سوراخی کم/زیاد دارند.'
+    };
+  }
+  function poolForKaghaz(level) { return [paperPunch]; }
+  function genKaghaz(rng, level) { return paperPunch(rng, level || 2); }
+  function lessonKaghaz() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(level) { return function () { return buildInteractive(toInter(paperPunch(new RNG(seed++), level || 2))); }; }
+    return [
+      { title: 'جادوی کاغذِ تاخورده 📄✂️',
+        body: 'یک کاغذِ مربع را تا می‌زنیم (یک یا دو بار)، بعد با پانچ سوراخش می‌کنیم. وقتی کاغذ را باز کنیم، هر سوراخ چند تا شده و در جای قرینه‌اش هم ظاهر می‌شود! کارِ تو این است که پیش‌بینی کنی بعد از بازکردن، سوراخ‌ها کجا می‌افتند.',
+        art: function () { return figure(function (g) { pp_paper(g); pp_crease(g, 50, 12, 50, 88); pp_dot(g, 34, 40); pp_dot(g, 66, 40); }, { size: 116, frame: false }); } },
+      { title: 'راز: آینه‌ی خطِ تا 🪞',
+        body: 'خطِ تا مثلِ یک آینه است. هر سوراخ، یک تصویرِ قرینه در آن‌طرفِ خطِ تا می‌سازد. اگر یک بار تا زده باشیم، هر سوراخ ۲ تا می‌شود؛ اگر دو بار (عمودی و افقی) تا زده باشیم، هر سوراخ ۴ تا می‌شود — در چهار گوشه‌ی قرینه.',
+        art: function () { return figure(function (g) { pp_paper(g); pp_crease(g, 50, 12, 50, 88); pp_crease(g, 12, 50, 88, 50); [34, 66].forEach(function (x) { [34, 66].forEach(function (y) { pp_dot(g, x, y); }); }); }, { size: 116, frame: false }); } },
+      { title: 'تمرینِ ۱ ✏️', interactive: ex(1) },
+      { title: 'تمرینِ ۲ ✏️', interactive: ex(2) },
+      { title: 'آماده‌ای! 🌟',
+        body: 'حالا می‌توانی جای همه‌ی سوراخ‌ها را بعد از بازکردنِ کاغذ پیش‌بینی کنی. اول بشمار چند بار تا خورده، بعد هر سوراخ را نسبت به خطِ تا قرینه کن. مواظبِ گزینه‌هایی باش که یک سوراخ کم یا زیاد دارند!',
+        art: function () { return figure(mBoot, { size: 104, frame: false }); } }
+    ];
+  }
+
   /* ==== تکمیلِ تقارن: نیمه‌ی چپ داده شده؛ کدام گزینه با آینه‌ی عمودی کاملش می‌کند؟ ==== */
   function mc_cell(g, x, y, sz, kind) {
     if (kind === 'fill') add(g, 'rect', { x: x, y: y, width: sz, height: sz, rx: 2.5, fill: PAL.line });
@@ -3255,6 +3315,7 @@
     { id: 'penhan2', n: 9, title: 'تصویرِ پنهان (نوع ۲)', sub: 'شبکه‌ی شلوغ‌تر', icon: '🔬', color: PAL.sky, ready: true, review: true, lesson: lessonPenhan2, gen: genPenhan2, pool: poolForPenhan2 },
     { id: 'shomaresh', n: 10, title: 'شمارشِ اجزا', sub: 'چند شکل می‌بینی؟', icon: '🔢', color: PAL.gold, ready: true, review: true, lesson: lessonShomaresh, gen: genShomaresh, pool: poolForShomaresh },
     { id: 'tarkib', n: 11, title: 'ترکیبِ تکه‌ها', sub: 'کدام دو تکه جور می‌شوند؟', icon: '🪅', color: PAL.lilac, ready: true, review: true, lesson: lessonTarkib, gen: genTarkib, pool: poolForTarkib },
+    { id: 'kaghaz', n: 12, title: 'کاغذِ تاخورده', sub: 'سوراخ‌ها کجا می‌افتند؟', icon: '📄', color: PAL.sky, ready: true, review: true, lesson: lessonKaghaz, gen: genKaghaz, pool: poolForKaghaz },
     { id: 'sakhtar', n: 13, title: 'درک ساختار شکل‌ها', sub: 'تکه‌ی مکمل را پیدا کن', icon: '🧩', color: PAL.teal, ready: true, review: true, lesson: lessonSakhtar, gen: genSakhtar, pool: poolForSakhtar },
     { id: 'takmil', n: 14, title: 'تکمیل به شکلِ دلخواه', sub: 'دایره/لوزی/ذوزنقه…', icon: '🔵', color: PAL.fun, ready: true, review: true, lesson: lessonTakmil, gen: genTakmil, pool: poolForTakmil },
     { id: 'takmil2', n: 15, title: 'تکمیل (برشِ خمیده)', sub: 'زبانه و شکاف', icon: '🧩', color: PAL.tealD, ready: true, review: true, lesson: lessonTakmil2, gen: genTakmil2, pool: poolForTakmil2 },
@@ -3425,6 +3486,7 @@
     ejraye_qaede: { place: 'کارخانه‌ی قاعده‌ها', title: 'مهندسِ قاعده‌ها', intro: 'کارخانه‌ی قاعده‌ها منتظرِ توست؛ قانونِ هر ماشین را کشف کن تا چرخ‌ها بچرخند.' },
     dastebandi: { place: 'کتابخانه‌ی دسته‌ها', title: 'کتابدارِ بزرگ', intro: 'در کتابخانه‌ی دسته‌ها، شکل‌ها را درست گروه‌بندی کن تا قفسه‌ها مرتب شوند.' },
     penhan: { place: 'اتاقِ تصویرهای پنهان', title: 'کارآگاهِ تصویرهای پنهان', intro: 'وارد اتاقِ تصویرهای پنهان شدی! این‌جا هر تصویرِ X لابه‌لای خط‌های یک گزینه قایم شده. با ریزبینی خط‌ها را دنبال کن و مخفیگاهِ X را پیدا کن.' },
+    kaghaz: { place: 'کارگاهِ کاغذ و تا', title: 'استادِ کاغذِ جادویی', intro: 'به کارگاهِ کاغذ و تا رسیدی! این‌جا کاغذ را تا می‌زنیم و سوراخ می‌کنیم، و تو باید پیش‌بینی کنی بعد از بازکردن سوراخ‌ها کجا می‌افتند. خطِ تا را مثلِ آینه ببین!' },
     tarkib: { place: 'کارگاهِ پازلِ بزرگ', title: 'استادِ ترکیب', intro: 'به کارگاهِ پازلِ بزرگ رسیدی! این‌جا چند تکه پیشِ رویت است و باید جفتی را پیدا کنی که همان‌طور که هستند در هم می‌نشینند و یک شکلِ کامل می‌سازند. به لبه‌های برش دقت کن!' },
     shomaresh: { place: 'میدانِ شمارش', title: 'قهرمانِ شمارنده', intro: 'به میدانِ شمارش خوش آمدی! این‌جا تصویرها پر از شکل‌های جورواجورند و تو باید تعدادِ یک شکلِ خاص را دقیق بشماری. منظم و آرام بشمار تا هیچ‌کدام از قلم نیفتد.' },
     penhan2: { place: 'آزمایشگاهِ ذره‌بین', title: 'کارآگاهِ ارشدِ تصویرها', intro: 'به آزمایشگاهِ ذره‌بین خوش آمدی! این‌جا تصویرِ X در شبکه‌های شلوغ و پرخط پنهان شده. با ذره‌بین و صبر، خط‌به‌خط ردِّ X را بگیر و مخفیگاهش را پیدا کن.' },
@@ -4473,7 +4535,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, paperPunch: paperPunch,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
