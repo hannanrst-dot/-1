@@ -88,6 +88,11 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
   // refهای حالتِ «نگه‌دار و بگو» (فشار بده و نگه‌دار + بکش بالا برای قفل)
   const holdStartYRef = useRef(0);
   const holdLockedRef = useRef(false);
+  // پایشِ خطاهای موتورِ تشخیص (برای جلوگیری از حلقهٔ بی‌پایانِ تلاشِ دوباره)
+  const lastErrRef = useRef("");
+  const netErrStreakRef = useRef(0);
+  // آیا تشخیصِ گفتارِ فارسی «روی خودِ دستگاه» در دسترس است؟ (امروز معمولاً نه)
+  const onDeviceRef = useRef(false);
 
   useEffect(() => { if (isOpen) setMode(defaultMode); else setParkedInv([]); }, [isOpen, defaultMode]);
 
@@ -97,6 +102,15 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     fetch("/api/settings").then((r) => r.json()).then((d) => setStockAlert(!!d?.settings?.store_info?.stockAlert)).catch(() => {});
     // فهرستِ کالاها برای سرچ‌وانتخاب و بارکد در فاکتور
     fetch("/api/products").then((r) => r.json()).then((d) => setAllProducts(d.products || [])).catch(() => {});
+    // بررسیِ «تشخیصِ روی دستگاه» برای فارسی (اگر مرورگر پشتیبانی کند، آفلاین و سریع‌تر است)
+    try {
+      const SR: any = getSR();
+      if (SR && typeof SR.available === "function") {
+        SR.available({ langs: ["fa-IR"], processLocally: true })
+          .then((s: string) => { onDeviceRef.current = s === "available"; })
+          .catch(() => { onDeviceRef.current = false; });
+      }
+    } catch { /* ignore */ }
   }, [isOpen]);
 
   // قفل اسکرول پس‌زمینه (موبایل)
@@ -149,6 +163,10 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     rec.continuous = true;      // از مکث‌ها رد می‌شود → «فقط اولی» رفع می‌شود
     rec.interimResults = true;
     rec.maxAlternatives = 1;
+    // اگر روزی مرورگر «تشخیصِ روی خودِ دستگاه» را برای فارسی پشتیبانی کند، از آن استفاده
+    // می‌کنیم (بدونِ اینترنت، بدونِ تأخیر). امروز کروم فقط ۱۷ زبان را روی دستگاه دارد و
+    // فارسی جزوشان نیست؛ پس این فقط وقتی روشن می‌شود که واقعاً در دسترس باشد.
+    if (onDeviceRef.current) { try { (rec as any).processLocally = true; } catch { /* ignore */ } }
 
     rec.onresult = (event: any) => {
       // حالت گام‌به‌گام (فقط فاکتور): هر عبارتِ نهایی به‌محضِ آماده‌شدن، جداگانه پردازش می‌شود.
@@ -184,22 +202,65 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
       setTranscript(disp);
     };
     rec.onerror = (event: any) => {
-      if (event.error !== "no-speech" && event.error !== "aborted") console.error("Speech:", event.error);
+      const err = String(event?.error || "");
+      lastErrRef.current = err;
+      // خطاهای قطعی: ادامه دادن بی‌فایده است و باید به کاربر گفته شود.
+      if (err === "not-allowed" || err === "service-not-allowed") {
+        shouldListenRef.current = false;
+        setNotice("اجازهٔ دسترسی به میکروفون داده نشده است. از تنظیماتِ مرورگر، میکروفون را برای این سایت اجازه دهید.");
+      } else if (err === "audio-capture") {
+        shouldListenRef.current = false;
+        setNotice("میکروفون در دسترس نیست. مطمئن شوید برنامهٔ دیگری میکروفون را اشغال نکرده باشد.");
+      } else if (err !== "no-speech" && err !== "aborted") {
+        console.error("Speech:", err);
+      }
     };
     rec.onend = () => {
       // متنِ این سشن را به «قبلی‌ها» منتقل کن.
       committedRef.current = joinTranscript([committedRef.current, currentSessionRef.current].filter(Boolean));
       currentSessionRef.current = "";
-      if (shouldListenRef.current) {
-        // بی‌درنگ و با همان شیء دوباره شروع کن (کمترین فاصله و کمترین بوق).
-        stepProcessedRef.current = 0;
-        try { rec.start(); } catch {
-          // اگر موتور هنوز در حالِ بسته‌شدن بود، یک تلاشِ کوتاهِ دیگر.
-          restartTimerRef.current = setTimeout(() => { if (shouldListenRef.current) { try { rec.start(); } catch { /* ignore */ } } }, 80);
+      if (!shouldListenRef.current) { finalizeAndProcess(); return; }
+
+      // شمارشِ خطاهای پیاپیِ شبکه. تشخیصِ گفتارِ فارسی روی سرورِ گوگل انجام می‌شود؛
+      // اگر اینترنت به آن نرسد، هر start بی‌درنگ error/end می‌دهد و بدونِ این شمارنده
+      // یک حلقهٔ بی‌پایان و پرمصرف درست می‌شود. پس بعد از چند تلاش، متوقف و اطلاع می‌دهیم.
+      const err = lastErrRef.current;
+      lastErrRef.current = "";
+      if (err === "network") {
+        netErrStreakRef.current += 1;
+        if (netErrStreakRef.current >= 3) {
+          shouldListenRef.current = false;
+          setIsListening(false);
+          setNotice("اتصال به سرویسِ تشخیصِ گفتار برقرار نشد. این سرویس روی سرورِ گوگل کار می‌کند و به اینترنتِ باز نیاز دارد. می‌توانید متن را دستی بنویسید یا از «سرچ و انتخاب» و «بارکد» استفاده کنید.");
+          finalizeAndProcess();
+          return;
         }
       } else {
-        finalizeAndProcess();
+        netErrStreakRef.current = 0;
       }
+
+      // بی‌درنگ و با همان شیء دوباره شروع کن (کمترین فاصله و کمترین بوق).
+      // فقط وقتی خطای شبکه داشتیم کمی مکث می‌کنیم تا حلقهٔ داغ نشود.
+      const delay = netErrStreakRef.current > 0 ? 400 * netErrStreakRef.current : 0;
+      stepProcessedRef.current = 0;
+      const tryStart = () => {
+        if (!shouldListenRef.current) return;
+        try { rec.start(); } catch {
+          // موتور هنوز در حالِ بسته‌شدن است؛ یک تلاشِ کوتاهِ دیگر. اگر باز هم نشد،
+          // به‌جای «در حال شنیدن»ِ دروغین، صادقانه متوقف و اطلاع می‌دهیم.
+          restartTimerRef.current = setTimeout(() => {
+            if (!shouldListenRef.current) return;
+            try { rec.start(); } catch {
+              shouldListenRef.current = false;
+              setIsListening(false);
+              setNotice("ضبط ادامه پیدا نکرد. یک بار دیگر میکروفون را بزنید.");
+              finalizeAndProcess();
+            }
+          }, 120);
+        }
+      };
+      if (delay === 0) tryStart();
+      else restartTimerRef.current = setTimeout(tryStart, delay);
     };
     return rec;
   };
@@ -220,6 +281,7 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
     currentSessionRef.current = "";
     setTranscript(""); transcriptRef.current = ""; setNotice("");
     processGuardRef.current = false;
+    lastErrRef.current = ""; netErrStreakRef.current = 0;
     shouldListenRef.current = true;
     setIsListening(true);
     startSession();
@@ -712,7 +774,8 @@ export function VoiceAssistantModal({ isOpen, onClose, onActionExecute, defaultM
                 </div>
               ) : mode === "invoice" && holdMode ? (
                 <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-2xl p-3 text-xs leading-relaxed text-purple-800 dark:text-purple-200">
-                  🎙️ دکمهٔ میکروفون را <b>نگه دارید</b> و بگویید (مثلاً «دو تا دفتر ۸۰ برگ»)؛ وقتی <b>رها کردید</b> به فاکتور اضافه می‌شود. برای اینکه دستتان آزاد بماند، همان‌طور که نگه داشته‌اید <b>به بالا بکشید</b> تا قفل شود. (بدونِ تکرارِ کلمات ✅)
+                  🎙️ دکمهٔ میکروفون را <b>نگه دارید</b> و بگویید (مثلاً «دو تا دفتر ۸۰ برگ»)؛ وقتی <b>رها کردید</b> به فاکتور اضافه می‌شود. برای اینکه دستتان آزاد بماند، همان‌طور که نگه داشته‌اید <b>به بالا بکشید</b> تا قفل شود.
+                  <br /><b>پیشنهاد:</b> برای جمله‌های بلند این حالت بهترین است، چون یک ضبطِ یکپارچه است و وسطش قطع نمی‌شود.
                 </div>
               ) : (
                 <Guide mode={mode} />

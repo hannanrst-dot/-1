@@ -11,7 +11,13 @@ const NUM_WORDS = new Set([
 ]);
 const UNIT_WORDS = new Set(["تا", "عدد", "بسته", "کارتن", "دونه", "دانه", "عددی", "تایی", "جین", "دست", "جفت"]);
 const SEP_WORDS = new Set(["و", "بعدی", "بعدا", "بعدش", "همچنین", "بعد", "سپس", "بعدشم"]);
-const FILLER_WORDS = new Set(["رو", "را", "برای", "لطفا", "میخوام", "بده", "بزن", "بنویس", "اضافه", "کن", "هم"]);
+// کلماتی که در گفتارِ روزمرهٔ مغازه زیاد می‌آیند ولی نامِ کالا نیستند.
+// (بدونِ این‌ها، «سلام» یا «ممنون» تبدیل به یک ردیفِ زبالهٔ «پیدا نشد» می‌شد.)
+const FILLER_WORDS = new Set([
+  "رو", "را", "برای", "لطفا", "میخوام", "می‌خوام", "بده", "بدید", "بدهید", "بزن", "بنویس", "اضافه", "کن", "کنید", "هم",
+  "سلام", "درود", "ببخشید", "ممنون", "مرسی", "خواهش", "آقا", "اقا", "خانم", "خانوم", "استاد", "داداش",
+  "خب", "خوب", "بسیارخب", "باشه", "اوکی", "بله", "آره", "اره", "دیگه", "فقط", "یعنی", "الان", "بیار", "بیارید",
+]);
 
 const isDigitTok = (t: string) => /^\d+$/.test(t);
 const isNumTok = (t: string) => isDigitTok(t) || NUM_WORDS.has(t);
@@ -109,9 +115,20 @@ export function resolveVoiceItemsWithCatalog(
   let pendingQty: number | null = null;
   let unknownBuf: string[] = [];
 
+  /** آیا این کلمه اصلاً شبیهِ واژگانِ کالاهاست؟ (برای دور ریختنِ تک‌کلمه‌های نامربوط) */
+  const looksLikeProductWord = (t: string): boolean => {
+    for (const v of vocab) if (tokEq(t, v)) return true;
+    return false;
+  };
+
   const flushUnknown = (qty: number) => {
-    const name = unknownBuf.join(" ").trim();
+    const toks = unknownBuf.slice();
+    const name = toks.join(" ").trim();
     unknownBuf = [];
+    // یک کلمهٔ تنها که هیچ ربطی به واژگانِ کالاها ندارد، نویزِ گفتار است نه کالا —
+    // ردیفِ «پیدا نشد» برایش ساخته نمی‌شود. (نامِ چندکلمه‌ای یا کلمهٔ نزدیک به کاتالوگ
+    // مثل «دفترچه» همچنان گزارش می‌شود چون واقعاً درخواستِ کالاست.)
+    if (toks.length === 1 && !looksLikeProductWord(toks[0])) return;
     if (name.length > 1) {
       hasAmbiguity = true;
       resolvedItems.push({ requestedName: name, quantity: qty, matches: [], status: "NOT_FOUND" });
