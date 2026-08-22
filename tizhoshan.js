@@ -993,8 +993,9 @@
     count = count || 4;
     var base = rng.pick([3, 4, 5]);
     var odd = base + rng.pick([-1, 1].filter(function (d) { return base + d >= 2 && base + d <= 6; }));
-    var kind = rng.pick(['circle', 3, 4, 6]);
-    var rots = rng.sample([0, 20, 40, 60, 80, 100, 120, 140], count);
+    // «دایره» حذف شد چون چرخش رویش دیده نمی‌شود؛ زاویه‌ها داخلِ یک سکتورِ تقارن انتخاب می‌شوند تا همه متمایز باشند
+    var kind = rng.pick([3, 4, 5, 6]);
+    var sector = 360 / kind, rots = rng.shuffle((function () { var a = []; for (var i = 0; i < count; i++) a.push(+(i * sector / count).toFixed(1)); return a; })());
     var same = sameList(count, function (i) { return { n: base, rot: rots[i] }; });
     var pa = placeAnswer(rng, same, { n: odd, rot: rots[count - 1] }, count);
     return {
@@ -1038,12 +1039,14 @@
     count = count || 4;
     var base = rng.pick([3, 4, 5, 6]);
     var odd = base + rng.pick([-1, 1].filter(function (d) { return base + d >= 2 && base + d <= 7; }));
-    var same = sameList(count, function () { return { n: base }; });
-    var pa = placeAnswer(rng, same, { n: odd }, count);
+    // زاویه‌های متمایز (هیچ دو زاویه ۱۸۰ درجه اختلاف ندارند) تا هیچ دو گزینه‌ای یکسان رسم نشود
+    var angs = rng.sample([0, 30, 60, 90, 120, 150], count);
+    var same = sameList(count, function (i) { return { n: base, rot: angs[i] }; });
+    var pa = placeAnswer(rng, same, { n: odd, rot: angs[count - 1] }, count);
     return {
       prompt: 'کدام زنجیر با بقیه فرق دارد؟', tag: 'شمارشِ حلقه‌ی زنجیر',
       options: pa.options, answer: pa.answer,
-      render: function (o) { return figure(chainFig(o.n), { size: 96 }); },
+      render: function (o) { return figure(chainFig(o.n), { rot: o.rot || 0, size: 96 }); },
       why: 'سه زنجیر ' + toFa(base) + ' حلقه دارند، اما این یکی ' + toFa(odd) + '. حلقه‌های افقی و عمودی را با هم بشمار!'
     };
   }
@@ -1885,6 +1888,77 @@
       why: 'سه مکعب یکی‌اند و فقط چرخیده‌اند — همان سه نقش روی وجه‌هایشان است و فقط جای وجه‌ها به‌صورتِ چرخشی عوض شده. اما یکی از نقش‌های این مکعب با بقیه فرق دارد؛ پس با هیچ چرخشی مثلِ آن‌ها نمی‌شود.'
     };
   }
+  /* ==== گسترده‌ی مکعب: کدام دو نقش روبه‌روی هم می‌افتند؟ ====
+   * گسترده‌ی صلیبی (Latin cross):        [A]
+   *                                   [B][C][D]
+   *                                      [E]
+   *                                      [F]
+   * نوارِ عمودی A-C-E-F دورِ مکعب می‌پیچد ⇒ در نوارِ ۴تایی، هر وجه با دو تا آن‌طرف‌تر روبه‌روست:
+   *   A↔E و C↔F ؛ و دو بالکِ کناری هم روبه‌روی هم‌اند: B↔D.  (هندسه‌ی قطعیِ تاشدنِ مکعب)
+   */
+  function cubeNetFig(map) {
+    return function (g) {
+      var cs = 20, x0 = 20, y0 = 10;
+      var cells = [[0, 1, map[0]], [1, 0, map[1]], [1, 1, map[2]], [1, 2, map[3]], [2, 1, map[4]], [3, 1, map[5]]];
+      cells.forEach(function (c) {
+        var x = x0 + c[1] * cs, y = y0 + c[0] * cs;
+        add(g, 'rect', merge(DEF, { x: x, y: y, width: cs, height: cs, 'stroke-width': 2.4, fill: PAL.cream }));
+        cubeSym(g, c[2], x + cs / 2, y + cs / 2, 6);
+      });
+    };
+  }
+  function symPairFig(s1, s2) {
+    return function (g) {
+      [[10, s1], [54, s2]].forEach(function (b) {
+        add(g, 'rect', merge(DEF, { x: b[0], y: 30, width: 36, height: 40, rx: 6, 'stroke-width': 2.4, fill: '#fff' }));
+        cubeSym(g, b[1], b[0] + 18, 50, 9);
+      });
+    };
+  }
+  function cubeNetOpposite(rng, level, count) {
+    count = count || 4;
+    var m = rng.sample(['circle', 'square', 'triangle', 'plus', 'dot', 'ex'], 6);   // m[0..5] = A,B,C,D,E,F
+    var opp = [[m[0], m[4]], [m[2], m[5]], [m[1], m[3]]];                            // A↔E ، C↔F ، B↔D
+    function pk(p) { return p.slice().sort().join('|'); }
+    var oppKeys = {}; opp.forEach(function (p) { oppKeys[pk(p)] = 1; });
+    var correct = opp[rng.int(0, 2)];
+    var adj = [];
+    for (var i = 0; i < 6; i++) for (var j = i + 1; j < 6; j++) { var p = [m[i], m[j]]; if (!oppKeys[pk(p)]) adj.push(p); }
+    var seen = {}; seen[pk(correct)] = 1; var dists = [], sh = rng.shuffle(adj);
+    for (var k = 0; k < sh.length && dists.length < count - 1; k++) { var key = pk(sh[k]); if (!seen[key]) { seen[key] = 1; dists.push(sh[k]); } }
+    var opts = [{ p: correct }].concat(dists.map(function (p) { return { p: p }; })), order = rng.shuffle(opts);
+    var refs = [function () { return figure(cubeNetFig(m), { size: 150, frame: false }); }];
+    refs.label = 'این گسترده را در ذهنت تا بزن و مکعب بساز:'; refs.letters = [''];
+    return {
+      prompt: 'اگر این گسترده را تا بزنیم و مکعب بسازیم، کدام دو نقش «روبه‌روی هم» قرار می‌گیرند؟', tag: 'گسترده‌ی مکعب', refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(symPairFig(o.p[0], o.p[1]), { size: 96 }); },
+      why: 'در گسترده‌ی صلیبی، نوارِ عمودیِ چهارتایی دورِ مکعب می‌پیچد؛ پس در آن نوار هر وجه با وجهی که «دو خانه آن‌طرف‌تر» است روبه‌رو می‌شود. دو بالکِ چپ و راست هم روبه‌روی هم‌اند. وجه‌هایی که در گسترده کنارِ هم‌اند، هرگز روبه‌روی هم نمی‌شوند.'
+    };
+  }
+  function poolForTajassom(level) { return level >= 2 ? [oddCube3D, cubeNetOpposite, cubeNetOpposite] : [oddCube3D, cubeNetOpposite]; }
+  function genTajassom(rng, level) { return rng.pick(poolForTajassom(level || 2))(rng, level || 2); }
+  function lessonTajassom() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(gen, level) { return function () { return buildInteractive(toInter(gen(new RNG(seed++), level || 2))); }; }
+    return [
+      { title: 'دنیای سه‌بعدی 🎲',
+        body: 'تا حالا با شکل‌های تخت (دوبعدی) کار کردی؛ حالا وقتِ مکعب‌هاست! در این مبحث باید مکعب را در ذهنت بچرخانی و تا بزنی. این مهارت، «تجسمِ فضایی» نام دارد و یکی از مهم‌ترین توانایی‌های تیزهوشان است.',
+        art: function () { return figure(drawCube(['circle', 'triangle', 'plus']), { size: 118, frame: false }); } },
+      { title: 'راز ۱ — چرخشِ مکعب 🔄',
+        body: 'وقتی یک مکعب را می‌چرخانی، همان سه وجه را می‌بینی ولی جایشان عوض می‌شود. پس اگر سه مکعب «همان سه نقش» را داشته باشند (حتی در جاهای مختلف)، آن‌ها یکی‌اند و فقط چرخیده‌اند. مکعبی که یک نقشِ متفاوت دارد، جواب است.',
+        art: function () { return figure(drawCube(['plus', 'circle', 'triangle']), { size: 112, frame: false }); } },
+      { title: 'تمرینِ چرخش ✏️', interactive: ex(oddCube3D, 2) },
+      { title: 'راز ۲ — گسترده و وجه‌های روبه‌رو 📦',
+        body: 'گسترده، مکعبِ بازشده است. قانونِ طلایی: وجه‌هایی که در گسترده «کنارِ هم» هستند، بعد از تاشدن کنارِ هم می‌مانند و هرگز روبه‌روی هم نمی‌شوند. در نوارِ چهارتایی، هر وجه با وجهی که «یکی در میان» (دو خانه آن‌طرف‌تر) است روبه‌رو می‌شود.',
+        art: function () { return figure(cubeNetFig(['circle', 'square', 'triangle', 'plus', 'dot', 'ex']), { size: 130, frame: false }); } },
+      { title: 'تمرینِ گسترده ✏️', interactive: ex(cubeNetOpposite, 2) },
+      { title: 'آماده‌ای، مهندسِ فضایی! 🌟',
+        body: 'حالا هم می‌توانی مکعب را در ذهنت بچرخانی و هم گسترده را تا بزنی. این مهارت با تمرین قوی‌تر می‌شود — هر بار سعی کن قبل از نگاه‌کردن به گزینه‌ها، جواب را در ذهنت بسازی!',
+        art: function () { return figure(mBoot, { size: 104, frame: false }); } }
+    ];
+  }
+
   var GENS_EASY = [oddMatrix, oddMatrix, oddMatrix, dominoOdd, oddChirality, oddTextureFill, oddArrowType, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGear, oddGridSym, oddCombo, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddCurvature];
   var GENS_MED = [oddMatrix, oddMatrix, oddMatrix, combineShapes, mirrorComplete, dominoOdd, oddChirality, oddGlyph, oddStar, oddPie, oddAngle, oddBars, oddPath, oddGridSym, oddInner, oddArrowType, oddCombo, oddTextureFill, oddSize, oddNested, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddRule, sceneArrowHead, sceneInnerSwap, oddRotOrder, oddCurvature, oddCube3D];
   var GENS_HARD = [oddMatrix, oddMatrix, oddMatrix, combineShapes, paperFold, mirrorComplete, sceneChirality, sceneChirality, sceneInnerSwap, sceneArrowHead, sceneFineDetail, sceneFineDetail, oddArrowType, oddCombo, oddGridSym, oddPie, oddBars, oddPath, oddGlyph, oddChirality, oddInner, oddNested, oddSize, oddHatch, oddBeadArrow, oddRelation, oddGear, oddSpiral, oddFlower, oddConcentric, oddClock, oddChain, oddBranch, oddRule, oddRule, oddRotOrder, oddCurvature, oddCube3D];
@@ -3331,7 +3405,7 @@
    * ================================================================== */
   /* ==== مبحثِ ترکیبی: سؤال از هر هفت مبحث با هم (کاپستون/نبردِ نهایی) ==== */
   function poolForMix(level) {
-    return poolFor(level).concat(poolForM2(level), poolForM3(level), poolForM4(level), poolForM5(level), poolForM6(level), poolForM7(level), poolForPenhan(level));
+    return poolFor(level).concat(poolForM2(level), poolForM3(level), poolForM4(level), poolForM5(level), poolForM6(level), poolForM7(level), poolForPenhan(level), poolForTajassom(level), poolForShomaresh(level), poolForSakhtar(level), poolForKaghaz(level));
   }
   function genMix(rng, level) { return rng.pick(poolForMix(level || 2))(rng, level || 2); }
   function lessonMix() {
@@ -3389,7 +3463,8 @@
     { id: 'sakhtar', n: 13, title: 'درک ساختار شکل‌ها', sub: 'تکه‌ی مکمل را پیدا کن', icon: '🧩', color: PAL.teal, ready: true, review: true, lesson: lessonSakhtar, gen: genSakhtar, pool: poolForSakhtar },
     { id: 'takmil', n: 14, title: 'تکمیل به شکلِ دلخواه', sub: 'دایره/لوزی/ذوزنقه…', icon: '🔵', color: PAL.fun, ready: true, review: true, lesson: lessonTakmil, gen: genTakmil, pool: poolForTakmil },
     { id: 'takmil2', n: 15, title: 'تکمیل (برشِ خمیده)', sub: 'زبانه و شکاف', icon: '🧩', color: PAL.tealD, ready: true, review: true, lesson: lessonTakmil2, gen: genTakmil2, pool: poolForTakmil2 },
-    { id: 'tarkibi', n: 17, title: 'آزمونِ استادان', sub: 'ترکیبِ همه‌ی مباحث', icon: '🎲', color: PAL.lilac, ready: true, lesson: lessonMix, gen: genMix, pool: poolForMix }
+    { id: 'tajassom', n: 17, title: 'تجسمِ فضایی (مکعب)', sub: 'چرخش و گسترده', icon: '🎲', color: PAL.tealD, ready: true, review: true, lesson: lessonTajassom, gen: genTajassom, pool: poolForTajassom },
+    { id: 'tarkibi', n: 18, title: 'آزمونِ استادان', sub: 'ترکیبِ همه‌ی مباحث', icon: '🎲', color: PAL.lilac, ready: true, lesson: lessonMix, gen: genMix, pool: poolForMix }
   ];
 
   /* ====================================================================
@@ -3556,6 +3631,7 @@
     ejraye_qaede: { place: 'کارخانه‌ی قاعده‌ها', title: 'مهندسِ قاعده‌ها', intro: 'کارخانه‌ی قاعده‌ها منتظرِ توست؛ قانونِ هر ماشین را کشف کن تا چرخ‌ها بچرخند.' },
     dastebandi: { place: 'کتابخانه‌ی دسته‌ها', title: 'کتابدارِ بزرگ', intro: 'در کتابخانه‌ی دسته‌ها، شکل‌ها را درست گروه‌بندی کن تا قفسه‌ها مرتب شوند.' },
     penhan: { place: 'اتاقِ تصویرهای پنهان', title: 'کارآگاهِ تصویرهای پنهان', intro: 'وارد اتاقِ تصویرهای پنهان شدی! این‌جا هر تصویرِ X لابه‌لای خط‌های یک گزینه قایم شده. با ریزبینی خط‌ها را دنبال کن و مخفیگاهِ X را پیدا کن.' },
+    tajassom: { place: 'برجِ مکعب‌ها', title: 'مهندسِ فضایی', intro: 'به برجِ مکعب‌ها رسیدی! این‌جا باید مکعب‌ها را در ذهنت بچرخانی و گسترده‌ها را تا بزنی. دنیای سه‌بعدی منتظرِ توست، مهندس!' },
     kaghaz: { place: 'کارگاهِ کاغذ و تا', title: 'استادِ کاغذِ جادویی', intro: 'به کارگاهِ کاغذ و تا رسیدی! این‌جا کاغذ را تا می‌زنیم و سوراخ می‌کنیم، و تو باید پیش‌بینی کنی بعد از بازکردن سوراخ‌ها کجا می‌افتند. خطِ تا را مثلِ آینه ببین!' },
     tarkib: { place: 'کارگاهِ پازلِ بزرگ', title: 'استادِ ترکیب', intro: 'به کارگاهِ پازلِ بزرگ رسیدی! این‌جا چند تکه پیشِ رویت است و باید جفتی را پیدا کنی که همان‌طور که هستند در هم می‌نشینند و یک شکلِ کامل می‌سازند. به لبه‌های برش دقت کن!' },
     shomaresh: { place: 'میدانِ شمارش', title: 'قهرمانِ شمارنده', intro: 'به میدانِ شمارش خوش آمدی! این‌جا تصویرها پر از شکل‌های جورواجورند و تو باید تعدادِ یک شکلِ خاص را دقیق بشماری. منظم و آرام بشمار تا هیچ‌کدام از قلم نیفتد.' },
@@ -4604,7 +4680,7 @@
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion, adaptivePick: adaptivePick, MABAHETH: MABAHETH,
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
-        oddCube3D: oddCube3D, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
+        oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
         oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, paperPunch: paperPunch, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
