@@ -28,6 +28,40 @@ export function InstallApp() {
       }
     }
 
+    // ── تورِ ایمنیِ سراسری ──────────────────────────────────────────────
+    // ۱) اگر یک درخواستِ شبکه پاسخِ خراب بدهد (مثلاً سرور خطای ۵۰۰ بدهد و به‌جای JSON
+    //    متن برگرداند)، خطایش نباید کلِ صفحه را از کار بیندازد.
+    const onRejection = (e: PromiseRejectionEvent) => {
+      const msg = String((e.reason && (e.reason.message || e.reason)) || "");
+      if (/not valid JSON|Unexpected token|Failed to fetch|NetworkError|Load failed/i.test(msg)) {
+        e.preventDefault();               // بی‌صدا رد شو؛ صفحه سالم می‌ماند
+        console.warn("network/JSON issue ignored:", msg.slice(0, 160));
+      }
+    };
+    window.addEventListener("unhandledrejection", onRejection);
+
+    // ۲) اگر یکی از فایل‌های جاواسکریپتِ برنامه بارگیری نشود (معمولاً به‌خاطرِ حافظهٔ
+    //    موقتِ کهنه پس از یک به‌روزرسانی)، یک‌بار خودش پاک‌سازی و تازه‌سازی می‌کند.
+    const onErr = (ev: ErrorEvent) => {
+      const m = String(ev?.message || "");
+      if (!/ChunkLoadError|Loading chunk|Importing a module script failed|dynamically imported module/i.test(m)) return;
+      try { if (sessionStorage.getItem("selfHealed") === "1") return; sessionStorage.setItem("selfHealed", "1"); } catch { return; }
+      (async () => {
+        try {
+          if ("serviceWorker" in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
+          }
+          if (typeof caches !== "undefined") {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k).catch(() => false)));
+          }
+        } catch { /* ignore */ }
+        location.reload();
+      })();
+    };
+    window.addEventListener("error", onErr);
+
     const onPrompt = (e: any) => {
       e.preventDefault();
       setDeferred(e);
@@ -37,7 +71,11 @@ export function InstallApp() {
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", () => { setHidden(true); setDeferred(null); });
-    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener("error", onErr);
+    };
   }, []);
 
   const install = async () => {
