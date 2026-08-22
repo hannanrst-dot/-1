@@ -1679,7 +1679,7 @@
     refs.label = 'تصویرِ «X» را خوب نگاه کن؛ داخلِ کدام گزینه کاملاً پنهان شده است؟';
     refs.letters = ['X'];
     return {
-      prompt: 'تصویرِ X در کدام گزینه پنهان شده است؟', tag: 'تصویرِ پنهان', refs: refs, wide: true,
+      prompt: 'تصویرِ X در کدام گزینه پنهان شده است؟', tag: 'تصویرِ پنهان', refs: refs,
       options: opts, answer: ansIdx,
       render: function (o) { return figure(drawKeys(o.keys), { size: 96 }); },
       why: 'اگر همه‌ی خط‌های تصویرِ X را دنبال کنی، دقیقاً در همین گزینه در کنارِ هم آمده‌اند (لابه‌لای خط‌های اضافی پنهان شده‌اند)؛ در گزینه‌های دیگر دستِ‌کم یکی از خط‌های X جا افتاده است.'
@@ -1746,7 +1746,7 @@
     refs.label = 'تصویرِ «X» را خوب نگاه کن؛ داخلِ کدام گزینه‌ی شلوغ کاملاً پنهان شده است؟';
     refs.letters = ['X'];
     return {
-      prompt: 'تصویرِ X در کدام گزینه پنهان شده است؟ (این‌بار شبکه شلوغ‌تر و خط‌های اضافه بیشترند)', tag: 'تصویرِ پنهانِ نوع ۲', refs: refs, wide: true,
+      prompt: 'تصویرِ X در کدام گزینه پنهان شده است؟ (این‌بار شبکه شلوغ‌تر و خط‌های اضافه بیشترند)', tag: 'تصویرِ پنهانِ نوع ۲', refs: refs,
       options: opts, answer: ansIdx,
       render: function (o) { return figure(drawKeys(o.keys), { size: 96 }); },
       why: 'همه‌ی خط‌های X را دنبال کن؛ فقط در همین گزینه همه‌ی آن‌ها کنارِ هم و به همان شکل آمده‌اند و لابه‌لای خط‌های اضافه پنهان شده‌اند. در گزینه‌های دیگر دستِ‌کم یکی از خط‌های X جا افتاده است.'
@@ -2587,10 +2587,20 @@
     });
   }
   function polySig(pts) { return pts.map(function (p) { return p[0] + ',' + p[1]; }).join(' '); }
+  // مرکزچین‌کردنِ یک تکه در قابِ ۱۰۰×۱۰۰ (بدونِ تغییرِ اندازه) تا زیبا و متوازن نمایش داده شود
+  function centerPts(pts) {
+    var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; });
+    var cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2, cy = (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2;
+    var dx = 50 - cx, dy = 50 - cy;
+    return pts.map(function (p) { return [p[0] + dx, p[1] + dy]; });
+  }
+  // امضای هندسیِ نهایی (پس از ترنسفورم و مرکزچین) برای یکتاسازیِ دقیقِ گزینه‌ها
+  function canonSig(pts) { return pts.map(function (p) { return Math.round(p[0]) + ',' + Math.round(p[1]); }).sort().join(' '); }
+  function finalSig(c) { return canonSig(centerPts(applyT(c.poly, c.rot || 0, c.mir))); }
   function pickDistinct(rng, correct, cand, count) {
-    var seen = {}; seen[polySig(applyT(correct.poly, correct.rot || 0, correct.mir))] = 1;
+    var seen = {}; seen[finalSig(correct)] = 1;
     var out = [], sh = rng.shuffle(cand);
-    for (var i = 0; i < sh.length && out.length < count - 1; i++) { var sg = polySig(applyT(sh[i].poly, sh[i].rot || 0, sh[i].mir)); if (!seen[sg]) { seen[sg] = 1; out.push(sh[i]); } }
+    for (var i = 0; i < sh.length && out.length < count - 1; i++) { var sg = finalSig(sh[i]); if (!seen[sg]) { seen[sg] = 1; out.push(sh[i]); } }
     return out;
   }
   // مبحث ۱۳: X + گزینه = مربعِ کامل (برشِ پله‌ای)
@@ -2612,18 +2622,18 @@
     var dists = pickDistinct(rng, correct, cand, count);
     while (dists.length < count - 1) { var c3 = stairCut(rng, kSteps); dists.push({ poly: c3.slice().concat([[90, 90], [90, 10]]), rot: 0, mir: null }); }
     var opts = [correct].concat(dists), order = rng.shuffle(opts);
-    var refs = [function () { return figure(polyFill(left, PAL.goldL), { size: 96 }); }]; refs.label = 'این تکه را داری (X):'; refs.letters = ['X'];
+    var refs = [function () { return figure(polyFill(centerPts(left), PAL.goldL), { size: 96 }); }]; refs.label = 'این تکه را داری (X):'; refs.letters = ['X'];
     return {
-      prompt: 'کدام گزینه با تکه‌ی X یک «مربعِ کامل» می‌سازد؟ (تکه را همان‌طور که هست کنارِ X بگذار)', tag: 'تکمیل به مربع', refs: refs, wide: true,
+      prompt: 'کدام گزینه با تکه‌ی X یک «مربعِ کامل» می‌سازد؟', tag: 'تکمیل به مربع', refs: refs,
       options: order, answer: order.indexOf(correct),
-      render: function (o) { return figure(polyFill(o.poly), { rot: o.rot || 0, mirror: o.mir || null, size: 96 }); },
+      render: function (o) { return figure(polyFill(centerPts(o.poly)), { rot: o.rot || 0, mirror: o.mir || null, size: 96 }); },
       why: 'لبه‌ی پله‌پله‌ی تکه‌ی X و تکه‌ی درست دقیقاً در هم جفت می‌شوند و با هم یک مربعِ کامل می‌سازند. بقیه‌ی گزینه‌ها یا چرخیده/آینه شده‌اند یا لبه‌ی پله‌شان با X جور نیست.'
     };
   }
   // مبحث ۱۶: X + گزینه = مثلثِ متساوی‌الاضلاع (برشِ رأس-به-قاعده)
   function pieceTriangle(rng, level, count) {
     count = count || 4;
-    var T = [50, 12], BL = [12, 84], BR = [88, 84];
+    var T = [50, 18], BL = [12, 84], BR = [88, 84];   // مثلثِ متساوی‌الاضلاعِ دقیق: ارتفاع = ضلع×√۳÷۲
     var qx = rng.pick([34, 42, 50, 58, 66]), Q = [qx, 84];
     var left = [T, BL, Q], right = [T, Q, BR];
     var qx2 = rng.pick([34, 42, 50, 58, 66].filter(function (v) { return v !== qx; })), right2 = [T, [qx2, 84], BR];
@@ -2632,11 +2642,11 @@
     var dists = pickDistinct(rng, correct, cand, count);
     while (dists.length < count - 1) { var qx3 = rng.pick([30, 38, 46, 54, 62, 70]); dists.push({ poly: [T, [qx3, 84], BR], rot: rng.pick([90, 270]), mir: null }); }
     var opts = [correct].concat(dists), order = rng.shuffle(opts);
-    var refs = [function () { return figure(polyFill(left, PAL.goldL), { size: 96 }); }]; refs.label = 'این تکه را داری (X):'; refs.letters = ['X'];
+    var refs = [function () { return figure(polyFill(centerPts(left), PAL.goldL), { size: 96 }); }]; refs.label = 'این تکه را داری (X):'; refs.letters = ['X'];
     return {
-      prompt: 'کدام گزینه با تکه‌ی X یک «مثلثِ متساوی‌الاضلاعِ کامل» می‌سازد؟', tag: 'تکمیل به مثلث', refs: refs, wide: true,
+      prompt: 'کدام گزینه با تکه‌ی X یک «مثلثِ متساوی‌الاضلاعِ کامل» می‌سازد؟', tag: 'تکمیل به مثلث', refs: refs,
       options: order, answer: order.indexOf(correct),
-      render: function (o) { return figure(polyFill(o.poly), { rot: o.rot || 0, mirror: o.mir || null, size: 96 }); },
+      render: function (o) { return figure(polyFill(centerPts(o.poly)), { rot: o.rot || 0, mirror: o.mir || null, size: 96 }); },
       why: 'تکه‌ی X و تکه‌ی درست، لبه‌ی برشِ مشترکشان دقیقاً روی هم می‌افتد و با هم یک مثلثِ متساوی‌الاضلاعِ کامل می‌سازند. گزینه‌های دیگر چرخیده/آینه شده‌اند یا محلِ برششان فرق دارد.'
     };
   }
@@ -2671,11 +2681,11 @@
     var dists = pickDistinct(rng, correct, cand, count);
     while (dists.length < count - 1) dists.push({ poly: ans, rot: rng.pick([90, 180, 270]), mir: rng.pick(['v', 'h']) });
     var opts = [correct].concat(dists.slice(0, count - 1)), order = rng.shuffle(opts);
-    var refs = [function () { return figure(polyFill(Xp, PAL.goldL), { size: 96 }); }]; refs.label = 'این تکه را داری (X):'; refs.letters = ['X'];
+    var refs = [function () { return figure(polyFill(centerPts(Xp), PAL.goldL), { size: 96 }); }]; refs.label = 'این تکه را داری (X):'; refs.letters = ['X'];
     return {
-      prompt: 'با گذاشتنِ کدام گزینه کنارِ تکه‌ی X، یک «' + SHAPEFA[kind] + 'ِ کامل» ساخته می‌شود؟', tag: 'تکمیل به ' + SHAPEFA[kind], refs: refs, wide: true,
+      prompt: 'با گذاشتنِ کدام گزینه کنارِ تکه‌ی X، یک «' + SHAPEFA[kind] + 'ِ کامل» ساخته می‌شود؟', tag: 'تکمیل به ' + SHAPEFA[kind], refs: refs,
       options: order, answer: order.indexOf(correct),
-      render: function (o) { return figure(polyFill(o.poly), { rot: o.rot || 0, mirror: o.mir || null, size: 96 }); },
+      render: function (o) { return figure(polyFill(centerPts(o.poly)), { rot: o.rot || 0, mirror: o.mir || null, size: 96 }); },
       why: 'تکه‌ی X و تکه‌ی درست، لبه‌ی برشِ مشترکشان دقیقاً روی هم می‌افتد و با هم یک ' + SHAPEFA[kind] + 'ِ کامل می‌سازند. گزینه‌های دیگر چرخیده/آینه شده‌اند یا محلِ برششان با X جور نیست.'
     };
   }
@@ -2697,11 +2707,11 @@
     var dists = pickDistinct(rng, correct, cand, count);
     while (dists.length < count - 1) dists.push({ poly: right, rot: rng.pick([90, 180, 270]), mir: rng.pick(['v', 'h']) });
     var opts = [correct].concat(dists.slice(0, count - 1)), order = rng.shuffle(opts);
-    var refs = [function () { return figure(polyFill(left, PAL.goldL), { size: 96 }); }]; refs.label = 'این تکه را داری (X):'; refs.letters = ['X'];
+    var refs = [function () { return figure(polyFill(centerPts(left), PAL.goldL), { size: 96 }); }]; refs.label = 'این تکه را داری (X):'; refs.letters = ['X'];
     return {
-      prompt: 'کدام گزینه با تکه‌ی X یک «مربعِ کامل» می‌سازد؟ (لبه‌ی برش این‌بار زبانه/شکاف دارد — خیلی دقت کن)', tag: 'تکمیل با برشِ خمیده', refs: refs, wide: true,
+      prompt: 'کدام گزینه با تکه‌ی X یک «مربعِ کامل» می‌سازد؟ (لبه‌ی برش این‌بار زبانه/شکاف دارد — خیلی دقت کن)', tag: 'تکمیل با برشِ خمیده', refs: refs,
       options: order, answer: order.indexOf(correct),
-      render: function (o) { return figure(polyFill(o.poly), { rot: o.rot || 0, mirror: o.mir || null, size: 96 }); },
+      render: function (o) { return figure(polyFill(centerPts(o.poly)), { rot: o.rot || 0, mirror: o.mir || null, size: 96 }); },
       why: 'لبه‌ی برشِ زبانه‌دارِ X فقط با یک تکه دقیقاً جفت می‌شود؛ زبانه‌ی یکی باید در شکافِ دیگری بنشیند. تکه‌های چرخیده/آینه یا با زبانه‌ی برعکس، شکاف را پر نمی‌کنند.'
     };
   }
@@ -2768,9 +2778,9 @@
     var cand = [kcount - 1, kcount + 1, kcount + 2, kcount - 2].filter(function (v) { return v >= 1 && v !== kcount; });
     var seen = {}; seen[kcount] = 1; var ds = []; for (var d = 0; d < cand.length && ds.length < 3; d++) { if (!seen[cand[d]]) { seen[cand[d]] = 1; ds.push(cand[d]); } }
     var opts = [{ v: kcount }].concat(ds.map(function (v) { return { v: v }; })), order = rng.shuffle(opts);
-    var refs = [function () { return figure(drawScene2(items), { size: 152, frame: false }); }]; refs.label = 'با دقت و یکی‌یکی بشمار:';
+    var refs = [function () { return figure(drawScene2(items), { size: 196, frame: false }); }]; refs.label = 'با دقت و یکی‌یکی بشمار:'; refs.letters = [''];
     return {
-      prompt: 'در این تصویر چند «' + TFA[target] + '» می‌بینی؟', tag: 'شمارشِ ' + TFA[target], refs: refs, wide: true,
+      prompt: 'در این تصویر چند «' + TFA[target] + '» می‌بینی؟', tag: 'شمارشِ ' + TFA[target], refs: refs,
       options: order, answer: order.indexOf(opts[0]),
       render: function (o) { var n = h('div', {}, toFa(o.v)); n.style.cssText = 'font-size:2rem;font-weight:800;color:' + PAL.ink + ';padding:6px 12px'; return n; },
       why: 'اگر با دقت و یکی‌یکی بشماری، دقیقاً ' + toFa(kcount) + ' تا «' + TFA[target] + '» در تصویر هست. شکل‌های دیگر را نشمار — فقط برای گمراه‌کردنِ تو آمده‌اند.'
