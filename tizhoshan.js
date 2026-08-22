@@ -2806,6 +2806,58 @@
     ];
   }
 
+  // مبحث ۱۱: ترکیبِ تکه‌ها — کدام دو تکه (همان‌طور که هستند، بدونِ چرخاندن) با هم یک شکلِ کامل می‌سازند؟
+  function assemblePair(rng, level, count) {
+    count = count || 4;
+    var target = rng.pick(['square', 'triangle']), TFA = { square: 'مربعِ کامل', triangle: 'مثلثِ متساوی‌الاضلاعِ کامل' };
+    var A, B;
+    if (target === 'square') { var cut = stairCut(rng, level >= 3 ? 3 : 2); A = [[10, 10]].concat(cut).concat([[10, 90]]); B = cut.slice().concat([[90, 90], [90, 10]]); }
+    else { var T = [50, 18], BL = [12, 84], BR = [88, 84], qx = rng.pick([40, 48, 56, 64]); A = [T, BL, [qx, 84]]; B = [T, [qx, 84], BR]; }
+    function decoy() {
+      if (target === 'square') { var c = stairCut(rng, level >= 3 ? 3 : 2), half = rng.next() < 0.5 ? [[10, 10]].concat(c).concat([[10, 90]]) : c.slice().concat([[90, 90], [90, 10]]); return { poly: half, rot: rng.pick([90, 180, 270]), mir: rng.pick([null, 'v']) }; }
+      var q2 = rng.pick([32, 44, 52, 60, 72]), half2 = rng.next() < 0.5 ? [[50, 18], [12, 84], [q2, 84]] : [[50, 18], [q2, 84], [88, 84]]; return { poly: half2, rot: rng.pick([90, 180, 270]), mir: null };
+    }
+    var pieces = [{ poly: A, rot: 0, mir: null }, { poly: B, rot: 0, mir: null }];
+    var seen = {}; seen[finalSig(pieces[0])] = 1; seen[finalSig(pieces[1])] = 1; var guard = 0;
+    while (pieces.length < 5 && guard++ < 100) { var d = decoy(), sg = finalSig(d); if (!seen[sg]) { seen[sg] = 1; pieces.push(d); } }
+    while (pieces.length < 5) pieces.push({ poly: A, rot: rng.pick([90, 180, 270]), mir: 'v' });
+    var order = rng.shuffle(pieces.map(function (p, i) { return { p: p, orig: i }; }));
+    var idxA = 0, idxB = 0; order.forEach(function (x, i) { if (x.orig === 0) idxA = i + 1; if (x.orig === 1) idxB = i + 1; });
+    var correctPair = [Math.min(idxA, idxB), Math.max(idxA, idxB)];
+    function pkey(p) { return p[0] + '-' + p[1]; } function ptxt(p) { return toFa(p[0]) + ' و ' + toFa(p[1]); }
+    var allPairs = []; for (var i = 1; i <= 5; i++) for (var j = i + 1; j <= 5; j++) allPairs.push([i, j]);
+    var seenP = {}; seenP[pkey(correctPair)] = 1; var wrong = [], shP = rng.shuffle(allPairs);
+    for (var k = 0; k < shP.length && wrong.length < count - 1; k++) { var pk = pkey(shP[k]); if (!seenP[pk]) { seenP[pk] = 1; wrong.push(shP[k]); } }
+    var opts = [{ pair: correctPair }].concat(wrong.map(function (p) { return { pair: p }; })), ord = rng.shuffle(opts);
+    var refs = order.map(function (x) { return function () { return figure(polyFill(centerPts(applyT(x.p.poly, x.p.rot, x.p.mir)), PAL.tealL), { size: 78 }); }; });
+    refs.label = 'این پنج تکه را ببین (بدونِ چرخاندن):'; refs.letters = ['۱', '۲', '۳', '۴', '۵'];
+    return {
+      prompt: 'از کنارِ هم گذاشتنِ کدام دو تکه (همان‌طور که هستند)، یک «' + TFA[target] + '» ساخته می‌شود؟', tag: 'ترکیبِ تکه‌ها (' + (target === 'square' ? 'مربع' : 'مثلث') + ')', refs: refs,
+      options: ord, answer: ord.indexOf(opts[0]),
+      render: function (o) { var n = h('div', {}, ptxt(o.pair)); n.style.cssText = 'font-size:1.5rem;font-weight:800;color:' + PAL.ink + ';padding:8px 16px'; return n; },
+      why: 'فقط تکه‌های شماره‌ی ' + ptxt(correctPair) + ' لبه‌ی برششان دقیقاً در هم جفت می‌شود و با هم یک ' + TFA[target] + ' می‌سازد. بقیه‌ی تکه‌ها چرخیده‌اند یا از برشِ دیگری‌اند و همان‌طور که هستند جور نمی‌شوند.'
+    };
+  }
+  function poolForTarkib(level) { return [assemblePair]; }
+  function genTarkib(rng, level) { return assemblePair(rng, level || 2); }
+  function lessonTarkib() {
+    var seed = (Date.now() & 0xffff) | 1;
+    function ex(level) { return function () { return buildInteractive(toInter(assemblePair(new RNG(seed++), level || 2))); }; }
+    return [
+      { title: 'پازلِ دو‌تکه‌ای 🧩🧩',
+        body: 'در این مبحث پنج تکه به تو نشان داده می‌شود. باید پیدا کنی کدام دو تکه، اگر همان‌طور که هستند (بدونِ چرخاندن) کنارِ هم بگذاری، با هم یک شکلِ کاملِ درست — مثلِ مربع یا مثلثِ متساوی‌الاضلاع — می‌سازند.',
+        art: function () { return figure(polyFill([[14, 14], [54, 14], [40, 50], [54, 86], [14, 86]], PAL.tealL), { size: 112, frame: true }); } },
+      { title: 'راز: دو لبه‌ی برشِ جفت‌شونده 🔑',
+        body: 'دنبالِ دو تکه‌ای بگرد که لبه‌ی برششان «برعکسِ هم» باشد؛ جایی که یکی برجستگی دارد، دیگری باید فرورفتگی داشته باشد تا در هم بنشینند. تکه‌های چرخیده را کنار بگذار — چون قرار نیست بچرخانی، لبه‌ی چرخیده جفت نمی‌شود.',
+        art: function () { return figure(polyFill([[46, 14], [86, 14], [86, 86], [46, 86], [60, 50]], PAL.goldL), { size: 112, frame: true }); } },
+      { title: 'تمرینِ ۱ ✏️', interactive: ex(1) },
+      { title: 'تمرینِ ۲ ✏️', interactive: ex(2) },
+      { title: 'آماده‌ای! 🌟',
+        body: 'حالا می‌توانی بینِ چند تکه، جفتِ درست را پیدا کنی. این مهارت، ترکیبِ «درکِ ساختار» و «تجسمِ فضایی» است — قلبِ سؤال‌های سختِ تیزهوشان!',
+        art: function () { return figure(mBoot, { size: 104, frame: false }); } }
+    ];
+  }
+
   function poolForSakhtar(level) { return level >= 2 ? [pieceSquare, pieceSquare, pieceTriangle, pieceBent] : [pieceSquare, pieceTriangle]; }
   function genSakhtar(rng, level) { return rng.pick(poolForSakhtar(level || 2))(rng, level || 2); }
   function lessonSakhtar() {
@@ -3202,6 +3254,7 @@
     { id: 'penhan', n: 8, title: 'تصویرِ پنهان', sub: 'X کجا پنهان شده؟', icon: '🕵️', color: PAL.gold, ready: true, review: true, lesson: lessonPenhan, gen: genPenhan, pool: poolForPenhan },
     { id: 'penhan2', n: 9, title: 'تصویرِ پنهان (نوع ۲)', sub: 'شبکه‌ی شلوغ‌تر', icon: '🔬', color: PAL.sky, ready: true, review: true, lesson: lessonPenhan2, gen: genPenhan2, pool: poolForPenhan2 },
     { id: 'shomaresh', n: 10, title: 'شمارشِ اجزا', sub: 'چند شکل می‌بینی؟', icon: '🔢', color: PAL.gold, ready: true, review: true, lesson: lessonShomaresh, gen: genShomaresh, pool: poolForShomaresh },
+    { id: 'tarkib', n: 11, title: 'ترکیبِ تکه‌ها', sub: 'کدام دو تکه جور می‌شوند؟', icon: '🪅', color: PAL.lilac, ready: true, review: true, lesson: lessonTarkib, gen: genTarkib, pool: poolForTarkib },
     { id: 'sakhtar', n: 13, title: 'درک ساختار شکل‌ها', sub: 'تکه‌ی مکمل را پیدا کن', icon: '🧩', color: PAL.teal, ready: true, review: true, lesson: lessonSakhtar, gen: genSakhtar, pool: poolForSakhtar },
     { id: 'takmil', n: 14, title: 'تکمیل به شکلِ دلخواه', sub: 'دایره/لوزی/ذوزنقه…', icon: '🔵', color: PAL.fun, ready: true, review: true, lesson: lessonTakmil, gen: genTakmil, pool: poolForTakmil },
     { id: 'takmil2', n: 15, title: 'تکمیل (برشِ خمیده)', sub: 'زبانه و شکاف', icon: '🧩', color: PAL.tealD, ready: true, review: true, lesson: lessonTakmil2, gen: genTakmil2, pool: poolForTakmil2 },
@@ -3372,6 +3425,7 @@
     ejraye_qaede: { place: 'کارخانه‌ی قاعده‌ها', title: 'مهندسِ قاعده‌ها', intro: 'کارخانه‌ی قاعده‌ها منتظرِ توست؛ قانونِ هر ماشین را کشف کن تا چرخ‌ها بچرخند.' },
     dastebandi: { place: 'کتابخانه‌ی دسته‌ها', title: 'کتابدارِ بزرگ', intro: 'در کتابخانه‌ی دسته‌ها، شکل‌ها را درست گروه‌بندی کن تا قفسه‌ها مرتب شوند.' },
     penhan: { place: 'اتاقِ تصویرهای پنهان', title: 'کارآگاهِ تصویرهای پنهان', intro: 'وارد اتاقِ تصویرهای پنهان شدی! این‌جا هر تصویرِ X لابه‌لای خط‌های یک گزینه قایم شده. با ریزبینی خط‌ها را دنبال کن و مخفیگاهِ X را پیدا کن.' },
+    tarkib: { place: 'کارگاهِ پازلِ بزرگ', title: 'استادِ ترکیب', intro: 'به کارگاهِ پازلِ بزرگ رسیدی! این‌جا چند تکه پیشِ رویت است و باید جفتی را پیدا کنی که همان‌طور که هستند در هم می‌نشینند و یک شکلِ کامل می‌سازند. به لبه‌های برش دقت کن!' },
     shomaresh: { place: 'میدانِ شمارش', title: 'قهرمانِ شمارنده', intro: 'به میدانِ شمارش خوش آمدی! این‌جا تصویرها پر از شکل‌های جورواجورند و تو باید تعدادِ یک شکلِ خاص را دقیق بشماری. منظم و آرام بشمار تا هیچ‌کدام از قلم نیفتد.' },
     penhan2: { place: 'آزمایشگاهِ ذره‌بین', title: 'کارآگاهِ ارشدِ تصویرها', intro: 'به آزمایشگاهِ ذره‌بین خوش آمدی! این‌جا تصویرِ X در شبکه‌های شلوغ و پرخط پنهان شده. با ذره‌بین و صبر، خط‌به‌خط ردِّ X را بگیر و مخفیگاهش را پیدا کن.' },
     sakhtar: { place: 'کارگاهِ مهندسیِ شکل‌ها', title: 'مهندسِ بزرگِ شکل‌ها', intro: 'به کارگاهِ مهندسیِ شکل‌ها خوش آمدی! این‌جا هر شکل با یک برش به دو تکه شده و تو باید تکه‌ی مکمل را پیدا کنی تا شکلِ کامل ساخته شود. به لبه‌های برش خوب دقت کن!' },
@@ -4419,7 +4473,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
