@@ -1936,7 +1936,36 @@
       why: 'در گسترده‌ی صلیبی، نوارِ عمودیِ چهارتایی دورِ مکعب می‌پیچد؛ پس در آن نوار هر وجه با وجهی که «دو خانه آن‌طرف‌تر» است روبه‌رو می‌شود. دو بالکِ چپ و راست هم روبه‌روی هم‌اند. وجه‌هایی که در گسترده کنارِ هم‌اند، هرگز روبه‌روی هم نمی‌شوند.'
     };
   }
-  function poolForTajassom(level) { return level >= 2 ? [oddCube3D, cubeNetOpposite, cubeNetOpposite] : [oddCube3D, cubeNetOpposite]; }
+  /* ==== کدام گسترده این مکعب را می‌سازد؟ ====
+   * قانونِ قطعیِ حذف: سه وجهی که در تصویرِ مکعب هم‌زمان دیده می‌شوند، حتماً «مجاور»اند؛
+   * پس در گسترده‌ی درست هیچ دو تای آن‌ها نباید «روبه‌رو» باشند. در هر گزینه‌ی غلط،
+   * دستِ‌کم دو تا از همان سه نقش روبه‌روی هم افتاده‌اند ⇒ ساختنِ آن مکعب محال است.
+   */
+  function netOppPairs(m) { return [[m[0], m[4]], [m[2], m[5]], [m[1], m[3]]]; }   // A↔E ، C↔F ، B↔D
+  function cubeFromNet(rng, level, count) {
+    count = count || 4;
+    var m = rng.sample(['circle', 'square', 'triangle', 'plus', 'dot', 'ex'], 6);
+    // یکی از هر جفتِ روبه‌رو را به‌عنوانِ وجه‌های دیدنی برمی‌داریم ⇒ حتماً سه‌تایی مجاورند
+    var idxPairs = [[0, 4], [2, 5], [1, 3]];
+    var vis = idxPairs.map(function (p) { return rng.next() < 0.5 ? p[0] : p[1]; });
+    var partnerOf = {}; idxPairs.forEach(function (p) { partnerOf[p[0]] = p[1]; partnerOf[p[1]] = p[0]; });
+    var faces = rng.shuffle(vis.map(function (i) { return m[i]; }));                 // بالا / چپ / راست
+    function swapNet(i, j) { var c = m.slice(), t = c[i]; c[i] = c[j]; c[j] = t; return c; }
+    var cand = [swapNet(vis[1], partnerOf[vis[0]]), swapNet(vis[2], partnerOf[vis[0]]), swapNet(vis[2], partnerOf[vis[1]]), swapNet(vis[0], partnerOf[vis[2]])];
+    function netKey(a) { return a.join('|'); }
+    var seen = {}; seen[netKey(m)] = 1; var dists = [], sh = rng.shuffle(cand);
+    for (var i = 0; i < sh.length && dists.length < count - 1; i++) { var k = netKey(sh[i]); if (!seen[k]) { seen[k] = 1; dists.push(sh[i]); } }
+    var opts = [{ net: m }].concat(dists.map(function (d) { return { net: d }; })), order = rng.shuffle(opts);
+    var refs = [function () { return figure(drawCube(faces), { size: 116, frame: false }); }];
+    refs.label = 'این مکعب را ببین:'; refs.letters = [''];
+    return {
+      prompt: 'کدام گسترده، با تا خوردن، همین مکعب را می‌سازد؟', tag: 'گسترده‌سازیِ مکعب', refs: refs, wide: true, visibleFaces: faces,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(cubeNetFig(o.net), { size: 112, frame: false }); },
+      why: 'سه نقشی که روی مکعب هم‌زمان دیده می‌شوند، کنارِ هم (مجاور) هستند؛ پس در گسترده هیچ‌کدامشان نباید روبه‌روی دیگری بیفتد. در گزینه‌های غلط، دستِ‌کم دو تا از همین سه نقش روبه‌روی هم قرار گرفته‌اند و ساختنِ این مکعب از آن‌ها محال است.'
+    };
+  }
+  function poolForTajassom(level) { return level >= 3 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeFromNet] : level >= 2 ? [oddCube3D, cubeNetOpposite, cubeFromNet] : [oddCube3D, cubeNetOpposite]; }
   function genTajassom(rng, level) { return rng.pick(poolForTajassom(level || 2))(rng, level || 2); }
   function lessonTajassom() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -1953,6 +1982,10 @@
         body: 'گسترده، مکعبِ بازشده است. قانونِ طلایی: وجه‌هایی که در گسترده «کنارِ هم» هستند، بعد از تاشدن کنارِ هم می‌مانند و هرگز روبه‌روی هم نمی‌شوند. در نوارِ چهارتایی، هر وجه با وجهی که «یکی در میان» (دو خانه آن‌طرف‌تر) است روبه‌رو می‌شود.',
         art: function () { return figure(cubeNetFig(['circle', 'square', 'triangle', 'plus', 'dot', 'ex']), { size: 130, frame: false }); } },
       { title: 'تمرینِ گسترده ✏️', interactive: ex(cubeNetOpposite, 2) },
+      { title: 'راز ۳ — قانونِ حذف 🚫',
+        body: 'گاهی برعکس می‌پرسند: «کدام گسترده این مکعب را می‌سازد؟» این‌جا یک قانونِ قطعی داری: سه نقشی که روی مکعب هم‌زمان می‌بینی، حتماً کنارِ هم (مجاور) هستند. پس هر گستره‌ای که دو تا از آن سه نقش را روبه‌روی هم گذاشته باشد، فوراً حذف می‌شود!',
+        art: function () { return figure(drawCube(['circle', 'square', 'ex']), { size: 112, frame: false }); } },
+      { title: 'تمرینِ گسترده‌سازی ✏️', interactive: ex(cubeFromNet, 2) },
       { title: 'آماده‌ای، مهندسِ فضایی! 🌟',
         body: 'حالا هم می‌توانی مکعب را در ذهنت بچرخانی و هم گسترده را تا بزنی. این مهارت با تمرین قوی‌تر می‌شود — هر بار سعی کن قبل از نگاه‌کردن به گزینه‌ها، جواب را در ذهنت بسازی!',
         art: function () { return figure(mBoot, { size: 104, frame: false }); } }
@@ -4680,7 +4713,7 @@
     window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion, adaptivePick: adaptivePick, MABAHETH: MABAHETH,
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
-        oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
+        oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
         oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, paperPunch: paperPunch, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
