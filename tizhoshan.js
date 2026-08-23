@@ -2287,6 +2287,149 @@
       why: 'ستون‌به‌ستون بشمار: چهار ستون داریم با ارتفاع‌های ' + toFa(h00) + '، ' + toFa(h01) + '، ' + toFa(h10) + ' و ' + toFa(h11) + '. مجموعشان ' + toFa(total) + ' مکعب می‌شود. فقط مکعب‌های رویی را نشمار!'
     };
   }
+  /* ==== نمای از روبه‌رو / نمای از بالا (تجسمِ فضاییِ سطحِ ۴-۵) ====
+   * بنا روی پایه‌ی n×n با ارتفاعِ H[r][c] ساخته می‌شود؛ r از عقب به جلو، c از چپ به راست.
+   *   نمای روبه‌رو : برای هر ستونِ c، ارتفاع = بیشینه‌ی H[r][c] روی همه‌ی rها.
+   *   نمای بالا    : خانه‌ی (r,c) پُر است اگر H[r][c] > 0.
+   * هر دو نما با «کادرِ کاملِ شبکه» رسم می‌شوند تا اندازه‌ی همه‌ی گزینه‌ها یکسان بماند
+   * و هیچ گزینه‌ای از روی بزرگی/کوچکی لو نرود (بندِ ۱۱).
+   */
+  function isoBuild(H, marker) {
+    var n = H.length, maxH = 1, r, c;
+    for (r = 0; r < n; r++) for (c = 0; c < n; c++) if (H[r][c] > maxH) maxH = H[r][c];
+    return function (g) {
+      var k0 = marker ? 0.84 : 1;
+      var hw = Math.min(46 / n, 92 / ((2 * n - 1) * 0.56 + maxH)) * k0, hh = hw * 0.56, ch = hw, list = [];
+      for (var i = 0; i < n; i++) for (var j = 0; j < n; j++) for (var k = 0; k < H[i][j]; k++) list.push([i, j, k]);
+      list.sort(function (a, b) { return (a[0] + a[1]) - (b[0] + b[1]) || a[2] - b[2]; });
+      var ox = 50 + (marker ? 7 : 0), oy = 50 - ((2 * n - 2) * hh + ch - (maxH - 1) * ch - hh) / 2 - (marker ? 5 : 0);
+      var lw = Math.max(1.2, hw * 0.13);
+      list.forEach(function (t) {
+        var X = ox + (t[1] - t[0]) * hw, Y = oy + (t[0] + t[1]) * hh - t[2] * ch;
+        function P(a) { return a.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '); }
+        add(g, 'polygon', merge(DEF, { points: P([[X, Y - hh], [X + hw, Y], [X, Y + hh], [X - hw, Y]]), fill: '#ffffff', 'stroke-width': lw }));
+        add(g, 'polygon', merge(DEF, { points: P([[X - hw, Y], [X, Y + hh], [X, Y + hh + ch], [X - hw, Y + ch]]), fill: PAL.cream, 'stroke-width': lw }));
+        add(g, 'polygon', merge(DEF, { points: P([[X + hw, Y], [X, Y + hh], [X, Y + hh + ch], [X + hw, Y + ch]]), fill: '#f1f2fb', 'stroke-width': lw }));
+      });
+      /* نشانگرِ «جای ایستادنِ بیننده»: در نمای ایزومتریک دو دیوار رو به ما هستند،
+       * پس بدونِ این نشانه معلوم نیست «روبه‌رو» کدام است. چشم پایین-چپ می‌ایستد و
+       * نگاهش (پیکانِ خط‌چین) به سمتِ دیوارِ کِرِمی‌رنگ می‌رود. */
+      if (marker) {
+        add(g, 'circle', { cx: 11, cy: 90, r: 4.8, fill: '#ffffff', stroke: PAL.teal, 'stroke-width': 1.9 });
+        add(g, 'circle', { cx: 11, cy: 90, r: 2, fill: PAL.teal, stroke: 'none' });
+        add(g, 'path', merge(DEF, { d: 'M16.6 85.4 L28.6 73.4', stroke: PAL.teal, 'stroke-width': 2.1, 'stroke-dasharray': '3.6 2.8', fill: 'none' }));
+        add(g, 'polygon', { points: '32.5,70.5 30.8,75.9 27.1,72.2', fill: PAL.teal, stroke: 'none' });
+      }
+    };
+  }
+  // شبکه‌ی نما: cols×rows خانه؛ mask[y][x]=1 یعنی پُر. کادرِ کامل همیشه کشیده می‌شود.
+  function viewGrid(mask) {
+    var rows = mask.length, cols = mask[0].length;
+    return function (g) {
+      var sz = Math.min(66 / cols, 66 / rows), ox = 50 - cols * sz / 2, oy = 50 - rows * sz / 2;
+      for (var y = 0; y < rows; y++) for (var x = 0; x < cols; x++) {
+        add(g, 'rect', merge(DEF, {
+          x: (ox + x * sz).toFixed(1), y: (oy + y * sz).toFixed(1), width: sz.toFixed(1), height: sz.toFixed(1),
+          fill: mask[y][x] ? PAL.cream : '#ffffff', stroke: mask[y][x] ? PAL.line : '#e3e6f4', 'stroke-width': mask[y][x] ? 2.4 : 1.1
+        }));
+      }
+    };
+  }
+  function maskSig(m) { return m.map(function (r) { return r.join(''); }).join('|'); }
+  /* یک ردیفِ خالیِ اضافه بالای شبکه می‌گذاریم تا (الف) کادرِ همه‌ی گزینه‌ها یکسان بماند و
+   * (ب) همیشه بشود گزینه‌ی انحرافیِ «یک طبقه بلندتر» ساخت؛ پس پاسخ هرگز «پُرترین» گزینه نیست. */
+  function profToMask(prof, maxH) {                 // نمای روبه‌رو: ستونِ c به ارتفاعِ prof[c]
+    var rows = [], y, x, R = maxH + 1;
+    for (y = 0; y < R; y++) { var row = []; for (x = 0; x < prof.length; x++) row.push(prof[x] >= R - y ? 1 : 0); rows.push(row); }
+    return rows;
+  }
+  /* ساختِ بنایی که «هیچ ستون و هیچ خانه‌ی خالی‌اش پنهان نمی‌ماند».
+   * در این تصویرِ ایزومتریک، ستونِ (r,c) را فقط ستونِ (r+1,c+1) می‌تواند بپوشاند؛
+   * محاسبه نشان می‌دهد رویه‌ی بالاییِ (r,c) وقتی دیده می‌شود که max(H,1) روی هر
+   * قطرِ ↘ از عقب به جلو زیاد نشود. پس همان قراردادِ آشنای «هرچه عقب‌تر، بلندتر»
+   * را روی قطرها اعمال می‌کنیم ⇒ سؤال همیشه پاسخ‌پذیر است (بندِ ۹: بی‌ابهامی).
+   */
+  function randomBuild(rng, n, top, maxEmpty) {
+    var V = [], H, r, c;
+    for (r = 0; r < n; r++) { V.push([]); for (c = 0; c < n; c++) V[r][c] = rng.int(1, (r > 0 && c > 0) ? V[r - 1][c - 1] : top); }
+    var ones = [];
+    for (r = 0; r < n; r++) for (c = 0; c < n; c++) if (V[r][c] === 1) ones.push([r, c]);
+    if (!ones.length) return null;                                   // جایی برای خانه‌ی خالی نیست
+    var pick = rng.sample(ones, Math.min(ones.length, rng.int(1, maxEmpty)));
+    H = V.map(function (row) { return row.slice(); });
+    pick.forEach(function (p) { H[p[0]][p[1]] = 0; });                // خانه‌ی خالی فقط جایی که ارتفاعش ۱ بود ⇒ قطر خراب نمی‌شود
+    var tot = 0, mx = 0;
+    for (r = 0; r < n; r++) for (c = 0; c < n; c++) { tot += H[r][c]; if (H[r][c] > mx) mx = H[r][c]; }
+    return (tot >= n * n && mx >= 2) ? H : null;                      // نه خیلی تُنُک، نه تخت
+  }
+  function buildViews(rng, level, count) {
+    count = count || 4;
+    var n = level >= 2 ? 3 : 2, top = 3, H = null, guard = 0;
+    while (!H && guard++ < 300) H = randomBuild(rng, n, top, n === 3 ? 2 : 1);
+    if (!H) {                                                        // پشتیبانِ قطعی و همچنان «کاملاً دیدنی»
+      H = []; for (var q = 0; q < n; q++) { H.push([]); for (var w = 0; w < n; w++) H[q][w] = Math.max(1, top - Math.max(q, w)); }
+      H[n - 1][n - 1] = 0;
+    }
+    var maxH = 1, r, c;
+    for (r = 0; r < n; r++) for (c = 0; c < n; c++) if (H[r][c] > maxH) maxH = H[r][c];
+
+    var front = [], side = [], mins = [];             // بیشینه روی r ، بیشینه روی c ، کمینه روی r
+    for (c = 0; c < n; c++) { var mx = 0, mn = 99; for (r = 0; r < n; r++) { if (H[r][c] > mx) mx = H[r][c]; if (H[r][c] < mn) mn = H[r][c]; } front.push(mx); mins.push(mn); }
+    for (r = 0; r < n; r++) { var mx2 = 0; for (c = 0; c < n; c++) if (H[r][c] > mx2) mx2 = H[r][c]; side.push(mx2); }
+
+    var isTop = level >= 3 && rng.int(0, 1) === 1, correct, cands = [];
+    if (isTop) {
+      var tm = []; for (r = 0; r < n; r++) { tm.push([]); for (c = 0; c < n; c++) tm[r][c] = H[r][c] > 0 ? 1 : 0; }
+      correct = tm;
+      var t2 = []; for (r = 0; r < n; r++) { t2.push([]); for (c = 0; c < n; c++) t2[r][c] = H[r][c] > 1 ? 1 : 0; }
+      var tr = []; for (r = 0; r < n; r++) { tr.push([]); for (c = 0; c < n; c++) tr[r][c] = tm[c][r]; }               // ترانهاده (جابه‌جاییِ عقب/چپ)
+      var mi = tm.map(function (row) { return row.slice().reverse(); });                                                // آینه‌ی چپ‌راست
+      var empties = [], fulls = [];
+      for (r = 0; r < n; r++) for (c = 0; c < n; c++) (tm[r][c] ? fulls : empties).push([r, c]);
+      var fl = tm.map(function (row) { return row.slice(); });                                                          // یک خانه‌ی خالی را پُر کن ⇒ پُرتر از پاسخ (بندِ ۱۱)
+      if (empties.length) { var e1 = empties[rng.int(0, empties.length - 1)]; fl[e1[0]][e1[1]] = 1; }
+      var fl2 = tm.map(function (row) { return row.slice(); });                                                         // یک خانه‌ی پُر را خالی کن
+      if (fulls.length) { var f1 = fulls[rng.int(0, fulls.length - 1)]; fl2[f1[0]][f1[1]] = 0; }
+      cands = rng.shuffle([fl, tr, mi, t2, fl2, tm.slice().reverse()]);
+    } else {
+      correct = profToMask(front, maxH);
+      var pMin = profToMask(mins, maxH);                                                    // به‌جای بیشینه، کمینه
+      var pSide = profToMask(side, maxH);                                                   // نمای کناری به‌جای روبه‌رو
+      var pRev = profToMask(front.slice().reverse(), maxH);                                 // چپ‌وراست وارونه
+      var pRow = profToMask(H[0].slice(), maxH);                                            // فقط ردیفِ عقب
+      var pRow2 = profToMask(H[n - 1].slice(), maxH);                                       // فقط ردیفِ جلو
+      var d1 = front.slice(), dj = rng.int(0, n - 1); d1[dj] = Math.max(0, d1[dj] - 1);
+      var d2 = front.slice(), di = rng.int(0, n - 1); d2[di] = d2[di] + 1;   // همیشه پُرتر از پاسخ (بندِ ۱۱)
+      cands = rng.shuffle([pSide, pMin, pRev, pRow, pRow2, profToMask(d1, maxH), profToMask(d2, maxH)]);
+    }
+    var seen = {}; seen[maskSig(correct)] = 1;
+    var opts = [{ m: correct }];
+    for (var i = 0; i < cands.length && opts.length < count; i++) {
+      var sg = maskSig(cands[i]); if (seen[sg]) continue; seen[sg] = 1; opts.push({ m: cands[i] });
+    }
+    var g2 = 0;
+    while (opts.length < count && g2++ < 400) {                                             // پرکننده‌ی یکتا — همیشه شکلِ «معتبر» می‌سازد
+      var rm;
+      if (isTop) { rm = correct.map(function (row) { return row.slice(); }); var y = rng.int(0, n - 1), x = rng.int(0, n - 1); rm[y][x] = rm[y][x] ? 0 : 1; }
+      else { var pf = front.map(function (v) { return Math.max(0, Math.min(maxH + 1, v + rng.int(-1, 1))); }); rm = profToMask(pf, maxH); }
+      var s2 = maskSig(rm); if (seen[s2]) continue; seen[s2] = 1; opts.push({ m: rm });
+    }
+    if (opts.length < count) return cubeCount(rng, level);
+    var order = rng.shuffle(opts);
+    var refs = [function () { return figure(isoBuild(H, true), { size: 176, frame: false }); }];
+    refs.label = isTop ? 'بیننده کنارِ 👁 ایستاده. حالا بنا را از «بالا» (از سقف) ببین:' : 'بیننده کنارِ 👁 ایستاده و در جهتِ پیکان نگاه می‌کند؛ نمای او را پیدا کن:';
+    refs.letters = [''];
+    var whyF = 'از جای 👁 که نگاه کنی، هر ستون را فقط با «بلندترین» مکعبش می‌بینی و مکعب‌های پشتِ آن پنهان می‌شوند. از چپ به راست، بلندیِ ستون‌ها ' + front.map(toFa).join('، ') + ' است؛ همین می‌شود نمای روبه‌رو.';
+    var whyT = 'در نمای از بالا ارتفاع مهم نیست؛ فقط ببین کدام خانه‌های کفِ بنا مکعب دارند و کدام خالی‌اند. ردیفی که نزدیکِ 👁 است پایینِ نقشه می‌آید و ترتیبِ چپ‌به‌راست همان است که از روبه‌رو می‌بینی.';
+    return {
+      prompt: isTop ? 'کدام گزینه «نمای از بالا»ی این بنا است؟' : 'کدام گزینه «نمای از روبه‌رو»ی این بنا است؟',
+      tag: isTop ? 'نمای از بالا' : 'نمای از روبه‌رو', refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(viewGrid(o.m), { size: 92 }); },
+      why: isTop ? whyT : whyF
+    };
+  }
+
   /* ==== «کدام گزینه همان مکعبِ اول است؟» (تجسمِ فضاییِ سطحِ ۴-۵) ====
    * چرخشِ فیزیکیِ مکعب فقط جایگشتِ «چرخه‌ای» سه وجهِ دیدنی را می‌سازد.
    * جایگشتِ پادچرخه‌ای = تصویرِ آینه‌ای ⇒ مکعبِ دیگری است و ساختنش با چرخش محال است.
@@ -2315,7 +2458,7 @@
       why: 'وقتی مکعب می‌چرخد، سه وجهِ دیدنی جایشان «چرخه‌ای» عوض می‌شود (اولی جای دومی، دومی جای سومی، سومی جای اولی). اگر ترتیب برعکسِ چرخه شود، آن تصویر «آینه»ی مکعب است و با هیچ چرخشی به‌دست نمی‌آید.'
     };
   }
-  function poolForTajassom(level) { return level >= 3 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeCount, cubeNetInvalid, sameCubeRotated, sameCubeRotated] : level >= 2 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeCount, cubeNetInvalid, sameCubeRotated] : [oddCube3D, cubeNetOpposite, cubeCount, sameCubeRotated]; }
+  function poolForTajassom(level) { return level >= 3 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeCount, cubeNetInvalid, sameCubeRotated, sameCubeRotated, buildViews, buildViews] : level >= 2 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeCount, cubeNetInvalid, sameCubeRotated, buildViews] : [oddCube3D, cubeNetOpposite, cubeCount, sameCubeRotated, buildViews]; }
   function genTajassom(rng, level) { return rng.pick(poolForTajassom(level || 2))(rng, level || 2); }
   function lessonTajassom() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -4529,6 +4672,7 @@
    * ================================================================ */
   var SKILL_RULES = [
     { re: /پنهان/, skill: 'استدلال تصویری', sub: 'یافتن شکل در زمینه', err: 'دنبال‌نکردنِ همه‌ی خط‌های X و رهاکردنِ مسیر در میانه', sec: 55 },
+    { re: /نمای از/, skill: 'تجسم فضایی', sub: 'نمای دوبعدی از حجم', err: 'شمردنِ ارتفاعِ ستونِ جلویی به‌جای بلندترین ستونِ آن ردیف', sec: 60 },
     { re: /مکعب|گسترده|بنا/, skill: 'تجسم فضایی', sub: 'چرخشِ ذهنی و تاکردن', err: 'اشتباه‌گرفتنِ وجه‌های مجاور با وجه‌های روبه‌رو', sec: 60 },
     { re: /کاغذ/, skill: 'تجسم فضایی', sub: 'تاکردن و بازکردن', err: 'حساب‌نکردنِ همه‌ی خطوطِ تا (قرینه‌ی ناقص)', sec: 55 },
     { re: /تکمیل|ترکیبِ تکه/, skill: 'استدلال تصویری', sub: 'ترکیب و تفکیک اشکال', err: 'انتخابِ تکه‌ی چرخیده یا آینه‌شده به‌جای تکه‌ی جفت‌شونده', sec: 50 },
@@ -5451,7 +5595,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
