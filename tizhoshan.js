@@ -2792,8 +2792,8 @@
     return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکلِ باز به‌تدریج بسته می‌شود (شکاف کم‌کم پر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'بسته‌شدنِ تدریجی', 'در گزینه‌ی درست، شکاف مرتب کوچک‌تر می‌شود تا دایره کامل و بسته شود؛ اما در بقیه این روند منظم نیست.');
   }
   var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair, matrix3x3, seriesComplete, seriesComplete, dominoNext];
-  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating];
-  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound, matrixLogic3x3, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating, seriesAlternating];
+  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating, conditionalRule];
+  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound, matrixLogic3x3, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating, conditionalRule, conditionalRule];
   function poolForM6(level) { return level >= 3 ? M6_HARD : level === 2 ? M6_MED : M6_EASY; }
   function genQuestionM6(rng, level) { return rng.pick(poolForM6(level))(rng, level || 1); }
 
@@ -3439,6 +3439,53 @@
       options: order, answer: order.indexOf(correct),
       render: function (o) { return figure(drawFeat(o), { rot: o.rot, size: 92 }); },
       why: 'دو قاعده یک‌درمیان اجرا می‌شوند: یک گام «یک ضلع اضافه می‌شود» و گامِ بعد «شکل ' + toFa(step) + ' درجه می‌چرخد». چون گامِ آخر ضلع اضافه شده بود، حالا نوبتِ چرخش است — نه اضافه‌کردنِ ضلعِ دیگر.'
+    };
+  }
+
+  /* ==== قاعده‌ی شرطی: قاعده به یک «شرط» بستگی دارد (سطحِ ۵) ====
+   * سه نمونه‌ی «قبل ← بعد» داده می‌شود که هر دو شاخه‌ی شرط را پوشش می‌دهند.
+   * دانش‌آموز باید بفهمد قاعده یکی نیست، بلکه به ویژگیِ شکل بستگی دارد.
+   */
+  function pairFig(v1, v2) {
+    var box = h('div', {}); box.style.cssText = 'display:flex;align-items:center;gap:2px';
+    box.appendChild(figure(drawFeat(v1), { rot: v1.rot, size: 46 }));
+    var ar = h('span', {}, '←'); ar.style.cssText = 'font-size:1rem;color:' + PAL.teal + ';font-weight:800';
+    box.appendChild(ar);
+    box.appendChild(figure(drawFeat(v2), { rot: v2.rot, size: 46 }));
+    return box;
+  }
+  function conditionalRule(rng, level, count) {
+    count = count || 4;
+    var SID = [3, 4, 5], FILLS = ['gray', 'hatch', 'dots'], INN = ['circle', 'square', 'triangle', 'plus'];
+    var step = rng.pick([90, 180]);
+    function mk(hollow) {
+      return { sides: rng.pick(SID), fill: hollow ? 'none' : rng.pick(FILLS), inner: rng.pick(INN), dot: 'solid', size: 'big', ring: 'single', rot: rng.pick([0, 30, 60]) };
+    }
+    function cl(o) { var x = {}; for (var k in o) x[k] = o[k]; return x; }
+    function opAdd(o) { var x = cl(o), i = SID.indexOf(x.sides); x.sides = SID[Math.min(i + 1, SID.length - 1)]; if (x.sides === o.sides) x.sides = SID[0]; return x; }
+    function opRot(o) { var x = cl(o); x.rot = (x.rot + step) % 360; return x; }
+    function apply(o) { return o.fill === 'none' ? opAdd(o) : opRot(o); }     // شرط: توخالی ⇒ یک ضلع اضافه، وگرنه ⇒ چرخش
+    // نمونه‌ها: حتماً هر دو شاخه دیده شوند
+    var e1 = mk(true), e2 = mk(false), e3 = mk(rng.next() < 0.5);
+    var qv = mk(rng.next() < 0.5);
+    var correct = apply(qv);
+    function key(o) { return o.sides + '|' + o.rot + '|' + o.fill + '|' + o.inner; }
+    var other = qv.fill === 'none' ? opRot(qv) : opAdd(qv);                   // شاخه‌ی اشتباه
+    var cand = [other, opRot(opAdd(qv)), cl(qv)];
+    (function () { var x = cl(correct); x.rot = (x.rot + step) % 360; cand.push(x); })();
+    (function () { var x = cl(correct), i2 = SID.indexOf(x.sides); x.sides = SID[(i2 + 1) % SID.length]; cand.push(x); })();
+    var seen = {}; seen[key(correct)] = 1; var dists = [];
+    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { var k = key(cand[i]); if (!seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    var opts = [correct].concat(dists), order = rng.shuffle(opts);
+    var refs = [function () { return pairFig(e1, apply(e1)); }, function () { return pairFig(e2, apply(e2)); },
+                function () { return pairFig(e3, apply(e3)); }, function () { return figure(drawFeat(qv), { rot: qv.rot, size: 62 }); }];
+    refs.label = 'سه نمونه‌ی «قبل ← بعد» را ببین و قاعده را کشف کن:'; refs.letters = ['۱', '۲', '۳', '؟'];
+    return {
+      prompt: 'قاعده همیشه یکی نیست — به یک «شرط» بستگی دارد. شکلِ آخر به کدام گزینه تبدیل می‌شود؟',
+      tag: 'قاعده‌ی شرطی', refs: refs, wide: true, condHollow: qv.fill === 'none',
+      options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(drawFeat(o), { rot: o.rot, size: 92 }); },
+      why: 'قاعده شرطی است: اگر شکل «توخالی» باشد یک ضلع به آن اضافه می‌شود، اما اگر «پُر یا هاشوردار» باشد فقط ' + toFa(step) + ' درجه می‌چرخد. شکلِ آخر ' + (qv.fill === 'none' ? 'توخالی است، پس یک ضلع اضافه می‌شود' : 'پُر است، پس فقط می‌چرخد') + ' — نه هر دو کار با هم.'
     };
   }
 
@@ -4490,6 +4537,7 @@
     { re: /سری|قاعده|ماتریس/, skill: 'استدلال تصویری', sub: 'کشفِ الگو و اجرای قاعده', err: 'ادامه‌دادنِ الگو با یک گام کم یا زیاد', sec: 50 },
     { re: /تناسب|قیاس/, skill: 'استدلال تصویری', sub: 'انتقالِ رابطه', err: 'کپی‌کردنِ نمونه‌ی B به‌جای اجرای همان تغییر روی C', sec: 50 },
     { re: /دوران|آینه|انعکاس|چیرال|پیچش/, skill: 'تجسم فضایی', sub: 'دوران و انعکاس', err: 'اشتباه‌گرفتنِ چرخش با قرینه', sec: 45 },
+    { re: /شرطی/, skill: 'استدلال منطقی', sub: 'استنتاج از شرط', err: 'اجرای یک قاعده برای همه‌ی شکل‌ها، بدونِ توجه به شرط', sec: 60 },
     { re: /شبکه|منطقی|XOR/, skill: 'استدلال منطقی', sub: 'ترکیبِ منطقی', err: 'استفاده از قاعده‌ی روی‌هم‌گذاری به‌جای یکی‌درمیان', sec: 55 },
     { re: /ویژگیِ مشترک|مشابه|آشیانه/, skill: 'استدلال تصویری', sub: 'یافتنِ ویژگیِ مشترک', err: 'تکیه بر شباهتِ ظاهریِ کلی به‌جای ویژگیِ مشترکِ دقیق', sec: 50 }
   ];
@@ -5403,7 +5451,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
