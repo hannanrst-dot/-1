@@ -1391,7 +1391,12 @@
   function pp_dot(g, x, y) { add(g, 'circle', merge(DEF, { cx: (+x).toFixed(1), cy: (+y).toFixed(1), r: 4.4, fill: PAL.line, 'stroke-width': 2 })); }
   function pp_crease(g, x1, y1, x2, y2) { add(g, 'line', { x1: x1, y1: y1, x2: x2, y2: y2, stroke: PAL.teal, 'stroke-width': 1.8, 'stroke-dasharray': '5 4' }); }
   function pp_reflect(pts, creases) {
-    creases.forEach(function (cr) { var np = []; pts.forEach(function (p) { np.push(p); np.push(cr === 'v' ? [100 - p[0], p[1]] : [p[0], 100 - p[1]]); }); pts = np; });
+    creases.forEach(function (cr) {
+      var np = []; pts.forEach(function (p) {
+        np.push(p);
+        np.push(cr === 'v' ? [100 - p[0], p[1]] : cr === 'h' ? [p[0], 100 - p[1]] : cr === 'd' ? [p[1], p[0]] : [100 - p[1], 100 - p[0]]);
+      }); pts = np;
+    });
     var seen = {}, out = []; pts.forEach(function (p) { var k = Math.round(p[0]) + ',' + Math.round(p[1]); if (!seen[k]) { seen[k] = 1; out.push([Math.round(p[0]), Math.round(p[1])]); } }); return out;
   }
   function paperPunch(rng, level, count) {
@@ -1426,8 +1431,39 @@
       why: 'هر سوراخ نسبت به هر خطِ تا «قرینه» می‌شود. ' + (creases.length === 2 ? 'با دو تا، هر سوراخ به ۴ سوراخِ قرینه تبدیل می‌شود.' : 'با یک تا، هر سوراخ به ۲ سوراخِ قرینه نسبت به خطِ تا تبدیل می‌شود.') + ' گزینه‌های دیگر یا قرینه‌ی کامل نیستند، یا سوراخی کم/زیاد دارند.'
     };
   }
-  function poolForKaghaz(level) { return [paperPunch]; }
-  function genKaghaz(rng, level) { return paperPunch(rng, level || 2); }
+  // تای قطری: قرینه نسبت به قطرِ مربع (خطِ y=x یا x+y=۱۰۰) — سخت‌تر و تازه
+  function paperPunchDiag(rng, level, count) {
+    count = count || 4;
+    var cr = rng.pick(['d', 'a']);
+    var nHoles = level >= 3 ? rng.int(1, 2) : 1, holes = [], g0 = 0;
+    while (holes.length < nHoles && g0++ < 80) {
+      var x = rng.int(26, 78), y = rng.int(20, 72);
+      var ok = cr === 'd' ? (x > y + 18) : (x + y < 82);
+      if (ok && holes.every(function (q) { return Math.abs(q[0] - x) + Math.abs(q[1] - y) > 20; })) holes.push([x, y]);
+    }
+    if (!holes.length) holes.push(cr === 'd' ? [70, 32] : [34, 30]);
+    function keyOf(a) { return a.map(function (q) { return q[0] + ',' + q[1]; }).sort().join(';'); }
+    var correct = pp_reflect(holes.map(function (q) { return [q[0], q[1]]; }), [cr]);
+    var cand = [holes.slice(), pp_reflect(holes.slice(), ['v']), pp_reflect(holes.slice(), ['h']), pp_reflect(holes.slice(), [cr === 'd' ? 'a' : 'd'])];
+    if (correct.length > 1) { var c0 = correct.slice(); c0.splice(rng.int(0, c0.length - 1), 1); cand.push(c0); }
+    var seen = {}; seen[keyOf(correct)] = 1; var dists = [];
+    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { var k = keyOf(cand[i]); if (cand[i].length && !seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    var gg = 0; while (dists.length < count - 1 && gg++ < 60) { var c2 = correct.slice(); c2[rng.int(0, c2.length - 1)] = [rng.int(22, 78), rng.int(22, 78)]; var k2 = keyOf(c2); if (!seen[k2]) { seen[k2] = 1; dists.push(c2); } }
+    var opts = [{ h: correct }].concat(dists.map(function (d) { return { h: d }; })), order = rng.shuffle(opts);
+    function creaseLine(g) { if (cr === 'd') pp_crease(g, 12, 12, 88, 88); else pp_crease(g, 88, 12, 12, 88); }
+    var ref1 = function () { return figure(function (g) { pp_paper(g); creaseLine(g); }, { size: 74 }); };
+    var tri = cr === 'd' ? '12,12 88,12 88,88' : '12,12 88,12 12,88';
+    var ref2 = function () { return figure(function (g) { add(g, 'polygon', merge(DEF, { points: tri, fill: PAL.tealL })); holes.forEach(function (q) { pp_dot(g, q[0], q[1]); }); }, { size: 74 }); };
+    var refs = [ref1, ref2]; refs.label = 'کاغذ را از قطر تا بزن، بعد سوراخ کن:'; refs.letters = ['تا زدن', 'سوراخ'];
+    return {
+      prompt: 'کاغذِ مربع را از «قطر» تا می‌زنیم و سوراخ می‌کنیم. اگر بازش کنیم، سوراخ‌ها کجا می‌افتند؟', tag: 'کاغذِ تاخورده (تای قطری)', refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(function (g) { pp_paper(g); creaseLine(g); o.h.forEach(function (q) { pp_dot(g, q[0], q[1]); }); }, { size: 96 }); },
+      why: 'در تای قطری، خطِ تا همان قطرِ مربع است و هر سوراخ نسبت به همین خطِ مورب قرینه می‌شود (جای افقی و عمودی‌اش با هم عوض می‌شود). قرینه نسبت به خطِ عمودی یا افقی، جوابِ اشتباه می‌دهد.'
+    };
+  }
+  function poolForKaghaz(level) { return level >= 2 ? [paperPunch, paperPunch, paperPunchDiag] : [paperPunch, paperPunchDiag]; }
+  function genKaghaz(rng, level) { return rng.pick(poolForKaghaz(level || 2))(rng, level || 2); }
   function lessonKaghaz() {
     var seed = (Date.now() & 0xffff) | 1;
     function ex(level) { return function () { return buildInteractive(toInter(paperPunch(new RNG(seed++), level || 2))); }; }
@@ -1748,8 +1784,8 @@
       why: 'اگر همه‌ی خط‌های تصویرِ X را دنبال کنی، دقیقاً در همین گزینه در کنارِ هم آمده‌اند (لابه‌لای خط‌های اضافی پنهان شده‌اند)؛ در گزینه‌های دیگر دستِ‌کم یکی از خط‌های X جا افتاده است.'
     };
   }
-  function poolForPenhan(level) { return [embeddedFigure]; }
-  function genPenhan(rng, level) { return embeddedFigure(rng, level || 2); }
+  function poolForPenhan(level) { return level >= 2 ? [embeddedFigure, embeddedFigure, embeddedRot4] : [embeddedFigure, embeddedRot4]; }
+  function genPenhan(rng, level) { return rng.pick(poolForPenhan(level || 2))(rng, level || 2); }
 
   // مبحث ۹: تصویرِ پنهانِ نوع ۲ — شبکه‌ی ۵×۵، مسیرِ بلندتر، خط‌های اضافه‌ی خیلی بیشتر (پرجزئیات‌تر و سخت‌تر)
   function embeddedFigure2(rng, level, count) {
@@ -1815,8 +1851,76 @@
       why: 'همه‌ی خط‌های X را دنبال کن؛ فقط در همین گزینه همه‌ی آن‌ها کنارِ هم و به همان شکل آمده‌اند و لابه‌لای خط‌های اضافه پنهان شده‌اند. در گزینه‌های دیگر دستِ‌کم یکی از خط‌های X جا افتاده است.'
     };
   }
-  function poolForPenhan2(level) { return [embeddedFigure2]; }
-  function genPenhan2(rng, level) { return embeddedFigure2(rng, level || 2); }
+  /* ==== تصویرِ پنهانِ چرخیده: X باید «چرخیده» داخلِ گزینه پیدا شود (سخت‌ترین نوع) ==== */
+  function embeddedRotated(rng, level, count, G) {
+    count = count || 4; level = level || 2; G = G || 4;
+    var pad = G === 4 ? 20 : 14, stp = G === 4 ? 20 : 18;
+    function xy(r, c) { return [pad + c * stp, pad + r * stp]; }
+    var segs = [];
+    for (var r = 0; r < G; r++) for (var c = 0; c < G; c++) {
+      if (c < G - 1) segs.push([[r, c], [r, c + 1]]);
+      if (r < G - 1) segs.push([[r, c], [r + 1, c]]);
+      if (r < G - 1 && c < G - 1) segs.push([[r, c], [r + 1, c + 1]]);
+      if (r < G - 1 && c < G - 1) segs.push([[r, c + 1], [r + 1, c]]);
+    }
+    function key(s) { var a = s[0], b = s[1], p = a[0] * 10 + a[1], q = b[0] * 10 + b[1]; return p < q ? p + '_' + q : q + '_' + p; }
+    var byKey = {}; segs.forEach(function (s) { byKey[key(s)] = s; });
+    var allKeys = Object.keys(byKey);
+    function rotNode(nd) { return [nd[1], G - 1 - nd[0]]; }                       // چرخشِ ۹۰ درجه روی شبکه
+    function rotKey(k, times) { var s = byKey[k], a = s[0], b = s[1]; for (var t = 0; t < times; t++) { a = rotNode(a); b = rotNode(b); } return key([a, b]); }
+    function neighbors(node) { var res = []; segs.forEach(function (s) { if (s[0][0] === node[0] && s[0][1] === node[1]) res.push([key(s), s[1]]); else if (s[1][0] === node[0] && s[1][1] === node[1]) res.push([key(s), s[0]]); }); return res; }
+    var L = G === 4 ? (level >= 3 ? 6 : 5) : (level >= 3 ? 8 : 6);
+    function genX() {
+      var node = [rng.int(0, G - 1), rng.int(0, G - 1)], used = {}, xk = [], tries = 0;
+      while (xk.length < L && tries++ < 60) {
+        var nb = neighbors(node).filter(function (n) { return !used[n[0]]; });
+        if (!nb.length) break;
+        var pick = nb[rng.int(0, nb.length - 1)];
+        used[pick[0]] = 1; xk.push(pick[0]); node = pick[1];
+      }
+      return xk;
+    }
+    var Xk = genX(), guard = 0;
+    while (Xk.length < Math.max(4, L - 1) && guard++ < 30) Xk = genX();
+    var turns = rng.pick([1, 2, 3]);
+    var Rk = Xk.map(function (k) { return rotKey(k, turns); });
+    var Rset = {}; Rk.forEach(function (k) { Rset[k] = 1; });
+    var extraN = G === 4 ? (level >= 3 ? 7 : 5) : (level >= 3 ? 12 : 10);
+    function randKeys(n, ex) { var pool = allKeys.filter(function (k) { return !(ex && ex[k]); }); return rng.sample(pool, Math.min(n, pool.length)); }
+    var correctKeys = Rk.concat(randKeys(extraN, Rset));
+    function makeWrong() {
+      var g2 = 0;
+      while (g2++ < 60) {
+        var removed = rng.sample(Rk, rng.next() < 0.6 ? 1 : 2), remObj = {};
+        removed.forEach(function (k) { remObj[k] = 1; });
+        var kept = Rk.filter(function (k) { return !remObj[k]; });
+        var excl = {}; kept.forEach(function (k) { excl[k] = 1; }); removed.forEach(function (k) { excl[k] = 1; });
+        var wk = kept.concat(randKeys(correctKeys.length - kept.length, excl));
+        var wobj = {}; wk.forEach(function (k) { wobj[k] = 1; });
+        if (!Rk.every(function (k) { return wobj[k]; })) return wk;
+      }
+      return null;
+    }
+    function sig(k) { return k.slice().sort().join(','); }
+    var wrongs = [], seenSig = {}, wg = 0; seenSig[sig(correctKeys)] = 1;
+    while (wrongs.length < count - 1 && wg++ < 400) { var w = makeWrong(); if (!w) continue; var s2 = sig(w); if (seenSig[s2]) continue; seenSig[s2] = 1; wrongs.push(w); }
+    while (wrongs.length < count - 1) wrongs.push(randKeys(correctKeys.length, Rset));
+    function drawKeys(keys, sw) { return function (g) { keys.forEach(function (k) { var s = byKey[k]; if (!s) return; var a = xy(s[0][0], s[0][1]), b = xy(s[1][0], s[1][1]); add(g, 'line', merge(DEF, { x1: a[0], y1: a[1], x2: b[0], y2: b[1], 'stroke-width': sw || 2.5 })); }); }; }
+    var ansIdx = rng.int(0, count - 1), opts = [], wi = 0;
+    for (var i = 0; i < count; i++) opts.push(i === ansIdx ? { keys: correctKeys } : { keys: wrongs[wi++] });
+    var refs = [function () { return figure(drawKeys(Xk, 3.2), { size: 82, frame: true }); }];
+    refs.label = 'تصویرِ «X» — توجه: داخلِ گزینه‌ها «چرخیده» پنهان شده است!'; refs.letters = ['X'];
+    return {
+      prompt: 'تصویرِ X در کدام گزینه پنهان شده است؟ (این‌بار X چرخیده است)', tag: 'تصویرِ پنهانِ چرخیده', refs: refs,
+      options: opts, answer: ansIdx, rotatedKeys: Rk,
+      render: function (o) { return figure(drawKeys(o.keys), { size: 96 }); },
+      why: 'این‌بار X را چرخانده‌اند. شکلِ X را در ذهنت بچرخان (۹۰، ۱۸۰ یا ۲۷۰ درجه) و بعد دنبالش بگرد؛ فقط در همین گزینه همه‌ی خط‌های X (به‌صورتِ چرخیده) کنارِ هم آمده‌اند.'
+    };
+  }
+  function embeddedRot4(rng, level, count) { return embeddedRotated(rng, level, count, 4); }
+  function embeddedRot5(rng, level, count) { return embeddedRotated(rng, level, count, 5); }
+  function poolForPenhan2(level) { return level >= 2 ? [embeddedFigure2, embeddedFigure2, embeddedRot5] : [embeddedFigure2, embeddedRot5]; }
+  function genPenhan2(rng, level) { return rng.pick(poolForPenhan2(level || 2))(rng, level || 2); }
   function lessonPenhan2() {
     var seed = (Date.now() & 0xffff) | 1;
     function ex(level) { return function () { return buildInteractive(toInter(embeddedFigure2(new RNG(seed++), level || 2))); }; }
@@ -2517,9 +2621,14 @@
     }
     return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «جهتِ هاشور» درست دسته‌بندی شده‌اند؟', 'شکلِ بیرونی مهم نیست؛ در گزینه‌ی درست هر گروه یک جهتِ هاشور دارد: عمودی، مورب، یا افقی. به زاویه‌ی خط‌های داخل خوب دقت کن.', 'دسته‌بندی: جهتِ هاشور');
   }
+  // دسته‌بندی بر اساسِ «جهتِ فلش» — راست / پایین / بالا
+  function m7_byArrowDir(rng) {
+    function fig(cat, seed) { var rr = new RNG(seed), ang = [0, 90, 270][cat], head = rr.next() < 0.5 ? 'solid' : 'open'; return function (g) { arrowInto(g, ang, head); }; }
+    return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «جهتِ فلش» درست دسته‌بندی شده‌اند؟', 'نوکِ فلش (توپُر یا توخالی) مهم نیست؛ فقط جهت مهم است. در گزینه‌ی درست هر گروه یک جهت دارد: به‌راست، به‌پایین، و به‌بالا.', 'دسته‌بندی: جهتِ فلش');
+  }
   var M7_EASY = [m7_bySides, m7_byInner, m7_byCurvature];
-  var M7_MED = [m7_bySides, m7_byInner, m7_byFill, m7_byDotCount, m7_bySymmetry, m7_byCurvature];
-  var M7_HARD = [m7_byInner, m7_byFill, m7_byHatchDir, m7_bySides, m7_byDotCount, m7_byDotCount, m7_bySymmetry, m7_byCurvature];
+  var M7_MED = [m7_bySides, m7_byInner, m7_byFill, m7_byDotCount, m7_bySymmetry, m7_byCurvature, m7_byArrowDir];
+  var M7_HARD = [m7_byInner, m7_byFill, m7_byHatchDir, m7_bySides, m7_byDotCount, m7_byDotCount, m7_bySymmetry, m7_byCurvature, m7_byArrowDir];
   function poolForM7(level) { return level >= 3 ? M7_HARD : level === 2 ? M7_MED : M7_EASY; }
   function genQuestionM7(rng, level) { return rng.pick(poolForM7(level))(rng, level || 1); }
 
@@ -2891,7 +3000,7 @@
     };
   }
   function poolForTakmil(level) { return [pieceShape]; }
-  function genTakmil(rng, level) { return pieceShape(rng, level || 2); }
+  function genTakmil(rng, level) { return rng.pick(poolForTakmil(level || 2))(rng, level || 2); }
 
   // مبحث ۱۵: تکمیل با برشِ خمیده (زبانه/شکاف) — سخت‌ترین لایه، برشِ ۲-قطعه‌ای داخلِ مربع
   function pieceBent(rng, level, count) {
@@ -3021,10 +3130,31 @@
       why: 'فقط مربع‌های کوچک را نشمار! مربع‌های ' + toFa(2) + 'تایی، ' + toFa(3) + 'تایی و بزرگ‌تر را هم باید بشماری. در یک شبکه‌ی ' + toFa(n) + '×' + toFa(n) + '، مجموعِ همه‌ی مربع‌ها ' + toFa(total) + ' تاست.'
     };
   }
+  // شمارشِ مستطیل‌های ترکیبی در شبکه‌ی m×n:  C(m+1,2) × C(n+1,2)
+  function countRectanglesGrid(rng, level) {
+    var m = level >= 3 ? rng.pick([3, 4]) : level >= 2 ? rng.pick([2, 3]) : 2;
+    var nn = level >= 3 ? rng.pick([2, 3]) : 2;
+    if (m === nn && m === 2) nn = 3;
+    function C2(k) { return k * (k + 1) / 2; }
+    var total = C2(m) * C2(nn);
+    function draw() { return function (g) { var x0 = 14, x1 = 86, y0 = 26, y1 = 74, sx = (x1 - x0) / m, sy = (y1 - y0) / nn;
+      for (var i = 0; i <= m; i++) add(g, 'line', merge(DEF, { x1: (x0 + i * sx).toFixed(1), y1: y0, x2: (x0 + i * sx).toFixed(1), y2: y1, 'stroke-width': 2.4 }));
+      for (var j = 0; j <= nn; j++) add(g, 'line', merge(DEF, { x1: x0, y1: (y0 + j * sy).toFixed(1), x2: x1, y2: (y0 + j * sy).toFixed(1), 'stroke-width': 2.4 })); }; }
+    var cand = [m * nn, total - 1, total + 1, total + 2, total - 2].filter(function (v) { return v >= 2 && v !== total; });
+    var seen = {}; seen[total] = 1; var ds = []; for (var d = 0; d < cand.length && ds.length < 3; d++) { if (!seen[cand[d]]) { seen[cand[d]] = 1; ds.push(cand[d]); } }
+    var opts = [{ v: total }].concat(ds.map(function (v) { return { v: v }; })), order = rng.shuffle(opts);
+    var refs = [function () { return figure(draw(), { size: 176, frame: false }); }]; refs.label = 'همه‌ی مستطیل‌ها را بشمار (کوچک و بزرگ):'; refs.letters = [''];
+    return {
+      prompt: 'در این شکل، رویِ‌هم چند «مستطیل» می‌بینی؟ (مربع‌ها هم مستطیل‌اند و مستطیل‌های بزرگ‌تر را هم بشمار)', tag: 'شمارشِ مستطیل (ترکیبی)', refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { var t = h('div', {}, toFa(o.v)); t.style.cssText = 'font-size:2rem;font-weight:800;color:' + PAL.ink + ';padding:6px 12px'; return t; },
+      why: 'هر مستطیل با انتخابِ دو خطِ عمودی و دو خطِ افقی ساخته می‌شود. با ' + toFa(m + 1) + ' خطِ عمودی و ' + toFa(nn + 1) + ' خطِ افقی، تعدادِ کلِ مستطیل‌ها ' + toFa(total) + ' تاست — نه فقط خانه‌های کوچک!'
+    };
+  }
   // برشِ مستقیمِ مربع (به‌جای پله‌ای) — تنوعِ بیشتر برای «تکمیل به مربع»
   function pieceSquareCut(rng, level) { return pieceShape(rng, level, 4, 'square'); }
-  function poolForShomaresh(level) { return level >= 2 ? [countShapes, countShapes, countTrianglesFan, countSquaresGrid] : [countShapes, countTrianglesFan]; }
-  function genShomaresh(rng, level) { return countShapes(rng, level || 2); }
+  function poolForShomaresh(level) { return level >= 2 ? [countShapes, countShapes, countTrianglesFan, countSquaresGrid, countRectanglesGrid] : [countShapes, countTrianglesFan, countRectanglesGrid]; }
+  function genShomaresh(rng, level) { return rng.pick(poolForShomaresh(level || 2))(rng, level || 2); }
   function lessonShomaresh() {
     var seed = (Date.now() & 0xffff) | 1;
     function ex(level) { return function () { return buildInteractive(toInter(countShapes(new RNG(seed++), level || 2))); }; }
@@ -3075,8 +3205,40 @@
       why: 'فقط تکه‌های شماره‌ی ' + ptxt(correctPair) + ' لبه‌ی برششان دقیقاً در هم جفت می‌شود و با هم یک ' + TFA[target] + ' می‌سازد. بقیه‌ی تکه‌ها چرخیده‌اند یا از برشِ دیگری‌اند و همان‌طور که هستند جور نمی‌شوند.'
     };
   }
-  function poolForTarkib(level) { return [assemblePair]; }
-  function genTarkib(rng, level) { return assemblePair(rng, level || 2); }
+  // ترکیبِ تکه‌ها با شکل‌های متنوع (دایره/چندضلعی/لوزی/ذوزنقه) — همان منطق، تنوعِ بسیار بیشتر
+  function assemblePairShape(rng, level, count) {
+    count = count || 4;
+    var kind = rng.pick(level >= 2 ? ['circle', 'hexagon', 'pentagon', 'diamond', 'trapezoid', 'square'] : ['diamond', 'trapezoid', 'hexagon', 'square']);
+    var V = shapeVerts(kind), n = V.length, minSep = Math.max(1, Math.floor(n / 6));
+    function split() { var e1 = rng.int(0, n - 1), eB = e1 + minSep + rng.int(0, n - 2 * minSep); return chordSplit(V, e1, rng.pick([0.34, 0.5, 0.66]), eB, rng.pick([0.38, 0.52, 0.62])); }
+    var sp = split();
+    var pieces = [{ poly: sp.A, rot: 0, mir: null }, { poly: sp.B, rot: 0, mir: null }];
+    var seen = {}; seen[finalSig(pieces[0])] = 1; seen[finalSig(pieces[1])] = 1; var guard = 0;
+    while (pieces.length < 5 && guard++ < 120) {
+      var s2 = split(), half = rng.next() < 0.5 ? s2.A : s2.B;
+      var d = { poly: half, rot: rng.pick([90, 180, 270]), mir: rng.pick([null, 'v']) }, sg = finalSig(d);
+      if (!seen[sg]) { seen[sg] = 1; pieces.push(d); }
+    }
+    while (pieces.length < 5) pieces.push({ poly: sp.A, rot: rng.pick([90, 180, 270]), mir: 'v' });
+    var order = rng.shuffle(pieces.map(function (p, i) { return { p: p, orig: i }; }));
+    var iA = 0, iB = 0; order.forEach(function (x, i) { if (x.orig === 0) iA = i + 1; if (x.orig === 1) iB = i + 1; });
+    var correctPair = [Math.min(iA, iB), Math.max(iA, iB)];
+    function pkey(p) { return p[0] + '-' + p[1]; } function ptxt(p) { return toFa(p[0]) + ' و ' + toFa(p[1]); }
+    var all = []; for (var i = 1; i <= 5; i++) for (var j = i + 1; j <= 5; j++) all.push([i, j]);
+    var sp2 = {}; sp2[pkey(correctPair)] = 1; var wrong = [], sh = rng.shuffle(all);
+    for (var k = 0; k < sh.length && wrong.length < count - 1; k++) { var pk = pkey(sh[k]); if (!sp2[pk]) { sp2[pk] = 1; wrong.push(sh[k]); } }
+    var opts = [{ pair: correctPair }].concat(wrong.map(function (p) { return { pair: p }; })), ord = rng.shuffle(opts);
+    var refs = order.map(function (x) { return function () { return figure(polyFill(centerPts(applyT(x.p.poly, x.p.rot, x.p.mir)), PAL.tealL), { size: 78 }); }; });
+    refs.label = 'این پنج تکه را ببین (بدونِ چرخاندن):'; refs.letters = ['۱', '۲', '۳', '۴', '۵'];
+    return {
+      prompt: 'از کنارِ هم گذاشتنِ کدام دو تکه (همان‌طور که هستند)، یک «' + SHAPEFA[kind] + 'ِ کامل» ساخته می‌شود؟', tag: 'ترکیبِ تکه‌ها (' + SHAPEFA[kind] + ')', refs: refs,
+      options: ord, answer: ord.indexOf(opts[0]),
+      render: function (o) { var t = h('div', {}, ptxt(o.pair)); t.style.cssText = 'font-size:1.5rem;font-weight:800;color:' + PAL.ink + ';padding:8px 16px'; return t; },
+      why: 'فقط تکه‌های شماره‌ی ' + ptxt(correctPair) + ' لبه‌ی برششان دقیقاً در هم جفت می‌شود و با هم یک ' + SHAPEFA[kind] + 'ِ کامل می‌سازد. بقیه چرخیده/آینه شده‌اند یا از برشِ دیگری‌اند.'
+    };
+  }
+  function poolForTarkib(level) { return level >= 2 ? [assemblePair, assemblePairShape, assemblePairShape] : [assemblePair, assemblePairShape]; }
+  function genTarkib(rng, level) { return rng.pick(poolForTarkib(level || 2))(rng, level || 2); }
   function lessonTarkib() {
     var seed = (Date.now() & 0xffff) | 1;
     function ex(level) { return function () { return buildInteractive(toInter(assemblePair(new RNG(seed++), level || 2))); }; }
@@ -4714,13 +4876,13 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, paperPunch: paperPunch, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, pieceSquareCut: pieceSquareCut,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
         m5_curveLineMix: m5_curveLineMix, m5_arrowCount: m5_arrowCount, m5_containsTrio: m5_containsTrio, m5_symmetryPair5: m5_symmetryPair5, m5_chiralScene5: m5_chiralScene5 },
       m6: { m6_growDots: m6_growDots, m6_rotateStep: m6_rotateStep, m6_complexity: m6_complexity, m6_shrinkSplit: m6_shrinkSplit, m6_arcClose: m6_arcClose },
-      m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill, m7_byHatchDir: m7_byHatchDir, m7_bySymmetry: m7_bySymmetry, m7_byCurvature: m7_byCurvature },
+      m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill, m7_byHatchDir: m7_byHatchDir, m7_bySymmetry: m7_bySymmetry, m7_byCurvature: m7_byCurvature, m7_byArrowDir: m7_byArrowDir },
       nw: { gridOverlay: gridOverlay, gridXor: gridXor, matrixLogic3x3: matrixLogic3x3, jigsawPiece: jigsawPiece, mirrorWater: mirrorWater, analogyRotate: analogyRotate, oddRotOrder: oddRotOrder, oddCurvature: oddCurvature, dominoNext: dominoNext, seriesPieDiv: seriesPieDiv, nestedMatch: nestedMatch, pieceSquare: pieceSquare, pieceTriangle: pieceTriangle, pieceShape: pieceShape, pieceBent: pieceBent },
       book: { bkHouse: bkHouse, bkBentArrow: bkBentArrow, bkTwoCircles: bkTwoCircles, bkArrow: bkArrow } };
   }
