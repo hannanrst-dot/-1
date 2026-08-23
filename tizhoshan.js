@@ -1808,7 +1808,7 @@
       why: 'اگر همه‌ی خط‌های تصویرِ X را دنبال کنی، دقیقاً در همین گزینه در کنارِ هم آمده‌اند (لابه‌لای خط‌های اضافی پنهان شده‌اند)؛ در گزینه‌های دیگر دستِ‌کم یکی از خط‌های X جا افتاده است.'
     };
   }
-  function poolForPenhan(level) { return level >= 2 ? [embeddedFigure, embeddedFigure, embeddedRot4] : [embeddedFigure, embeddedRot4]; }
+  function poolForPenhan(level) { return level >= 2 ? [embeddedFigure, embeddedFigure, embeddedRot4, embeddedMiss4] : [embeddedFigure, embeddedRot4, embeddedMiss4]; }
   function genPenhan(rng, level) { return rng.pick(poolForPenhan(level || 2))(rng, level || 2); }
 
   // مبحث ۹: تصویرِ پنهانِ نوع ۲ — شبکه‌ی ۵×۵، مسیرِ بلندتر، خط‌های اضافه‌ی خیلی بیشتر (پرجزئیات‌تر و سخت‌تر)
@@ -1941,9 +1941,69 @@
       why: 'این‌بار X را چرخانده‌اند. شکلِ X را در ذهنت بچرخان (۹۰، ۱۸۰ یا ۲۷۰ درجه) و بعد دنبالش بگرد؛ فقط در همین گزینه همه‌ی خط‌های X (به‌صورتِ چرخیده) کنارِ هم آمده‌اند.'
     };
   }
+  // «کدام گزینه X را ندارد؟» — سه گزینه X را کامل دارند، یکی دستِ‌کم یک خطِ آن را ندارد
+  function embeddedMissing(rng, level, count, G) {
+    count = count || 4; level = level || 2; G = G || 4;
+    var pad = G === 4 ? 20 : 14, stp = G === 4 ? 20 : 18;
+    function xy(r, c) { return [pad + c * stp, pad + r * stp]; }
+    var segs = [];
+    for (var r = 0; r < G; r++) for (var c = 0; c < G; c++) {
+      if (c < G - 1) segs.push([[r, c], [r, c + 1]]);
+      if (r < G - 1) segs.push([[r, c], [r + 1, c]]);
+      if (r < G - 1 && c < G - 1) segs.push([[r, c], [r + 1, c + 1]]);
+      if (r < G - 1 && c < G - 1) segs.push([[r, c + 1], [r + 1, c]]);
+    }
+    function key(sg) { var a = sg[0], b = sg[1], p = a[0] * 10 + a[1], q = b[0] * 10 + b[1]; return p < q ? p + '_' + q : q + '_' + p; }
+    var byKey = {}; segs.forEach(function (sg) { byKey[key(sg)] = sg; });
+    var allKeys = Object.keys(byKey);
+    function neighbors(node) { var res = []; segs.forEach(function (sg) { if (sg[0][0] === node[0] && sg[0][1] === node[1]) res.push([key(sg), sg[1]]); else if (sg[1][0] === node[0] && sg[1][1] === node[1]) res.push([key(sg), sg[0]]); }); return res; }
+    var L = G === 4 ? 5 : 6;
+    function genX() {
+      var node = [rng.int(0, G - 1), rng.int(0, G - 1)], used = {}, xk = [], tries = 0;
+      while (xk.length < L && tries++ < 60) {
+        var nb = neighbors(node).filter(function (nn) { return !used[nn[0]]; });
+        if (!nb.length) break;
+        var pick = nb[rng.int(0, nb.length - 1)];
+        used[pick[0]] = 1; xk.push(pick[0]); node = pick[1];
+      }
+      return xk;
+    }
+    var Xk = genX(), guard = 0;
+    while (Xk.length < Math.max(4, L - 1) && guard++ < 30) Xk = genX();
+    var Xset = {}; Xk.forEach(function (k) { Xset[k] = 1; });
+    var extraN = G === 4 ? (level >= 3 ? 6 : 5) : (level >= 3 ? 11 : 9);
+    function randKeys(nn, ex) { var pool = allKeys.filter(function (k) { return !(ex && ex[k]); }); return rng.sample(pool, Math.min(nn, pool.length)); }
+    function sig(k) { return k.slice().sort().join(','); }
+    var goods = [], seenSig = {}, g2 = 0;
+    while (goods.length < count - 1 && g2++ < 200) { var gk = Xk.concat(randKeys(extraN, Xset)); var s2 = sig(gk); if (seenSig[s2]) continue; seenSig[s2] = 1; goods.push(gk); }
+    while (goods.length < count - 1) goods.push(Xk.concat(randKeys(extraN, Xset)));
+    var badK = null, g3 = 0;
+    while (g3++ < 60) {
+      var removed = rng.sample(Xk, rng.next() < 0.6 ? 1 : 2), rem = {};
+      removed.forEach(function (k) { rem[k] = 1; });
+      var kept = Xk.filter(function (k) { return !rem[k]; }), ex2 = {};
+      kept.forEach(function (k) { ex2[k] = 1; }); removed.forEach(function (k) { ex2[k] = 1; });
+      var wk = kept.concat(randKeys(Xk.length + extraN - kept.length, ex2)), wobj = {};
+      wk.forEach(function (k) { wobj[k] = 1; });
+      if (!Xk.every(function (k) { return wobj[k]; }) && !seenSig[sig(wk)]) { badK = wk; break; }
+    }
+    if (!badK) badK = randKeys(Xk.length + extraN, Xset);
+    function drawKeys(keys, sw) { return function (g) { keys.forEach(function (k) { var sg = byKey[k]; if (!sg) return; var a = xy(sg[0][0], sg[0][1]), b = xy(sg[1][0], sg[1][1]); add(g, 'line', merge(DEF, { x1: a[0], y1: a[1], x2: b[0], y2: b[1], 'stroke-width': sw || 2.5 })); }); }; }
+    var pa = placeAnswer(rng, goods.map(function (k) { return { keys: k }; }), { keys: badK }, count);
+    var refs = [function () { return figure(drawKeys(Xk, 3.2), { size: 82, frame: true }); }];
+    refs.label = 'تصویرِ «X» را ببین:'; refs.letters = ['X'];
+    return {
+      prompt: 'در کدام گزینه، تصویرِ X پنهان «نشده» است؟ (سه‌تای دیگر X را کامل دارند)', tag: 'تصویرِ پنهان (کدام ندارد)', refs: refs,
+      options: pa.options, answer: pa.answer, xKeys: Xk,
+      render: function (o) { return figure(drawKeys(o.keys), { size: 96 }); },
+      why: 'در سه گزینه همه‌ی خط‌های X کنارِ هم پیدا می‌شوند؛ اما در گزینه‌ی درست دستِ‌کم یکی از خط‌های X جا افتاده است. خط‌به‌خطِ X را در هر گزینه دنبال کن تا ببینی کدام‌یک ناقص است.'
+    };
+  }
+  function embeddedMiss4(rng, level, count) { return embeddedMissing(rng, level, count, 4); }
+  function embeddedMiss5(rng, level, count) { return embeddedMissing(rng, level, count, 5); }
   function embeddedRot4(rng, level, count) { return embeddedRotated(rng, level, count, 4); }
   function embeddedRot5(rng, level, count) { return embeddedRotated(rng, level, count, 5); }
-  function poolForPenhan2(level) { return level >= 2 ? [embeddedFigure2, embeddedFigure2, embeddedRot5] : [embeddedFigure2, embeddedRot5]; }
+  function poolForPenhan2(level) { return level >= 2 ? [embeddedFigure2, embeddedFigure2, embeddedRot5, embeddedMiss5] : [embeddedFigure2, embeddedRot5, embeddedMiss5]; }
   function genPenhan2(rng, level) { return rng.pick(poolForPenhan2(level || 2))(rng, level || 2); }
   function lessonPenhan2() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -2002,7 +2062,7 @@
     };
   }
   function oddCube3D(rng, level, count) {
-    count = count || 4;
+    count = Math.min(count || 4, 4);   // مکعب فقط ۳ چرخشِ هم‌ارز دارد ⇒ حداکثر ۴ گزینه
     var syms = rng.sample(['circle', 'square', 'triangle', 'plus', 'dot', 'ex'], 4);
     var s1 = syms[0], s2 = syms[1], s3 = syms[2], sOdd = syms[3];
     var rots = [[s1, s2, s3], [s3, s1, s2], [s2, s3, s1]];   // سه چرخشِ ممکنِ همان مکعب (جایگشتِ چرخه‌ای)
@@ -2111,6 +2171,77 @@
       });
     };
   }
+  /* ==== بررسیِ واقعیِ تاشدنِ گسترده (شبیه‌سازیِ غلتاندنِ مکعب) ====
+   * هر خانه‌ی گسترده را می‌غلتانیم و بردارِ نرمالِ وجهش را می‌گیریم؛
+   * گسترده وقتی معتبر است که هر ۶ خانه به ۶ جهتِ متفاوت برسند (هیچ دو وجهی روی هم نیفتد).
+   */
+  function netFoldNormals(cells) {
+    function kk(r, c) { return r + ',' + c; }
+    var grid = {}; cells.forEach(function (c, i) { grid[kk(c[0], c[1])] = i; });
+    function neg(v) { return [-v[0], -v[1], -v[2]]; }
+    var normals = {}, seen = {}, q = [[cells[0][0], cells[0][1], { R: [1, 0, 0], D: [0, 1, 0], N: [0, 0, 1] }]];
+    seen[kk(cells[0][0], cells[0][1])] = 1;
+    while (q.length) {
+      var it = q.shift(), r = it[0], c = it[1], st = it[2];
+      normals[kk(r, c)] = st.N;
+      var mv = [[r, c + 1, { R: neg(st.N), D: st.D, N: st.R }], [r, c - 1, { R: st.N, D: st.D, N: neg(st.R) }],
+                [r + 1, c, { R: st.R, D: neg(st.N), N: st.D }], [r - 1, c, { R: st.R, D: st.N, N: neg(st.D) }]];
+      for (var m = 0; m < mv.length; m++) { var k2 = kk(mv[m][0], mv[m][1]); if (grid[k2] !== undefined && !seen[k2]) { seen[k2] = 1; q.push(mv[m]); } }
+    }
+    return normals;
+  }
+  function isValidNet(cells) {
+    if (cells.length !== 6) return false;
+    var nm = netFoldNormals(cells), ks = Object.keys(nm);
+    if (ks.length !== 6) return false;                          // باید همبند باشد
+    var set = {}; ks.forEach(function (k) { set[nm[k].join(',')] = 1; });
+    return Object.keys(set).length === 6;                       // شش جهتِ متفاوت ⇒ مکعبِ سالم
+  }
+  function netShapeFig(cells) {
+    return function (g) {
+      var r0 = 99, c0 = 99, r1 = -99, c1 = -99;
+      cells.forEach(function (c) { if (c[0] < r0) r0 = c[0]; if (c[1] < c0) c0 = c[1]; if (c[0] > r1) r1 = c[0]; if (c[1] > c1) c1 = c[1]; });
+      var rn = r1 - r0 + 1, cn = c1 - c0 + 1, sz = Math.min(74 / Math.max(rn, cn), 20);
+      var ox = 50 - cn * sz / 2, oy = 50 - rn * sz / 2;
+      cells.forEach(function (c) {
+        add(g, 'rect', merge(DEF, { x: (ox + (c[1] - c0) * sz).toFixed(1), y: (oy + (c[0] - r0) * sz).toFixed(1), width: sz.toFixed(1), height: sz.toFixed(1), 'stroke-width': 2.2, fill: PAL.cream }));
+      });
+    };
+  }
+  function randomHexomino(rng) {
+    var cells = [[0, 0]], has = { '0,0': 1 }, guard = 0;
+    while (cells.length < 6 && guard++ < 200) {
+      var base = cells[rng.int(0, cells.length - 1)];
+      var d = [[0, 1], [0, -1], [1, 0], [-1, 0]][rng.int(0, 3)];
+      var nc = [base[0] + d[0], base[1] + d[1]], k = nc.join(',');
+      if (!has[k]) { has[k] = 1; cells.push(nc); }
+    }
+    return cells;
+  }
+  function normNet(cells) {
+    var r0 = 99, c0 = 99; cells.forEach(function (c) { if (c[0] < r0) r0 = c[0]; if (c[1] < c0) c0 = c[1]; });
+    return cells.map(function (c) { return [c[0] - r0, c[1] - c0]; }).map(function (c) { return c.join(','); }).sort().join(';');
+  }
+  function cubeNetInvalid(rng, level, count) {
+    count = count || 4;
+    var valids = [], invalids = [], seen = {}, guard = 0;
+    while ((valids.length < count - 1 || invalids.length < 1) && guard++ < 500) {
+      var cs = randomHexomino(rng); if (cs.length !== 6) continue;
+      var sg = normNet(cs); if (seen[sg]) continue; seen[sg] = 1;
+      if (isValidNet(cs)) { if (valids.length < count - 1) valids.push(cs); }
+      else if (invalids.length < 1) invalids.push(cs);
+    }
+    if (valids.length < count - 1 || !invalids.length) return cubeNetOpposite(rng, level, count);   // پشتیبان
+    var opts = [{ cells: invalids[0], bad: true }].concat(valids.map(function (v) { return { cells: v, bad: false }; }));
+    var order = rng.shuffle(opts);
+    return {
+      prompt: 'کدام گسترده، با تا خوردن، «مکعب نمی‌سازد»؟ (سه‌تای دیگر مکعبِ سالم می‌سازند)', tag: 'گسترده‌ی نامعتبر', wide: true,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(netShapeFig(o.cells), { size: 96 }); },
+      why: 'وقتی گسترده را تا می‌زنی، باید هر شش خانه به شش وجهِ متفاوتِ مکعب بروند. در گزینه‌ی درست، دو خانه بعد از تاشدن روی هم می‌افتند و یک وجهِ مکعب خالی می‌ماند؛ پس مکعبِ سالم ساخته نمی‌شود.'
+    };
+  }
+
   function cubeCount(rng, level) {
     var top = level >= 3 ? 4 : 3;
     var h00 = rng.int(2, top), h01 = rng.int(1, h00), h10 = rng.int(1, h00), h11 = rng.int(1, Math.min(h01, h10));
@@ -2128,7 +2259,7 @@
       why: 'ستون‌به‌ستون بشمار: چهار ستون داریم با ارتفاع‌های ' + toFa(h00) + '، ' + toFa(h01) + '، ' + toFa(h10) + ' و ' + toFa(h11) + '. مجموعشان ' + toFa(total) + ' مکعب می‌شود. فقط مکعب‌های رویی را نشمار!'
     };
   }
-  function poolForTajassom(level) { return level >= 3 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeFromNet, cubeCount] : level >= 2 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeCount] : [oddCube3D, cubeNetOpposite, cubeCount]; }
+  function poolForTajassom(level) { return level >= 3 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeCount, cubeNetInvalid, cubeNetInvalid] : level >= 2 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeCount, cubeNetInvalid] : [oddCube3D, cubeNetOpposite, cubeCount]; }
   function genTajassom(rng, level) { return rng.pick(poolForTajassom(level || 2))(rng, level || 2); }
   function lessonTajassom() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -2278,9 +2409,13 @@
   }
   // ماتریسِ ویژگیِ ۵گزینه‌ای — ستونِ فقراتِ مبحث ۲ (گزینه‌های نزدیک + تله)
   function m2_matrix(rng, level) { return oddMatrix(rng, level || 2, 5); }
-  var M2_EASY = [m2_matrix, m2_matrix, m2_needle, m2_dotsIO, m2_tangent, m2_layers, m2_pinwheel];
-  var M2_MED = [m2_matrix, m2_matrix, m2_matrix, m2_pinwheel, m2_flow, m2_scene, m2_layers, m2_needle, oddRule5];
-  var M2_HARD = [m2_matrix, m2_matrix, m2_matrix, m2_scene, m2_pinwheel, m2_flow, oddRule5, oddRule5];
+  // نسخه‌های ۵-گزینه‌ای از تیپ‌های تازه برای مبحثِ ۲
+  function m2_cube(rng, level) { return oddCube3D(rng, level, 5); }
+  function m2_curve(rng, level) { return oddCurvature(rng, level, 5); }
+  function m2_spin(rng, level) { return oddRotOrder(rng, level, 5); }
+  var M2_EASY = [m2_matrix, m2_matrix, m2_needle, m2_dotsIO, m2_tangent, m2_layers, m2_pinwheel, m2_curve];
+  var M2_MED = [m2_matrix, m2_matrix, m2_matrix, m2_pinwheel, m2_flow, m2_scene, m2_layers, m2_needle, oddRule5, m2_curve, m2_spin];
+  var M2_HARD = [m2_matrix, m2_matrix, m2_matrix, m2_scene, m2_pinwheel, m2_flow, oddRule5, oddRule5, m2_spin];
   function poolForM2(level) { return level >= 3 ? M2_HARD : level === 2 ? M2_MED : M2_EASY; }
   function genQuestionM2(rng, level) { return rng.pick(poolForM2(level))(rng, level || 1); }
 
@@ -4959,7 +5094,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
