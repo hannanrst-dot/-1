@@ -2262,7 +2262,35 @@
       why: 'ستون‌به‌ستون بشمار: چهار ستون داریم با ارتفاع‌های ' + toFa(h00) + '، ' + toFa(h01) + '، ' + toFa(h10) + ' و ' + toFa(h11) + '. مجموعشان ' + toFa(total) + ' مکعب می‌شود. فقط مکعب‌های رویی را نشمار!'
     };
   }
-  function poolForTajassom(level) { return level >= 3 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeCount, cubeNetInvalid, cubeNetInvalid] : level >= 2 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeCount, cubeNetInvalid] : [oddCube3D, cubeNetOpposite, cubeCount]; }
+  /* ==== «کدام گزینه همان مکعبِ اول است؟» (تجسمِ فضاییِ سطحِ ۴-۵) ====
+   * چرخشِ فیزیکیِ مکعب فقط جایگشتِ «چرخه‌ای» سه وجهِ دیدنی را می‌سازد.
+   * جایگشتِ پادچرخه‌ای = تصویرِ آینه‌ای ⇒ مکعبِ دیگری است و ساختنش با چرخش محال است.
+   */
+  function sameCubeRotated(rng, level, count) {
+    count = count || 4;
+    var syms = rng.sample(['circle', 'square', 'triangle', 'plus', 'dot', 'ex'], 4);
+    var a = syms[0], b2 = syms[1], c2 = syms[2], extra = syms[3];
+    var base = [a, b2, c2];
+    var cyc = [[b2, c2, a], [c2, a, b2]];                       // چرخه‌ای ⇒ همان مکعب
+    var anti = [[a, c2, b2], [c2, b2, a], [b2, a, c2]];         // پادچرخه‌ای ⇒ آینه، مکعبِ دیگر
+    var correct = { t: cyc[rng.int(0, 1)] };
+    var cand = anti.map(function (t) { return { t: t }; });
+    var sw = base.slice(); sw[rng.int(0, 2)] = extra; cand.push({ t: sw });   // یک نقشِ عوض‌شده
+    function kk(o) { return o.t.join('|'); }
+    var seen = {}; seen[kk(correct)] = 1; seen[base.join('|')] = 1;
+    var dists = [], sh = rng.shuffle(cand);
+    for (var i = 0; i < sh.length && dists.length < count - 1; i++) { var k = kk(sh[i]); if (!seen[k]) { seen[k] = 1; dists.push(sh[i]); } }
+    var opts = [correct].concat(dists), order = rng.shuffle(opts);
+    var refs = [function () { return figure(drawCube(base), { size: 110, frame: false }); }];
+    refs.label = 'این مکعب را در ذهنت بچرخان:'; refs.letters = [''];
+    return {
+      prompt: 'کدام گزینه، «همین مکعب» است که فقط چرخیده؟', tag: 'مکعبِ چرخیده (همان مکعب)', refs: refs, baseFaces: base,
+      options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(drawCube(o.t), { size: 96 }); },
+      why: 'وقتی مکعب می‌چرخد، سه وجهِ دیدنی جایشان «چرخه‌ای» عوض می‌شود (اولی جای دومی، دومی جای سومی، سومی جای اولی). اگر ترتیب برعکسِ چرخه شود، آن تصویر «آینه»ی مکعب است و با هیچ چرخشی به‌دست نمی‌آید.'
+    };
+  }
+  function poolForTajassom(level) { return level >= 3 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeCount, cubeNetInvalid, sameCubeRotated, sameCubeRotated] : level >= 2 ? [oddCube3D, cubeNetOpposite, cubeFromNet, cubeCount, cubeNetInvalid, sameCubeRotated] : [oddCube3D, cubeNetOpposite, cubeCount, sameCubeRotated]; }
   function genTajassom(rng, level) { return rng.pick(poolForTajassom(level || 2))(rng, level || 2); }
   function lessonTajassom() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -2534,8 +2562,8 @@
   function m3_combine(rng, level) { return combineShapes(rng, level || 1, 5); }
   function m3_fold(rng, level) { return paperFold(rng, level || 1, 5); }
   var M3_EASY = [m3_match, m3_match, m3_combine, m3_fold, m3_sameType, m3_evenCount, m3_symmetry, jigsawPiece];
-  var M3_MED = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_symmetry, m3_innerMatch, m3_rotationFamily, oddRule5, analogy2_5, gridOverlay, jigsawPiece];
-  var M3_HARD = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_fold, m3_sceneFamily, m3_rotationFamily, oddRule5, analogy2_5, analogy2_5, gridXor, gridOverlay, jigsawPiece];
+  var M3_MED = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_symmetry, m3_innerMatch, m3_rotationFamily, oddRule5, analogy2_5, gridOverlay, jigsawPiece, constraintElim];
+  var M3_HARD = [m3_match, m3_match, m3_match, m3_combine, m3_fold, m3_fold, m3_sceneFamily, m3_rotationFamily, oddRule5, analogy2_5, analogy2_5, gridXor, gridOverlay, jigsawPiece, constraintElim, constraintElim];
   function poolForM3(level) { return level >= 3 ? M3_HARD : level === 2 ? M3_MED : M3_EASY; }
   function genQuestionM3(rng, level) { return rng.pick(poolForM3(level))(rng, level || 1); }
 
@@ -2739,8 +2767,8 @@
     return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکلِ باز به‌تدریج بسته می‌شود (شکاف کم‌کم پر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'بسته‌شدنِ تدریجی', 'در گزینه‌ی درست، شکاف مرتب کوچک‌تر می‌شود تا دایره کامل و بسته شود؛ اما در بقیه این روند منظم نیست.');
   }
   var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair, matrix3x3, seriesComplete, seriesComplete, dominoNext];
-  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound, matrixLogic3x3, dominoNext, seriesPieDiv];
-  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound, matrixLogic3x3, matrixLogic3x3, dominoNext, seriesPieDiv];
+  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating];
+  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound, matrixLogic3x3, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating, seriesAlternating];
   function poolForM6(level) { return level >= 3 ? M6_HARD : level === 2 ? M6_MED : M6_EASY; }
   function genQuestionM6(rng, level) { return rng.pick(poolForM6(level))(rng, level || 1); }
 
@@ -3357,7 +3385,95 @@
   }
   // برشِ مستقیمِ مربع (به‌جای پله‌ای) — تنوعِ بیشتر برای «تکمیل به مربع»
   function pieceSquareCut(rng, level) { return pieceShape(rng, level, 4, 'square'); }
-  function poolForShomaresh(level) { return level >= 2 ? [countShapes, countShapes, countTrianglesFan, countSquaresGrid, countRectanglesGrid] : [countShapes, countTrianglesFan, countRectanglesGrid]; }
+  /* ==== سریِ متناوب: دو قاعده یک‌درمیان اجرا می‌شوند (سطحِ ۴-۵) ====
+   * دانش‌آموز باید نه‌فقط قاعده‌ها، بلکه «نوبتِ کدام قاعده است» را هم کشف کند.
+   */
+  function seriesAlternating(rng, level, count) {
+    count = count || 4;
+    var SID = [3, 4, 5, 6];
+    // از ۳ ضلع شروع می‌شود تا قاعده‌ی «یک ضلع اضافه» تا پایانِ سری به سقف نخورد و بی‌اثر نشود
+    var v0 = { sides: 3, fill: rng.pick(['none', 'gray', 'hatch']), inner: rng.pick(['circle', 'square', 'triangle', 'plus']), dot: 'solid', size: 'big', ring: 'single', rot: 0 };
+    var step = rng.pick([45, 90]);
+    function cl(o) { var x = {}; for (var k in o) x[k] = o[k]; return x; }
+    function opSide(o) { var x = cl(o); var i = SID.indexOf(x.sides); x.sides = SID[Math.min(i + 1, SID.length - 1)]; return x; }
+    function opRot(o) { var x = cl(o); x.rot = (x.rot + step) % 360; return x; }
+    var seq = [v0], i;
+    for (i = 1; i <= 4; i++) seq.push(i % 2 === 1 ? opSide(seq[i - 1]) : opRot(seq[i - 1]));
+    var stemV = seq.slice(0, 4), correct = seq[4];                 // گامِ پنجم: نوبتِ چرخش است
+    function key(o) { return o.sides + '|' + o.rot + '|' + o.fill + '|' + o.inner; }
+    var cand = [opSide(stemV[3]), opRot(opSide(stemV[3])), cl(stemV[3])];
+    (function () { var x = cl(correct); x.rot = (x.rot + step) % 360; cand.push(x); })();
+    (function () { var x = cl(correct); x.rot = ((x.rot - step) % 360 + 360) % 360; cand.push(x); })();
+    (function () { var x = cl(correct), i2 = SID.indexOf(x.sides); x.sides = SID[(i2 + 1) % SID.length]; cand.push(x); })();
+    var seen = {}; seen[key(correct)] = 1; var dists = [];
+    for (i = 0; i < cand.length && dists.length < count - 1; i++) { var k = key(cand[i]); if (!seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    var opts = [correct].concat(dists), order = rng.shuffle(opts);
+    var stem = stemV.map(function (v) { return function () { return figure(drawFeat(v), { rot: v.rot, size: 52 }); }; });
+    return {
+      prompt: 'در این سری، دو قاعده «یک‌درمیان» اجرا می‌شوند. شکلِ بعدی کدام است؟', tag: 'سریِ متناوب (دو قاعده)', series: stem, wide: true,
+      options: order, answer: order.indexOf(correct),
+      render: function (o) { return figure(drawFeat(o), { rot: o.rot, size: 92 }); },
+      why: 'دو قاعده یک‌درمیان اجرا می‌شوند: یک گام «یک ضلع اضافه می‌شود» و گامِ بعد «شکل ' + toFa(step) + ' درجه می‌چرخد». چون گامِ آخر ضلع اضافه شده بود، حالا نوبتِ چرخش است — نه اضافه‌کردنِ ضلعِ دیگر.'
+    };
+  }
+
+  /* ==== حذفِ حالت‌های ناممکن: سه شرط داده می‌شود، فقط یک شکل هر سه را دارد (بندِ ۴) ==== */
+  function constraintElim(rng, level, count) {
+    count = count || 4;
+    var DOM = { sides: [3, 4, 5, 6], inner: ['circle', 'square', 'triangle', 'plus'], fill: ['none', 'gray', 'hatch', 'dots'] };
+    var keys = ['sides', 'inner', 'fill'];
+    var target = { sides: rng.pick(DOM.sides), inner: rng.pick(DOM.inner), fill: rng.pick(DOM.fill), dot: 'solid', size: 'big', ring: 'single', rot: 0 };
+    function cl(o) { var x = {}; for (var k in o) x[k] = o[k]; return x; }
+    // هر تله دقیقاً یکی از سه شرط را نقض می‌کند ⇒ فقط یک گزینه هر سه را دارد
+    var viol = rng.shuffle(keys).slice(0, count - 1).map(function (kk) {
+      var d = cl(target); d[kk] = rng.pick(DOM[kk].filter(function (x) { return x !== target[kk]; })); return d;
+    });
+    function key(o) { return o.sides + '|' + o.inner + '|' + o.fill; }
+    var seen = {}; seen[key(target)] = 1; var dists = [];
+    for (var i = 0; i < viol.length; i++) { var k = key(viol[i]); if (!seen[k]) { seen[k] = 1; dists.push(viol[i]); } }
+    var g = 0;
+    while (dists.length < count - 1 && g++ < 40) { var kk2 = rng.pick(keys), d2 = cl(target); d2[kk2] = rng.pick(DOM[kk2].filter(function (x) { return x !== target[kk2]; })); var k2 = key(d2); if (!seen[k2]) { seen[k2] = 1; dists.push(d2); } }
+    var opts = [target].concat(dists), order = rng.shuffle(opts);
+    var clue = 'شکلی را پیدا کن که هر سه ویژگی را با هم داشته باشد: (۱) ' + RULE_FA.sides + ': ' + FEAT_FA.sides[target.sides] +
+               '  (۲) ' + RULE_FA.inner + ': ' + FEAT_FA.inner[target.inner] + '  (۳) ' + RULE_FA.fill + ': ' + FEAT_FA.fill[target.fill];
+    return {
+      prompt: clue, tag: 'حذفِ حالت‌های ناممکن',
+      options: order, answer: order.indexOf(target),
+      render: function (o) { return figure(drawFeat(o), { size: 96 }); },
+      why: 'هر گزینه‌ای که دستِ‌کم یکی از سه شرط را نداشته باشد حذف می‌شود. اگر شرط‌ها را یکی‌یکی روی گزینه‌ها اعمال کنی، در پایان فقط یک شکل باقی می‌ماند که هر سه ویژگی را با هم دارد.'
+    };
+  }
+
+  /* ==== شمارشِ مسیرها: از پایین-چپ تا بالا-راست، فقط راست و بالا ⇒ C(m+n, m) ==== */
+  function countPaths(rng, level) {
+    var m = level >= 3 ? rng.pick([3, 4]) : level >= 2 ? 3 : 2, nn = level >= 3 ? rng.pick([2, 3]) : 2;
+    function C(a, b) { var r = 1, i; for (i = 1; i <= b; i++) r = r * (a - b + i) / i; return Math.round(r); }
+    var total = C(m + nn, m);
+    function draw() {
+      return function (g) {
+        var x0 = 16, x1 = 84, y0 = 24, y1 = 76, sx = (x1 - x0) / m, sy = (y1 - y0) / nn, i;
+        for (i = 0; i <= m; i++) add(g, 'line', { x1: (x0 + i * sx).toFixed(1), y1: y0, x2: (x0 + i * sx).toFixed(1), y2: y1, stroke: PAL.gray, 'stroke-width': 1.8 });
+        for (i = 0; i <= nn; i++) add(g, 'line', { x1: x0, y1: (y0 + i * sy).toFixed(1), x2: x1, y2: (y0 + i * sy).toFixed(1), stroke: PAL.gray, 'stroke-width': 1.8 });
+        add(g, 'circle', merge(DEF, { cx: x0, cy: y1, r: 4.6, fill: PAL.teal, 'stroke-width': 2 }));
+        add(g, 'circle', merge(DEF, { cx: x1, cy: y0, r: 4.6, fill: PAL.fun, 'stroke-width': 2 }));
+        add(g, 'path', merge(DEF, { d: 'M' + (x1 - 9) + ' ' + (y0 - 11) + ' l9 -6 l-9 -6', 'stroke-width': 2.2, fill: 'none' }));
+      };
+    }
+    var cand = [total - 1, total + 1, m * nn, m + nn, total + 2].filter(function (v) { return v >= 2 && v !== total; });
+    var seen = {}; seen[total] = 1; var ds = [];
+    for (var d = 0; d < cand.length && ds.length < 3; d++) { if (!seen[cand[d]]) { seen[cand[d]] = 1; ds.push(cand[d]); } }
+    var opts = [{ v: total }].concat(ds.map(function (v) { return { v: v }; })), order = rng.shuffle(opts);
+    var refs = [function () { return figure(draw(), { size: 176, frame: false }); }];
+    refs.label = 'از نقطه‌ی سبز به نقطه‌ی صورتی برو — فقط «راست» و «بالا»:'; refs.letters = [''];
+    return {
+      prompt: 'چند مسیرِ متفاوت از نقطه‌ی سبز به نقطه‌ی صورتی وجود دارد؟ (فقط به راست و بالا حرکت کن)', tag: 'شمارشِ مسیر', refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { var t = h('div', {}, toFa(o.v)); t.style.cssText = 'font-size:2rem;font-weight:800;color:' + PAL.ink + ';padding:6px 12px'; return t; },
+      why: 'برای رسیدن به مقصد باید ' + toFa(m) + ' بار به راست و ' + toFa(nn) + ' بار به بالا بروی؛ فقط ترتیبِ این حرکت‌ها فرق می‌کند. تعدادِ ترتیب‌های ممکن ' + toFa(total) + ' است. می‌توانی روی هر گره بنویسی از چند راه می‌شود به آن رسید (هر گره = مجموعِ گرهِ چپ و پایینش).'
+    };
+  }
+
+  function poolForShomaresh(level) { return level >= 2 ? [countShapes, countShapes, countTrianglesFan, countSquaresGrid, countRectanglesGrid, countPaths] : [countShapes, countTrianglesFan, countRectanglesGrid, countPaths]; }
   function genShomaresh(rng, level) { return rng.pick(poolForShomaresh(level || 2))(rng, level || 2); }
   function lessonShomaresh() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -5197,7 +5313,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
