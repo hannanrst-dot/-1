@@ -4438,6 +4438,7 @@
           recordTag(m.id, q.tag, ok);
           head.querySelector('.tz-hearts').textContent = heartsTxt();
           body.appendChild(h('div', { class: 'tz-fb ' + (ok ? 'ok' : 'bad') }, (ok ? '✓ آفرین! ' : '✗ اشتباه — ') + q.why));
+          if (!ok && q.meta && q.meta.commonError) body.appendChild(h('div', { class: 'tz-hinterr' }, h('b', {}, '⚠️ خطای رایج: '), q.meta.commonError));
           var last = qi >= N - 1;
           if (hearts <= 0) body.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: fail }, 'ادامه')));
           else body.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: function () { qi++; draw(); } }, last ? 'پایانِ مرحله 🏁' : 'سؤالِ بعد ←')));
@@ -4479,7 +4480,7 @@
   function runExam(m) {
     var wrap = jStageWrap(m, null);
     wrap.appendChild(guideRow('think', 'آزمونِ جامعِ ' + toFa(20) + ' سؤالی! این آزمون هوشمند است: بیشتر از تیپ‌هایی سؤال می‌آورد که در آن‌ها ضعیف‌تری و پله‌پله سخت‌تر می‌شود. تا آخر برو تا نقشه‌ی قوّت و ضعفت را ببینیم.', 'tz-guide-sm'));
-    var N = 20, qi = 0, correct = 0, streak = 0, bestStreak = 0, seedRef = { s: ((Date.now() & 0xffffff) ^ 0x9e3779b1) | 1 }, recent = [], examTags = {};
+    var N = 20, qi = 0, correct = 0, streak = 0, bestStreak = 0, seedRef = { s: ((Date.now() & 0xffffff) ^ 0x9e3779b1) | 1 }, recent = [], examTags = {}, examSkills = {}, examDiff = {};
     // بندِ ۲۰ — توزیعِ استانداردِ دشواری در آزمون: ۲۰٪ آسان، ۳۵٪ متوسط، ۳۰٪ دشوار، ۱۵٪ چالشی
     // (۴ سؤالِ سطحِ ۱، ۷ سؤالِ سطحِ ۲، ۶ سؤالِ سطحِ ۳، ۳ سؤالِ چالشیِ سطحِ ۳)
     var DIFF_PLAN = [1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3];
@@ -4508,8 +4509,13 @@
           var ok = i === q.answer; b.classList.add(ok ? 'ok' : 'bad'); opts.children[q.answer].classList.add('ok');
           tzSound(ok ? 'ok' : 'bad');
           var et = examTags[q.tag] || { c: 0, w: 0 }; if (ok) { correct++; streak++; if (streak > bestStreak) bestStreak = streak; et.c++; } else { streak = 0; et.w++; } examTags[q.tag] = et;
+          if (q.meta) {                                   // بندِ ۴ و ۲۳: کارنامه به تفکیکِ مهارت و دشواری
+            var sk = q.meta.skill, es = examSkills[sk] || { c: 0, w: 0 }; if (ok) es.c++; else es.w++; examSkills[sk] = es;
+            var dl = q.meta.difficulty, ed = examDiff[dl] || { c: 0, w: 0 }; if (ok) ed.c++; else ed.w++; examDiff[dl] = ed;
+          }
           recordTag(m.id, q.tag, ok);
           body.appendChild(h('div', { class: 'tz-fb ' + (ok ? 'ok' : 'bad') }, (ok ? '✓ آفرین! ' : '✗ اشتباه — ') + q.why));
+          if (!ok && q.meta && q.meta.commonError) body.appendChild(h('div', { class: 'tz-hinterr' }, h('b', {}, '⚠️ خطای رایج: '), q.meta.commonError));
           body.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: function () { qi++; draw(); } }, qi >= N - 1 ? 'دیدنِ نتیجه 🏁' : 'سؤالِ بعد ←')));
         } }, q.render(o), h('span', { class: 'tz-opt-n' }, toFa(i + 1)));
         opts.appendChild(b);
@@ -4531,6 +4537,28 @@
       rows.forEach(function (r) { var p2 = Math.round(r.c / r.seen * 100), cls = p2 >= 80 ? 'good' : p2 >= 50 ? 'ok' : 'weak'; an.appendChild(h('div', { class: 'tz-skrow ' + cls }, h('span', { class: 'tz-skname' }, r.tag), h('span', { class: 'tz-tagbar' }, h('span', { class: 'tz-tagfill', style: 'width:' + p2 + '%' })), h('span', { class: 'tz-sknum' }, toFa(r.c) + '/' + toFa(r.seen)))); });
       an.appendChild(h('p', { class: 'tz-analysis-tip' }, weak.length ? 'برای تقویت، این تیپ‌ها را بیشتر تمرین کن: ' + weak.map(function (r) { return r.tag; }).join('، ') + '. درسنامه‌ی مبحث هم کمکت می‌کند.' : 'در هیچ تیپی خطا نداشتی — عالی بود! 🎉'));
       panel.appendChild(an);
+      // کارنامه‌ی «مهارت‌ها» (بندِ ۴) — مهم‌تر از تیپِ سؤال، چون مهارت قابلِ تمرین است
+      var skRows = Object.keys(examSkills).map(function (k) { var e = examSkills[k]; return { k: k, c: e.c, seen: e.c + e.w }; })
+        .sort(function (a2b, b2b) { return (a2b.c / a2b.seen) - (b2b.c / b2b.seen); });
+      if (skRows.length) {
+        var sp = h('div', { class: 'tz-skillmap' }, h('div', { class: 'tz-analysis-h' }, '🧠 کارنامه‌ی مهارت‌ها'));
+        skRows.forEach(function (r) {
+          var p3 = Math.round(r.c / r.seen * 100), cls3 = p3 >= 80 ? 'good' : p3 >= 50 ? 'ok' : 'weak';
+          sp.appendChild(h('div', { class: 'tz-skrow ' + cls3 }, h('span', { class: 'tz-skname' }, r.k),
+            h('span', { class: 'tz-tagbar' }, h('span', { class: 'tz-tagfill', style: 'width:' + p3 + '%' })),
+            h('span', { class: 'tz-sknum' }, toFa(r.c) + '/' + toFa(r.seen))));
+        });
+        // عملکرد بر حسبِ سطحِ دشواری (بندِ ۲۰)
+        var dKeys = Object.keys(examDiff).sort();
+        if (dKeys.length) {
+          var dl2 = h('div', { class: 'tz-difrow' });
+          dKeys.forEach(function (k) { var e = examDiff[k], p4 = Math.round(e.c / (e.c + e.w) * 100);
+            dl2.appendChild(h('span', { class: 'tz-difchip' }, 'دشواری ' + toFa(k) + ': ' + toFa(p4) + '٪')); });
+          sp.appendChild(h('div', { class: 'tz-analysis-h', style: 'margin:14px 0 6px;font-size:.9rem' }, '📶 عملکرد بر حسبِ سطحِ دشواری'));
+          sp.appendChild(dl2);
+        }
+        panel.appendChild(sp);
+      }
       panel.appendChild(h('div', { class: 'tz-lnav tz-lnav-wrap' },
         h('button', { class: 'tz-btn ghost', onclick: function () { renderJourney(m); } }, 'نقشه'),
         h('button', { class: 'tz-btn', onclick: function () { runExam(m); } }, '🔁 آزمونِ دوباره')));
@@ -4902,6 +4930,11 @@
       '.tz-dark .tz-exambar{background:#2c2f4d}',
       '.tz-exambar-f{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,' + PAL.lilac + ',' + PAL.teal + ');transition:width .35s ease}',
       '.tz-examanalysis,.tz-skillmap{width:100%}',
+      '.tz-hinterr{margin-top:8px;padding:9px 13px;border-radius:12px;background:' + PAL.goldL + ';border:1px solid ' + PAL.gold + ';font-size:.84rem;line-height:1.8;color:' + PAL.ink + '}',
+      '.tz-dark .tz-hinterr{background:rgba(255,176,32,.14);border-color:rgba(255,176,32,.5);color:#f0e6d0}',
+      '.tz-difrow{display:flex;flex-wrap:wrap;gap:8px}',
+      '.tz-difchip{font-size:.78rem;font-weight:700;padding:5px 11px;border-radius:999px;background:' + PAL.tealL + ';color:' + PAL.tealD + '}',
+      '.tz-dark .tz-difchip{background:rgba(108,92,231,.22);color:#cfc8ff}',
       '.tz-trail{position:absolute;inset:38px 0 22px;z-index:0;pointer-events:none;--jtrail:color-mix(in srgb,var(--jc) 42%,#fff)}',
       '.tz-node-diff{display:flex;align-items:center;gap:5px;margin-top:2px}.tz-node-dn{font-size:.64rem;font-weight:800;color:' + PAL.inkSoft + '}',
       '.tz-pips{display:inline-flex;gap:2px}.tz-pip{width:6px;height:6px;border-radius:50%;background:#d3d6ea}.tz-pip.on{background:' + PAL.gold + '}',
