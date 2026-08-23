@@ -91,7 +91,32 @@
   function progQuiz(topicId, pct, bestStreak) { var p = loadProg(); p.quizzes++; if (bestStreak > p.bestStreak) p.bestStreak = bestStreak; if (!p.topics[topicId] || pct > p.topics[topicId]) p.topics[topicId] = pct; var nw = checkBadges(p); saveProg(p); if (nw.length) badgeToast(nw); }
   // ---- سیستمِ هوشِ تطبیقی: کارنامه‌ی هر «تیپِ سؤال» به تفکیکِ مبحث ----
   function loadTags(topicId) { var p = loadProg(); return (p.tags && p.tags[topicId]) || {}; }
-  function recordTag(topicId, tag, ok) { if (!tag) return; var p = loadProg(); if (!p.tags) p.tags = {}; if (!p.tags[topicId]) p.tags[topicId] = {}; var t = p.tags[topicId][tag] || { c: 0, w: 0 }; if (ok) t.c++; else t.w++; p.tags[topicId][tag] = t; saveProg(p); }
+  /* ==================================================================
+   * مرورِ فاصله‌دار (جعبه‌لایتنر): هر «تیپِ سؤال» در یک جعبه قرار می‌گیرد.
+   * پاسخِ درست ⇒ یک جعبه بالاتر و فاصله‌ی مرورِ بلندتر؛ پاسخِ غلط ⇒ برگشت به جعبه‌ی اول.
+   * این‌طور چیزی که فراموش می‌شود دقیقاً قبل از فراموشیِ کامل دوباره می‌آید.
+   * ================================================================ */
+  var LEITNER_DAYS = [0, 1, 3, 7, 14, 30];              // فاصله‌ی مرور بر حسبِ روز برای هر جعبه
+  var DAY_MS = 86400000;
+  function recordTag(topicId, tag, ok) {
+    if (!tag) return;
+    var p = loadProg(); if (!p.tags) p.tags = {}; if (!p.tags[topicId]) p.tags[topicId] = {};
+    var t = p.tags[topicId][tag] || { c: 0, w: 0 };
+    if (ok) t.c++; else t.w++;
+    var box = typeof t.box === 'number' ? t.box : 0;
+    box = ok ? Math.min(box + 1, LEITNER_DAYS.length - 1) : 0;
+    t.box = box;
+    t.due = Date.now() + LEITNER_DAYS[box] * DAY_MS;     // زمانِ مرورِ بعدی
+    t.last = Date.now();
+    p.tags[topicId][tag] = t; saveProg(p);
+  }
+  function isDue(t) { return !t || typeof t.due !== 'number' || t.due <= Date.now(); }
+  // چند تیپ در این مبحث آماده‌ی مرور است؟ (فقط تیپ‌هایی که قبلاً دیده شده‌اند)
+  function dueCount(topicId) {
+    var st = loadTags(topicId), n = 0;
+    for (var k in st) { var t = st[k]; if ((t.c + t.w) > 0 && isDue(t)) n++; }
+    return n;
+  }
   function badgeToast(list) {
     if (!ROOT) return;
     var t = h('div', { class: 'tz-btoast' });
@@ -4378,9 +4403,15 @@
       h('div', { class: 'tz-jhead-t' }, m.icon + ' ' + th.place),
       h('div', { class: 'tz-jhead-s' }, 'مبحثِ ' + toFa(m.n) + ' — ' + m.title + '  •  ⭐ ' + toFa(jStars(j)) + '  •  ' + toFa(Math.min(j.cleared, J_TOTAL)) + '/' + toFa(J_TOTAL) + ' مرحله')));
     ROOT.appendChild(guideRow(won ? 'wow' : 'happy', jGuideMsg(m, st, j), 'tz-guide-sm'));
-    ROOT.appendChild(h('div', { class: 'tz-examrow' },
+    var dueN = dueCount(m.id);
+    var examRow = h('div', { class: 'tz-examrow' },
       h('button', { class: 'tz-btn tz-exambtn', onclick: function () { runExam(m); } }, '📝 آزمونِ جامعِ ۲۰ سؤالی'),
-      h('span', { class: 'tz-examhint' }, '🤖 هوشمند: سؤال‌ها بر اساسِ عملکردِ تو انتخاب می‌شوند')));
+      h('span', { class: 'tz-examhint' }, '🤖 هوشمند: سؤال‌ها بر اساسِ عملکردِ تو انتخاب می‌شوند'));
+    if (dueN > 0) {                                   // مرورِ فاصله‌دار: فقط وقتی چیزی برای مرور هست
+      examRow.appendChild(h('button', { class: 'tz-btn tz-revbtn', onclick: function () { runReview(m); } },
+        '🔁 مرورِ امروز (' + toFa(dueN) + ')'));
+    }
+    ROOT.appendChild(examRow);
     var map = h('div', { class: 'tz-map' + (won ? ' tz-map-won' : ''), style: { '--jc': m.color } });
     var sc = jScene(m, won); if (sc) map.appendChild(sc);
     if (won) map.appendChild(h('div', { class: 'tz-won-banner' }, '👑 سرزمینِ «' + th.place + '» فتح شد!'));
@@ -4496,6 +4527,9 @@
       if (seen === 0) base = 1.8;                                   // تیپِ تازه: کمی بیشتر دیده شود (اکتشاف)
       else if (wrongBias) base = 0.35 + 3 * (s.w / seen);           // آزمون: هرچه بیشتر غلط زده، بیشتر بیاید
       else base = 0.5 + 1.8 * (1 - s.c / seen);                     // دور: هرچه تسلط بیشتر، کمتر بیاید
+      // مرورِ فاصله‌دار: تیپی که زمانِ مرورش رسیده، اولویتِ بالا می‌گیرد؛
+      // تیپی که هنوز «تازه» است (زمانش نرسیده) کمتر تکرار می‌شود.
+      if (seen > 0) base *= isDue(s) ? 2.6 : 0.45;
       if (recent && recent.indexOf(tag) >= 0) base *= 0.35;         // در همین دور تکرار نشود
       return base;
     }
@@ -4679,6 +4713,61 @@
         h('button', { class: 'tz-btn ghost', onclick: function () { renderJourney(m); } }, 'نقشه'),
         h('button', { class: 'tz-btn', onclick: function () { runExam(m); } }, '🔁 آزمونِ دوباره')));
       body.appendChild(panel);
+    }
+    draw();
+  }
+
+  /* ==== جلسه‌ی «مرورِ امروز»: ۸ سؤال از تیپ‌هایی که زمانِ مرورشان رسیده ==== */
+  function runReview(m) {
+    var wrap = jStageWrap(m, null);
+    var due = dueCount(m.id);
+    wrap.appendChild(guideRow('think', 'وقتِ مرور است! ' + toFa(due) + ' تیپِ سؤال آماده‌ی مرور دارند. مرورِ به‌موقع باعث می‌شود چیزی که یاد گرفته‌ای فراموش نشود.', 'tz-guide-sm'));
+    var N = 8, qi = 0, correct = 0, streak = 0, bestStreak = 0;
+    var seedRef = { s: ((Date.now() & 0xffffff) ^ 0x2545f491) | 1 }, recent = [];
+    var head = h('div', { class: 'tz-roundhead' }); wrap.appendChild(head);
+    var bar = h('div', { class: 'tz-exambar' }, h('span', { class: 'tz-exambar-f' })); wrap.appendChild(bar);
+    var body = h('div', {}); wrap.appendChild(body);
+    function draw() {
+      clear(body); head.innerHTML = '';
+      head.appendChild(h('span', { class: 'tz-rh-title' }, '🔁 مرورِ امروز — ' + jTheme(m).place));
+      head.appendChild(h('span', { class: 'tz-rh-prog' }, 'سؤال ' + toFa(qi + 1) + ' از ' + toFa(N)));
+      bar.querySelector('.tz-exambar-f').style.width = (qi / N * 100) + '%';
+      if (qi >= N) return finish();
+      var q = adaptivePick(m, qi < 3 ? 2 : 3, seedRef, recent, true);
+      body.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
+      if (q.refs) body.appendChild(refsPanel(q.refs));
+      if (q.grid) body.appendChild(gridPanel(q.grid));
+      if (q.matrix) body.appendChild(matrixPanel(q.matrix));
+      if (q.series) body.appendChild(seriesPanel(q.series));
+      var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
+      q.options.forEach(function (o, i) {
+        var b2 = h('button', { class: 'tz-opt', onclick: function () {
+          if (done) return; done = true;
+          var ok = i === q.answer; b2.classList.add(ok ? 'ok' : 'bad'); opts.children[q.answer].classList.add('ok');
+          tzSound(ok ? 'ok' : 'bad');
+          if (ok) { correct++; streak++; if (streak > bestStreak) bestStreak = streak; progSolved(streak); } else streak = 0;
+          recordTag(m.id, q.tag, ok);
+          body.appendChild(h('div', { class: 'tz-fb ' + (ok ? 'ok' : 'bad') }, (ok ? '✓ آفرین! ' : '✗ اشتباه — ') + q.why));
+          if (!ok && q.meta && q.meta.commonError) body.appendChild(h('div', { class: 'tz-hinterr' }, h('b', {}, '⚠️ خطای رایج: '), q.meta.commonError));
+          body.appendChild(h('div', { class: 'tz-lnav' }, h('span'), h('button', { class: 'tz-btn', onclick: function () { qi++; draw(); } }, qi >= N - 1 ? 'پایانِ مرور 🏁' : 'سؤالِ بعد ←')));
+        } }, q.render(o), h('span', { class: 'tz-opt-n' }, toFa(i + 1)));
+        opts.appendChild(b2);
+      });
+      body.appendChild(opts);
+    }
+    function finish() {
+      var pct = Math.round(correct / N * 100);
+      clear(body); head.innerHTML = ''; bar.querySelector('.tz-exambar-f').style.width = '100%';
+      tzConfetti(ROOT); tzSound('finish');
+      var left = dueCount(m.id);
+      body.appendChild(h('div', { class: 'tz-report tz-celebrate' },
+        tzMascot(pct >= 60 ? 'wow' : 'hi', 100),
+        h('div', { class: 'tz-score' }, toFa(correct) + ' / ' + toFa(N)),
+        h('p', { class: 'tz-msg' }, pct >= 80 ? 'عالی! حافظه‌ات محکم است 🌟' : pct >= 50 ? 'خوب بود — چند تیپ هنوز نیاز به مرور دارند 💪' : 'اشکال ندارد؛ همین تیپ‌ها به‌زودی دوباره برای مرور می‌آیند.'),
+        h('p', { class: 'tz-analysis-tip' }, left > 0 ? 'هنوز ' + toFa(left) + ' تیپ آماده‌ی مرور است.' : 'همه‌ی مرورهای امروز انجام شد! 🎉'),
+        h('div', { class: 'tz-lnav tz-lnav-wrap' },
+          h('button', { class: 'tz-btn ghost', onclick: function () { renderJourney(m); } }, 'نقشه'),
+          left > 0 ? h('button', { class: 'tz-btn', onclick: function () { runReview(m); } }, '🔁 ادامه‌ی مرور') : h('span'))));
     }
     draw();
   }
@@ -5040,7 +5129,8 @@
       // آزمونِ جامعِ تطبیقی
       '.tz-examrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:2px 2px 14px;padding:10px 14px;border:1.5px dashed ' + PAL.lilac + ';border-radius:16px;background:' + PAL.lilacL + '}',
       '.tz-dark .tz-examrow{background:rgba(0,194,168,.10)}',
-      '.tz-exambtn{background:linear-gradient(135deg,' + PAL.lilac + ',' + PAL.teal + ');font-size:.92rem}',
+      '.tz-btn.tz-exambtn{background:linear-gradient(135deg,' + PAL.lilac + ',' + PAL.teal + ');font-size:.92rem;box-shadow:0 6px 16px rgba(0,194,168,.34)}',
+      '.tz-btn.tz-revbtn{background:linear-gradient(135deg,' + PAL.gold + ',' + PAL.fun + ');font-size:.9rem;box-shadow:0 6px 16px rgba(255,111,165,.34)}',
       '.tz-examhint{font-size:.74rem;color:' + PAL.inkSoft + ';font-weight:700}',
       '.tz-exambar{height:8px;border-radius:999px;background:' + PAL.border + ';overflow:hidden;margin:4px 0 12px}',
       '.tz-dark .tz-exambar{background:#2c2f4d}',
@@ -5309,7 +5399,7 @@
   window.renderTizHub = renderTizHub;
 
   if (window.__TZ_DEBUG === true) {
-    window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion, adaptivePick: adaptivePick, enrichQ: enrichQ, skillFor: skillFor, diffScale: diffScale, MABAHETH: MABAHETH,
+    window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion, adaptivePick: adaptivePick, enrichQ: enrichQ, recordTag: recordTag, dueCount: dueCount, isDue: isDue, loadTags: loadTags, skillFor: skillFor, diffScale: diffScale, MABAHETH: MABAHETH,
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
