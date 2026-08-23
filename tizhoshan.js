@@ -1415,8 +1415,8 @@
     if (creases.length === 2) { cand.push(pp_reflect(holes.slice(), ['v'])); cand.push(pp_reflect(holes.slice(), ['h'])); } // فقط یک تا حساب شده
     else cand.push(pp_reflect(holes.slice(), [creases[0] === 'v' ? 'h' : 'v']));                                    // قرینه از محورِ اشتباه
     (function () { var c1 = correct.slice(); c1.push([rng.int(24, 76), rng.int(24, 76)]); cand.push(c1); })();       // یک سوراخِ اضافه
-    var seen = {}; seen[keyOf(correct)] = 1; var dists = [];
-    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { var k = keyOf(cand[i]); if (cand[i].length > 0 && !seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    var seen = {}; seen[keyOf(correct)] = 1; var dists = [], shC = rng.shuffle(cand);   // بُر می‌خورد تا تله‌ها عادلانه دیده شوند
+    for (var i = 0; i < shC.length && dists.length < count - 1; i++) { var k = keyOf(shC[i]); if (shC[i].length > 0 && !seen[k]) { seen[k] = 1; dists.push(shC[i]); } }
     var gg = 0; while (dists.length < count - 1 && gg++ < 50) { var c2 = correct.slice(); c2[rng.int(0, c2.length - 1)] = [rng.int(24, 76), rng.int(24, 76)]; var k2 = keyOf(c2); if (!seen[k2]) { seen[k2] = 1; dists.push(c2); } }
     var opts = [{ h: correct }].concat(dists.map(function (d) { return { h: d }; })), order = rng.shuffle(opts);
     var ref1 = function () { return figure(function (g) { pp_paper(g); if (hasV) pp_crease(g, 50, 12, 50, 88); if (hasH) pp_crease(g, 12, 50, 88, 50); if (hasV) add(g, 'path', merge(DEF, { d: 'M78 32 q-10 -8 -20 0', fill: 'none', 'stroke-width': 2, stroke: PAL.fun })); if (hasH) add(g, 'path', merge(DEF, { d: 'M32 78 q-8 -10 0 -20', fill: 'none', 'stroke-width': 2, stroke: PAL.fun })); }, { size: 74 }); };
@@ -1446,8 +1446,9 @@
     var correct = pp_reflect(holes.map(function (q) { return [q[0], q[1]]; }), [cr]);
     var cand = [holes.slice(), pp_reflect(holes.slice(), ['v']), pp_reflect(holes.slice(), ['h']), pp_reflect(holes.slice(), [cr === 'd' ? 'a' : 'd'])];
     if (correct.length > 1) { var c0 = correct.slice(); c0.splice(rng.int(0, c0.length - 1), 1); cand.push(c0); }
-    var seen = {}; seen[keyOf(correct)] = 1; var dists = [];
-    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { var k = keyOf(cand[i]); if (cand[i].length && !seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    (function () { var c1 = correct.slice(); c1.push([rng.int(22, 78), rng.int(22, 78)]); cand.push(c1); })();
+    var seen = {}; seen[keyOf(correct)] = 1; var dists = [], shC = rng.shuffle(cand);
+    for (var i = 0; i < shC.length && dists.length < count - 1; i++) { var k = keyOf(shC[i]); if (shC[i].length && !seen[k]) { seen[k] = 1; dists.push(shC[i]); } }
     var gg = 0; while (dists.length < count - 1 && gg++ < 60) { var c2 = correct.slice(); c2[rng.int(0, c2.length - 1)] = [rng.int(22, 78), rng.int(22, 78)]; var k2 = keyOf(c2); if (!seen[k2]) { seen[k2] = 1; dists.push(c2); } }
     var opts = [{ h: correct }].concat(dists.map(function (d) { return { h: d }; })), order = rng.shuffle(opts);
     function creaseLine(g) { if (cr === 'd') pp_crease(g, 12, 12, 88, 88); else pp_crease(g, 88, 12, 12, 88); }
@@ -1472,8 +1473,10 @@
     var correct = pp_reflect(holes.map(function (q) { return [q[0], q[1]]; }), ['v', 'h', 'd']);
     var cand = [pp_reflect(holes.slice(), ['v', 'h']), pp_reflect(holes.slice(), ['v', 'd']), pp_reflect(holes.slice(), ['h', 'd']), pp_reflect(holes.slice(), ['v'])];
     (function () { var c = correct.slice(); c.splice(rng.int(0, c.length - 1), 1); cand.push(c); })();
-    var seen = {}; seen[keyOf(correct)] = 1; var dists = [];
-    for (var i = 0; i < cand.length && dists.length < count - 1; i++) { var k = keyOf(cand[i]); if (cand[i].length && !seen[k]) { seen[k] = 1; dists.push(cand[i]); } }
+    // تله‌ی «یک سوراخِ اضافه» ⇒ گزینه‌ی درست همیشه پرسوراخ‌ترین نباشد (بندِ ۱۱: جلوگیری از حدس)
+    (function () { var c = correct.slice(), gx = 0, p; do { p = [rng.int(18, 82), rng.int(18, 82)]; gx++; } while (gx < 30 && c.some(function (q) { return q[0] === p[0] && q[1] === p[1]; })); c.push(p); cand.push(c); })();
+    var seen = {}; seen[keyOf(correct)] = 1; var dists = [], shC = rng.shuffle(cand);
+    for (var i = 0; i < shC.length && dists.length < count - 1; i++) { var k = keyOf(shC[i]); if (shC[i].length && !seen[k]) { seen[k] = 1; dists.push(shC[i]); } }
     var opts = [{ h: correct }].concat(dists.map(function (d) { return { h: d }; })), order = rng.shuffle(opts);
     function creases(g) { pp_crease(g, 50, 12, 50, 88); pp_crease(g, 12, 50, 88, 50); pp_crease(g, 12, 12, 88, 88); }
     var ref1 = function () { return figure(function (g) { pp_paper(g); creases(g); }, { size: 74 }); };
@@ -2861,6 +2864,12 @@
     } while (!ok && guard++ < 80);
     var pool = [combineMask(A, B, 'or'), combineMask(A, B, 'and'), combineMask(A, B, 'xor'), A.slice(), B.slice()];
     (function () { var m = C.slice(); var i = rng.int(0, 8); m[i] = !m[i]; pool.push(m); })(); // near-miss: یک خانه اشتباه
+    // تله‌های «پُرتر از جواب» ⇒ گزینه‌ی درست همیشه پُرترین شبکه نباشد (بندِ ۱۱: جلوگیری از حدس)
+    (function () {
+      var empt = [], i; for (i = 0; i < 9; i++) if (!C[i]) empt.push(i);
+      if (empt.length >= 1) { var m1 = C.slice(); m1[empt[rng.int(0, empt.length - 1)]] = true; pool.push(m1); }
+      if (empt.length >= 2) { var pick2 = rng.sample(empt, 2), m2 = C.slice(); m2[pick2[0]] = true; m2[pick2[1]] = true; pool.push(m2); }
+    })();
     var seen = {}; seen[maskKey(C)] = 1; var dists = [], sh = rng.shuffle(pool);
     for (var i = 0; i < sh.length && dists.length < count - 1; i++) { var k = maskKey(sh[i]); if (!seen[k]) { seen[k] = 1; dists.push(sh[i]); } }
     while (dists.length < count - 1) { var m = randMask(rng, 2, 5); var k = maskKey(m); if (!seen[k]) { seen[k] = 1; dists.push(m); } }
