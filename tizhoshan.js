@@ -3616,7 +3616,7 @@
     function artFn(list, maker) { return function () { var w = h('div', { class: 'tz-artrow' }); list.forEach(function (n) { w.appendChild(maker(n)); }); return w; }; }
   }
 
-  function toInter(q) { return { prompt: q.prompt, why: q.why, answer: q.answer, refs: q.refs, grid: q.grid, matrix: q.matrix, series: q.series, build: function () { return q.options.map(function (o) { return q.render(o); }); } }; }
+  function toInter(q) { enrichQ(q, 'lesson', 1); return { prompt: q.prompt, why: q.why, answer: q.answer, refs: q.refs, grid: q.grid, matrix: q.matrix, series: q.series, build: function () { return q.options.map(function (o) { return q.render(o); }); } }; }
 
   // پنلِ تصویرهای مرجع (مبحث ۳ و بعد از آن)
   function refsPanel(refs) {
@@ -4328,8 +4328,53 @@
    * ضعیف است (یا تازه‌اند) بیشتر می‌آورد و تیپ‌های تسلط‌یافته را کمتر؛ در
    * همین دور هم تیپِ تکراری را کم می‌کند.  wrongBias=true → تمرکزِ آزمون روی خطاها.
    * ================================================================ */
+  /* ==================================================================
+   * متادیتای استاندارد هر سؤال (بندِ ۳ و ۲۳ استاندارد)
+   * مهارتِ اصلی از روی «تیپِ سؤال» استنتاج می‌شود؛ سطحِ دشواری در مقیاسِ ۱..۵،
+   * و شناسه‌ی یکتا برای ثبت در بانک.
+   * ================================================================ */
+  var SKILL_RULES = [
+    { re: /پنهان/, skill: 'استدلال تصویری', sub: 'یافتن شکل در زمینه', err: 'دنبال‌نکردنِ همه‌ی خط‌های X و رهاکردنِ مسیر در میانه', sec: 55 },
+    { re: /مکعب|گسترده|بنا/, skill: 'تجسم فضایی', sub: 'چرخشِ ذهنی و تاکردن', err: 'اشتباه‌گرفتنِ وجه‌های مجاور با وجه‌های روبه‌رو', sec: 60 },
+    { re: /کاغذ/, skill: 'تجسم فضایی', sub: 'تاکردن و بازکردن', err: 'حساب‌نکردنِ همه‌ی خطوطِ تا (قرینه‌ی ناقص)', sec: 55 },
+    { re: /تکمیل|ترکیبِ تکه/, skill: 'استدلال تصویری', sub: 'ترکیب و تفکیک اشکال', err: 'انتخابِ تکه‌ی چرخیده یا آینه‌شده به‌جای تکه‌ی جفت‌شونده', sec: 50 },
+    { re: /شمارش|تعداد/, skill: 'استدلال عددی', sub: 'شمارشِ منظم', err: 'نشمردنِ شکل‌های بزرگ‌تر یا دوباره‌شمردنِ یک شکل', sec: 45 },
+    { re: /دسته‌بندی/, skill: 'استدلال منطقی', sub: 'طبقه‌بندی', err: 'گروه‌بندی بر اساسِ ویژگیِ ظاهریِ نامربوط', sec: 55 },
+    { re: /سری|قاعده|ماتریس/, skill: 'استدلال تصویری', sub: 'کشفِ الگو و اجرای قاعده', err: 'ادامه‌دادنِ الگو با یک گام کم یا زیاد', sec: 50 },
+    { re: /تناسب|قیاس/, skill: 'استدلال تصویری', sub: 'انتقالِ رابطه', err: 'کپی‌کردنِ نمونه‌ی B به‌جای اجرای همان تغییر روی C', sec: 50 },
+    { re: /دوران|آینه|انعکاس|چیرال|پیچش/, skill: 'تجسم فضایی', sub: 'دوران و انعکاس', err: 'اشتباه‌گرفتنِ چرخش با قرینه', sec: 45 },
+    { re: /شبکه|منطقی|XOR/, skill: 'استدلال منطقی', sub: 'ترکیبِ منطقی', err: 'استفاده از قاعده‌ی روی‌هم‌گذاری به‌جای یکی‌درمیان', sec: 55 },
+    { re: /ویژگیِ مشترک|مشابه|آشیانه/, skill: 'استدلال تصویری', sub: 'یافتنِ ویژگیِ مشترک', err: 'تکیه بر شباهتِ ظاهریِ کلی به‌جای ویژگیِ مشترکِ دقیق', sec: 50 }
+  ];
+  function skillFor(tag) {
+    for (var i = 0; i < SKILL_RULES.length; i++) if (SKILL_RULES[i].re.test(tag)) return SKILL_RULES[i];
+    return { skill: 'استدلال تصویری', sub: 'تحلیلِ تفاوت‌ها', err: 'توجه‌نکردن به جزئیاتِ ریز', sec: 45 };
+  }
+  // نگاشتِ سطحِ موتور (۱..۳) به مقیاسِ استانداردِ دشواری (۱..۵)
+  function diffScale(level, hard) { return hard ? 5 : level >= 3 ? 4 : level === 2 ? 3 : 1; }
+  var _qidSeq = 0;
+  function enrichQ(q, topicId, level, hard) {
+    if (!q || q.meta) return q;
+    var sk = skillFor(q.tag || '');
+    q.meta = {
+      qid: 'TZ-' + (topicId || 'gen') + '-' + (++_qidSeq) + '-' + ((Date.now() % 100000)),
+      grade: (typeof currentGrade === 'function' ? currentGrade() : 6),
+      domain: 'هوش و استعداد تصویری',
+      topic: topicId || '',
+      type: q.tag || '',
+      skill: sk.skill,
+      subSkill: sk.sub,
+      difficulty: diffScale(level || 2, hard),
+      seconds: sk.sec,
+      commonError: sk.err,
+      needsFigure: !!(q.refs || q.grid || q.matrix || q.series) || true
+    };
+    return q;
+  }
+
   function adaptivePick(m, level, seedRef, recent, wrongBias) {
     var pool = m.pool(level), stats = loadTags(m.id);
+    var lastTag = recent && recent.length ? recent[recent.length - 1] : null;
     function weight(tag) {
       var s = stats[tag] || { c: 0, w: 0 }, seen = s.c + s.w, base;
       if (seen === 0) base = 1.8;                                   // تیپِ تازه: کمی بیشتر دیده شود (اکتشاف)
@@ -4338,14 +4383,25 @@
       if (recent && recent.indexOf(tag) >= 0) base *= 0.35;         // در همین دور تکرار نشود
       return base;
     }
-    var best = null, bestScore = -1;
-    for (var t = 0; t < 4; t++) {                                   // چند نامزد بساز و ضعیف‌ترین‌تیپ را انتخاب کن
-      var rng = new RNG(seedRef.s++), gen = rng.pick(pool), q = gen(new RNG(seedRef.s++), level);
+    // چند تیپِ متمایز در استخر هست؟ اگر بیش از یکی باشد، تکرارِ پشتِ‌سرِهم پذیرفتنی نیست (بندِ ۱۲)
+    // یک جریانِ پیوسته‌ی تصادفی برای کلِ نشست؛ ساختنِ RNG تازه با بذرهای متوالی، خروجیِ همبسته
+    // و توالیِ دوره‌ایِ سؤال‌ها می‌سازد (قابلِ پیش‌بینی ⇒ نقضِ بندِ ۱۱).
+    if (!seedRef.rng) seedRef.rng = new RNG(seedRef.s || 1);
+    var stream = seedRef.rng;
+    var best = null, bestScore = -1, bestNonRepeat = null, bestNonRepeatScore = -1;
+    var tries = 0, MAXTRY = 14;
+    while (tries++ < MAXTRY) {
+      var rng = stream, gen = rng.pick(pool), q = gen(new RNG(((rng.next() * 4294967296) >>> 0) | 1), level);
+      if (!q) continue;
       var sc = weight(q.tag) * (0.7 + rng.next() * 0.6);
       if (sc > bestScore) { bestScore = sc; best = q; }
+      if (q.tag !== lastTag && sc > bestNonRepeatScore) { bestNonRepeatScore = sc; bestNonRepeat = q; }
+      // بعد از ۵ تلاش، اگر تیپِ غیرتکراریِ خوبی داریم، کافی است
+      if (tries >= 5 && bestNonRepeat) break;
     }
+    if (bestNonRepeat) best = bestNonRepeat;                        // تیپِ غیرتکراری همیشه اولویت دارد
     if (best && recent) { recent.push(best.tag); if (recent.length > 3) recent.shift(); }
-    return best;
+    return enrichQ(best, m.id, level, false);
   }
 
   function runRound(m, idx, s) {
@@ -4424,17 +4480,22 @@
     var wrap = jStageWrap(m, null);
     wrap.appendChild(guideRow('think', 'آزمونِ جامعِ ' + toFa(20) + ' سؤالی! این آزمون هوشمند است: بیشتر از تیپ‌هایی سؤال می‌آورد که در آن‌ها ضعیف‌تری و پله‌پله سخت‌تر می‌شود. تا آخر برو تا نقشه‌ی قوّت و ضعفت را ببینیم.', 'tz-guide-sm'));
     var N = 20, qi = 0, correct = 0, streak = 0, bestStreak = 0, seedRef = { s: ((Date.now() & 0xffffff) ^ 0x9e3779b1) | 1 }, recent = [], examTags = {};
-    function levelFor(i) { return i < 6 ? 1 : i < 13 ? 2 : 3; }
+    // بندِ ۲۰ — توزیعِ استانداردِ دشواری در آزمون: ۲۰٪ آسان، ۳۵٪ متوسط، ۳۰٪ دشوار، ۱۵٪ چالشی
+    // (۴ سؤالِ سطحِ ۱، ۷ سؤالِ سطحِ ۲، ۶ سؤالِ سطحِ ۳، ۳ سؤالِ چالشیِ سطحِ ۳)
+    var DIFF_PLAN = [1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3];
+    function levelFor(i) { return DIFF_PLAN[i] || 3; }
+    function isChallenge(i) { return i >= 17; }                      // سه سؤالِ پایانی: چالشِ نهایی (سطحِ ۵)
     var head = h('div', { class: 'tz-roundhead' }); wrap.appendChild(head);
     var bar = h('div', { class: 'tz-exambar' }, h('span', { class: 'tz-exambar-f' })); wrap.appendChild(bar);
     var body = h('div', {}); wrap.appendChild(body);
     function draw() {
       clear(body); head.innerHTML = '';
       head.appendChild(h('span', { class: 'tz-rh-title' }, '📝 آزمونِ جامع — ' + jTheme(m).place));
-      head.appendChild(h('span', { class: 'tz-rh-prog' }, 'سؤال ' + toFa(qi + 1) + ' از ' + toFa(N) + '  •  سطح ' + toFa(levelFor(qi))));
+      head.appendChild(h('span', { class: 'tz-rh-prog' }, 'سؤال ' + toFa(qi + 1) + ' از ' + toFa(N) + '  •  دشواری ' + toFa(diffScale(levelFor(qi), isChallenge(qi))) + '/۵'));
       bar.querySelector('.tz-exambar-f').style.width = (qi / N * 100) + '%';
       if (qi >= N) return finish();
       var q = adaptivePick(m, levelFor(qi), seedRef, recent, true);
+      if (q && q.meta) q.meta.difficulty = diffScale(levelFor(qi), isChallenge(qi));   // بندِ ۲۰: ۲۰/۳۵/۳۰/۱۵
       body.appendChild(h('p', { class: 'tz-qprompt' }, q.prompt));
       if (q.refs) body.appendChild(refsPanel(q.refs));
       if (q.grid) body.appendChild(gridPanel(q.grid));
@@ -5099,7 +5160,7 @@
   window.renderTizHub = renderTizHub;
 
   if (window.__TZ_DEBUG === true) {
-    window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion, adaptivePick: adaptivePick, MABAHETH: MABAHETH,
+    window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion, adaptivePick: adaptivePick, enrichQ: enrichQ, skillFor: skillFor, diffScale: diffScale, MABAHETH: MABAHETH,
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
