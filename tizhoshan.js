@@ -3111,9 +3111,96 @@
     function fig(cat, seed) { var rr = new RNG(seed), ang = [0, 90, 270][cat], head = rr.next() < 0.5 ? 'solid' : 'open'; return function (g) { arrowInto(g, ang, head); }; }
     return m7Question(rng, fig, 'در کدام گزینه، شکل‌ها بر اساسِ «جهتِ فلش» درست دسته‌بندی شده‌اند؟', 'نوکِ فلش (توپُر یا توخالی) مهم نیست؛ فقط جهت مهم است. در گزینه‌ی درست هر گروه یک جهت دارد: به‌راست، به‌پایین، و به‌بالا.', 'دسته‌بندی: جهتِ فلش');
   }
-  var M7_EASY = [m7_bySides, m7_byInner, m7_byCurvature];
-  var M7_MED = [m7_bySides, m7_byInner, m7_byFill, m7_byDotCount, m7_bySymmetry, m7_byCurvature, m7_byArrowDir];
-  var M7_HARD = [m7_byInner, m7_byFill, m7_byHatchDir, m7_bySides, m7_byDotCount, m7_byDotCount, m7_bySymmetry, m7_byCurvature, m7_byArrowDir];
+  /* ==== نمودارِ وِن: «شکل کجای نمودار می‌نشیند؟» (استدلالِ منطقی) ====
+   * دو ویژگیِ مستقل انتخاب می‌شود ⇒ چهار ترکیبِ ممکن (دارد/ندارد × دارد/ندارد).
+   * برای هر ترکیب دقیقاً یک شکل ساخته می‌شود و بقیه‌ی ویژگی‌ها ثابت می‌مانند،
+   * پس فقط همان دو ویژگی فرق دارند و پاسخ یکتا و اثبات‌پذیر است.
+   * ناحیه‌ی خواسته‌شده (اشتراک / فقط راست / فقط چپ / بیرونِ هر دو) با «؟» علامت می‌خورد.
+   */
+  var VN_R = 25, VN_CX1 = 36, VN_CX2 = 64, VN_CY = 46;
+  function vennLens() {
+    var xm = (VN_CX1 + VN_CX2) / 2, hg = Math.sqrt(VN_R * VN_R - Math.pow((VN_CX2 - VN_CX1) / 2, 2));
+    return 'M' + xm + ' ' + (VN_CY - hg).toFixed(2) + ' A' + VN_R + ' ' + VN_R + ' 0 0 1 ' + xm + ' ' + (VN_CY + hg).toFixed(2) +
+           ' A' + VN_R + ' ' + VN_R + ' 0 0 1 ' + xm + ' ' + (VN_CY - hg).toFixed(2) + ' Z';
+  }
+  function vnCircle(cx) { return 'M' + (cx - VN_R) + ' ' + VN_CY + ' a' + VN_R + ' ' + VN_R + ' 0 1 0 ' + (2 * VN_R) + ' 0 a' + VN_R + ' ' + VN_R + ' 0 1 0 ' + (-2 * VN_R) + ' 0 Z'; }
+  // ناحیه‌ها با fill-rule=evenodd ساخته می‌شوند: عدسی داخلِ هر دو دایره است، پس
+  // «دایره + عدسی» ناحیه‌ی فقط-آن-دایره را می‌دهد و «کادر + دو دایره + عدسی» بیرونِ هر دو را.
+  function vennRegionPath(region) {
+    var L = vennLens();
+    if (region === 'both') return L;
+    if (region === 'a') return vnCircle(VN_CX1) + ' ' + L;
+    if (region === 'b') return vnCircle(VN_CX2) + ' ' + L;
+    return 'M12 4 H88 A8 8 0 0 1 96 12 V80 A8 8 0 0 1 88 88 H12 A8 8 0 0 1 4 80 V12 A8 8 0 0 1 12 4 Z ' + vnCircle(VN_CX1) + ' ' + vnCircle(VN_CX2) + ' ' + L;
+  }
+  var VN_QMARK = { both: [50, VN_CY], a: [VN_CX1 - VN_R * 0.45, VN_CY], b: [VN_CX2 + VN_R * 0.45, VN_CY], none: [14, 80] };
+  function vennFig(region) {
+    return function (g) {
+      add(g, 'path', { d: vennRegionPath(region), 'fill-rule': 'evenodd', fill: PAL.goldL, stroke: 'none' });
+      add(g, 'path', merge(DEF, { d: vnCircle(VN_CX1), 'stroke-width': 2.6, stroke: PAL.teal, fill: 'none' }));
+      add(g, 'path', merge(DEF, { d: vnCircle(VN_CX2), 'stroke-width': 2.6, stroke: PAL.lilac, fill: 'none' }));
+      var q = VN_QMARK[region];
+      add(g, 'circle', { cx: q[0], cy: q[1], r: 8.5, fill: PAL.gold, stroke: '#fff', 'stroke-width': 2 });
+      var t = s('text', { x: q[0], y: q[1] + 4.6, 'text-anchor': 'middle', 'font-size': '13', 'font-weight': '800', fill: '#ffffff', 'font-family': 'Tahoma, sans-serif' });
+      t.textContent = '؟'; g.appendChild(t);
+    };
+  }
+  function vennLegend(labA, labB) {
+    var box = h('div', {}); box.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-top:4px;font-size:.74rem;line-height:1.5';
+    [[PAL.teal, 'دایره‌ی سمتِ چپ', labA], [PAL.lilac, 'دایره‌ی سمتِ راست', labB]].forEach(function (r) {
+      var row = h('div', {}); row.style.cssText = 'display:flex;align-items:center;gap:6px';
+      var d = h('span', {}); d.style.cssText = 'width:11px;height:11px;border-radius:50%;border:2.5px solid ' + r[0] + ';flex:0 0 auto';
+      row.appendChild(d); row.appendChild(h('span', {}, r[1] + ': ' + r[2])); box.appendChild(row);
+    });
+    return box;
+  }
+  // ویژگی‌های «درشت» در همه‌ی سطح‌ها می‌آیند؛ ویژگیِ ریزِ «نقطه‌ی گوشه» فقط از سطحِ ۲ به بعد.
+  var VN_PREDS = [
+    { id: 'fill',  lab: 'توپُر و رنگی است',           pick: function (rng) { return { on: { fill: rng.pick(['gray', 'dots', 'checker']) }, off: { fill: 'none' } }; } },
+    { id: 'inner', lab: 'شکلِ کوچکی داخلش دارد',      pick: function (rng) { return { on: { inner: rng.pick(['circle', 'square', 'triangle', 'star', 'plus']) }, off: { inner: 'none' } }; } },
+    { id: 'sides', lab: 'تعدادِ ضلع‌هایش زوج است',    pick: function (rng) { return { on: { sides: rng.pick([4, 6]) }, off: { sides: rng.pick([3, 5]) } }; } },
+    { id: 'ring',  lab: 'خطِ دورِ دوم دارد',           pick: function ()    { return { on: { ring: 'double' }, off: { ring: 'single' } }; } },
+    { id: 'dot',   lab: 'نقطه‌ی گوشه‌اش توپُر است',   pick: function ()    { return { on: { dot: 'solid' }, off: { dot: 'open' } }; }, minLevel: 2 }
+  ];
+  function vennPlace(rng, level, count) {
+    count = count || 4; level = level || 1;
+    var pool = VN_PREDS.filter(function (p) { return !p.minLevel || level >= p.minLevel; });
+    var two = rng.sample(pool, 2), pA = two[0], pB = two[1];
+    var vA = pA.pick(rng), vB = pB.pick(rng);
+    var base = { sides: rng.pick([3, 4, 5, 6]), fill: 'none', inner: 'none', dot: 'open', size: 'big', ring: 'single' };
+    var rot = rng.pick([0, 0, 0, 15, 30]);
+    function mk(inA, inB) {
+      var f = {}; for (var k in base) f[k] = base[k];
+      var src = inA ? vA.on : vA.off; for (var k1 in src) f[k1] = src[k1];
+      var src2 = inB ? vB.on : vB.off; for (var k2 in src2) f[k2] = src2[k2];
+      return { f: f, inA: inA, inB: inB };
+    }
+    var all = [mk(1, 1), mk(1, 0), mk(0, 1), mk(0, 0)];
+    // ناحیه‌های «فقط یکی» سخت‌ترند (شرطِ منفی دارند)، پس در سطحِ ۱ نمی‌آیند.
+    var region = level >= 3 ? rng.pick(['both', 'a', 'b', 'none']) : level === 2 ? rng.pick(['both', 'both', 'none', 'a', 'b']) : rng.pick(['both', 'both', 'none']);
+    var want = region === 'both' ? all[0] : region === 'a' ? all[1] : region === 'b' ? all[2] : all[3];
+    var order = rng.shuffle(all.slice(0, count));
+    var refs = [function () {
+      var wrap = h('div', {}); wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center';
+      wrap.appendChild(figure(vennFig(region), { size: 190, frame: false }));
+      wrap.appendChild(vennLegend(pA.lab, pB.lab));
+      return wrap;
+    }];
+    refs.label = 'جای «؟» در نمودار را ببین:'; refs.letters = [''];
+    var where = { both: 'داخلِ هر دو دایره (اشتراک)', a: 'فقط داخلِ دایره‌ی چپ، بیرونِ دایره‌ی راست',
+                  b: 'فقط داخلِ دایره‌ی راست، بیرونِ دایره‌ی چپ', none: 'بیرونِ هر دو دایره' };
+    var need = { both: ['هم ' + pA.lab, 'هم ' + pB.lab], a: [pA.lab, 'ولی ' + pB.lab.replace(/ است$/, '') + ' نیست'],
+                 b: [pB.lab, 'ولی ' + pA.lab.replace(/ است$/, '') + ' نیست'], none: ['نه ' + pA.lab, 'نه ' + pB.lab] };
+    return {
+      prompt: 'کدام شکل جای «؟» می‌نشیند؟', tag: 'نمودارِ وِن (منطقی)', refs: refs,
+      options: order, answer: order.indexOf(want),
+      render: function (o) { return figure(drawFeat(o.f), { rot: rot, size: 92 }); },
+      why: 'جای «؟» ' + where[region] + ' است؛ یعنی شکلی می‌خواهیم که ' + need[region].join(' و ') + '. از میان چهار گزینه فقط یکی هر دو شرط را با هم دارد و بقیه در ناحیه‌های دیگرِ نمودار می‌نشینند.'
+    };
+  }
+  var M7_EASY = [m7_bySides, m7_byInner, m7_byCurvature, vennPlace];
+  var M7_MED = [m7_bySides, m7_byInner, m7_byFill, m7_byDotCount, m7_bySymmetry, m7_byCurvature, m7_byArrowDir, vennPlace, vennPlace];
+  var M7_HARD = [m7_byInner, m7_byFill, m7_byHatchDir, m7_bySides, m7_byDotCount, m7_byDotCount, m7_bySymmetry, m7_byCurvature, m7_byArrowDir, vennPlace, vennPlace];
   function poolForM7(level) { return level >= 3 ? M7_HARD : level === 2 ? M7_MED : M7_EASY; }
   function genQuestionM7(rng, level) { return rng.pick(poolForM7(level))(rng, level || 1); }
 
@@ -4858,6 +4945,7 @@
     { re: /تکمیل|ترکیبِ تکه/, skill: 'استدلال تصویری', sub: 'ترکیب و تفکیک اشکال', err: 'انتخابِ تکه‌ی چرخیده یا آینه‌شده به‌جای تکه‌ی جفت‌شونده', sec: 50 },
     { re: /شمارش|تعداد/, skill: 'استدلال عددی', sub: 'شمارشِ منظم', err: 'نشمردنِ شکل‌های بزرگ‌تر یا دوباره‌شمردنِ یک شکل', sec: 45 },
     { re: /دسته‌بندی/, skill: 'استدلال منطقی', sub: 'طبقه‌بندی', err: 'گروه‌بندی بر اساسِ ویژگیِ ظاهریِ نامربوط', sec: 55 },
+    { re: /وِن/, skill: 'استدلال منطقی', sub: 'عضویت در مجموعه‌ها', err: 'توجه به یکی از دو شرط و نادیده‌گرفتنِ شرطِ دوم', sec: 55 },
     { re: /سری|قاعده|ماتریس/, skill: 'استدلال تصویری', sub: 'کشفِ الگو و اجرای قاعده', err: 'ادامه‌دادنِ الگو با یک گام کم یا زیاد', sec: 50 },
     { re: /تناسب|قیاس/, skill: 'استدلال تصویری', sub: 'انتقالِ رابطه', err: 'کپی‌کردنِ نمونه‌ی B به‌جای اجرای همان تغییر روی C', sec: 50 },
     { re: /دوران|آینه|انعکاس|چیرال|پیچش/, skill: 'تجسم فضایی', sub: 'دوران و انعکاس', err: 'اشتباه‌گرفتنِ چرخش با قرینه', sec: 45 },
@@ -5781,7 +5869,7 @@
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
         m5_curveLineMix: m5_curveLineMix, m5_arrowCount: m5_arrowCount, m5_containsTrio: m5_containsTrio, m5_symmetryPair5: m5_symmetryPair5, m5_chiralScene5: m5_chiralScene5 },
       m6: { m6_growDots: m6_growDots, m6_rotateStep: m6_rotateStep, m6_complexity: m6_complexity, m6_shrinkSplit: m6_shrinkSplit, m6_arcClose: m6_arcClose },
-      m7: { m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill, m7_byHatchDir: m7_byHatchDir, m7_bySymmetry: m7_bySymmetry, m7_byCurvature: m7_byCurvature, m7_byArrowDir: m7_byArrowDir },
+      m7: { vennPlace: vennPlace, vennFig: vennFig, m7_bySides: m7_bySides, m7_byInner: m7_byInner, m7_byFill: m7_byFill, m7_byHatchDir: m7_byHatchDir, m7_bySymmetry: m7_bySymmetry, m7_byCurvature: m7_byCurvature, m7_byArrowDir: m7_byArrowDir },
       nw: { gridOverlay: gridOverlay, gridXor: gridXor, matrixLogic3x3: matrixLogic3x3, jigsawPiece: jigsawPiece, mirrorWater: mirrorWater, analogyRotate: analogyRotate, oddRotOrder: oddRotOrder, oddCurvature: oddCurvature, dominoNext: dominoNext, seriesPieDiv: seriesPieDiv, nestedMatch: nestedMatch, pieceSquare: pieceSquare, pieceTriangle: pieceTriangle, pieceShape: pieceShape, pieceBent: pieceBent },
       book: { bkHouse: bkHouse, bkBentArrow: bkBentArrow, bkTwoCircles: bkTwoCircles, bkArrow: bkArrow } };
   }
