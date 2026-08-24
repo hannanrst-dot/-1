@@ -4318,7 +4318,110 @@
     };
   }
   function pieceRectCut(rng, level) { return pieceShape(rng, level, 4, 'rect'); }
-  function poolForSakhtar(level) { return level >= 2 ? [pieceSquare, pieceTriangle, pieceBent, pieceSquareCut, pieceZigzag, pieceRectCut] : [pieceSquare, pieceTriangle, pieceSquareCut, pieceRectCut]; }
+  /* ==== تکه‌ی گم‌شده‌ی پازلِ خانه‌ای (مبحثِ ۱۳) ====
+   * از یک صفحه‌ی R×C یک «تکه»ی همبند برداشته می‌شود و جای خالی‌اش می‌ماند.
+   * چون تکه‌ها مجموعه‌ی خانه‌اند، جورشدن دقیقاً یعنی برابریِ مجموعه‌ها پس از
+   * هم‌ترازی ⇒ پاسخ یکتا و اثبات‌پذیر است. گزینه‌های انحرافی: چرخش‌های ۹۰/۱۸۰/۲۷۰،
+   * آینه، و تکه‌ای هم‌اندازه ولی با شکلِ دیگر — یعنی همان خطاهای واقعیِ بچه‌ها.
+   */
+  function pmNorm(cells) {
+    var r0 = 99, c0 = 99;
+    cells.forEach(function (x) { if (x[0] < r0) r0 = x[0]; if (x[1] < c0) c0 = x[1]; });
+    return cells.map(function (x) { return [x[0] - r0, x[1] - c0]; })
+      .map(function (x) { return x[0] + ',' + x[1]; }).sort();
+  }
+  function pmSig(cells) { return pmNorm(cells).join(';'); }
+  function pmRot(cells) { return pmNorm(cells.map(function (x) { return [x[1], -x[0]]; })).map(function (s) { return s.split(',').map(Number); }); }
+  function pmMir(cells) { return pmNorm(cells.map(function (x) { return [x[0], -x[1]]; })).map(function (s) { return s.split(',').map(Number); }); }
+  function pmConnected(cells) {
+    if (!cells.length) return false;
+    var set = {}; cells.forEach(function (x) { set[x[0] + ',' + x[1]] = 1; });
+    var seen = {}, q = [cells[0]]; seen[cells[0][0] + ',' + cells[0][1]] = 1;
+    while (q.length) {
+      var cur = q.shift();
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+        var k = (cur[0] + d[0]) + ',' + (cur[1] + d[1]);
+        if (set[k] && !seen[k]) { seen[k] = 1; q.push([cur[0] + d[0], cur[1] + d[1]]); }
+      });
+    }
+    return Object.keys(seen).length === cells.length;
+  }
+  function pmGrow(rng, k, R, C) {
+    var cur = [[rng.int(0, R - 1), rng.int(0, C - 1)]], set = {}, guard = 0;
+    set[cur[0][0] + ',' + cur[0][1]] = 1;
+    while (cur.length < k && guard++ < 200) {
+      var base = cur[rng.int(0, cur.length - 1)], d = [[1, 0], [-1, 0], [0, 1], [0, -1]][rng.int(0, 3)];
+      var nr = base[0] + d[0], nc = base[1] + d[1], key = nr + ',' + nc;
+      if (nr < 0 || nc < 0 || nr >= R || nc >= C || set[key]) continue;
+      set[key] = 1; cur.push([nr, nc]);
+    }
+    return cur.length === k ? cur : null;
+  }
+  function pmFig(cells, unit, boardR, boardC) {
+    return function (g) {
+      var n = pmNorm(cells).map(function (s) { return s.split(',').map(Number); });
+      var r1 = 0, c1 = 0;
+      n.forEach(function (x) { if (x[0] > r1) r1 = x[0]; if (x[1] > c1) c1 = x[1]; });
+      var ox = 50 - (c1 + 1) * unit / 2, oy = 50 - (r1 + 1) * unit / 2;
+      n.forEach(function (x) {
+        add(g, 'rect', merge(DEF, { x: (ox + x[1] * unit).toFixed(1), y: (oy + x[0] * unit).toFixed(1),
+          width: unit.toFixed(1), height: unit.toFixed(1), fill: PAL.tealL, 'stroke-width': 2.4 }));
+      });
+    };
+  }
+  function pmBoardFig(keep, R, C, unit) {
+    return function (g) {
+      var ox = 50 - C * unit / 2, oy = 50 - R * unit / 2;
+      // جای خالی را کم‌رنگ و خط‌چین نشان می‌دهیم تا «حفره» دیده شود، نه فقط نبودِ خانه
+      for (var r = 0; r < R; r++) for (var c = 0; c < C; c++) {
+        var on = keep[r + ',' + c];
+        add(g, 'rect', merge(DEF, { x: (ox + c * unit).toFixed(1), y: (oy + r * unit).toFixed(1),
+          width: unit.toFixed(1), height: unit.toFixed(1),
+          fill: on ? PAL.cream : '#fff7e4', stroke: on ? PAL.line : '#e0b866',
+          'stroke-width': on ? 2.6 : 1.4, 'stroke-dasharray': on ? '' : '3.5 3' }));
+      }
+    };
+  }
+  function holePiece(rng, level, count) {
+    count = count || 4;
+    var R = 4, C = 4, k = level >= 3 ? rng.int(5, 6) : rng.int(4, 5);
+    var hole = null, keepSet = null, guard = 0;
+    while (!hole && guard++ < 120) {
+      var cand = pmGrow(rng, k, R, C);
+      if (!cand || !pmConnected(cand)) continue;
+      var hs = {}; cand.forEach(function (x) { hs[x[0] + ',' + x[1]] = 1; });
+      var rest = [];
+      for (var r = 0; r < R; r++) for (var c = 0; c < C; c++) if (!hs[r + ',' + c]) rest.push([r, c]);
+      if (!pmConnected(rest)) continue;                                  // صفحه نباید دوتکه شود
+      hole = cand; keepSet = {}; rest.forEach(function (x) { keepSet[x[0] + ',' + x[1]] = 1; });
+    }
+    if (!hole) return pieceSquare(rng, level, count);
+    var base = pmSig(hole), seen = {}; seen[base] = 1;
+    var cands = [], t = hole;
+    for (var i = 0; i < 3; i++) { t = pmRot(t); cands.push(t.map(function (x) { return x.slice(); })); }
+    cands.push(pmMir(hole)); cands.push(pmRot(pmMir(hole)));
+    var g2 = 0;
+    while (cands.length < 10 && g2++ < 120) {                            // تکه‌های هم‌اندازه با شکلِ دیگر
+      var o = pmGrow(rng, k, R, C); if (o && pmConnected(o)) cands.push(o);
+    }
+    var dists = [], sh = rng.shuffle(cands);
+    for (var j = 0; j < sh.length && dists.length < count - 1; j++) {
+      var s2 = pmSig(sh[j]); if (seen[s2]) continue; seen[s2] = 1; dists.push(sh[j]);
+    }
+    if (dists.length < count - 1) return pieceSquare(rng, level, count);
+    var unit = 60 / Math.max(R, C);
+    var opts = [{ p: hole }].concat(dists.map(function (d) { return { p: d }; })), order = rng.shuffle(opts);
+    var refs = [function () { return figure(pmBoardFig(keepSet, R, C, unit), { size: 168, frame: false }); }];
+    refs.label = 'این صفحه یک جای خالی دارد:'; refs.letters = [''];
+    return {
+      prompt: 'کدام تکه دقیقاً جای خالیِ این صفحه را پر می‌کند؟ (تکه را نمی‌توانی بچرخانی یا برگردانی)',
+      tag: 'تکه‌ی گم‌شده‌ی پازل', refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(pmFig(o.p, unit, R, C), { size: 96 }); },
+      why: 'جای خالی ' + toFa(k) + ' خانه دارد و همه‌ی گزینه‌ها هم ' + toFa(k) + ' خانه‌اند؛ پس تعدادِ خانه به تنهایی کافی نیست. باید شکلِ خانه‌ها را با جای خالی بسنجی: گزینه‌های دیگر همین تکه‌اند ولی چرخیده یا برگردانده‌شده، یا آرایشِ خانه‌هایشان فرق دارد.'
+    };
+  }
+  function poolForSakhtar(level) { return level >= 2 ? [pieceSquare, pieceTriangle, pieceBent, pieceSquareCut, pieceZigzag, pieceRectCut, holePiece, holePiece] : [pieceSquare, pieceTriangle, pieceSquareCut, pieceRectCut, holePiece]; }
   function genSakhtar(rng, level) { return rng.pick(poolForSakhtar(level || 2))(rng, level || 2); }
   function lessonSakhtar() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -6115,7 +6218,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, paperCut: paperCut, cutOutline: cutOutline, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, hiddenPick: hiddenPick, hiddenNotIn: hiddenNotIn, hiddenCount: hiddenCount, latGrid: latGrid, latShift: latShift, countTrianglesFan: countTrianglesFan, countTrianglesGrid: countTrianglesGrid, tgCountTriangles: tgCountTriangles, tgFull: tgFull, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, paperCut: paperCut, cutOutline: cutOutline, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, holePiece: holePiece, pmSig: pmSig, pmNorm: pmNorm, hiddenPick: hiddenPick, hiddenNotIn: hiddenNotIn, hiddenCount: hiddenCount, latGrid: latGrid, latShift: latShift, countTrianglesFan: countTrianglesFan, countTrianglesGrid: countTrianglesGrid, tgCountTriangles: tgCountTriangles, tgFull: tgFull, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
