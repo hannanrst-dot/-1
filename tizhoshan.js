@@ -3606,6 +3606,94 @@
       why: 'هر مثلث از رأسِ بالا و دو نقطه‌ی روی قاعده ساخته می‌شود. با ' + toFa(nBase) + ' نقطه روی قاعده، تعدادِ مثلث‌ها برابرِ تعدادِ جفت‌های این نقطه‌هاست = ' + toFa(total) + '. مثلث‌های بزرگ‌تر (که چند خانه را می‌پوشانند) را هم باید بشماری!'
     };
   }
+  /* ==== شمارشِ مثلث در شبکه‌ی مثلثی (سطحِ ۳-۵) ====
+   * شبکه: مثلثِ بزرگِ ضلعِ n که به n² مثلثِ واحد تقسیم شده. خانه‌ها:
+   *   بالارو  (r,c) با r=0..n-1 و c=0..r     ⇒ رأس‌های شبکه‌ای (r,c),(r+1,c),(r+1,c+1)
+   *   پایین‌رو (r,c) با r=1..n-1 و c=0..r-1  ⇒ رأس‌های (r,c),(r,c+1),(r+1,c+1)
+   * شمارش با «شمارشِ کاملِ نامزدها» انجام می‌شود، نه فرمول: هر مثلثِ ممکن (بالارو و
+   * پایین‌رو، هر اندازه و هر جا) ساخته می‌شود و اگر همه‌ی k² خانه‌ی درونش موجود باشد
+   * شمرده می‌شود. پس شکل‌های بریده (ذوزنقه، شش‌ضلعی، …) هم دقیق شمرده می‌شوند.
+   */
+  var TG_H = Math.sqrt(3) / 2;
+  function tgPt(r, c) { return [c - r / 2, r * TG_H]; }
+  function tgCell(cell) {
+    return cell.up ? [tgPt(cell.r, cell.c), tgPt(cell.r + 1, cell.c), tgPt(cell.r + 1, cell.c + 1)]
+                   : [tgPt(cell.r, cell.c), tgPt(cell.r, cell.c + 1), tgPt(cell.r + 1, cell.c + 1)];
+  }
+  function tgCentroid(cell) { var v = tgCell(cell); return [(v[0][0] + v[1][0] + v[2][0]) / 3, (v[0][1] + v[1][1] + v[2][1]) / 3]; }
+  function tgInside(p, t) {
+    function sd(a, b) { return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]); }
+    var d1 = sd(t[0], t[1]), d2 = sd(t[1], t[2]), d3 = sd(t[2], t[0]);
+    return !((d1 < -1e-9 || d2 < -1e-9 || d3 < -1e-9) && (d1 > 1e-9 || d2 > 1e-9 || d3 > 1e-9));
+  }
+  function tgCountTriangles(cells, n) {
+    var cent = cells.map(tgCentroid), up = 0, dn = 0, bySize = [], k, r, c;
+    function fits(t, k2) { var hit = 0; for (var i = 0; i < cent.length; i++) if (tgInside(cent[i], t)) hit++; return hit === k2; }
+    for (k = 1; k <= n; k++) {
+      var u = 0, d = 0;
+      for (r = 0; r + k <= n; r++) for (c = 0; c <= r; c++)
+        if (fits([tgPt(r, c), tgPt(r + k, c), tgPt(r + k, c + k)], k * k)) u++;
+      for (r = k; r + k <= n; r++) for (c = 0; c + k <= r; c++)
+        if (fits([tgPt(r, c), tgPt(r, c + k), tgPt(r + k, c + k)], k * k)) d++;
+      if (u + d) bySize.push({ k: k, up: u, dn: d });
+      up += u; dn += d;
+    }
+    return { up: up, dn: dn, total: up + dn, bySize: bySize };
+  }
+  function tgFull(n) {
+    var cells = [], r, c;
+    for (r = 0; r < n; r++) {
+      for (c = 0; c <= r; c++) cells.push({ r: r, c: c, up: 1 });
+      for (c = 0; c < r; c++) cells.push({ r: r, c: c, up: 0 });
+    }
+    return cells;
+  }
+  function tgFig(cells, n) {
+    return function (g) {
+      var sz = 78 / n, x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;   // مرکزچینِ دقیق روی خودِ شکل، نه روی مثلثِ کامل
+      var polys = cells.map(tgCell);
+      polys.forEach(function (v) { v.forEach(function (p) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }); });
+      var ox = 50 - (x0 + x1) / 2 * sz, oy = 50 - (y0 + y1) / 2 * sz, lw = Math.min(3, Math.max(1.7, 7 / n));
+      polys.forEach(function (v) {
+        var pts = v.map(function (p) { return (ox + p[0] * sz).toFixed(1) + ',' + (oy + p[1] * sz).toFixed(1); }).join(' ');
+        add(g, 'polygon', merge(DEF, { points: pts, fill: PAL.cream, 'stroke-width': lw }));
+      });
+    };
+  }
+  function countTrianglesGrid(rng, level) {
+    var n = level >= 3 ? rng.pick([3, 4, 4]) : rng.pick([2, 3]);
+    var cells = tgFull(n), cut = '';
+    if (n >= 3 && rng.int(0, 2) === 0) {                                  // گاهی یک گوشه را برمی‌داریم ⇒ ذوزنقه/شش‌ضلعی
+      var corners = [{ r: 0, c: 0, up: 1 }, { r: n - 1, c: 0, up: 1 }, { r: n - 1, c: n - 1, up: 1 }];
+      var kill = rng.sample(corners, rng.int(1, n === 4 ? 3 : 1));
+      cells = cells.filter(function (x) { return !kill.some(function (q) { return q.r === x.r && q.c === x.c && x.up; }); });
+      cut = kill.length === 3 ? 'شش‌ضلعی' : 'بریده';
+    }
+    var res = tgCountTriangles(cells, n), total = res.total;
+    /* گزینه‌های انحرافی: خطاهای واقعیِ شمارش (فقط مثلث‌های کوچک، فقط رو به بالاها،
+     * جاانداختنِ وارونه‌ها) به‌اضافه‌ی چند عددِ بزرگ‌تر. تعدادِ گزینه‌های بزرگ‌تر از پاسخ
+     * تصادفی (۰ تا ۳) انتخاب می‌شود تا رتبه‌ی عددیِ پاسخ یکنواخت بماند و
+     * «همیشه بزرگ‌ترین عدد را بزن» جواب ندهد (بندِ ۱۱). */
+    var seen = {}; seen[total] = 1;
+    function uniq(list) { var o = []; list.forEach(function (v) { if (v >= 2 && !seen[v]) { seen[v] = 1; o.push(v); } }); return o; }
+    var below = uniq(rng.shuffle([cells.length, res.up, total - 1, total - res.dn, total - 2, total - 3]).filter(function (v) { return v < total; }));
+    var above = uniq([total + 1, total + 2, total + 3, total + 4].filter(function (v) { return v > total; }));
+    var nAbove = Math.min(rng.int(0, 3), above.length), ds = above.slice(0, nAbove);
+    for (var d = 0; d < below.length && ds.length < 3; d++) ds.push(below[d]);
+    for (var e = nAbove; e < above.length && ds.length < 3; e++) ds.push(above[e]);
+    var opts = [{ v: total }].concat(ds.map(function (v) { return { v: v }; })), order = rng.shuffle(opts);
+    var refs = [function () { return figure(tgFig(cells, n), { size: 178, frame: false }); }];
+    refs.label = 'همه‌ی مثلث‌ها را بشمار — رو به بالا و رو به پایین، کوچک و بزرگ:'; refs.letters = [''];
+    return {
+      prompt: 'در این شکل، رویِ‌هم چند «مثلث» می‌بینی؟ (مثلث‌های وارونه و مثلث‌های بزرگ‌تر را هم بشمار)',
+      tag: 'شمارشِ مثلث در شبکه' + (cut ? '‌ی ' + cut : ''), refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { var m = h('div', {}, toFa(o.v)); m.style.cssText = 'font-size:2rem;font-weight:800;color:' + PAL.ink + ';padding:6px 12px'; return m; },
+      why: 'منظم بشمار — اندازه به اندازه: ' + res.bySize.map(function (b) {
+        return 'اندازه‌ی ' + toFa(b.k) + ' ⟵ ' + toFa(b.up) + ' تا رو به بالا' + (b.dn ? ' و ' + toFa(b.dn) + ' تا وارونه' : '');
+      }).join('؛ ') + '. جمعِ همه ' + toFa(total) + ' مثلث می‌شود. بیشترِ بچه‌ها فقط ' + toFa(cells.length) + ' مثلثِ کوچک را می‌شمارند و مثلث‌های وارونه و بزرگ‌تر را جا می‌اندازند.'
+    };
+  }
   // شمارشِ مربع‌های ترکیبی: شبکه‌ی n×n؛ تعدادِ کلِ مربع‌ها (همه‌اندازه) = n(n+1)(2n+1)/6
   function countSquaresGrid(rng, level) {
     var n = level >= 3 ? rng.pick([3, 3, 4]) : level >= 2 ? rng.pick([2, 3]) : 2;
@@ -3780,7 +3868,7 @@
     };
   }
 
-  function poolForShomaresh(level) { return level >= 2 ? [countShapes, countShapes, countTrianglesFan, countSquaresGrid, countRectanglesGrid, countPaths] : [countShapes, countTrianglesFan, countRectanglesGrid, countPaths]; }
+  function poolForShomaresh(level) { return level >= 2 ? [countShapes, countShapes, countTrianglesFan, countSquaresGrid, countRectanglesGrid, countPaths, countTrianglesGrid, countTrianglesGrid] : [countShapes, countTrianglesFan, countRectanglesGrid, countPaths, countTrianglesGrid]; }
   function genShomaresh(rng, level) { return rng.pick(poolForShomaresh(level || 2))(rng, level || 2); }
   function lessonShomaresh() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -5687,7 +5775,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, paperCut: paperCut, cutOutline: cutOutline, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, paperCut: paperCut, cutOutline: cutOutline, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, countTrianglesFan: countTrianglesFan, countTrianglesGrid: countTrianglesGrid, tgCountTriangles: tgCountTriangles, tgFull: tgFull, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
