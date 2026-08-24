@@ -5015,7 +5015,128 @@
       progStat('✅', toFa(p.solved), 'تمرینِ درست'),
       progStat('🔥', toFa(p.bestStreak), 'رکوردِ زنجیره'),
       progStat('🏅', toFa(p.badges.length) + '/' + toFa(BADGES.length), 'نشان'),
-      h('button', { class: 'tz-progbtn', onclick: badgesView }, '🏅 گنجینه‌ی نشان‌ها ←'));
+      h('button', { class: 'tz-progbtn', onclick: badgesView }, '🏅 گنجینه‌ی نشان‌ها ←'),
+      h('button', { class: 'tz-progbtn tz-parentbtn', onclick: parentReport }, '👨‍👩‍👦 گزارشِ والدین ←'));
+  }
+
+  /* ==== گزارشِ والدین ====
+   * همه‌چیز از همان چیزی خوانده می‌شود که موقعِ تمرین ثبت شده (بانکِ تیپ‌ها):
+   * برای هر مبحث و هر تیپ، تعدادِ درست/غلط و جعبه‌ی مرورِ فاصله‌دار.
+   * خروجی برای پدر و مادر است، پس زبان ساده و «قدمِ بعدی» مشخص است.
+   */
+  /* چاپِ فقط همین صفحه: کلاسِ حالتِ چاپ را می‌گذاریم، چاپ می‌گیریم و بعد برمی‌داریم.
+   * window.print در بعضی مرورگرها همگام است و در بعضی نه، پس هم afterprint و هم
+   * یک زمان‌سنجِ پشتیبان کلاس را پاک می‌کنند. */
+  function printOnly() {
+    if (!ROOT) return;
+    ROOT.classList.add('tz-printing');
+    var done = false;
+    function off() { if (done) return; done = true; ROOT.classList.remove('tz-printing'); if (window.removeEventListener) window.removeEventListener('afterprint', off); }
+    if (window.addEventListener) window.addEventListener('afterprint', off);
+    setTimeout(function () { try { window.print(); } catch (e) {} setTimeout(off, 1200); }, 30);
+  }
+  function pr_pct(c, w) { var n = c + w; return n ? Math.round(c / n * 100) : 0; }
+  function collectStats() {
+    var p = loadProg(), rows = [], bySkill = {}, all = [], due = 0, totC = 0, totW = 0;
+    MABAHETH.forEach(function (m) {
+      var tg = (p.tags && p.tags[m.id]) || {}, c = 0, w = 0, n = 0;
+      Object.keys(tg).forEach(function (tag) {
+        var t = tg[tag]; c += t.c || 0; w += t.w || 0; n++;
+        if (isDue(t)) due++;
+        var sk = skillFor(tag).skill, s = bySkill[sk] || { c: 0, w: 0 };
+        s.c += t.c || 0; s.w += t.w || 0; bySkill[sk] = s;
+        all.push({ topic: m.title, tag: tag, c: t.c || 0, w: t.w || 0, box: t.box || 0 });
+      });
+      totC += c; totW += w;
+      var j = jGet(m.id);
+      if (c + w > 0 || j.cleared > 0) rows.push({ m: m, c: c, w: w, types: n, cleared: Math.min(j.cleared, J_TOTAL) });
+    });
+    return { p: p, rows: rows, bySkill: bySkill, all: all, due: due, totC: totC, totW: totW };
+  }
+  function pr_bar(pct, col) {
+    var wrap = h('div', { class: 'tz-prbar' }), fill = h('span');
+    fill.style.cssText = 'width:' + pct + '%;background:' + (col || PAL.teal);
+    wrap.appendChild(fill); return wrap;
+  }
+  function parentReport() {
+    clear(ROOT);
+    ROOT.appendChild(backBtn(renderHub, 'مبحث‌ها'));
+    var S = collectStats(), total = S.totC + S.totW, pct = pr_pct(S.totC, S.totW);
+    var box = h('div', { class: 'tz-report tz-parent' });
+    box.appendChild(h('h2', { class: 'tz-h2' }, '👨‍👩‍👦 گزارشِ والدین'));
+    if (!total) {
+      box.appendChild(h('p', { class: 'tz-analysis-tip' }, 'هنوز تمرینی ثبت نشده است. بعد از چند تمرین یا یک آزمونِ جامع، این گزارش پر می‌شود و نشان می‌دهد فرزندتان در کدام مهارت قوی است و روی چه چیزی باید کار کند.'));
+      ROOT.appendChild(box); return;
+    }
+    // ۱) خلاصه
+    var sum = h('div', { class: 'tz-prsum' });
+    [['📚', toFa(total), 'سؤالِ تمرین‌شده'], ['🎯', toFa(pct) + '٪', 'پاسخِ درست'],
+     ['🔥', toFa(S.p.bestStreak), 'بهترین زنجیره'], ['🗂️', toFa(S.all.length), 'تیپِ تجربه‌شده'],
+     ['🔁', toFa(S.due), 'آماده‌ی مرورِ امروز']].forEach(function (x) {
+      sum.appendChild(h('div', { class: 'tz-prcell' }, h('div', { class: 'tz-prcell-i' }, x[0]),
+        h('div', { class: 'tz-prcell-v' }, x[1]), h('div', { class: 'tz-prcell-l' }, x[2])));
+    });
+    box.appendChild(sum);
+    // ۲) کارنامه‌ی مهارت‌ها
+    box.appendChild(h('h3', { class: 'tz-analysis-h' }, '🧠 چهار مهارتِ اصلی'));
+    var sks = Object.keys(S.bySkill).sort(function (a, b) { return pr_pct(S.bySkill[b].c, S.bySkill[b].w) - pr_pct(S.bySkill[a].c, S.bySkill[a].w); });
+    sks.forEach(function (k) {
+      var s = S.bySkill[k], q = pr_pct(s.c, s.w);
+      box.appendChild(h('div', { class: 'tz-skrow' + (q >= 80 ? ' good' : q < 55 ? ' weak' : '') },
+        h('span', { class: 'tz-skname' }, k), pr_bar(q, q >= 80 ? PAL.ok : q < 55 ? PAL.bad : PAL.gold),
+        h('span', { class: 'tz-sknum' }, toFa(q) + '٪ (' + toFa(s.c + s.w) + ' سؤال)')));
+    });
+    // ۳) قوی‌ترین و ضعیف‌ترین تیپ‌ها (فقط تیپ‌هایی که دستِ‌کم ۳ بار دیده شده‌اند)
+    var seen = S.all.filter(function (x) { return x.c + x.w >= 3; });
+    seen.sort(function (a, b) { return pr_pct(b.c, b.w) - pr_pct(a.c, a.w) || (b.c + b.w) - (a.c + a.w); });
+    // رنگ از کلاس می‌آید نه از style درون‌خطی، تا تمِ تاریک بتواند بازنویسی‌اش کند
+    function tagList(title, list, cls) {
+      if (!list.length) return;
+      box.appendChild(h('h3', { class: 'tz-analysis-h' }, title));
+      list.forEach(function (x) {
+        box.appendChild(h('div', { class: 'tz-prtag ' + cls },
+          h('span', { class: 'tz-prtag-n' }, x.tag),
+          h('span', { class: 'tz-prtag-t' }, x.topic),
+          h('span', { class: 'tz-prtag-p' }, toFa(pr_pct(x.c, x.w)) + '٪')));
+      });
+    }
+    /* دو فهرست باید جدا بمانند: «قوی» یعنی دستِ‌کم ۷۵٪ و «ضعیف» یعنی زیرِ ۶۰٪.
+     * بدونِ این آستانه‌ها، وقتی همه‌ی درصدها پایین است یک تیپ در هر دو فهرست
+     * می‌آمد و گزارش برای پدر و مادر بی‌معنا می‌شد. */
+    var strong = seen.filter(function (x) { return pr_pct(x.c, x.w) >= 75; }).slice(0, 5);
+    var weak = seen.slice().reverse().filter(function (x) { return pr_pct(x.c, x.w) < 60; }).slice(0, 5);
+    if (strong.length) tagList('💪 قوی‌ترین تیپ‌ها', strong, 'good');
+    else {
+      box.appendChild(h('h3', { class: 'tz-analysis-h' }, '💪 قوی‌ترین تیپ‌ها'));
+      box.appendChild(h('div', { class: 'tz-prtip' }, 'هنوز هیچ تیپی به ۷۵٪ نرسیده است. این طبیعی است؛ با چند دورِ تمرینِ دیگر، تیپ‌هایی که جا افتاده‌اند این‌جا ظاهر می‌شوند.'));
+    }
+    tagList('🎯 تیپ‌هایی که باید رویشان کار کرد', weak, 'weak');
+    // ۴) پیشنهادِ هفته
+    box.appendChild(h('h3', { class: 'tz-analysis-h' }, '🗓️ پیشنهادِ این هفته'));
+    var tips = [];
+    if (weak.length) tips.push('روی «' + weak[0].tag + '» تمرکز کنید؛ در مبحثِ «' + weak[0].topic + '» است و تا حالا ' + toFa(pr_pct(weak[0].c, weak[0].w)) + '٪ درست بوده.');
+    if (S.due) tips.push('امروز ' + toFa(S.due) + ' تیپ آماده‌ی مرور است. دکمه‌ی «🔁 مرورِ امروز» در صفحه‌ی مبحث، دقیقاً همان‌ها را می‌آورد.');
+    var untouched = MABAHETH.filter(function (m) { var t = (S.p.tags && S.p.tags[m.id]) || {}; return m.ready && !Object.keys(t).length; });
+    if (untouched.length) tips.push('هنوز سراغِ ' + toFa(untouched.length) + ' مبحث نرفته‌اید؛ نزدیک‌ترین‌شان «' + untouched[0].title + '» است.');
+    tips.push('برگه‌ی چاپیِ هر مبحث را بگیرید و یک بار روی کاغذ و با زمان‌سنج کار کنید — آزمونِ واقعی هم روی کاغذ است.');
+    var ul = h('div', { class: 'tz-prtips' });
+    tips.forEach(function (t) { ul.appendChild(h('div', { class: 'tz-prtip' }, '• ' + t)); });
+    box.appendChild(ul);
+    // ۵) جدولِ مبحث‌ها
+    box.appendChild(h('h3', { class: 'tz-analysis-h' }, '📋 وضعیتِ مبحث‌ها'));
+    var tbl = h('div', { class: 'tz-prtable' });
+    tbl.appendChild(h('div', { class: 'tz-prhead' }, h('span', {}, 'مبحث'), h('span', {}, 'مرحله'), h('span', {}, 'سؤال'), h('span', {}, 'درست')));
+    S.rows.forEach(function (r) {
+      tbl.appendChild(h('div', { class: 'tz-prrow' },
+        h('span', {}, toFa(r.m.n) + '. ' + r.m.title),
+        h('span', {}, toFa(r.cleared) + '/' + toFa(J_TOTAL)),
+        h('span', {}, toFa(r.c + r.w)),
+        h('span', {}, r.c + r.w ? toFa(pr_pct(r.c, r.w)) + '٪' : '—')));
+    });
+    box.appendChild(tbl);
+    box.appendChild(h('div', { class: 'tz-lnav tz-noprint' }, h('span'),
+      h('button', { class: 'tz-btn', onclick: printOnly }, '🖨️ چاپ / ذخیره‌ی PDF')));
+    ROOT.appendChild(box);
   }
   function badgesView() {
     clear(ROOT);
@@ -6167,6 +6288,31 @@
       '.tz-btn.tz-exambtn{background:linear-gradient(135deg,' + PAL.lilac + ',' + PAL.teal + ');font-size:.92rem;box-shadow:0 6px 16px rgba(0,194,168,.34)}',
       '.tz-btn.tz-revbtn{background:linear-gradient(135deg,' + PAL.gold + ',' + PAL.fun + ');font-size:.9rem;box-shadow:0 6px 16px rgba(255,111,165,.34)}',
       '.tz-btn.tz-printbtn{background:linear-gradient(135deg,#5b6b8f,#38455f);font-size:.9rem;box-shadow:0 6px 16px rgba(56,69,95,.30)}',
+      /* ---- گزارشِ والدین ---- */
+      '.tz-progbtn.tz-parentbtn{background:linear-gradient(135deg,' + PAL.sky + ',' + PAL.teal + ')}',
+      '.tz-prsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;margin:12px 0 18px}',
+      '.tz-prcell{background:' + PAL.cream + ';border:1px solid ' + PAL.border + ';border-radius:14px;padding:10px 6px;text-align:center}',
+      '.tz-prcell-i{font-size:1.1rem}.tz-prcell-v{font-weight:800;font-size:1.15rem;color:' + PAL.ink + ';font-variant-numeric:tabular-nums}',
+      '.tz-prcell-l{font-size:.68rem;color:' + PAL.inkSoft + ';margin-top:2px;line-height:1.5}',
+      '.tz-prbar{flex:1;height:9px;border-radius:999px;background:#e8e9f6;overflow:hidden}',
+      '.tz-prbar>span{display:block;height:100%;border-radius:999px}',
+      '.tz-prtag{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid ' + PAL.border + ';border-radius:12px;margin:5px 0;font-size:.82rem}',
+      '.tz-prtag-n{font-weight:700;color:' + PAL.ink + ';flex:1 1 auto}',
+      '.tz-prtag-t{font-size:.72rem;color:' + PAL.inkSoft + ';flex:0 0 auto}',
+      '.tz-prtag-p{font-weight:800;flex:0 0 auto;font-variant-numeric:tabular-nums}',
+      '.tz-prtag.good .tz-prtag-p{color:' + PAL.okTxt + '}.tz-prtag.weak .tz-prtag-p{color:' + PAL.badTxt + '}',
+      '.tz-dark .tz-prtag.good .tz-prtag-p{color:#4fdcae}.tz-dark .tz-prtag.weak .tz-prtag-p{color:#ff93a3}',
+      '.tz-prtips{margin:8px 0 4px}.tz-prtip{font-size:.85rem;color:' + PAL.ink + ';line-height:1.9;margin:4px 0}',
+      '.tz-prtable{margin-top:8px;border:1px solid ' + PAL.border + ';border-radius:14px;overflow:hidden}',
+      '.tz-prhead,.tz-prrow{display:grid;grid-template-columns:1fr 70px 60px 60px;gap:6px;padding:8px 11px;font-size:.8rem;align-items:center}',
+      '.tz-prhead{background:' + PAL.cream + ';font-weight:800;color:' + PAL.ink + '}',
+      '.tz-prrow{border-top:1px solid ' + PAL.border + ';color:' + PAL.ink + '}',
+      '.tz-prrow span:not(:first-child),.tz-prhead span:not(:first-child){text-align:center;font-variant-numeric:tabular-nums}',
+      '.tz-dark .tz-prcell{background:#2a2d4c;border-color:#3a3d5f}.tz-dark .tz-prcell-v{color:#e8e9f6}',
+      '.tz-dark .tz-prcell-l,.tz-dark .tz-prtag-t{color:#a3a7c4}',
+      '.tz-dark .tz-prtag,.tz-dark .tz-prtable{border-color:#34375c}.tz-dark .tz-prtag-n,.tz-dark .tz-prtip,.tz-dark .tz-prrow{color:#e8e9f6}',
+      '.tz-dark .tz-prhead{background:#2a2d4c;color:#e8e9f6}.tz-dark .tz-prrow{border-top-color:#34375c}',
+      '.tz-dark .tz-prbar{background:#33365a}',
       /* ---- برگه‌ی چاپیِ A4 ---- */
       '.tz-printhost{margin-top:18px;border:1px solid ' + PAL.border + ';border-radius:16px;overflow:hidden;background:#fff}',
       '.tz-pr-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;background:' + PAL.cream + ';border-bottom:1px solid ' + PAL.border + '}',
@@ -6195,8 +6341,13 @@
       '  html,body{background:#fff!important;margin:0!important;padding:0!important}',
       '  .tz-root.tz-printing>*{display:none!important}',            // فقط برگه چاپ شود
       '  .tz-root.tz-printing{background:#fff!important;background-image:none!important;margin:0!important;padding:0!important;max-width:none!important;box-shadow:none!important;border:none!important}',
-      '  .tz-root.tz-printing>.tz-printhost{display:block!important;border:none;margin:0;width:auto}',
-      '  .tz-pr-bar{display:none!important}',
+      '  .tz-root.tz-printing>.tz-printhost,.tz-root.tz-printing>.tz-parent{display:block!important;border:none;margin:0;width:auto}',
+      '  .tz-pr-bar,.tz-noprint{display:none!important}',
+      // نوارهای درصد باید در چاپ هم رنگ داشته باشند وگرنه گزارش بی‌معنا می‌شود
+      '  .tz-prbar,.tz-prbar>span,.tz-prcell,.tz-prhead{-webkit-print-color-adjust:exact;print-color-adjust:exact}',
+      '  .tz-parent{box-shadow:none!important;border:none!important;padding:0!important;background:#fff!important}',
+      '  .tz-parent .tz-analysis-h{break-after:avoid;page-break-after:avoid}',
+      '  .tz-prtag,.tz-prrow,.tz-skrow{break-inside:avoid;page-break-inside:avoid}',
       '  .tz-printhost{box-shadow:none;border:none;padding:0;background:#fff!important}',
       '  .tz-print{box-shadow:none;border:none;padding:0 2mm;background:#fff!important}',   // ۲ میلی‌متر تا سرکشِ «آ» بریده نشود
       '  .tz-print,.tz-print *{color:#000!important}',
