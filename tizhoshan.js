@@ -1879,6 +1879,89 @@
    * دارد (+ خط‌های اضافه)، و گزینه‌های غلط دستِ‌کم یک پاره‌خطِ X را ندارند ⇒
    * پاسخ یکتا و اثبات‌پذیر. نیازمندِ ریزبینی و دنبال‌کردنِ خط‌ها.
    * ================================================================ */
+  /* ==== موتورِ مشترکِ «شبکه‌ی نقطه‌ای» برای تیپ‌های تصویرِ پنهان ====
+   * روی شبکه‌ی G×G، هر یال یک «کلید» دارد. چون همه‌چیز مجموعه‌ی کلید است،
+   * «پنهان‌بودن» دقیقاً یعنی زیرمجموعه‌بودن ⇒ درستیِ پاسخ اثبات‌پذیر است.
+   */
+  function latGrid(G) {
+    var st = 60 / (G - 1);
+    function xy(r, c) { return [20 + c * st, 20 + r * st]; }
+    function key(s) { var a = s[0], b = s[1], p = a[0] * 10 + a[1], q = b[0] * 10 + b[1]; return p < q ? p + '_' + q : q + '_' + p; }
+    var segs = [], r, c;
+    for (r = 0; r < G; r++) for (c = 0; c < G; c++) {
+      if (c < G - 1) segs.push([[r, c], [r, c + 1]]);
+      if (r < G - 1) segs.push([[r, c], [r + 1, c]]);
+      if (r < G - 1 && c < G - 1) { segs.push([[r, c], [r + 1, c + 1]]); segs.push([[r, c + 1], [r + 1, c]]); }
+    }
+    var byKey = {}; segs.forEach(function (s) { byKey[key(s)] = s; });
+    function neighbors(node) {
+      var res = []; segs.forEach(function (s) {
+        if (s[0][0] === node[0] && s[0][1] === node[1]) res.push([key(s), s[1]]);
+        else if (s[1][0] === node[0] && s[1][1] === node[1]) res.push([key(s), s[0]]);
+      }); return res;
+    }
+    return { G: G, xy: xy, key: key, byKey: byKey, allKeys: Object.keys(byKey), neighbors: neighbors };
+  }
+  function latPath(rng, gr, L, box) {                       // مسیرِ پیوسته‌ی L یالی (اختیاراً درونِ کادرِ box)
+    var lo = box ? box[0] : 0, hiR = box ? box[1] : gr.G - 1, hiC = box ? box[2] : gr.G - 1;
+    var node = [rng.int(lo, hiR), rng.int(lo, hiC)], used = {}, out = [], tries = 0;
+    while (out.length < L && tries++ < 60) {
+      var nb = gr.neighbors(node).filter(function (n) {
+        if (used[n[0]]) return false;
+        return !box || (n[1][0] >= lo && n[1][0] <= hiR && n[1][1] >= lo && n[1][1] <= hiC);
+      });
+      if (!nb.length) break;
+      var pk = nb[rng.int(0, nb.length - 1)];
+      used[pk[0]] = 1; out.push(pk[0]); node = pk[1];
+    }
+    return out;
+  }
+  // مسیرِ پیوسته‌ای که فقط روی یال‌های «موجود» راه می‌رود ⇒ حتماً زیرمجموعه است
+  function latPathIn(rng, gr, L, allowSet) {
+    var starts = [];
+    for (var r = 0; r < gr.G; r++) for (var c = 0; c < gr.G; c++)
+      if (gr.neighbors([r, c]).some(function (n) { return allowSet[n[0]]; })) starts.push([r, c]);
+    if (!starts.length) return [];
+    var node = starts[rng.int(0, starts.length - 1)], used = {}, out = [], tries = 0;
+    while (out.length < L && tries++ < 60) {
+      var nb = gr.neighbors(node).filter(function (n) { return allowSet[n[0]] && !used[n[0]]; });
+      if (!nb.length) break;
+      var pk = nb[rng.int(0, nb.length - 1)];
+      used[pk[0]] = 1; out.push(pk[0]); node = pk[1];
+    }
+    return out;
+  }
+  /* نقطه‌های شبکه را کم‌رنگ نشان می‌دهیم: هم «مقیاس و جای» شکل را صریح می‌کند
+   * (چون شکلِ پنهان باید در همان اندازه و جهت پیدا شود) و هم چشمِ بچه را
+   * روی مسیرِ یال‌ها هدایت می‌کند. */
+  function latDraw(gr, keys, sw, dots) {
+    return function (g) {
+      if (dots) for (var r = 0; r < gr.G; r++) for (var c = 0; c < gr.G; c++) {
+        var q = gr.xy(r, c);
+        add(g, 'circle', { cx: q[0].toFixed(1), cy: q[1].toFixed(1), r: 1.5, fill: '#c9cee8', stroke: 'none' });
+      }
+      keys.forEach(function (k) {
+        var s = gr.byKey[k]; if (!s) return;
+        var a = gr.xy(s[0][0], s[0][1]), b = gr.xy(s[1][0], s[1][1]);
+        add(g, 'line', merge(DEF, { x1: a[0], y1: a[1], x2: b[0], y2: b[1], 'stroke-width': sw || 2.6 }));
+      });
+    };
+  }
+  function latSet(keys) { var o = {}; keys.forEach(function (k) { o[k] = 1; }); return o; }
+  function latSubset(sub, setObj) { return sub.every(function (k) { return setObj[k]; }); }
+  // جابه‌جاییِ یک مجموعه‌ی کلید به اندازه‌ی (dr,dc)؛ اگر از شبکه بیرون بزند null
+  function latShift(gr, keys, dr, dc) {
+    var out = [];
+    for (var i = 0; i < keys.length; i++) {
+      var s = gr.byKey[keys[i]]; if (!s) return null;
+      var a = [s[0][0] + dr, s[0][1] + dc], b = [s[1][0] + dr, s[1][1] + dc];
+      if (a[0] < 0 || a[1] < 0 || b[0] < 0 || b[1] < 0 || a[0] >= gr.G || a[1] >= gr.G || b[0] >= gr.G || b[1] >= gr.G) return null;
+      var k = gr.key([a, b]); if (!gr.byKey[k]) return null;
+      out.push(k);
+    }
+    return out;
+  }
+
   function embeddedFigure(rng, level, count) {
     count = count || 4; level = level || 1;
     var G = 4;                                             // شبکه‌ی ۴×۴ نقطه
@@ -1942,7 +2025,143 @@
       why: 'اگر همه‌ی خط‌های تصویرِ X را دنبال کنی، دقیقاً در همین گزینه در کنارِ هم آمده‌اند (لابه‌لای خط‌های اضافی پنهان شده‌اند)؛ در گزینه‌های دیگر دستِ‌کم یکی از خط‌های X جا افتاده است.'
     };
   }
-  function poolForPenhan(level) { return level >= 2 ? [embeddedFigure, embeddedFigure, embeddedRot4, embeddedMiss4] : [embeddedFigure, embeddedRot4, embeddedMiss4]; }
+  /* ==== سه تیپِ تازه‌ی «تصویرِ پنهان» — جهتِ سؤال برعکس می‌شود ====
+   * تا اینجا همیشه X داده می‌شد و بینِ چند طرحِ شلوغ دنبالِ میزبانش می‌گشتیم.
+   * حالا یک طرحِ شلوغ داده می‌شود و:
+   *   hiddenWhich   — کدام شکلِ کوچک داخلش پنهان است؟
+   *   hiddenNotIn   — کدام شکلِ کوچک داخلش پیدا نمی‌شود؟
+   *   hiddenCount   — این شکل چند بار (بدونِ چرخش) در طرح تکرار شده؟
+   * چون «پنهان‌بودن» = زیرمجموعه‌بودنِ مجموعه‌ی یال‌ها، هر سه اثبات‌پذیرند.
+   */
+  function buildBusy(rng, gr, L, extra) {
+    var p = latPath(rng, gr, L), guard = 0;
+    while (p.length < L && guard++ < 30) p = latPath(rng, gr, L);
+    if (p.length < 3) return null;
+    var have = latSet(p);
+    var pool = gr.allKeys.filter(function (k) { return !have[k]; });
+    var ex = rng.sample(pool, Math.min(extra, pool.length));
+    return { path: p, all: p.concat(ex) };
+  }
+  function hiddenPick(rng, level, count, G) {
+    count = count || 4;
+    var gr = latGrid(G), L = G >= 5 ? (level >= 3 ? 6 : 5) : (level >= 3 ? 5 : 4);
+    var extra = G >= 5 ? (level >= 3 ? 13 : 10) : (level >= 3 ? 8 : 6);
+    var b = null, g0 = 0;
+    while (!b && g0++ < 30) b = buildBusy(rng, gr, L, extra);
+    if (!b) return embeddedFigure(rng, level, count);
+    var allSet = latSet(b.all), correct = b.path;
+    function sig(k) { return k.slice().sort().join(','); }
+    var seen = {}; seen[sig(correct)] = 1;
+    var out = [], g1 = 0;
+    while (out.length < count - 1 && g1++ < 500) {          // شکل‌هایی که «داخل نیستند»
+      var w = latPath(rng, gr, L);
+      if (w.length !== L || latSubset(w, allSet)) continue;
+      var s2 = sig(w); if (seen[s2]) continue; seen[s2] = 1; out.push(w);
+    }
+    if (out.length < count - 1) return embeddedFigure(rng, level, count);
+    var opts = [{ k: correct }].concat(out.map(function (w) { return { k: w }; }));
+    var order = rng.shuffle(opts);
+    var refs = [function () { return figure(latDraw(gr, b.all, G >= 5 ? 2.4 : 2.8, true), { size: 176, frame: true }); }];
+    refs.label = 'این طرحِ شلوغ را خوب نگاه کن (نقطه‌های کم‌رنگ، شبکه‌ی راهنما هستند):'; refs.letters = [''];
+    return {
+      prompt: 'کدام‌یک از این شکل‌ها داخلِ طرحِ بالا پنهان شده است؟ (شکل نچرخیده و جابه‌جا نشده — روی همان نقطه‌های شبکه بگذارش)',
+      tag: 'تصویرِ پنهان: کدام شکل؟' + (G >= 5 ? ' (شبکه‌ی بزرگ)' : ''), refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(latDraw(gr, o.k, 3.2, true), { size: 96 }); },
+      why: 'اگر خط‌های گزینه‌ی درست را روی طرحِ بالا بگذاری، هر ' + toFa(L) + ' خط دقیقاً روی خط‌های موجود می‌افتند. در سه گزینه‌ی دیگر دستِ‌کم یک خط در طرح وجود ندارد؛ برای پیداکردنش خط‌به‌خط دنبال کن، نه با نگاهِ کلی.'
+    };
+  }
+  function hiddenNotIn(rng, level, count, G) {
+    count = count || 4;
+    var gr = latGrid(G), L = G >= 5 ? 5 : 4;
+    var extra = G >= 5 ? 14 : 10;
+    var b = null, g0 = 0;
+    while (!b && g0++ < 30) b = buildBusy(rng, gr, L, extra);
+    if (!b) return embeddedFigure(rng, level, count);
+    var allSet = latSet(b.all);
+    function sig(k) { return k.slice().sort().join(','); }
+    // سه شکلِ «داخلِ طرح» از خودِ یال‌های موجود ساخته می‌شوند
+    var ins = [], seen = {}, g1 = 0;
+    while (ins.length < count - 1 && g1++ < 700) {
+      var cand = latPathIn(rng, gr, L, allSet);
+      if (cand.length !== L) continue;
+      var s1 = sig(cand); if (seen[s1]) continue; seen[s1] = 1; ins.push(cand);
+    }
+    var outk = null, g2 = 0;
+    while (!outk && g2++ < 500) {
+      var w = latPath(rng, gr, L);
+      if (w.length !== L || latSubset(w, allSet) || seen[sig(w)]) continue;
+      outk = w;
+    }
+    if (ins.length < count - 1 || !outk) return hiddenPick(rng, level, count, G);
+    var opts = [{ k: outk }].concat(ins.map(function (w) { return { k: w }; }));
+    var order = rng.shuffle(opts);
+    var refs = [function () { return figure(latDraw(gr, b.all, G >= 5 ? 2.4 : 2.8, true), { size: 176, frame: true }); }];
+    refs.label = 'این طرحِ شلوغ را خوب نگاه کن (نقطه‌های کم‌رنگ، شبکه‌ی راهنما هستند):'; refs.letters = [''];
+    return {
+      prompt: 'سه‌تا از این شکل‌ها داخلِ طرحِ بالا پنهان شده‌اند. کدام‌یک پیدا «نمی‌شود»؟',
+      tag: 'تصویرِ پنهان: کدام نیست؟' + (G >= 5 ? ' (شبکه‌ی بزرگ)' : ''), refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(latDraw(gr, o.k, 3.2, true), { size: 96 }); },
+      why: 'سه گزینه را می‌توان کامل روی خط‌های طرح گذاشت، اما گزینه‌ی درست دستِ‌کم یک خط دارد که در طرح نیست. راهِ مطمئن این است که برای هر گزینه، خط‌به‌خط روی طرح بگردی — نه اینکه فقط شکلِ کلی را مقایسه کنی.'
+    };
+  }
+  function hiddenCount(rng, level, count, G) {
+    count = count || 4;
+    var gr = latGrid(G);
+    var L = G >= 5 ? 4 : 3, want = level >= 3 ? rng.int(3, 4) : rng.int(2, 3);
+    var best = null, g0 = 0;
+    while (!best && g0++ < 120) {
+      var X = latPath(rng, gr, L, [0, Math.min(2, gr.G - 1), Math.min(2, gr.G - 1)]);
+      if (X.length !== L) continue;
+      // چند نسخه‌ی جابه‌جاشده و «بدونِ یالِ مشترک» بچین
+      var placed = [X], used = latSet(X), shifts = [], dr, dc;
+      for (dr = -(gr.G - 1); dr <= gr.G - 1; dr++) for (dc = -(gr.G - 1); dc <= gr.G - 1; dc++) if (dr || dc) shifts.push([dr, dc]);
+      shifts = rng.shuffle(shifts);
+      for (var i = 0; i < shifts.length && placed.length < want; i++) {
+        var sh = latShift(gr, X, shifts[i][0], shifts[i][1]);
+        if (!sh) continue;
+        if (sh.some(function (k) { return used[k]; })) continue;    // یالِ مشترک ممنوع ⇒ شمردن برای بچه شفاف است
+        sh.forEach(function (k) { used[k] = 1; }); placed.push(sh);
+      }
+      if (placed.length !== want) continue;
+      var allK = []; placed.forEach(function (pp) { allK = allK.concat(pp); });
+      var pool = gr.allKeys.filter(function (k) { return !used[k]; });
+      var noise = rng.sample(pool, Math.min(G >= 5 ? 7 : 5, pool.length));
+      var allSet = latSet(allK.concat(noise));
+      // شمارشِ واقعی: هر جابه‌جاییِ ممکن را بررسی کن (خطوطِ اضافه نباید نسخه‌ی تازه بسازند)
+      var real = 0;
+      for (dr = -(gr.G - 1); dr <= gr.G - 1; dr++) for (dc = -(gr.G - 1); dc <= gr.G - 1; dc++) {
+        var t = latShift(gr, X, dr, dc);
+        if (t && latSubset(t, allSet)) real++;
+      }
+      if (real !== want) continue;                                   // نویز نسخه‌ی ناخواسته ساخته ⇒ دوباره
+      best = { X: X, all: allK.concat(noise), n: want };
+    }
+    if (!best) return hiddenPick(rng, level, count, G);
+    var total = best.n;
+    var cands = rng.shuffle([total + 1, total - 1, total + 2, total - 2]).filter(function (v) { return v >= 1 && v !== total; });
+    var seen = {}; seen[total] = 1; var ds = [];
+    for (var d = 0; d < cands.length && ds.length < count - 1; d++) if (!seen[cands[d]]) { seen[cands[d]] = 1; ds.push(cands[d]); }
+    var opts = [{ v: total }].concat(ds.map(function (v) { return { v: v }; })), order = rng.shuffle(opts);
+    var refs = [function () { return figure(latDraw(gr, best.X, 3.4, true), { size: 116, frame: true }); },
+                function () { return figure(latDraw(gr, best.all, G >= 5 ? 2.4 : 2.8, true), { size: 168, frame: true }); }];
+    refs.label = 'شکلِ X را در طرحِ کنارش بشمار:'; refs.letters = ['X', 'طرح'];
+    return {
+      prompt: 'شکلِ X چند بار در این طرح پنهان شده است؟ (فقط جابه‌جا شده، نچرخیده و آینه نشده)',
+      tag: 'تصویرِ پنهان: چند بار؟' + (G >= 5 ? ' (شبکه‌ی بزرگ)' : ''), refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { var m = h('div', {}, toFa(o.v)); m.style.cssText = 'font-size:2rem;font-weight:800;color:' + PAL.ink + ';padding:6px 12px'; return m; },
+      why: 'نسخه‌های X در این طرح هیچ خطِ مشترکی ندارند، پس می‌توانی یکی‌یکی پیدا و علامت بزنی: دقیقاً ' + toFa(total) + ' بار تکرار شده. خط‌های باقی‌مانده فقط برای شلوغ‌کردن‌اند و نسخه‌ی تازه‌ای نمی‌سازند.'
+    };
+  }
+  function hiddenPick4(rng, level, count) { return hiddenPick(rng, level, count, 4); }
+  function hiddenNotIn4(rng, level, count) { return hiddenNotIn(rng, level, count, 4); }
+  function hiddenCount4(rng, level, count) { return hiddenCount(rng, level, count, 4); }
+  function hiddenPick5(rng, level, count) { return hiddenPick(rng, level, count, 5); }
+  function hiddenNotIn5(rng, level, count) { return hiddenNotIn(rng, level, count, 5); }
+  function hiddenCount5(rng, level, count) { return hiddenCount(rng, level, count, 5); }
+  function poolForPenhan(level) { return level >= 2 ? [embeddedFigure, embeddedFigure, embeddedRot4, embeddedMiss4, hiddenPick4, hiddenNotIn4, hiddenCount4] : [embeddedFigure, embeddedRot4, embeddedMiss4, hiddenPick4, hiddenCount4]; }
   function genPenhan(rng, level) { return rng.pick(poolForPenhan(level || 2))(rng, level || 2); }
 
   // مبحث ۹: تصویرِ پنهانِ نوع ۲ — شبکه‌ی ۵×۵، مسیرِ بلندتر، خط‌های اضافه‌ی خیلی بیشتر (پرجزئیات‌تر و سخت‌تر)
@@ -2137,7 +2356,7 @@
   function embeddedMiss5(rng, level, count) { return embeddedMissing(rng, level, count, 5); }
   function embeddedRot4(rng, level, count) { return embeddedRotated(rng, level, count, 4); }
   function embeddedRot5(rng, level, count) { return embeddedRotated(rng, level, count, 5); }
-  function poolForPenhan2(level) { return level >= 2 ? [embeddedFigure2, embeddedFigure2, embeddedRot5, embeddedMiss5] : [embeddedFigure2, embeddedRot5, embeddedMiss5]; }
+  function poolForPenhan2(level) { return level >= 2 ? [embeddedFigure2, embeddedFigure2, embeddedRot5, embeddedMiss5, hiddenPick5, hiddenNotIn5, hiddenCount5] : [embeddedFigure2, embeddedRot5, embeddedMiss5, hiddenPick5, hiddenCount5]; }
   function genPenhan2(rng, level) { return rng.pick(poolForPenhan2(level || 2))(rng, level || 2); }
   function lessonPenhan2() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -4955,6 +5174,7 @@
    * و شناسه‌ی یکتا برای ثبت در بانک.
    * ================================================================ */
   var SKILL_RULES = [
+    { re: /پنهان: چند بار/, skill: 'استدلال عددی', sub: 'شمارشِ منظم در زمینه‌ی شلوغ', err: 'دوباره‌شمردنِ یک نسخه یا جاانداختنِ نسخه‌ی گوشه', sec: 65 },
     { re: /پنهان/, skill: 'استدلال تصویری', sub: 'یافتن شکل در زمینه', err: 'دنبال‌نکردنِ همه‌ی خط‌های X و رهاکردنِ مسیر در میانه', sec: 55 },
     { re: /نمای از/, skill: 'تجسم فضایی', sub: 'نمای دوبعدی از حجم', err: 'شمردنِ ارتفاعِ ستونِ جلویی به‌جای بلندترین ستونِ آن ردیف', sec: 60 },
     { re: /مکعب|گسترده|بنا/, skill: 'تجسم فضایی', sub: 'چرخشِ ذهنی و تاکردن', err: 'اشتباه‌گرفتنِ وجه‌های مجاور با وجه‌های روبه‌رو', sec: 60 },
@@ -5895,7 +6115,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, paperCut: paperCut, cutOutline: cutOutline, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, countTrianglesFan: countTrianglesFan, countTrianglesGrid: countTrianglesGrid, tgCountTriangles: tgCountTriangles, tgFull: tgFull, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, paperCut: paperCut, cutOutline: cutOutline, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, hiddenPick: hiddenPick, hiddenNotIn: hiddenNotIn, hiddenCount: hiddenCount, latGrid: latGrid, latShift: latShift, countTrianglesFan: countTrianglesFan, countTrianglesGrid: countTrianglesGrid, tgCountTriangles: tgCountTriangles, tgFull: tgFull, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
