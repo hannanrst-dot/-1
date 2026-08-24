@@ -3261,9 +3261,141 @@
     var dists = [row([0.32, 0.56, 1, 0.8]), row([0.32, 0.8, 0.56, 1]), row([0.32, 0.56, 0.8, 0.8])];
     return seqQuestion(rng, correct, dists, 'قاعده: از چپ به راست، شکلِ باز به‌تدریج بسته می‌شود (شکاف کم‌کم پر می‌شود). شکل‌های کدام گزینه از این قاعده پیروی می‌کند؟', 'بسته‌شدنِ تدریجی', 'در گزینه‌ی درست، شکاف مرتب کوچک‌تر می‌شود تا دایره کامل و بسته شود؛ اما در بقیه این روند منظم نیست.');
   }
+  /* ==== ترازوی تعادل (استدلالِ منطقی-عددی) ====
+   * دو ترازوی متعادل نقشِ «سرنخ» را دارند و از رویشان وزنِ نسبیِ شکل‌ها به‌دست می‌آید.
+   * دو گونه سؤال ساخته می‌شود:
+   *   balanceHowMany — «چند تا از شکلِ کوچک، با یکی از شکلِ بزرگ برابر است؟»
+   *   balanceWhich   — «کدام ترازو واقعاً تعادل دارد؟» (همه‌ی ترازوها صاف کشیده می‌شوند
+   *                     تا از روی شیبِ تصویر لو نرود — بندِ ۱۱)
+   * وزن‌ها طوری ساخته می‌شوند که همه‌ی روابط عددِ درست باشند، پس پاسخ اثبات‌پذیر است.
+   */
+  var BAL_KINDS = ['circle', 'square', 'triangle', 'diamond', 'star'];
+  function balShape(g, kind, cx, cy, r) {
+    var A = merge(DEF, { fill: PAL.tealL, 'stroke-width': 2.2 });
+    if (kind === 'circle') add(g, 'circle', merge(A, { cx: cx.toFixed(1), cy: cy.toFixed(1), r: r.toFixed(1) }));
+    else if (kind === 'square') add(g, 'rect', merge(A, { x: (cx - r).toFixed(1), y: (cy - r).toFixed(1), width: (2 * r).toFixed(1), height: (2 * r).toFixed(1), rx: 1.4 }));
+    else if (kind === 'triangle') add(g, 'polygon', merge(A, { points: ptsStr(polyPts(3, r * 1.18, cx, cy, -90)) }));
+    else if (kind === 'diamond') add(g, 'polygon', merge(A, { points: ptsStr(polyPts(4, r * 1.15, cx, cy, -90)) }));
+    else add(g, 'polygon', merge(A, { points: balStarPts(5, r * 1.2, r * 0.52, cx, cy) }));
+  }
+  function balStarPts(n, R, r, cx, cy) {                     // نامِ جدا از starPtsِ عمومی (امضای متفاوت)
+    var out = [];
+    for (var i = 0; i < 2 * n; i++) {
+      var a = (-90 + i * 180 / n) * Math.PI / 180, rr = i % 2 ? r : R;
+      out.push((cx + rr * Math.cos(a)).toFixed(1) + ',' + (cy + rr * Math.sin(a)).toFixed(1));
+    }
+    return out.join(' ');
+  }
+  /* هر دو کفه همیشه هم‌ارتفاع کشیده می‌شود؛ شیبِ تصویر نباید سرنخ بدهد (بندِ ۱۱).
+   * تیر در بالا و کفه‌ها پایین‌ترند تا شکل‌ها روی تیر نیفتند و تصویر تمیز بماند. */
+  function balFig(left, right) {
+    return function (g) {
+      var BY = 26, PY = 62, LX = 26, RX = 74, r = 6.6;
+      add(g, 'line', merge(DEF, { x1: 12, y1: BY, x2: 88, y2: BY, 'stroke-width': 3.4 }));
+      add(g, 'circle', merge(DEF, { cx: 50, cy: BY, r: 2.6, fill: PAL.line, 'stroke-width': 1 }));
+      add(g, 'polygon', merge(DEF, { points: '50,' + (BY + 2) + ' 41,84 59,84', fill: PAL.cream, 'stroke-width': 3 }));
+      add(g, 'line', merge(DEF, { x1: 32, y1: 88, x2: 68, y2: 88, 'stroke-width': 3.4 }));
+      [[LX, left], [RX, right]].forEach(function (side) {
+        var x = side[0], items = side[1];
+        add(g, 'line', merge(DEF, { x1: x, y1: BY, x2: x, y2: PY - 2, 'stroke-width': 1.8 }));
+        add(g, 'path', merge(DEF, { d: 'M' + (x - 16) + ' ' + PY + ' Q' + x + ' ' + (PY + 9) + ' ' + (x + 16) + ' ' + PY, fill: 'none', 'stroke-width': 3 }));
+        var n = items.length, step = n > 2 ? 10 : 13, x0 = x - (n - 1) * step / 2, rr = n > 2 ? r * 0.8 : r;
+        items.forEach(function (k, i) { balShape(g, k, x0 + i * step, PY - 8, rr); });
+      });
+    };
+  }
+  // «یک ⬢ = ؟ × ◯» — تا معلوم باشد سؤال درباره‌ی کدام دو شکل است، بدونِ واژه‌های مبهم
+  function balAskFig(bigKind, smallKind) {
+    var box = h('div', {});
+    box.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:800;color:' + PAL.ink + ';font-size:1.05rem';
+    function one(kind) { return figure(function (g) { balShape(g, kind, 50, 50, 26); }, { size: 56, frame: false }); }
+    box.appendChild(one(bigKind));
+    box.appendChild(h('span', {}, '='));
+    var q = h('span', {}); q.style.cssText = 'color:' + PAL.tealD; q.textContent = '؟';
+    box.appendChild(q);
+    box.appendChild(h('span', {}, '×'));
+    box.appendChild(one(smallKind));
+    return box;
+  }
+  function balSetup(rng, level) {
+    var ks = rng.sample(BAL_KINDS, 3), n2 = rng.int(2, 3), n3 = rng.int(2, level >= 3 ? 3 : 2);
+    var w = {}; w[ks[0]] = 1; w[ks[1]] = n2; w[ks[2]] = n2 * n3;
+    var rep = []; for (var i = 0; i < n2; i++) rep.push(ks[0]);
+    var rep2 = []; for (var j = 0; j < n3; j++) rep2.push(ks[1]);
+    return { ks: ks, w: w, n2: n2, n3: n3, clue1: [rep, [ks[1]]], clue2: [rep2, [ks[2]]] };
+  }
+  function balClueRefs(S) {
+    var refs = [function () { return figure(balFig(S.clue1[0], S.clue1[1]), { size: 118 }); },
+                function () { return figure(balFig(S.clue2[0], S.clue2[1]), { size: 118 }); }];
+    refs.label = 'این دو ترازو تعادل دارند:'; refs.letters = ['سرنخِ ۱', 'سرنخِ ۲'];
+    return refs;
+  }
+  function balanceHowMany(rng, level, count) {
+    count = count || 4;
+    var S = balSetup(rng, level), total = S.n2 * S.n3;
+    var cands = rng.shuffle([total + 1, total - 1, S.n2 + S.n3, total + S.n2, total - S.n2, total + 2])
+      .filter(function (v) { return v >= 2 && v !== total; });
+    var seen = {}; seen[total] = 1; var ds = [];
+    for (var d = 0; d < cands.length && ds.length < count - 1; d++) if (!seen[cands[d]]) { seen[cands[d]] = 1; ds.push(cands[d]); }
+    var opts = [{ v: total }].concat(ds.map(function (v) { return { v: v }; })), order = rng.shuffle(opts);
+    var refs = balClueRefs(S);
+    refs.push(function () { return balAskFig(S.ks[2], S.ks[0]); });
+    refs.letters = ['سرنخِ ۱', 'سرنخِ ۲', 'سؤال'];
+    return {
+      prompt: 'با توجه به دو ترازوی سرنخ، جای «؟» چه عددی می‌نشیند؟',
+      tag: 'ترازوی تعادل: چند تا؟', refs: refs,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { var m = h('div', {}, toFa(o.v)); m.style.cssText = 'font-size:2rem;font-weight:800;color:' + PAL.ink + ';padding:6px 12px'; return m; },
+      why: 'از ترازوی سرنخِ ۱: شکلِ سمتِ راست = ' + toFa(S.n2) + ' تا از شکلِ سمتِ چپ. از سرنخِ ۲: شکلِ سمتِ راست = ' + toFa(S.n3) + ' تا از شکلِ قبلی. پس با هم: ' + toFa(S.n3) + ' × ' + toFa(S.n2) + ' = ' + toFa(total) + '. اشتباهِ رایج، جمع‌کردنِ دو عدد (' + toFa(S.n2 + S.n3) + ') به‌جای ضرب‌کردنشان است.'
+    };
+  }
+  function balanceWhich(rng, level, count) {
+    count = count || 4;
+    var S = balSetup(rng, level), w = S.w, ks = S.ks;
+    function wt(list) { var t = 0; list.forEach(function (k) { t += w[k]; }); return t; }
+    function sig(p) { return p[0].slice().sort().join(',') + '|' + p[1].slice().sort().join(','); }
+    /* ترازوی متعادلِ درست: یک شکلِ سوم در برابرِ ترکیبی هم‌وزن از دو شکلِ دیگر.
+     * همه‌ی ترکیب‌های ۱ تا ۳ تایی از دو شکلِ سبک‌تر را می‌شماریم و از میانِ آن‌هایی
+     * که دقیقاً هم‌وزن‌اند یکی را برمی‌داریم — حریصانه نمی‌سازیم تا هیچ‌وقت شکست نخورد. */
+    var target = w[ks[2]], fits = [];
+    for (var a1 = 0; a1 <= 3; a1++) for (var b1 = 0; a1 + b1 <= 3; b1++) {
+      if (!(a1 + b1)) continue;
+      if (a1 * w[ks[0]] + b1 * w[ks[1]] !== target) continue;
+      var mk = []; for (var t1 = 0; t1 < b1; t1++) mk.push(ks[1]); for (var t2 = 0; t2 < a1; t2++) mk.push(ks[0]);
+      fits.push(mk);
+    }
+    if (!fits.length) return balanceHowMany(rng, level, count);
+    // سمتِ «تک‌شکل» تصادفی چپ یا راست می‌شود تا جای پاسخ از روی ساختار حدس زده نشود
+    var correct = rng.int(0, 1) ? [[ks[2]], rng.pick(fits)] : [rng.pick(fits), [ks[2]]];
+    /* ترازوهای نامتعادل با همان «ساختار»: نیمی از آن‌ها هم یک‌طرفشان تک‌شکل است،
+     * پس «آن‌که یک طرفش یک شکل دارد» سرنخِ پاسخ نمی‌شود (بندِ ۱۱). */
+    var pool = [], g2 = 0;
+    while (pool.length < 14 && g2++ < 300) {
+      var single = rng.int(0, 1), na = single ? 1 : rng.int(1, 2), nb = rng.int(single ? 2 : 1, 3);
+      var a = [], b = [], x, y;
+      for (x = 0; x < na; x++) a.push(rng.pick(ks));
+      for (y = 0; y < nb; y++) b.push(rng.pick(ks));
+      if (wt(a) === wt(b)) continue;
+      pool.push(rng.int(0, 1) ? [a, b] : [b, a]);
+    }
+    var seen = {}; seen[sig(correct)] = 1; var ds = [];
+    for (var k2 = 0; k2 < pool.length && ds.length < count - 1; k2++) {
+      var s2 = sig(pool[k2]); if (seen[s2]) continue; seen[s2] = 1; ds.push(pool[k2]);
+    }
+    if (ds.length < count - 1) return balanceHowMany(rng, level, count);
+    var opts = [{ p: correct }].concat(ds.map(function (p) { return { p: p }; })), order = rng.shuffle(opts);
+    return {
+      prompt: 'با توجه به دو ترازوی سرنخ، کدام ترازوی زیر واقعاً تعادل دارد؟ (همه‌ی تصویرها صاف کشیده شده‌اند)',
+      tag: 'ترازوی تعادل: کدام متعادل؟', refs: balClueRefs(S), wide: true,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(balFig(o.p[0], o.p[1]), { size: 112 }); },
+      why: 'اول از دو ترازوی سرنخ، ارزشِ هر شکل را بر حسبِ کوچک‌ترین شکل حساب کن: ' +
+        toFa(1) + '، ' + toFa(S.n2) + ' و ' + toFa(S.n2 * S.n3) + '. بعد وزنِ دو طرفِ هر گزینه را جمع بزن؛ فقط در گزینه‌ی درست دو طرف برابر می‌شوند. شکلِ صافِ تصویر سرنخ نیست — همه‌شان صاف کشیده شده‌اند.'
+    };
+  }
   var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair, matrix3x3, seriesComplete, seriesComplete, dominoNext];
-  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating, conditionalRule];
-  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound, matrixLogic3x3, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating, conditionalRule, conditionalRule];
+  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating, conditionalRule, balanceHowMany, balanceWhich];
+  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound, matrixLogic3x3, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating, conditionalRule, conditionalRule, balanceHowMany, balanceWhich, balanceWhich];
   function poolForM6(level) { return level >= 3 ? M6_HARD : level === 2 ? M6_MED : M6_EASY; }
   function genQuestionM6(rng, level) { return rng.pick(poolForM6(level))(rng, level || 1); }
 
@@ -5288,6 +5420,7 @@
     { re: /تکمیل|ترکیبِ تکه/, skill: 'استدلال تصویری', sub: 'ترکیب و تفکیک اشکال', err: 'انتخابِ تکه‌ی چرخیده یا آینه‌شده به‌جای تکه‌ی جفت‌شونده', sec: 50 },
     { re: /شمارش|تعداد/, skill: 'استدلال عددی', sub: 'شمارشِ منظم', err: 'نشمردنِ شکل‌های بزرگ‌تر یا دوباره‌شمردنِ یک شکل', sec: 45 },
     { re: /دسته‌بندی/, skill: 'استدلال منطقی', sub: 'طبقه‌بندی', err: 'گروه‌بندی بر اساسِ ویژگیِ ظاهریِ نامربوط', sec: 55 },
+    { re: /ترازو/, skill: 'استدلال منطقی', sub: 'استنتاج از سرنخ‌ها', err: 'جمع‌کردنِ دو سرنخ به‌جای ضرب‌کردنِ آن‌ها', sec: 65 },
     { re: /وِن/, skill: 'استدلال منطقی', sub: 'عضویت در مجموعه‌ها', err: 'توجه به یکی از دو شرط و نادیده‌گرفتنِ شرطِ دوم', sec: 55 },
     { re: /سری|قاعده|ماتریس/, skill: 'استدلال تصویری', sub: 'کشفِ الگو و اجرای قاعده', err: 'ادامه‌دادنِ الگو با یک گام کم یا زیاد', sec: 50 },
     { re: /تناسب|قیاس/, skill: 'استدلال تصویری', sub: 'انتقالِ رابطه', err: 'کپی‌کردنِ نمونه‌ی B به‌جای اجرای همان تغییر روی C', sec: 50 },
@@ -6340,7 +6473,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, paperCut: paperCut, cutOutline: cutOutline, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, holePiece: holePiece, pmSig: pmSig, pmNorm: pmNorm, hiddenPick: hiddenPick, hiddenNotIn: hiddenNotIn, hiddenCount: hiddenCount, latGrid: latGrid, latShift: latShift, countTrianglesFan: countTrianglesFan, countTrianglesGrid: countTrianglesGrid, tgCountTriangles: tgCountTriangles, tgFull: tgFull, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, paperCut: paperCut, cutOutline: cutOutline, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, balanceHowMany: balanceHowMany, balanceWhich: balanceWhich, holePiece: holePiece, pmSig: pmSig, pmNorm: pmNorm, hiddenPick: hiddenPick, hiddenNotIn: hiddenNotIn, hiddenCount: hiddenCount, latGrid: latGrid, latShift: latShift, countTrianglesFan: countTrianglesFan, countTrianglesGrid: countTrianglesGrid, tgCountTriangles: tgCountTriangles, tgFull: tgFull, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
