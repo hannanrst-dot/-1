@@ -1514,7 +1514,99 @@
       why: 'با سه تا (عمودی، افقی و قطری)، هر سوراخ نسبت به هر سه خط قرینه می‌شود و در پایان ۸ سوراخِ کاملاً متقارن به‌دست می‌آید. گزینه‌هایی که فقط دو تا را حساب کرده‌اند، سوراخِ کم دارند.'
     };
   }
-  function poolForKaghaz(level) { return level >= 3 ? [paperPunch, paperPunchDiag, paperPunchTri, paperPunchTri] : level >= 2 ? [paperPunch, paperPunchDiag, paperPunchTri] : [paperPunch, paperPunchDiag]; }
+  /* ==== تا زدن + بریدنِ گوشه با قیچی ====
+   * کاغذ را یک/دو بار تا می‌زنیم، یک گوشه‌ی «بسته‌ی تاخورده» را می‌بُریم و باز می‌کنیم.
+   * هر تا، بریدگی را نسبت به خطِ تا قرینه می‌کند؛ پس نتیجه به «کدام گوشه» بستگی دارد:
+   *   گوشه‌ی بیرونیِ کاغذ ⇒ بریدگی در گوشه‌های مربع
+   *   گوشه‌ی روی مرکز    ⇒ لوزیِ سوراخ در وسط
+   *   گوشه‌ی وسطِ ضلع    ⇒ کنگره‌ی مثلثی روی لبه‌ها
+   * گزینه‌های انحرافی همان نتیجه‌ی «بریدنِ گوشه‌های دیگر» یا «باز نکردنِ کاملِ تاها» هستند،
+   * پس همه‌ی گزینه‌ها هم‌جنس و باورپذیرند (بندِ ۱۰) و هیچ‌کدام از روی ظاهر لو نمی‌رود.
+   */
+  var PC_P0 = 12, PC_P1 = 88, PC_M = 50;
+  function cutOutline(feats, d) {
+    var has = {}; feats.forEach(function (f) { has[f] = 1; });
+    var P0 = PC_P0, P1 = PC_P1, M = PC_M, p = [];
+    function pt(x, y) { p.push(x.toFixed(1) + ' ' + y.toFixed(1)); }
+    if (has.tl) { pt(P0, P0 + d); pt(P0 + d, P0); } else pt(P0, P0);
+    if (has.top) { pt(M - d, P0); pt(M, P0 + d); pt(M + d, P0); }
+    if (has.tr) { pt(P1 - d, P0); pt(P1, P0 + d); } else pt(P1, P0);
+    if (has.right) { pt(P1, M - d); pt(P1 - d, M); pt(P1, M + d); }
+    if (has.br) { pt(P1, P1 - d); pt(P1 - d, P1); } else pt(P1, P1);
+    if (has.bottom) { pt(M + d, P1); pt(M, P1 - d); pt(M - d, P1); }
+    if (has.bl) { pt(P0 + d, P1); pt(P0, P1 - d); } else pt(P0, P1);
+    if (has.left) { pt(P0, M + d); pt(P0 + d, M); pt(P0, M - d); }
+    var dp = 'M' + p.join(' L') + ' Z';
+    if (has.center) dp += ' M' + (M - d) + ' ' + M + ' L' + M + ' ' + (M - d) + ' L' + (M + d) + ' ' + M + ' L' + M + ' ' + (M + d) + ' Z';
+    return dp;
+  }
+  function cutPaperFig(feats, d, creases) {
+    return function (g) {
+      add(g, 'path', merge(DEF, { d: cutOutline(feats, d), fill: PAL.cream, 'fill-rule': 'evenodd', 'stroke-width': 3 }));
+      if (creases) creases.forEach(function (cr) { if (cr === 'v') pp_crease(g, 50, 14, 50, 86); else pp_crease(g, 14, 50, 86, 50); });
+    };
+  }
+  function cutFoldedFig(box, corner, d) {
+    return function (g) {
+      var x0 = box[0], y0 = box[1], x1 = box[2], y1 = box[3], p = [];
+      function pt(x, y) { p.push(x.toFixed(1) + ',' + y.toFixed(1)); }
+      if (corner === 'tl') { pt(x0, y0 + d); pt(x0 + d, y0); } else pt(x0, y0);
+      if (corner === 'tr') { pt(x1 - d, y0); pt(x1, y0 + d); } else pt(x1, y0);
+      if (corner === 'br') { pt(x1, y1 - d); pt(x1 - d, y1); } else pt(x1, y1);
+      if (corner === 'bl') { pt(x0 + d, y1); pt(x0, y1 - d); } else pt(x0, y1);
+      add(g, 'rect', merge(DEF, { x: 12, y: 12, width: 76, height: 76, rx: 4, fill: 'none', stroke: '#c9cee8', 'stroke-width': 1.4, 'stroke-dasharray': '4 4' }));
+      add(g, 'polygon', merge(DEF, { points: p.join(' '), fill: PAL.tealL, 'stroke-width': 2.6 }));
+      var cut = corner === 'tl' ? [x0, y0 + d, x0 + d, y0] : corner === 'tr' ? [x1 - d, y0, x1, y0 + d]
+              : corner === 'br' ? [x1, y1 - d, x1 - d, y1] : [x0 + d, y1, x0, y1 - d];
+      add(g, 'line', { x1: cut[0], y1: cut[1], x2: cut[2], y2: cut[3], stroke: PAL.fun, 'stroke-width': 3.4, 'stroke-linecap': 'round' });
+    };
+  }
+  // نگاشتِ «گوشه‌ی بسته‌ی تاخورده» ← بریدگی‌های کاغذِ بازشده، برای هر حالتِ تا
+  var PC_MAPS = {
+    vh: { box: [12, 12, 50, 50], m: { tl: ['tl', 'tr', 'bl', 'br'], tr: ['top', 'bottom'], bl: ['left', 'right'], br: ['center'] },
+          creases: ['v', 'h'], say: 'دو بار (عمودی و افقی)' },
+    v:  { box: [12, 12, 50, 88], m: { tl: ['tl', 'tr'], bl: ['bl', 'br'], tr: ['top'], br: ['bottom'] },
+          creases: ['v'], say: 'یک بار از وسطِ عمودی' },
+    h:  { box: [12, 12, 88, 50], m: { tl: ['tl', 'bl'], tr: ['tr', 'br'], bl: ['left'], br: ['right'] },
+          creases: ['h'], say: 'یک بار از وسطِ افقی' }
+  };
+  function paperCut(rng, level, count) {
+    count = count || 4;
+    var key = level >= 2 ? 'vh' : rng.pick(['v', 'h']), cfg = PC_MAPS[key];
+    var corners = ['tl', 'tr', 'bl', 'br'], corner = rng.pick(corners), d = rng.int(12, 17);
+    var correct = cfg.m[corner];
+    function sig(f) { return f.slice().sort().join('+'); }
+    var cand = [];
+    corners.forEach(function (k) { if (k !== corner) cand.push(cfg.m[k]); });          // بریدنِ گوشه‌ی دیگرِ همان بسته
+    cand.push([correct[0]]);                                                            // «باز نکردنِ تاها» — فقط یک بریدگی
+    if (correct.length === 4) { cand.push([correct[0], correct[1]]); cand.push([correct[0], correct[3]]); }  // فقط یک تا حساب شده
+    if (correct.length === 2) cand.push(correct.concat(['center']));                    // بریدگیِ اضافه (تا پاسخ «کم‌بریدگی‌ترین» نباشد)
+    var seen = {}; seen[sig(correct)] = 1;
+    var opts = [{ f: correct }], sh = rng.shuffle(cand);
+    for (var i = 0; i < sh.length && opts.length < count; i++) {
+      var s2 = sig(sh[i]); if (seen[s2] || !sh[i].length) continue; seen[s2] = 1; opts.push({ f: sh[i] });
+    }
+    var pool = ['tl', 'tr', 'bl', 'br', 'top', 'bottom', 'left', 'right', 'center'], gd = 0;
+    while (opts.length < count && gd++ < 60) {
+      var f2 = rng.sample(pool, rng.int(1, 3)), s3 = sig(f2);
+      if (seen[s3]) continue; seen[s3] = 1; opts.push({ f: f2 });
+    }
+    var order = rng.shuffle(opts);
+    var ref1 = function () { return figure(function (g) { pp_paper(g); cfg.creases.forEach(function (cr) { if (cr === 'v') pp_crease(g, 50, 12, 50, 88); else pp_crease(g, 12, 50, 88, 50); }); }, { size: 74 }); };
+    var ref2 = function () { return figure(cutFoldedFig(cfg.box, corner, d), { size: 74 }); };
+    var refs = [ref1, ref2]; refs.label = 'کاغذ را این‌طور تا بزن، بعد گوشه‌ی رنگی را با قیچی ببُر:'; refs.letters = ['تا زدن', 'برشِ قیچی'];
+    var whyMap = { center: 'چون گوشه‌ی بریده‌شده درست روی «مرکزِ» کاغذ بود، بعد از باز کردن یک لوزیِ سوراخ در وسط می‌ماند',
+                   corner: 'چون گوشه‌ی بریده‌شده گوشه‌ی بیرونیِ خودِ کاغذ بود، بریدگی در گوشه‌های مربع ظاهر می‌شود',
+                   edge: 'چون گوشه‌ی بریده‌شده روی «وسطِ ضلع» بود، بریدگی به‌شکلِ کنگره‌ی مثلثی روی لبه می‌نشیند' };
+    var kind = correct[0] === 'center' ? 'center' : (correct[0].length === 2 ? 'corner' : 'edge');
+    return {
+      prompt: 'کاغذِ مربع را ' + cfg.say + ' تا می‌زنیم، گوشه‌ی مشخص‌شده را می‌بُریم و دوباره بازش می‌کنیم. کاغذ چه شکلی می‌شود؟',
+      tag: 'برشِ کاغذِ تاخورده', refs: refs, options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(cutPaperFig(o.f, d, cfg.creases), { size: 96 }); },
+      why: whyMap[kind] + '. هر خطِ تا، بریدگی را قرینه می‌کند؛ با ' + toFa(cfg.creases.length) + ' تا، ' + toFa(correct.length) + ' بریدگی به‌دست می‌آید. گزینه‌های دیگر یا گوشه‌ی اشتباهی را بریده‌اند یا تاها را کامل باز نکرده‌اند.'
+    };
+  }
+  function poolForKaghaz(level) { return level >= 3 ? [paperPunch, paperPunchDiag, paperPunchTri, paperPunchTri, paperCut, paperCut] : level >= 2 ? [paperPunch, paperPunchDiag, paperPunchTri, paperCut] : [paperPunch, paperPunchDiag, paperCut]; }
   function genKaghaz(rng, level) { return rng.pick(poolForKaghaz(level || 2))(rng, level || 2); }
   function lessonKaghaz() {
     var seed = (Date.now() & 0xffff) | 1;
@@ -5595,7 +5687,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, paperCut: paperCut, cutOutline: cutOutline, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, countTrianglesFan: countTrianglesFan, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
