@@ -183,7 +183,9 @@
     }
     return node;
   }
-  function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
+  // با پاک‌شدنِ ریشه، حالتِ «برگه‌ی چاپی» هم باید برداشته شود وگرنه در صفحه‌ی بعدی
+  // قاعده‌ی چاپ همه‌چیز را پنهان می‌کند.
+  function clear(n) { if (n && n.classList) n.classList.remove('tz-printing'); while (n.firstChild) n.removeChild(n.firstChild); return n; }
 
   function RNG(seed) { var s = ((seed >>> 0) ^ 0x9E3779B9) >>> 0; s ^= s << 13; s ^= s >>> 17; s ^= s << 5; this.s = (s >>> 0) || 1; }
   RNG.prototype.next = function () { var x = this.s; x ^= x << 13; x ^= x >>> 17; x ^= x << 5; this.s = x >>> 0; return this.s / 4294967296; };
@@ -5202,7 +5204,8 @@
     var dueN = dueCount(m.id);
     var examRow = h('div', { class: 'tz-examrow' },
       h('button', { class: 'tz-btn tz-exambtn', onclick: function () { runExam(m); } }, '📝 آزمونِ جامعِ ۲۰ سؤالی'),
-      h('span', { class: 'tz-examhint' }, '🤖 هوشمند: سؤال‌ها بر اساسِ عملکردِ تو انتخاب می‌شوند'));
+      h('button', { class: 'tz-btn tz-printbtn', onclick: function () { openPrintSheet(m); } }, '🖨️ برگه‌ی چاپی'),
+      h('span', { class: 'tz-examhint' }, '🤖 هوشمند: سؤال‌ها بر اساسِ عملکردِ تو انتخاب می‌شوند · برگه‌ی چاپی برای تمرینِ روی کاغذ'));
     if (dueN > 0) {                                   // مرورِ فاصله‌دار: فقط وقتی چیزی برای مرور هست
       examRow.appendChild(h('button', { class: 'tz-btn tz-revbtn', onclick: function () { runReview(m); } },
         '🔁 مرورِ امروز (' + toFa(dueN) + ')'));
@@ -5427,6 +5430,90 @@
    * اساسِ عملکردِ دانش‌آموز انتخاب می‌شوند — بیشتر از تیپ‌های اشتباه‌زده، و
    * پله‌پله سخت‌تر. در پایان، کارنامه‌ی تیپ‌ها و نقاطِ ضعف نشان داده می‌شود.
    * ================================================================ */
+  /* ==== برگه‌ی آزمونِ چاپی (A4) ====
+   * آزمونِ واقعیِ تیزهوشان روی کاغذ برگزار می‌شود، پس تمرینِ کاغذی هم لازم است.
+   * همان موتورِ آزمون (adaptivePick + توزیعِ دشواریِ بندِ ۲۰) استفاده می‌شود، اما
+   * خروجی یک برگه‌ی سیاه‌وسفیدِ دوستونه است با پاسخ‌نامه‌ی جداگانه در صفحه‌ی بعد.
+   */
+  var PRINT_DIFF = [1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3];
+  // تبدیلِ میلادی به شمسی (الگوریتمِ استانداردِ jalaali) — تاریخِ برگه باید برای بچه آشنا باشد
+  function toJalali(gy, gm, gd) {
+    function dv(a, b) { return ~~(a / b); }
+    var gdm = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+    var gy2 = gm > 2 ? gy + 1 : gy;
+    var days = 355666 + 365 * gy + dv(gy2 + 3, 4) - dv(gy2 + 99, 100) + dv(gy2 + 399, 400) + gd + gdm[gm - 1];
+    var jy = -1595 + 33 * dv(days, 12053); days %= 12053;
+    jy += 4 * dv(days, 1461); days %= 1461;
+    if (days > 365) { jy += dv(days - 1, 365); days = (days - 1) % 365; }
+    return days < 186 ? [jy, 1 + dv(days, 31), 1 + days % 31] : [jy, 7 + dv(days - 186, 30), 1 + (days - 186) % 30];
+  }
+  function buildPrintSheet(m, N) {
+    N = N || 20;
+    var seedRef = { s: ((Date.now() & 0xffffff) ^ 0x5bd1e995) | 1 }, recent = [], qs = [];
+    for (var i = 0; i < N; i++) {
+      var lv = PRINT_DIFF[i] || 3, hard = i >= 17;
+      var q = adaptivePick(m, lv, seedRef, recent, true);
+      if (q && q.meta) q.meta.difficulty = diffScale(lv, hard);
+      qs.push(q);
+    }
+    var sheet = h('div', { class: 'tz-print' });
+    var d = new Date();
+    sheet.appendChild(h('div', { class: 'tz-pr-head' },
+      h('div', { class: 'tz-pr-title' }, 'آزمونِ هوش و استعدادِ تصویری — ' + m.title),
+      h('div', { class: 'tz-pr-meta' }, 'نام و نامِ خانوادگی: ......................................   ' +
+        '   تاریخ: ' + (function () { var j = toJalali(d.getFullYear(), d.getMonth() + 1, d.getDate()); return toFa(j[0]) + '/' + toFa(j[1]) + '/' + toFa(j[2]); })() +
+        '   |   ' + toFa(N) + ' سؤال   |   زمانِ پیشنهادی: ' + toFa(Math.round(qs.reduce(function (a, q) { return a + ((q.meta && q.meta.seconds) || 50); }, 0) / 60)) + ' دقیقه')));
+    sheet.appendChild(h('div', { class: 'tz-pr-rule' }, 'راهنما: برای هر سؤال فقط یک گزینه درست است. شماره‌ی گزینه‌ی درست را در دایره‌ی کنارِ آن پررنگ کن.'));
+    var cols = h('div', { class: 'tz-pr-cols' });
+    qs.forEach(function (q, idx) {
+      var box = h('div', { class: 'tz-pr-q' });
+      box.appendChild(h('div', { class: 'tz-pr-qn' }, toFa(idx + 1) + '.  ' + q.prompt));
+      var stim = h('div', { class: 'tz-pr-stim' });
+      if (q.refs) stim.appendChild(refsPanel(q.refs));
+      if (q.grid) stim.appendChild(gridPanel(q.grid));
+      if (q.matrix) stim.appendChild(matrixPanel(q.matrix));
+      if (q.series) stim.appendChild(seriesPanel(q.series));
+      if (stim.childNodes.length) box.appendChild(stim);
+      var row = h('div', { class: 'tz-pr-opts' });
+      q.options.forEach(function (o, k) {
+        var cell = h('div', { class: 'tz-pr-opt' });
+        cell.appendChild(h('span', { class: 'tz-pr-num' }, toFa(k + 1)));
+        cell.appendChild(q.render(o));
+        row.appendChild(cell);
+      });
+      box.appendChild(row);
+      cols.appendChild(box);
+    });
+    sheet.appendChild(cols);
+    // ---- پاسخ‌نامه در صفحه‌ی جدا ----
+    var key = h('div', { class: 'tz-pr-key' });
+    key.appendChild(h('div', { class: 'tz-pr-title' }, 'پاسخ‌نامه و راهنمای حل — ' + m.title));
+    var grid = h('div', { class: 'tz-pr-keygrid' });
+    qs.forEach(function (q, idx) {
+      grid.appendChild(h('div', { class: 'tz-pr-keycell' },
+        h('b', {}, toFa(idx + 1)), h('span', {}, ' → گزینه‌ی ' + toFa(q.answer + 1))));
+    });
+    key.appendChild(grid);
+    qs.forEach(function (q, idx) {
+      key.appendChild(h('div', { class: 'tz-pr-why' },
+        h('b', {}, toFa(idx + 1) + '. ' + (q.tag || '') + ' — دشواری ' + toFa((q.meta && q.meta.difficulty) || 3) + '/۵ : '),
+        h('span', {}, q.why || '')));
+    });
+    sheet.appendChild(key);
+    return sheet;
+  }
+  function openPrintSheet(m) {
+    var host = h('div', { class: 'tz-printhost' });
+    var bar = h('div', { class: 'tz-pr-bar' },
+      h('button', { class: 'tz-btn', onclick: function () { window.print(); } }, '🖨️ چاپ / ذخیره‌ی PDF'),
+      h('button', { class: 'tz-btn ghost', onclick: function () { if (host.parentNode) host.parentNode.removeChild(host); if (ROOT) ROOT.classList.remove('tz-printing'); } }, 'بستن'),
+      h('span', { class: 'tz-pr-barhint' }, 'در پنجره‌ی چاپ، کاغذ را A4 و «حاشیه‌ها» را کم انتخاب کن. برای گرفتنِ برگه‌ی تازه، دوباره همین دکمه را بزن.'));
+    host.appendChild(bar);
+    host.appendChild(buildPrintSheet(m, 20));
+    if (ROOT) { ROOT.classList.add('tz-printing'); ROOT.appendChild(host); }
+    host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   function runExam(m) {
     var wrap = jStageWrap(m, null);
     wrap.appendChild(guideRow('think', 'آزمونِ جامعِ ' + toFa(20) + ' سؤالی! این آزمون هوشمند است: بیشتر از تیپ‌هایی سؤال می‌آورد که در آن‌ها ضعیف‌تری و پله‌پله سخت‌تر می‌شود. تا آخر برو تا نقشه‌ی قوّت و ضعفت را ببینیم.', 'tz-guide-sm'));
@@ -5946,6 +6033,41 @@
       '.tz-dark .tz-examrow{background:rgba(0,194,168,.10)}',
       '.tz-btn.tz-exambtn{background:linear-gradient(135deg,' + PAL.lilac + ',' + PAL.teal + ');font-size:.92rem;box-shadow:0 6px 16px rgba(0,194,168,.34)}',
       '.tz-btn.tz-revbtn{background:linear-gradient(135deg,' + PAL.gold + ',' + PAL.fun + ');font-size:.9rem;box-shadow:0 6px 16px rgba(255,111,165,.34)}',
+      '.tz-btn.tz-printbtn{background:linear-gradient(135deg,#5b6b8f,#38455f);font-size:.9rem;box-shadow:0 6px 16px rgba(56,69,95,.30)}',
+      /* ---- برگه‌ی چاپیِ A4 ---- */
+      '.tz-printhost{margin-top:18px;border:1px solid ' + PAL.border + ';border-radius:16px;overflow:hidden;background:#fff}',
+      '.tz-pr-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;background:' + PAL.cream + ';border-bottom:1px solid ' + PAL.border + '}',
+      '.tz-pr-barhint{font-size:.76rem;color:' + PAL.inkSoft + ';line-height:1.7;flex:1 1 220px}',
+      '.tz-print{background:#fff;color:#000;padding:16px 18px;font-size:11pt;line-height:1.6}',
+      '.tz-pr-head{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:10px}',
+      '.tz-pr-title{font-weight:800;font-size:12pt;line-height:1.5;overflow-wrap:anywhere}',
+      '.tz-pr-meta{font-size:9pt;margin-top:6px;color:#333}',
+      '.tz-pr-rule{font-size:9pt;color:#333;border:1px dashed #999;border-radius:6px;padding:6px 9px;margin-bottom:12px}',
+      '.tz-pr-cols{column-count:2;column-gap:16px}',
+      '.tz-pr-q{break-inside:avoid;page-break-inside:avoid;border:1px solid #bbb;border-radius:8px;padding:8px 9px;margin:0 0 10px}',
+      '.tz-pr-qn{font-weight:700;font-size:9.5pt;margin-bottom:5px;line-height:1.7}',
+      '.tz-pr-stim{display:flex;justify-content:center;margin-bottom:5px}',
+      '.tz-pr-opts{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}',
+      '.tz-pr-opt{position:relative;border:1px solid #ccc;border-radius:6px;padding:3px;display:flex;flex-direction:column;align-items:center}',
+      '.tz-pr-num{font-size:8pt;font-weight:800;border:1.4px solid #000;border-radius:50%;width:15px;height:15px;line-height:13px;text-align:center;margin-bottom:2px}',
+      '.tz-pr-key{break-before:page;page-break-before:always;margin-top:22px;border-top:2px solid #000;padding-top:12px}',
+      '.tz-pr-keygrid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:10px 0 14px}',
+      '.tz-pr-keycell{border:1px solid #999;border-radius:6px;padding:4px 6px;font-size:9pt;text-align:center}',
+      '.tz-pr-why{font-size:8.6pt;line-height:1.75;margin-bottom:6px;break-inside:avoid;page-break-inside:avoid}',
+      '.tz-print .tz-fig{max-width:100%}',
+      '.tz-print .tz-refs,.tz-print .tz-grid9{background:none;border:none;padding:0;margin:0}',
+      '.tz-print .tz-refs-lbl{font-size:8.4pt;color:#333}',
+      '@media print{',
+      '  @page{size:A4 portrait;margin:11mm}',
+      '  html,body{background:#fff!important;margin:0!important;padding:0!important}',
+      '  .tz-root.tz-printing>*{display:none!important}',            // فقط برگه چاپ شود
+      '  .tz-root.tz-printing{background:#fff!important;background-image:none!important;margin:0!important;padding:0!important;max-width:none!important;box-shadow:none!important;border:none!important}',
+      '  .tz-root.tz-printing>.tz-printhost{display:block!important;border:none;margin:0;width:auto}',
+      '  .tz-pr-bar{display:none!important}',
+      '  .tz-printhost{box-shadow:none;border:none;padding:0;background:#fff!important}',
+      '  .tz-print{box-shadow:none;border:none;padding:0 2mm;background:#fff!important}',   // ۲ میلی‌متر تا سرکشِ «آ» بریده نشود
+      '  .tz-print,.tz-print *{color:#000!important}',
+      '}',
       '.tz-examhint{font-size:.74rem;color:' + PAL.inkSoft + ';font-weight:700}',
       '.tz-exambar{height:8px;border-radius:999px;background:' + PAL.border + ';overflow:hidden;margin:4px 0 12px}',
       '.tz-dark .tz-exambar{background:#2c2f4d}',
@@ -6214,7 +6336,7 @@
   window.renderTizHub = renderTizHub;
 
   if (window.__TZ_DEBUG === true) {
-    window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion, adaptivePick: adaptivePick, enrichQ: enrichQ, recordTag: recordTag, dueCount: dueCount, isDue: isDue, loadTags: loadTags, skillFor: skillFor, diffScale: diffScale, MABAHETH: MABAHETH,
+    window.__tz = { figure: figure, RNG: RNG, injectStyles: injectStyles, MOTIFS: MOTIFS, genQuestion: genQuestion, adaptivePick: adaptivePick, enrichQ: enrichQ, recordTag: recordTag, dueCount: dueCount, isDue: isDue, loadTags: loadTags, skillFor: skillFor, diffScale: diffScale, toJalali: toJalali, buildPrintSheet: buildPrintSheet, MABAHETH: MABAHETH,
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
