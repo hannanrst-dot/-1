@@ -185,6 +185,8 @@
   }
   // با پاک‌شدنِ ریشه، حالتِ «برگه‌ی چاپی» هم باید برداشته شود وگرنه در صفحه‌ی بعدی
   // قاعده‌ی چاپ همه‌چیز را پنهان می‌کند.
+  // چیدمانِ گزینه‌ها: wide = یک‌ستونه، half = دوستونه، پیش‌فرض = شبکه‌ی خودکار
+  function optClass(q) { return q && q.wide ? ' wide' : q && q.half ? ' half' : ''; }
   function clear(n) { if (n && n.classList) n.classList.remove('tz-printing'); while (n.firstChild) n.removeChild(n.firstChild); return n; }
 
   function RNG(seed) { var s = ((seed >>> 0) ^ 0x9E3779B9) >>> 0; s ^= s << 13; s ^= s >>> 17; s ^= s << 5; this.s = (s >>> 0) || 1; }
@@ -803,7 +805,10 @@
   }
 
   // ۱۸) بافتِ داخل (سبکِ کتاب: نقطه‌ای/هاشور/خاکستری/شطرنجی) — q10/q15
-  function oddTextureFill(rng, count) {
+  // ⚠ امضا باید (rng, level, count) باشد: همه‌ی مولدها با (rng, level) صدا زده می‌شوند،
+  // پس اگر پارامترِ دوم count نام‌گذاری شود، سطح به‌جای تعدادِ گزینه می‌نشیند و
+  // سؤالِ تک‌گزینه‌ای ساخته می‌شود.
+  function oddTextureFill(rng, level, count) {
     count = count || 4;
     var texs = ['dots', 'hatch', 'gray', 'checker', 'solid'];
     var base = rng.pick(texs), odd = rng.pick(texs.filter(function (t) { return t !== base; }));
@@ -3393,9 +3398,118 @@
         toFa(1) + '، ' + toFa(S.n2) + ' و ' + toFa(S.n2 * S.n3) + '. بعد وزنِ دو طرفِ هر گزینه را جمع بزن؛ فقط در گزینه‌ی درست دو طرف برابر می‌شوند. شکلِ صافِ تصویر سرنخ نیست — همه‌شان صاف کشیده شده‌اند.'
     };
   }
+  /* ==== قطارِ چرخ‌دنده (استدلالِ منطقی + تحلیلِ تصویری) ====
+   * دو چرخ‌دنده‌ی درگیر همیشه خلافِ هم می‌چرخند. تسمه‌ی باز جهت را حفظ می‌کند و
+   * تسمه‌ی ضربدری آن را برعکس می‌کند. جهتِ چرخ‌دنده‌ی اول داده می‌شود و باید
+   * جهتِ همه را پیدا کرد. گزینه‌ها ردیفی از «قرصِ جهت» هستند تا مقایسه آسان باشد.
+   */
+  function gearPts(cx, cy, R, teeth) {
+    var inner = R * 0.78, out = [], step = 2 * Math.PI / teeth;
+    for (var i = 0; i < teeth; i++) {
+      var a0 = i * step;
+      [[R, 0], [R, 0.34], [inner, 0.5], [inner, 0.94]].forEach(function (p) {
+        var a = a0 + step * p[1];
+        out.push([cx + p[0] * Math.cos(a), cy + p[0] * Math.sin(a)]);
+      });
+    }
+    return out;
+  }
+  function arcArrow(g, cx, cy, r, cw, col, sw, span) {
+    span = span || 250;
+    var a0 = cw ? 125 : 55, sweep = cw ? -span : span, a1 = a0 + sweep;
+    function P(deg) { var a = deg * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; }
+    var s = P(a0), e = P(a1);
+    add(g, 'path', merge(DEF, { d: 'M' + s[0].toFixed(1) + ' ' + s[1].toFixed(1) + ' A' + r + ' ' + r + ' 0 ' + (span > 180 ? 1 : 0) + ' ' + (cw ? 0 : 1) + ' ' + e[0].toFixed(1) + ' ' + e[1].toFixed(1), fill: 'none', stroke: col, 'stroke-width': sw || 2.4, 'stroke-linecap': 'round' }));
+    var t = (a1 + (cw ? -90 : 90)) * Math.PI / 180, hl = r * 1.05, hw = r * 0.6;
+    var tip = [e[0] + hl * Math.cos(t), e[1] + hl * Math.sin(t)];
+    var px = -Math.sin(t) * hw, py = Math.cos(t) * hw;
+    add(g, 'polygon', { points: [tip, [e[0] + px, e[1] + py], [e[0] - px, e[1] - py]].map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '), fill: col, stroke: 'none' });
+  }
+  function dirDisc(g, cx, cy, r, cw) {
+    add(g, 'circle', merge(DEF, { cx: cx.toFixed(1), cy: cy.toFixed(1), r: r.toFixed(1), fill: PAL.tealL, 'stroke-width': 2.2 }));
+    arcArrow(g, cx, cy, r * 0.6, cw, PAL.tealD, 3.6, 215);
+  }
+  function gearTrainFig(links, first) {                  // links[i] = 'mesh' | 'belt' | 'cross'
+    var n = links.length + 1;
+    return function (g) {
+      var R = n >= 5 ? 8.6 : 10, xs = [], x = 0;
+      xs.push(0);
+      links.forEach(function (L) { x += (L === 'mesh' ? 2 * R : 2 * R + 13); xs.push(x); });
+      var ox = 50 - x / 2, cy = 48;
+      xs = xs.map(function (v) { return ox + v; });
+      links.forEach(function (L, i) {                    // تسمه‌ها زیرِ چرخ‌دنده‌ها کشیده می‌شوند
+        if (L === 'mesh') return;
+        var a = xs[i], b = xs[i + 1], rr = R * 0.86;
+        if (L === 'belt') {
+          add(g, 'line', merge(DEF, { x1: a, y1: cy - rr, x2: b, y2: cy - rr, 'stroke-width': 2, stroke: PAL.gray }));
+          add(g, 'line', merge(DEF, { x1: a, y1: cy + rr, x2: b, y2: cy + rr, 'stroke-width': 2, stroke: PAL.gray }));
+        } else {
+          add(g, 'line', merge(DEF, { x1: a, y1: cy - rr, x2: b, y2: cy + rr, 'stroke-width': 2, stroke: PAL.fun }));
+          add(g, 'line', merge(DEF, { x1: a, y1: cy + rr, x2: b, y2: cy - rr, 'stroke-width': 2, stroke: PAL.fun }));
+        }
+      });
+      xs.forEach(function (cx, i) {
+        add(g, 'polygon', merge(DEF, { points: gearPts(cx, cy, R, 9).map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '), fill: i === 0 ? PAL.funL : PAL.cream, 'stroke-width': 1.9, 'stroke-linejoin': 'round' }));
+        if (i !== 0) add(g, 'circle', merge(DEF, { cx: cx.toFixed(1), cy: cy, r: (R * 0.26).toFixed(1), fill: '#ffffff', 'stroke-width': 1.6 }));
+        var lbl = s('text', { x: cx.toFixed(1), y: (cy + R + 12).toFixed(1), 'text-anchor': 'middle', 'font-size': '9', 'font-weight': '800', fill: PAL.inkSoft, 'font-family': 'Tahoma, sans-serif' });
+        lbl.textContent = toFa(i + 1); g.appendChild(lbl);
+        if (i === 0) arcArrow(g, cx, cy, R * 0.6, first, PAL.fun, 3.2, 215);
+      });
+    };
+  }
+  function dirRowFig(dirs) {
+    return function (g) {
+      var n = dirs.length, r = n >= 5 ? 9.6 : 11.5, step = n >= 5 ? 19.6 : 23, x0 = 50 - (n - 1) * step / 2;
+      dirs.forEach(function (d, i) { dirDisc(g, x0 + i * step, 50, r, d); });
+    };
+  }
+  function gearTrain(rng, level, count) {
+    count = count || 4;
+    var n = level >= 3 ? rng.int(4, 5) : rng.int(3, 4);
+    var links = [], i;
+    for (i = 0; i < n - 1; i++) links.push('mesh');
+    if (level >= 3) links[rng.int(0, n - 2)] = rng.pick(['belt', 'cross']);
+    var first = rng.int(0, 1) === 1, dirs = [first];
+    links.forEach(function (L) {
+      var prev = dirs[dirs.length - 1];
+      dirs.push(L === 'belt' ? prev : !prev);            // درگیر و ضربدری: برعکس | تسمه‌ی باز: هم‌جهت
+    });
+    function sig(d) { return d.map(function (x) { return x ? '1' : '0'; }).join(''); }
+    var seen = {}; seen[sig(dirs)] = 1;
+    var cands = [];
+    cands.push(dirs.map(function () { return first; }));                       // همه هم‌جهت
+    cands.push(dirs.map(function (d) { return !d; }));                         // همه برعکس
+    cands.push(dirs.map(function (d, k) { return k % 2 ? !first : first; }));  // یکی‌درمیان از اول، بی‌توجه به تسمه
+    (function () { var c = dirs.slice(), k = rng.int(1, n - 1); c[k] = !c[k]; cands.push(c); })();
+    (function () { var c = dirs.slice(); c[n - 1] = !c[n - 1]; cands.push(c); })();
+    var ds = [], sh = rng.shuffle(cands);
+    for (i = 0; i < sh.length && ds.length < count - 1; i++) {
+      var s2 = sig(sh[i]); if (seen[s2]) continue; seen[s2] = 1; ds.push(sh[i]);
+    }
+    var gg = 0;
+    while (ds.length < count - 1 && gg++ < 60) {
+      var c2 = dirs.map(function () { return rng.int(0, 1) === 1; }), s3 = sig(c2);
+      if (seen[s3]) continue; seen[s3] = 1; ds.push(c2);
+    }
+    var opts = [{ d: dirs }].concat(ds.map(function (d) { return { d: d }; })), order = rng.shuffle(opts);
+    var refs = [function () { return figure(gearTrainFig(links, first), { size: 190, frame: true }); }];
+    var hasBelt = links.indexOf('belt') >= 0, hasCross = links.indexOf('cross') >= 0;
+    refs.label = 'چرخ‌دنده‌ی ۱ در جهتِ پیکان می‌چرخد' + (hasBelt ? '؛ خطِ خاکستری یک تسمه‌ی ساده است' : '') + (hasCross ? '؛ خطِ صورتیِ ضربدری یک تسمه‌ی چلیپایی است' : '') + ':';
+    refs.letters = [''];
+    return {
+      prompt: 'کدام گزینه جهتِ چرخشِ همه‌ی چرخ‌دنده‌ها را درست نشان می‌دهد؟ (به ترتیبِ ۱ تا ' + toFa(n) + ')',
+      tag: 'قطارِ چرخ‌دنده' + (hasCross ? ' (تسمه‌ی چلیپایی)' : hasBelt ? ' (تسمه)' : ''), refs: refs, half: true,
+      options: order, answer: order.indexOf(opts[0]),
+      render: function (o) { return figure(dirRowFig(o.d), { size: 150 }); },
+      why: 'دو چرخ‌دنده‌ای که دندانه‌هایشان در هم رفته، همیشه خلافِ هم می‌چرخند؛ پس در یک قطارِ ساده جهت‌ها یکی‌درمیان عوض می‌شوند. ' +
+        (hasBelt ? 'ولی تسمه‌ی ساده جهت را «حفظ» می‌کند، پس آن دو چرخ هم‌جهت‌اند. ' : '') +
+        (hasCross ? 'تسمه‌ی چلیپایی (ضربدری) هم مثلِ درگیرشدن، جهت را برعکس می‌کند. ' : '') +
+        'با شروع از چرخ‌دنده‌ی ۱، جهت‌ها به این ترتیب می‌شوند و فقط یک گزینه با آن می‌خواند.'
+    };
+  }
   var M6_EASY = [m6_growDots, m6_rotateStep, m6_arcClose, analogyPair, matrix3x3, seriesComplete, seriesComplete, dominoNext];
-  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating, conditionalRule, balanceHowMany, balanceWhich];
-  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound, matrixLogic3x3, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating, conditionalRule, conditionalRule, balanceHowMany, balanceWhich, balanceWhich];
+  var M6_MED = [m6_complexity, m6_growDots, m6_shrinkSplit, m6_rotateStep, analogyPair, matrix3x3, seriesComplete, seriesComplete, matrixCompound, seriesCompound, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating, conditionalRule, balanceHowMany, balanceWhich, gearTrain];
+  var M6_HARD = [m6_shrinkSplit, m6_complexity, m6_rotateStep, analogyPair, matrix3x3, matrix3x3, seriesComplete, matrixCompound, matrixCompound, seriesCompound, analogyCompound, matrixLogic3x3, matrixLogic3x3, dominoNext, seriesPieDiv, seriesAlternating, conditionalRule, conditionalRule, balanceHowMany, balanceWhich, balanceWhich, gearTrain, gearTrain];
   function poolForM6(level) { return level >= 3 ? M6_HARD : level === 2 ? M6_MED : M6_EASY; }
   function genQuestionM6(rng, level) { return rng.pick(poolForM6(level))(rng, level || 1); }
 
@@ -5541,6 +5655,7 @@
     { re: /تکمیل|ترکیبِ تکه/, skill: 'استدلال تصویری', sub: 'ترکیب و تفکیک اشکال', err: 'انتخابِ تکه‌ی چرخیده یا آینه‌شده به‌جای تکه‌ی جفت‌شونده', sec: 50 },
     { re: /شمارش|تعداد/, skill: 'استدلال عددی', sub: 'شمارشِ منظم', err: 'نشمردنِ شکل‌های بزرگ‌تر یا دوباره‌شمردنِ یک شکل', sec: 45 },
     { re: /دسته‌بندی/, skill: 'استدلال منطقی', sub: 'طبقه‌بندی', err: 'گروه‌بندی بر اساسِ ویژگیِ ظاهریِ نامربوط', sec: 55 },
+    { re: /چرخ‌دنده/, skill: 'استدلال منطقی', sub: 'زنجیره‌ی علت و معلول', err: 'یکی‌درمیان‌کردنِ جهت‌ها بدونِ توجه به تسمه', sec: 60 },
     { re: /ترازو/, skill: 'استدلال منطقی', sub: 'استنتاج از سرنخ‌ها', err: 'جمع‌کردنِ دو سرنخ به‌جای ضرب‌کردنِ آن‌ها', sec: 65 },
     { re: /وِن/, skill: 'استدلال منطقی', sub: 'عضویت در مجموعه‌ها', err: 'توجه به یکی از دو شرط و نادیده‌گرفتنِ شرطِ دوم', sec: 55 },
     { re: /سری|قاعده|ماتریس/, skill: 'استدلال تصویری', sub: 'کشفِ الگو و اجرای قاعده', err: 'ادامه‌دادنِ الگو با یک گام کم یا زیاد', sec: 50 },
@@ -5635,7 +5750,7 @@
       if (q.grid) body.appendChild(gridPanel(q.grid));
       if (q.matrix) body.appendChild(matrixPanel(q.matrix));
       if (q.series) body.appendChild(seriesPanel(q.series));
-      var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
+      var opts = h('div', { class: 'tz-opts' + optClass(q) }); var done = false;
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
           if (done) return; done = true;
@@ -5793,7 +5908,7 @@
       if (q.grid) body.appendChild(gridPanel(q.grid));
       if (q.matrix) body.appendChild(matrixPanel(q.matrix));
       if (q.series) body.appendChild(seriesPanel(q.series));
-      var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
+      var opts = h('div', { class: 'tz-opts' + optClass(q) }); var done = false;
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
           if (done) return; done = true;
@@ -5880,7 +5995,7 @@
       if (q.grid) body.appendChild(gridPanel(q.grid));
       if (q.matrix) body.appendChild(matrixPanel(q.matrix));
       if (q.series) body.appendChild(seriesPanel(q.series));
-      var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
+      var opts = h('div', { class: 'tz-opts' + optClass(q) }); var done = false;
       q.options.forEach(function (o, i) {
         var b2 = h('button', { class: 'tz-opt', onclick: function () {
           if (done) return; done = true;
@@ -5982,7 +6097,7 @@
     if (q.grid) wrap.appendChild(gridPanel(q.grid));
     if (q.matrix) wrap.appendChild(matrixPanel(q.matrix));
     if (q.series) wrap.appendChild(seriesPanel(q.series));
-    var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var figs = q.build(); var done = false;
+    var opts = h('div', { class: 'tz-opts' + optClass(q) }); var figs = q.build(); var done = false;
     figs.forEach(function (fig, i) {
       var b = h('button', { class: 'tz-opt', onclick: function () {
         if (done) return; done = true;
@@ -6024,7 +6139,7 @@
       if (q.grid) box.appendChild(gridPanel(q.grid));
       if (q.matrix) box.appendChild(matrixPanel(q.matrix));
       if (q.series) box.appendChild(seriesPanel(q.series));
-      var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false, hintUsed = false, dim = {};
+      var opts = h('div', { class: 'tz-opts' + optClass(q) }); var done = false, hintUsed = false, dim = {};
       q.options.forEach(function (o, i) {
         var b = h('button', { class: 'tz-opt', onclick: function () {
           if (done || dim[i]) return; done = true;
@@ -6127,7 +6242,7 @@
       if (q.grid) box.appendChild(gridPanel(q.grid));
       if (q.matrix) box.appendChild(matrixPanel(q.matrix));
       if (q.series) box.appendChild(seriesPanel(q.series));
-      var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') }); var done = false;
+      var opts = h('div', { class: 'tz-opts' + optClass(q) }); var done = false;
       function reveal(chosen) {
         if (done) return; done = true; clearQT();
         var ok = chosen === q.answer;
@@ -6193,7 +6308,7 @@
         if (q.grid) card.appendChild(gridPanel(q.grid));
         if (q.matrix) card.appendChild(matrixPanel(q.matrix));
         if (q.series) card.appendChild(seriesPanel(q.series));
-        var opts = h('div', { class: 'tz-opts' + (q.wide ? ' wide' : '') });
+        var opts = h('div', { class: 'tz-opts' + optClass(q) });
         q.options.forEach(function (o, i) {
           var cls = 'tz-opt' + (i === q.answer ? ' ok' : (i === rv.chosen ? ' bad' : ''));
           var b = h('div', { class: cls }, q.render(o), h('span', { class: 'tz-opt-n' }, toFa(i + 1)));
@@ -6512,6 +6627,7 @@
       '.tz-streak{margin-inline-start:10px;background:' + PAL.funL + ';color:#d63384;padding:2px 10px;border-radius:999px;font-weight:800;animation:tzPop .4s ease}',
       '.tz-opt-n{margin-top:5px;font-size:.85rem;color:' + PAL.inkSoft + ';font-weight:700}',
       '.tz-opts.wide{grid-template-columns:1fr;gap:11px}',
+      '.tz-opts.half{grid-template-columns:repeat(2,1fr);gap:11px}',   /* گزینه‌های پهن ولی نه تمام‌عرض */
       '.tz-seq{display:flex;direction:ltr;align-items:center;justify-content:center;gap:3px;flex-wrap:nowrap}',
       '.tz-seq-arrow{color:#b6b9d6;font-size:.8rem;flex:none}',
       '.tz-grid9{background:linear-gradient(135deg,' + PAL.tealL + ',#f3f4fe);border:2px dashed #c8c6f2;border-radius:18px;padding:12px 10px;margin-bottom:16px}',
@@ -6624,7 +6740,7 @@
       GLYPHS: GLYPHS,
       gens: { oddChirality: oddChirality, oddDots: oddDots, oddSides: oddSides, oddFill: oddFill, oddLineStyle: oddLineStyle, oddArrow: oddArrow, oddInner: oddInner, oddSize: oddSize, oddHatch: oddHatch, oddLineCount: oddLineCount, oddGlyph: oddGlyph, oddDice: oddDice, oddNested: oddNested, oddBeadArrow: oddBeadArrow, oddSymmetry: oddSymmetry, oddOpenClosed: oddOpenClosed, oddRelation: oddRelation, oddTextureFill: oddTextureFill, oddArrowType: oddArrowType, oddCombo: oddCombo, oddGridSym: oddGridSym, oddPie: oddPie, oddAngle: oddAngle, oddStar: oddStar, oddBars: oddBars, oddPath: oddPath, dominoOdd: dominoOdd, oddMatrix: oddMatrix, matchMatrix: matchMatrix, analogyPair: analogyPair, matrix3x3: matrix3x3, combineShapes: combineShapes, paperFold: paperFold, seriesComplete: seriesComplete, mirrorComplete: mirrorComplete, sceneFineDetail: sceneFineDetail, sceneChirality: sceneChirality, sceneInnerSwap: sceneInnerSwap, sceneArrowHead: sceneArrowHead,
         oddCube3D: oddCube3D, cubeNetOpposite: cubeNetOpposite, cubeFromNet: cubeFromNet, oddGear: oddGear, oddSpiral: oddSpiral, oddFlower: oddFlower, oddConcentric: oddConcentric, oddClock: oddClock, oddChain: oddChain, oddBranch: oddBranch, genMix: genMix, poolForMix: poolForMix,
-        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, paperCut: paperCut, cutOutline: cutOutline, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, balanceHowMany: balanceHowMany, balanceWhich: balanceWhich, holePiece: holePiece, pmSig: pmSig, pmNorm: pmNorm, hiddenPick: hiddenPick, hiddenNotIn: hiddenNotIn, hiddenCount: hiddenCount, latGrid: latGrid, latShift: latShift, countTrianglesFan: countTrianglesFan, countTrianglesGrid: countTrianglesGrid, tgCountTriangles: tgCountTriangles, tgFull: tgFull, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
+        oddRule: oddRule, matrixCompound: matrixCompound, seriesCompound: seriesCompound, analogyCompound: analogyCompound, m7_byDotCount: m7_byDotCount, embeddedFigure: embeddedFigure, embeddedFigure2: embeddedFigure2, countShapes: countShapes, assemblePair: assemblePair, assemblePairShape: assemblePairShape, paperPunch: paperPunch, paperPunchDiag: paperPunchDiag, paperPunchTri: paperPunchTri, paperCut: paperCut, cutOutline: cutOutline, pieceZigzag: pieceZigzag, pieceRectCut: pieceRectCut, cubeCount: cubeCount, isoStack: isoStack, buildViews: buildViews, isoBuild: isoBuild, viewGrid: viewGrid, randomBuild: randomBuild, sameCubeRotated: sameCubeRotated, seriesAlternating: seriesAlternating, conditionalRule: conditionalRule, constraintElim: constraintElim, countPaths: countPaths, cubeNetInvalid: cubeNetInvalid, isValidNet: isValidNet, embeddedMissing: embeddedMissing, embeddedMiss4: embeddedMiss4, embeddedMiss5: embeddedMiss5, gearTrain: gearTrain, dirRowFig: dirRowFig, gearTrainFig: gearTrainFig, balanceHowMany: balanceHowMany, balanceWhich: balanceWhich, holePiece: holePiece, pmSig: pmSig, pmNorm: pmNorm, hiddenPick: hiddenPick, hiddenNotIn: hiddenNotIn, hiddenCount: hiddenCount, latGrid: latGrid, latShift: latShift, countTrianglesFan: countTrianglesFan, countTrianglesGrid: countTrianglesGrid, tgCountTriangles: tgCountTriangles, tgFull: tgFull, countSquaresGrid: countSquaresGrid, countRectanglesGrid: countRectanglesGrid, embeddedRotated: embeddedRotated, embeddedRot4: embeddedRot4, embeddedRot5: embeddedRot5, pieceSquareCut: pieceSquareCut,
         m2_pinwheel: m2_pinwheel, m2_needle: m2_needle, m2_layers: m2_layers, m2_flow: m2_flow, m2_tangent: m2_tangent, m2_scene: m2_scene, m2_dotsIO: m2_dotsIO, m2_overlap: m2_overlap,
         m3_rotationFamily: m3_rotationFamily, m3_symmetry: m3_symmetry, m3_evenCount: m3_evenCount, m3_innerMatch: m3_innerMatch, m3_sameType: m3_sameType, m3_void: m3_void, m3_sceneFamily: m3_sceneFamily,
         m4_oneShaded: m4_oneShaded, m4_sidesEqLines: m4_sidesEqLines, m4_containsBoth: m4_containsBoth, m4_symmetryPair: m4_symmetryPair, m4_chiralPair: m4_chiralPair,
