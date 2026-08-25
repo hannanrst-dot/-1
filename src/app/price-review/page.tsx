@@ -5,7 +5,6 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Clock, CheckCircle, Mic, Save } from "lucide-react";
 import { formatToman, toPersianDigits, toEnglishDigits, toJalaliDate } from "@/lib/persian/utils";
 import { VoiceAssistantModal } from "@/components/voice/VoiceAssistantModal";
-import { SafeBoundary } from "@/components/common/SafeBoundary";
 
 export default function PriceReviewPage() {
   const [rows, setRows] = useState<any[]>([]);
@@ -81,9 +80,7 @@ export default function PriceReviewPage() {
         )}
       </div>
 
-      <SafeBoundary label="دستیار صوتی">
-        <VoiceAssistantModal isOpen={voiceOpen} onClose={() => { setVoiceOpen(false); load(); }} defaultMode="price" onActionExecute={() => load()} />
-      </SafeBoundary>
+      <VoiceAssistantModal isOpen={voiceOpen} onClose={() => { setVoiceOpen(false); load(); }} defaultMode="price" onActionExecute={() => load()} />
     </MainLayout>
   );
 }

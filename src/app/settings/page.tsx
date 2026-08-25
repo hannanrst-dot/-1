@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Settings, Download, Upload, Server, Save, Store, CheckCircle, Mic, AlertTriangle } from "lucide-react";
+import { Settings, Download, Upload, Server, Save, Store, CheckCircle } from "lucide-react";
 import { IranianDeployGuideModal } from "@/components/deploy/IranianDeployGuideModal";
 
 export default function SettingsPage() {
@@ -52,12 +52,6 @@ export default function SettingsPage() {
       setLoading(false);
     }
   };
-
-  // وضعیتِ «تبدیلِ گفتار روی سرورِ خودمان»
-  const [stt, setStt] = useState<{ available: boolean; model: string | null } | null>(null);
-  useEffect(() => {
-    fetch("/api/voice/transcribe").then((r) => r.json()).then(setStt).catch(() => setStt({ available: false, model: null }));
-  }, []);
 
   const handleDownloadBackup = () => {
     window.location.href = "/api/backup";
@@ -157,45 +151,6 @@ export default function SettingsPage() {
             <Save className="w-4 h-4" /> ذخیره تنظیمات فروشگاه
           </button>
         </form>
-
-        {/* وضعیتِ موتورِ تشخیصِ گفتار */}
-        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-3">
-          <h3 className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2">
-            <Mic className="w-4 h-4 text-emerald-600" /> موتورِ تشخیصِ گفتار
-          </h3>
-
-          {stt?.available ? (
-            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800/40 space-y-1">
-              <div className="font-bold text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                <CheckCircle className="w-4 h-4" /> فعال است — روی سرورِ خودمان
-              </div>
-              <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-relaxed">
-                صدا یکجا ضبط و به سرورِ خودمان فرستاده می‌شود: بدونِ بوقِ گوشی، بدونِ قطع‌شدنِ هر چند ثانیه، و بدونِ وابستگی به سرورِ گوگل.
-                {stt.model && <> مدل: <b className="font-mono">{stt.model}</b></>}
-              </p>
-            </div>
-          ) : (
-            <div className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800/40 space-y-2">
-              <div className="font-bold text-xs text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4" /> غیرفعال — فعلاً از موتورِ گوگل استفاده می‌شود
-              </div>
-              <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-relaxed">
-                در این حالت، صدای شما توسطِ مرورگر به سرورِ گوگل فرستاده می‌شود. اگر اینترنت به آنجا خوب نرسد، ضبط هر چند ثانیه قطع می‌شود، گوشی بوق می‌زند و متن ناقص درمی‌آید.
-              </p>
-              <p className="text-[11px] text-gray-700 dark:text-gray-200 leading-relaxed">
-                برای فعال‌کردن، در پنلِ لیارا ← بخشِ <b>متغیرهای محیطی</b> این‌ها را اضافه کنید و برنامه را ری‌استارت کنید:
-              </p>
-              <div className="bg-gray-900 text-gray-100 rounded-xl p-3 text-[11px] font-mono text-left space-y-0.5 overflow-x-auto">
-                <div>STT_BASE_URL=&lt;آدرسِ سرویس، مثلاً https://ai.liara.ir/api/v1/xxxx&gt;</div>
-                <div>STT_API_KEY=&lt;کلیدِ سرویس&gt;</div>
-                <div>STT_MODEL=whisper-1</div>
-              </div>
-              <p className="text-[11px] text-gray-500 leading-relaxed">
-                هر سرویسی که API سازگار با OpenAI داشته باشد کار می‌کند. تا وقتی تنظیم نشده، همه‌چیز دقیقاً مثلِ الان کار می‌کند و چیزی خراب نمی‌شود.
-              </p>
-            </div>
-          )}
-        </div>
 
         {/* Backup & Deployment Card */}
         <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">

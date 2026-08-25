@@ -5,7 +5,6 @@ import { Mic, Moon, Sun, Store, User, LogOut, Sparkles, HelpCircle } from "lucid
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { VoiceAssistantModal } from "../voice/VoiceAssistantModal";
-import { SafeBoundary } from "../common/SafeBoundary";
 import { IranianDeployGuideModal } from "../deploy/IranianDeployGuideModal";
 
 export function Header() {
@@ -94,9 +93,7 @@ export function Header() {
         </div>
       </header>
 
-      <SafeBoundary label="دستیار صوتی">
-        <VoiceAssistantModal isOpen={isVoiceOpen} onClose={() => setIsVoiceOpen(false)} />
-      </SafeBoundary>
+      <VoiceAssistantModal isOpen={isVoiceOpen} onClose={() => setIsVoiceOpen(false)} />
       <IranianDeployGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
     </>
   );

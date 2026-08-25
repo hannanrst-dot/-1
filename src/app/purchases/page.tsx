@@ -5,7 +5,6 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { ShoppingCart, Plus, Mic, CheckCircle, Trash2, Building } from "lucide-react";
 import { formatToman, toPersianDigits, toJalaliDateTime } from "@/lib/persian/utils";
 import { VoiceAssistantModal } from "@/components/voice/VoiceAssistantModal";
-import { SafeBoundary } from "@/components/common/SafeBoundary";
 
 export default function PurchasesPage() {
   const [purchases, setPurchases] = useState<any[]>([]);
@@ -260,13 +259,11 @@ export default function PurchasesPage() {
 
       </div>
 
-      <SafeBoundary label="دستیار صوتی">
-        <VoiceAssistantModal
-          isOpen={isVoiceOpen}
-          onClose={() => setIsVoiceOpen(false)}
-          onActionExecute={() => fetchPurchases()}
-        />
-      </SafeBoundary>
+      <VoiceAssistantModal
+        isOpen={isVoiceOpen}
+        onClose={() => setIsVoiceOpen(false)}
+        onActionExecute={() => fetchPurchases()}
+      />
     </MainLayout>
   );
 }

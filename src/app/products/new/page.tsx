@@ -17,7 +17,6 @@ import {
 import { toPersianDigits } from "@/lib/persian/utils";
 import { BarcodeScannerModal } from "@/components/barcode/BarcodeScannerModal";
 import { VoiceAssistantModal } from "@/components/voice/VoiceAssistantModal";
-import { SafeBoundary } from "@/components/common/SafeBoundary";
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -395,13 +394,11 @@ export default function NewProductPage() {
 
       {/* پس از ثبت هر کالا، مودال باز می‌ماند تا کالای بعدی را هم صوتی ثبت کنید
           (به صفحهٔ لیست منتقل نمی‌شویم). */}
-      <SafeBoundary label="دستیار صوتی">
-        <VoiceAssistantModal
-          isOpen={isVoiceOpen}
-          onClose={() => setIsVoiceOpen(false)}
-          onActionExecute={() => { /* در همین مودال بمانید و کالای بعدی را ثبت کنید */ }}
-        />
-      </SafeBoundary>
+      <VoiceAssistantModal
+        isOpen={isVoiceOpen}
+        onClose={() => setIsVoiceOpen(false)}
+        onActionExecute={() => { /* در همین مودال بمانید و کالای بعدی را ثبت کنید */ }}
+      />
     </MainLayout>
   );
 }
