@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   LevelConfig, ArrowType, SpellingItem, ArcherBow, LevelResult,
   PlayerProgress, ClassSessionState,
@@ -20,6 +20,9 @@ import { LevelEndModal } from './components/LevelEndModal';
 import { ClassSessionModal } from './components/ClassSessionModal';
 import { ClassReportModal } from './components/ClassReportModal';
 import { RotateHint } from './components/RotateHint';
+import { MissionRunner } from './components/MissionRunner';
+import { MissionConfig } from './types/game';
+import { readConfigFromUrl, listenForConfig, isEmbedded, emit, EMBED_PROTOCOL } from './services/Embed';
 
 type View = 'map' | 'game';
 type Modal =
@@ -27,6 +30,20 @@ type Modal =
   | 'guide' | 'teacherWords' | 'session' | 'report';
 
 export function App() {
+  /* ─────────── حالت مأموریت (اجرا داخل پلتفرم کلاس آنلاین) ─────────── */
+  const [mission, setMission] = useState<MissionConfig | null>(() => readConfigFromUrl());
+
+  const announced = useRef(false);
+  useEffect(() => {
+    // میزبان می‌تواند پیکربندی را بعد از بارگذاری هم بفرستد
+    const stop = listenForConfig(setMission);
+    if (!announced.current) {
+      announced.current = true;
+      emit({ type: 'wordhunter:ready', protocol: EMBED_PROTOCOL });
+    }
+    return stop;
+  }, []);
+
   /* ─────────── پیشرفت بازیکن ─────────── */
   const [progress, setProgress] = useState<PlayerProgress>(loadProgress);
   useEffect(() => { saveProgress(progress); }, [progress]);
@@ -212,6 +229,26 @@ export function App() {
     });
     backToMap();
   };
+
+  /* در حالت مأموریت، نقشه و فروشگاه کنار گذاشته می‌شوند و
+     دانش‌آموز مستقیم وارد همان تمرینی می‌شود که معلم تعیین کرده است */
+  if (mission) {
+    return (
+      <div className="relative w-screen h-[100dvh] overflow-hidden bg-slate-950 text-slate-100">
+        <MissionRunner
+          key={mission.sessionId + mission.student.id}
+          config={mission}
+          bow={equippedBow}
+          inventory={mission.showEconomy ? progress.arrowInventory : undefined}
+          onExit={
+            isEmbedded()
+              ? () => emit({ type: 'wordhunter:exit', sessionId: mission.sessionId })
+              : () => setMission(null)
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-screen h-[100dvh] overflow-hidden bg-slate-950 text-slate-100 flex flex-col">

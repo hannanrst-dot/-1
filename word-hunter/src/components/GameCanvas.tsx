@@ -27,12 +27,21 @@ interface Props {
   isProjectorMode: boolean;
   isPaused: boolean;
   currentStudent: string | null;
+  /**
+   * داخل «مأموریت»، نوار بالای خودِ مأموریت جان و پیشرفت را نشان می‌دهد،
+   * پس نوار هدفِ بازی نباید همان‌ها را دوباره نشان دهد.
+   */
+  compact?: boolean;
   onConsumeArrow: (type: ArrowType) => void;
   onSelectArrowType: (type: ArrowType) => void;
   onComboChange: (combo: number) => void;
   onScoreDelta: (points: number, coins: number) => void;
-  /** پس از داوری هر واژه — برای ثبت آمار کلاس */
-  onWordResult: (item: SpellingItem, correct: boolean) => void;
+  /** پس از داوری هر واژه — برای ثبت آمار کلاس و کارنامهٔ آزمون */
+  onWordResult: (
+    item: SpellingItem,
+    correct: boolean,
+    detail: { chosen: string; ms: number; mode: LevelConfig['mode'] }
+  ) => void;
   onCurrentItem: (item: SpellingItem | null) => void;
   onFinish: (result: LevelResult) => void;
 }
@@ -88,6 +97,8 @@ export const GameCanvas: React.FC<Props> = (props) => {
     resolveTimer: 0,
     roundsDone: 0,
     roundSeq: 0,
+    roundStartedAt: 0,
+    roundMode: 'word_hunt' as LevelConfig['mode'],
 
     // حالت‌های ویژه
     locksLeft: 0,
@@ -222,6 +233,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
     s.slotFilled = null;
     s.slotFlash = 0;
     s.roundSeq++;
+    s.roundStartedAt = performance.now();
     s.targets = [];
     P.current.onCurrentItem(item);
 
@@ -236,7 +248,14 @@ export const GameCanvas: React.FC<Props> = (props) => {
       ]);
     };
 
-    if (lvl.mode === 'word_hunt' || lvl.mode === 'audio_whisper' || lvl.mode === 'speed_rush') {
+    // اگر واژهٔ انتخاب‌شده حرف جداشدنی ندارد، همان دور به شکل «شکار کلمه» اجرا می‌شود
+    const effectiveMode: typeof lvl.mode =
+      lvl.mode === 'letter_snipe' && !(item.isSnipeable && item.missingLetter)
+        ? 'word_hunt'
+        : lvl.mode;
+    s.roundMode = effectiveMode;
+
+    if (effectiveMode === 'word_hunt' || effectiveMode === 'audio_whisper' || effectiveMode === 'speed_rush') {
       const count = lvl.mode === 'speed_rush' ? 2 : lvl.difficulty >= 2 ? 3 : 2;
       const pool = mkWordPool(count);
       const fs = proj ? 26 : 22;
@@ -258,9 +277,9 @@ export const GameCanvas: React.FC<Props> = (props) => {
           })
         );
       });
-      if (lvl.mode === 'audio_whisper') window.setTimeout(() => speakItem(item), 420);
-    } else if (lvl.mode === 'letter_snipe') {
-      const key = item.missingLetter!;
+      if (effectiveMode === 'audio_whisper') window.setTimeout(() => speakItem(item), 420);
+    } else if (lvl.mode === 'letter_snipe' && item.isSnipeable && item.missingLetter) {
+      const key = item.missingLetter;
       const decoys = shuffle(item.decoyLetters.filter((d) => d !== key)).slice(0, Math.min(3, 1 + lvl.difficulty));
       const pool = shuffle([{ text: key, ok: true }, ...decoys.map((d) => ({ text: d, ok: false }))]);
       const r = proj ? 46 : 40;
@@ -556,7 +575,11 @@ export const GameCanvas: React.FC<Props> = (props) => {
     s.verdictTargetId = tgt?.id ?? null;
     s.resolveTimer = correct ? 1.0 : 2.6;
 
-    pr.onWordResult(s.item, correct);
+    pr.onWordResult(s.item, correct, {
+      chosen: tgt?.text ?? '',
+      ms: Math.round(performance.now() - s.roundStartedAt),
+      mode: pr.level.mode,
+    });
 
     if (correct) {
       s.correct++;
@@ -617,7 +640,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
       stars, score: s.points, coins: s.coins,
       accuracy, shots: s.shots, hits: s.hits,
       bestCombo: s.bestCombo, rounds: s.roundsDone,
-      elapsed: s.elapsed, victory,
+      elapsed: s.elapsed, victory, livesLeft: s.lives,
     });
   };
 
@@ -645,6 +668,9 @@ export const GameCanvas: React.FC<Props> = (props) => {
     let qualityIdx = 0;
     let slowFrames = 0;
     let sampled = 0;
+    // چند ثانیهٔ نخست نادیده گرفته می‌شود: هنگام بارگذاری صفحه و ساخته شدن
+    // هاله‌ها چند فریم کند طبیعی است و نباید کیفیت را برای همیشه پایین بیاورد
+    let warmup = 2.5;
 
     const pixelRatio = () =>
       Math.min(window.devicePixelRatio || 1, QUALITY_STEPS[qualityIdx]);
@@ -663,10 +689,11 @@ export const GameCanvas: React.FC<Props> = (props) => {
     };
 
     const considerQualityDrop = (frameMs: number) => {
+      if (warmup > 0) { warmup -= frameMs / 1000; return; }
       if (qualityIdx >= QUALITY_STEPS.length - 1) return;
       sampled++;
       if (frameMs > 26) slowFrames++;
-      if (sampled < 90) return;
+      if (sampled < 150) return;
       // اگر بیش از یک‌سوم فریم‌های اخیر کند بوده‌اند، یک پله پایین بیا
       if (slowFrames > sampled / 3) {
         qualityIdx++;
@@ -954,7 +981,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
       s.scene?.drawBack(ctx);
 
       // لوح جای خالی
-      if (lvl.mode === 'letter_snipe' && s.item) {
+      if (s.roundMode === 'letter_snipe' && s.item && s.item.missingLetter) {
         const idx = s.item.missingIndex ?? 0;
         const key = s.item.missingLetter ?? '';
         drawSlot(ctx, s.item.correctSpelling, idx, key, s.slotFilled, s.time, proj, s.slotFlash);
@@ -1241,7 +1268,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
           t.dying = 0.01;
           burst(t.x, t.y, '#34d399', 32, t.kind === 'letter' ? [t.text] : [...t.text.slice(0, 6)]);
           s.hitStop = 0.09;
-          if (lvl.mode === 'letter_snipe') {
+          if (s.roundMode === 'letter_snipe') {
             s.slotFilled = t.text;
             s.slotFlash = 1;
             audioService.playLetterSnap();
@@ -1302,20 +1329,25 @@ export const GameCanvas: React.FC<Props> = (props) => {
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline justify-between gap-2">
               <span className={`font-black text-amber-300 ${proj ? 'text-lg' : 'text-sm'}`}>{modeInfo.fa}</span>
-              <span className={`font-bold text-slate-200 ${proj ? 'text-base' : 'text-xs'}`}>{progressLabel}</span>
+              {!props.compact && (
+                <span className={`font-bold text-slate-200 ${proj ? 'text-base' : 'text-xs'}`}>{progressLabel}</span>
+              )}
             </div>
-            <div className="mt-1.5 h-1.5 rounded-full bg-slate-800 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  level.mode === 'boss_battle' ? 'bg-gradient-to-l from-rose-500 to-orange-400' : 'bg-gradient-to-l from-emerald-400 to-sky-400'
-                }`}
-                style={{ width: `${clamp(pct, 0, 100)}%` }}
-              />
-            </div>
+            {!props.compact && (
+              <div className="mt-1.5 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    level.mode === 'boss_battle' ? 'bg-gradient-to-l from-rose-500 to-orange-400' : 'bg-gradient-to-l from-emerald-400 to-sky-400'
+                  }`}
+                  style={{ width: `${clamp(pct, 0, 100)}%` }}
+                />
+              </div>
+            )}
             <p className={`mt-1 text-slate-400 leading-tight ${proj ? 'text-sm' : 'text-[11px]'}`}>{modeInfo.how}</p>
           </div>
 
-          {/* جان‌ها */}
+          {/* جان‌ها — در حالت مأموریت، نوار بالا آن‌ها را نشان می‌دهد */}
+          {!props.compact && (
           <div className="flex items-center gap-1 shrink-0" title={`جان باقی‌مانده: ${fa(ui.lives)}`}>
             {Array.from({ length: ui.maxLives }).map((_, i) => (
               <Heart
@@ -1328,6 +1360,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
               />
             ))}
           </div>
+          )}
 
           {level.mode === 'audio_whisper' && (
             <button

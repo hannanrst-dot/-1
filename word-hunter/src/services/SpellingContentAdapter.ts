@@ -38,6 +38,27 @@ export function expandRawWord(raw: RawWord, idPrefix = 'w'): SpellingItem {
   };
 }
 
+/**
+ * حرفِ متمایزکنندهٔ واژه را از روی املاهای غلط پیدا می‌کند.
+ * «صابون» در برابر «سابون» فقط در یک حرف فرق دارد؛ همان حرف، حرفِ درس است.
+ * اگر تفاوت بیش از یک حرف باشد، چیزی برنمی‌گرداند.
+ */
+function deriveKeyLetter(word: string, variants: string[]): { letter: string; index: number } | null {
+  for (const v of variants) {
+    if (!v || v.length !== word.length) continue;
+    let diff = -1;
+    let count = 0;
+    for (let i = 0; i < word.length; i++) {
+      if (word[i] !== v[i]) { count++; diff = i; }
+      if (count > 1) break;
+    }
+    if (count === 1 && diff >= 0 && word[diff].trim()) {
+      return { letter: word[diff], index: diff };
+    }
+  }
+  return null;
+}
+
 function nthIndexOf(text: string, ch: string, n: number): number {
   let found = -1;
   for (let i = 0; i <= n; i++) {
@@ -53,6 +74,18 @@ export class SpellingContentAdapter {
   private customItems: SpellingItem[] = [];
   /** اگر true باشد فقط از واژه‌های افزودهٔ معلم استفاده می‌شود */
   private customOnly = false;
+  /**
+   * واژه‌های همین جلسه، وقتی پلتفرم میزبان فهرست درسِ مشخصی می‌فرستد.
+   * تا وقتی پر باشد، بازی فقط از همین‌ها استفاده می‌کند و در حافظه هم
+   * ذخیره نمی‌شود (مخصوص یک جلسه است، نه بانک دائمی معلم).
+   */
+  private sessionItems: SpellingItem[] | null = null;
+  /**
+   * در آزمون، یک واژه نباید دوبار پرسیده شود تا وقتی همهٔ واژه‌ها آمده باشند.
+   * در بازی آزاد این حالت خاموش است چون تکرار برای تمرین اشکالی ندارد.
+   */
+  private noRepeat = false;
+  private askedIds = new Set<string>();
   private listeners = new Set<() => void>();
 
   constructor() {
@@ -80,13 +113,17 @@ export class SpellingContentAdapter {
   private normalize(p: Partial<SpellingItem>): SpellingItem {
     const word = (p.word || p.correctSpelling || '').trim();
     const cat = (p.category || 'all') as SpellingCategory;
-    const key = p.missingLetter;
-    const idx = key ? word.indexOf(key) : -1;
+    const variants = (p.incorrectVariants || []).filter(Boolean);
+    // اگر معلم حرف چالشی را ننوشته باشد، از روی تفاوت املای درست و غلط
+    // خودمان پیدایش می‌کنیم تا حالت «جای خالی» هم کار کند
+    const derived = deriveKeyLetter(word, variants);
+    const key = p.missingLetter || derived?.letter;
+    const idx = key ? (p.missingLetter ? word.indexOf(key) : derived!.index) : -1;
     return {
       id: p.id || `custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       word,
       correctSpelling: word,
-      incorrectVariants: (p.incorrectVariants || []).filter(Boolean),
+      incorrectVariants: variants,
       missingLetter: key,
       missingIndex: idx >= 0 ? idx : undefined,
       isSnipeable: !!key && idx >= 0 && !NON_SNIPE_CATEGORIES.includes(cat),
@@ -101,7 +138,7 @@ export class SpellingContentAdapter {
       category: cat,
       grade: (p.grade || 'all') as GradeLevel,
       difficulty: (p.difficulty || 1) as 1 | 2 | 3,
-      isCustom: true,
+      isCustom: p.isCustom ?? true,
     };
   }
 
@@ -131,8 +168,27 @@ export class SpellingContentAdapter {
   }
 
   public getAllItems(): SpellingItem[] {
+    if (this.sessionItems && this.sessionItems.length > 0) return this.sessionItems;
     if (this.customOnly && this.customItems.length > 0) return this.customItems;
     return [...BUILT_IN, ...this.customItems];
+  }
+
+  /** واژه‌های این جلسه را از بیرون تعیین می‌کند (null یعنی برگرد به بانک کامل) */
+  public setSessionWords(words: Partial<SpellingItem>[] | null): number {
+    if (!words || words.length === 0) {
+      this.sessionItems = null;
+      this.listeners.forEach((fn) => fn());
+      return 0;
+    }
+    this.sessionItems = words
+      .filter((w) => (w.word || w.correctSpelling || '').trim().length > 0)
+      .map((w) => this.normalize(w));
+    this.listeners.forEach((fn) => fn());
+    return this.sessionItems.length;
+  }
+
+  public getSessionWords(): SpellingItem[] | null {
+    return this.sessionItems;
   }
 
   public getCustomOnly(): boolean {
@@ -187,10 +243,39 @@ export class SpellingContentAdapter {
     opts: { needSnipeable?: boolean; needVariants?: number; recentIds?: string[] } = {}
   ): SpellingItem {
     const pool = this.getFilteredItems(category, grade, difficulty, opts);
+
+    if (this.noRepeat) {
+      const unasked = pool.filter((i) => !this.askedIds.has(i.id));
+      // وقتی همهٔ واژه‌های این دسته پرسیده شد، دور تازه‌ای آغاز می‌شود
+      if (unasked.length === 0) pool.forEach((i) => this.askedIds.delete(i.id));
+      const src = unasked.length > 0 ? unasked : pool;
+      // اینجا واژه را «پرسیده‌شده» علامت نمی‌زنیم؛ این کار وقتی انجام می‌شود
+      // که دانش‌آموز واقعاً به آن پاسخ داده باشد. وگرنه هر بار که یک تکهٔ
+      // مأموریت عوض می‌شود، یک واژه بی‌آنکه پرسیده شود مصرف می‌شد.
+      return src[Math.floor(Math.random() * src.length)];
+    }
+
     const recent = opts.recentIds || [];
     const fresh = pool.filter((i) => !recent.includes(i.id));
     const source = fresh.length > 0 ? fresh : pool;
     return source[Math.floor(Math.random() * source.length)];
+  }
+
+  /** آغاز یک آزمون: از این پس واژه‌ها تکرار نمی‌شوند */
+  public beginQuiz(): void {
+    this.noRepeat = true;
+    this.askedIds.clear();
+  }
+
+  /** واژه‌ای که واقعاً پرسیده و پاسخ داده شد */
+  public markAsked(id: string): void {
+    if (this.noRepeat) this.askedIds.add(id);
+  }
+
+  /** پایان آزمون: بازگشت به رفتار عادی */
+  public endQuiz(): void {
+    this.noRepeat = false;
+    this.askedIds.clear();
   }
 
   public getItemById(id: string): SpellingItem | undefined {

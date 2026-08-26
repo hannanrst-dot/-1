@@ -232,6 +232,7 @@ export interface LevelResult {
   rounds: number;
   elapsed: number;
   victory: boolean;
+  livesLeft: number;
 }
 
 export interface PlayerProgress {
@@ -245,4 +246,88 @@ export interface PlayerProgress {
   arrowInventory: Record<ArrowType, number>;
   totalShots: number;
   totalHits: number;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   اتصال به پلتفرم میزبان (کلاس آنلاین)
+   ═══════════════════════════════════════════════════════════ */
+
+/** شناسهٔ دانش‌آموز، همان‌طور که پلتفرم میزبان می‌شناسدش */
+export interface EmbedStudent {
+  id: string;
+  name: string;
+  avatar?: string;
+}
+
+/**
+ * پیکربندی یک «مأموریت» که معلم از پنل خودش می‌سازد.
+ * پلتفرم میزبان این را هنگام باز کردن بازی به آن می‌دهد.
+ */
+export interface MissionConfig {
+  /** شناسهٔ جلسه در پلتفرم میزبان — در همهٔ رویدادها برگردانده می‌شود */
+  sessionId: string;
+  student: EmbedStudent;
+  /** exam: آزمون نمره‌دار · practice: تمرین آزاد */
+  kind: 'exam' | 'practice';
+  title: string;
+  /** تعداد پرسش‌ها */
+  questionCount: number;
+  /** کل زمان مأموریت به ثانیه (۰ یعنی بدون محدودیت) */
+  durationSec: number;
+  /** تعداد جان در کل مأموریت */
+  lives: number;
+  /** دسته‌های املایی — خالی یعنی همه */
+  categories: SpellingCategory[];
+  grade: GradeLevel;
+  difficulty: 1 | 2 | 3;
+  /** حالت‌های بازی که در این مأموریت می‌آیند */
+  gameModes: GameMode[];
+  /**
+   * واژه‌های دقیقِ همین درس. اگر پر باشد، بازی فقط از همین‌ها استفاده می‌کند
+   * و categories/grade/difficulty نادیده گرفته می‌شوند.
+   */
+  words?: Partial<SpellingItem>[];
+  /** نمایش فروشگاه و سکه‌ها (در آزمون معمولاً خاموش) */
+  showEconomy: boolean;
+  /** زبان رابط — فعلاً فقط فارسی */
+  locale?: 'fa';
+}
+
+/** یک پاسخ ثبت‌شده — ریزترین واحدی که معلم می‌بیند */
+export interface AnswerRecord {
+  index: number;
+  wordId: string;
+  word: string;
+  /** آنچه دانش‌آموز زد */
+  chosen: string;
+  correct: boolean;
+  /** چند میلی‌ثانیه طول کشید */
+  ms: number;
+  mode: GameMode;
+  category: SpellingCategory;
+}
+
+/** خلاصهٔ پایان مأموریت — همان چیزی که به دفتر نمرهٔ معلم می‌رود */
+export interface MissionResult {
+  sessionId: string;
+  student: EmbedStudent;
+  kind: 'exam' | 'practice';
+  startedAt: number;
+  finishedAt: number;
+  durationSec: number;
+  questionCount: number;
+  answered: number;
+  correct: number;
+  wrong: number;
+  accuracy: number;
+  /** نمرهٔ ۰ تا ۲۰ — برای ثبت مستقیم در کارنامه */
+  grade20: number;
+  score: number;
+  coins: number;
+  bestStreak: number;
+  livesLeft: number;
+  completed: boolean;
+  answers: AnswerRecord[];
+  /** واژه‌هایی که این دانش‌آموز اشتباه زد — برای تمرین جبرانی */
+  missed: { wordId: string; word: string; correctSpelling: string; rule: string }[];
 }

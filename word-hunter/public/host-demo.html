@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>نمونهٔ اتصال — شکارچی کلمات</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; font-family: Vazirmatn, Tahoma, system-ui, sans-serif; }
+  body { margin:0; background:#0b1020; color:#e2e8f0; display:flex; height:100dvh; overflow:hidden; }
+  .panel { width:380px; flex-shrink:0; border-left:1px solid #1e293b; background:#0f172a; display:flex; flex-direction:column; }
+  .panel header { padding:16px; border-bottom:1px solid #1e293b; }
+  h1 { margin:0; font-size:16px; color:#fbbf24; }
+  .sub { font-size:11px; color:#64748b; margin-top:4px; line-height:1.7; }
+  .body { padding:16px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:14px; }
+  label { display:block; font-size:11px; color:#94a3b8; margin-bottom:5px; font-weight:700; }
+  input, select, textarea { width:100%; padding:9px 11px; border-radius:10px; background:#020617;
+    border:1px solid #334155; color:#e2e8f0; font-size:13px; }
+  textarea { resize:vertical; min-height:70px; line-height:1.9; }
+  .row { display:flex; gap:10px; }
+  .row > * { flex:1; }
+  button { width:100%; padding:13px; border-radius:12px; border:0; cursor:pointer;
+    background:linear-gradient(to left,#fbbf24,#fde047); color:#0f172a; font-weight:900; font-size:14px; }
+  button.ghost { background:#1e293b; color:#cbd5e1; font-weight:700; }
+  .log { flex:1; min-height:180px; background:#020617; border:1px solid #1e293b; border-radius:12px;
+    padding:10px; overflow-y:auto; font-size:11px; line-height:1.9; direction:ltr; text-align:left;
+    font-family: ui-monospace, monospace; }
+  .log .ev { color:#38bdf8; }
+  .log .ok { color:#34d399; }
+  .log .no { color:#f87171; }
+  iframe { flex:1; border:0; background:#05070f; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { padding:5px 10px; border-radius:9px; border:1px solid #334155; background:#020617;
+    font-size:11px; cursor:pointer; user-select:none; }
+  .chip.on { background:#fbbf24; color:#0f172a; border-color:#fbbf24; font-weight:800; }
+  .note { font-size:10px; color:#475569; line-height:1.8; border-top:1px solid #1e293b; padding-top:10px; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <header>
+    <h1>پنل معلم — نمونهٔ آزمایشی</h1>
+    <div class="sub">
+      این صفحه نقش پلتفرم شما را بازی می‌کند: بازی را در یک قاب باز می‌کند،
+      پیکربندی مأموریت را می‌فرستد و رویدادهای برگشتی را نشان می‌دهد.
+      دقیقاً همین کار را سمت Node انجام دهید.
+    </div>
+  </header>
+  <div class="body">
+    <div class="row">
+      <div><label>نام دانش‌آموز</label><input id="name" value="سارا محمدی" /></div>
+      <div><label>شناسه</label><input id="sid" value="u_42" /></div>
+    </div>
+    <div><label>عنوان مأموریت</label><input id="title" value="املای درس ۴ — پایهٔ ششم" /></div>
+    <div class="row">
+      <div><label>نوع</label>
+        <select id="kind"><option value="exam">آزمون نمره‌دار</option><option value="practice">تمرین آزاد</option></select>
+      </div>
+      <div><label>تعداد پرسش</label><input id="qc" type="number" value="10" min="3" max="60" /></div>
+    </div>
+    <div class="row">
+      <div><label>زمان (دقیقه، ۰ = آزاد)</label><input id="dur" type="number" value="5" min="0" /></div>
+      <div><label>جان</label><input id="lives" type="number" value="5" min="1" max="20" /></div>
+    </div>
+    <div>
+      <label>دسته‌های املایی (خالی = همه)</label>
+      <div class="chips" id="cats"></div>
+    </div>
+    <div>
+      <label>حالت‌های بازی</label>
+      <div class="chips" id="modes"></div>
+    </div>
+    <div>
+      <label>واژه‌های همین درس (اختیاری) — هر سطر: درست | غلط۱، غلط۲ | قاعده</label>
+      <textarea id="words" placeholder="مدرسه | مدرثه، مدرصه | هم‌خانوادهٔ «درس» است، پس با «س».
+صابون | سابون، ثابون | واژه‌ای عربی است و با «ص» آغاز می‌شود."></textarea>
+    </div>
+    <button onclick="launch()">باز کردن بازی برای دانش‌آموز</button>
+    <button class="ghost" onclick="document.getElementById('log').innerHTML=''">پاک کردن گزارش</button>
+    <div>
+      <label>رویدادهای دریافتی از بازی</label>
+      <div class="log" id="log"></div>
+    </div>
+    <div class="note">
+      نکته: <code>wordhunter:progress</code> بعد از هر پاسخ می‌رسد — همین را با Socket.IO
+      به تختهٔ زندهٔ معلم بفرستید. <code>wordhunter:finished</code> کارنامهٔ کامل و
+      نمرهٔ ۲۰ را دارد — همان را در پایگاه‌داده ذخیره کنید.
+    </div>
+  </div>
+</div>
+<iframe id="game" title="بازی"></iframe>
+
+<script>
+const CATS = [['s_s_th','س ص ث'],['z_z_z_z','ز ض ظ ذ'],['t_t','ت ط'],['gh_gh','غ ق'],
+              ['h_h','ه ح'],['khva','خوا خا'],['tanvin','تنوین'],['gozar','گزار/گذار'],['peyvaste','نیم‌فاصله']];
+const MODES = [['word_hunt','شکار کلمه'],['letter_snipe','جای خالی'],['word_rescue','نجات کلمه'],
+               ['monster_combat','هیولا'],['audio_whisper','شنیداری']];
+const picked = { cats: new Set(), modes: new Set(['word_hunt','letter_snipe','audio_whisper']) };
+
+function chips(hostId, list, set) {
+  const host = document.getElementById(hostId);
+  host.innerHTML = '';
+  list.forEach(([v, label]) => {
+    const el = document.createElement('div');
+    el.className = 'chip' + (set.has(v) ? ' on' : '');
+    el.textContent = label;
+    el.onclick = () => { set.has(v) ? set.delete(v) : set.add(v); chips(hostId, list, set); };
+    host.appendChild(el);
+  });
+}
+chips('cats', CATS, picked.cats);
+chips('modes', MODES, picked.modes);
+
+function parseWords(text) {
+  return text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+    const [w, bad, rule] = line.split('|').map(x => (x || '').trim());
+    if (!w) return null;
+    return {
+      word: w,
+      incorrectVariants: (bad || '').split(/[،,]/).map(x => x.trim()).filter(Boolean),
+      ruleExplanation: rule || undefined,
+    };
+  }).filter(x => x && x.incorrectVariants.length > 0);
+}
+
+function log(kind, text) {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  line.innerHTML = `<span class="${kind}">${text}</span>`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function buildConfig() {
+  const words = parseWords(document.getElementById('words').value);
+  return {
+    sessionId: 'sess_' + Date.now(),
+    student: { id: document.getElementById('sid').value, name: document.getElementById('name').value },
+    kind: document.getElementById('kind').value,
+    title: document.getElementById('title').value,
+    questionCount: +document.getElementById('qc').value,
+    durationSec: (+document.getElementById('dur').value) * 60,
+    lives: +document.getElementById('lives').value,
+    categories: [...picked.cats],
+    grade: 'all',
+    difficulty: 2,
+    gameModes: [...picked.modes],
+    words: words.length ? words : undefined,
+    showEconomy: document.getElementById('kind').value !== 'exam',
+  };
+}
+
+function b64(obj) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
+    .replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+function launch() {
+  const cfg = buildConfig();
+  log('ev', '→ mission ' + cfg.sessionId + ' (' + cfg.questionCount + ' q)');
+  // راه ۱: از راه آدرس — ساده‌ترین راه
+  document.getElementById('game').src = './index.html#mission=' + b64(cfg);
+  // راه ۲ (جایگزین): بعد از بارگذاری با postMessage بفرستید:
+  //   frame.contentWindow.postMessage({ type:'wordhunter:mission', config: cfg }, '*')
+}
+
+window.addEventListener('message', (e) => {
+  const d = e.data;
+  if (!d || typeof d.type !== 'string' || !d.type.startsWith('wordhunter:')) return;
+  if (d.type === 'wordhunter:progress') {
+    log(d.last.correct ? 'ok' : 'no',
+      `${d.answered}/${d.questionCount}  «${d.last.word}» ${d.last.correct ? '✓' : '✗ ' + d.last.chosen}` +
+      `  ${(d.last.ms/1000).toFixed(1)}s  acc=${Math.round(d.accuracy*100)}%  ♥${d.livesLeft}`);
+  } else if (d.type === 'wordhunter:finished') {
+    const r = d.result;
+    log('ev', `━━ FINISHED  grade=${r.grade20}/20  ${r.correct}/${r.questionCount}  acc=${Math.round(r.accuracy*100)}%`);
+    log('ev', `   missed: ${r.missed.map(m => m.correctSpelling).join(', ') || '—'}`);
+    log('ev', '   POST /api/spelling/results  ← ارسال به سرور شما');
+  } else if (d.type === 'wordhunter:exit') {
+    log('ev', '← student closed the game');
+  } else {
+    log('ev', '← ' + d.type);
+  }
+});
+</script>
+</body>
+</html>
