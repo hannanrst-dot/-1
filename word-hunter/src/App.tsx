@@ -4,6 +4,7 @@ import {
   PlayerProgress, ClassSessionState,
 } from './types/game';
 import { GAME_REALMS, ARCHER_BOWS, ALL_LEVELS, nextLevelOf } from './services/WorldData';
+import { spellingContentAdapter } from './services/SpellingContentAdapter';
 import { audioService } from './services/AudioService';
 import { classSession } from './services/ClassSession';
 import { loadProgress, saveProgress, resetProgress, DEFAULT_ARROWS } from './services/Progress';
@@ -19,6 +20,7 @@ import { TeacherCustomWordsModal } from './components/TeacherCustomWordsModal';
 import { LevelEndModal } from './components/LevelEndModal';
 import { ClassSessionModal } from './components/ClassSessionModal';
 import { ClassReportModal } from './components/ClassReportModal';
+import { AchievementsModal } from './components/AchievementsModal';
 import { RotateHint } from './components/RotateHint';
 import { MissionRunner } from './components/MissionRunner';
 import { MissionConfig } from './types/game';
@@ -27,7 +29,7 @@ import { readConfigFromUrl, listenForConfig, isEmbedded, emit, EMBED_PROTOCOL } 
 type View = 'map' | 'game';
 type Modal =
   | null | 'pause' | 'discussion' | 'students' | 'armory'
-  | 'guide' | 'teacherWords' | 'session' | 'report';
+  | 'guide' | 'teacherWords' | 'session' | 'report' | 'badges';
 
 export function App() {
   /* ─────────── حالت مأموریت (اجرا داخل پلتفرم کلاس آنلاین) ─────────── */
@@ -58,6 +60,9 @@ export function App() {
   const [runKey, setRunKey] = useState(0);           // برای شروع دوبارهٔ مرحله
   const [modal, setModal] = useState<Modal>(null);
   const [result, setResult] = useState<LevelResult | null>(null);
+  /** وقتی دانش‌آموز «تمرین واژه‌های اشتباه» را می‌زند، مرحله‌ای فقط از همان‌ها ساخته می‌شود */
+  const [practiceWords, setPracticeWords] = useState<SpellingItem[] | null>(null);
+  const isPractice = practiceWords !== null;
 
   /* ─────────── وضعیت جاری بازی ─────────── */
   const [combo, setCombo] = useState(0);
@@ -108,6 +113,8 @@ export function App() {
 
   const startLevel = useCallback((lvl: LevelConfig) => {
     audioService.unlock();
+    spellingContentAdapter.setSessionWords(null);
+    setPracticeWords(null);
     setLevel(lvl);
     setResult(null);
     setModal(null);
@@ -121,6 +128,8 @@ export function App() {
   const handleFinish = useCallback((r: LevelResult) => {
     setResult(r);
     if (!level) return;
+    // تمرین جبرانی نمره و ستاره ندارد؛ فقط برای یاد گرفتن است
+    if (isPractice) return;
 
     if (r.victory) {
       setProgress((prev) => {
@@ -146,7 +155,7 @@ export function App() {
       totalShots: prev.totalShots + r.shots,
       totalHits: prev.totalHits + r.hits,
     }));
-  }, [level]);
+  }, [level, isPractice]);
 
   const handleScoreDelta = useCallback((points: number, coins: number) => {
     setProgress((prev) => ({ ...prev, score: prev.score + points, coins: prev.coins + coins }));
@@ -207,16 +216,51 @@ export function App() {
   const nextLevel = level ? nextLevelOf(level.id) : undefined;
 
   const handleRestart = () => {
-    if (level) startLevel(level);
+    if (!level) return;
+    if (practiceWords) {
+      // تکرارِ تمرین جبرانی باید همان واژه‌ها را نگه دارد
+      spellingContentAdapter.setSessionWords(practiceWords);
+      setResult(null);
+      setModal(null);
+      setCombo(0);
+      setBestCombo(0);
+      setRunKey((k) => k + 1);
+      return;
+    }
+    startLevel(level);
+  };
+
+  /** مرحله‌ای کوچک فقط از واژه‌هایی که همین حالا اشتباه زده شد */
+  const startPractice = () => {
+    if (!result || result.missedItems.length === 0 || !level) return;
+    audioService.unlock();
+    spellingContentAdapter.setSessionWords(result.missedItems);
+    setPracticeWords(result.missedItems);
+    setResult(null);
+    setModal(null);
+    setCombo(0);
+    setBestCombo(0);
+    setRunKey((k) => k + 1);
+    setLevel({
+      ...level,
+      id: `${level.id}_practice`,
+      title: 'تمرین واژه‌های اشتباه',
+      description: 'همان واژه‌هایی که این مرحله اشتباه زدی',
+      mode: 'word_hunt',
+      rounds: result.missedItems.length,
+      lives: 5,
+      timeLimit: undefined,
+    });
   };
 
   const backToMap = () => {
+    spellingContentAdapter.setSessionWords(null);
+    setPracticeWords(null);
     setView('map');
     setResult(null);
     setModal(null);
     setLevel(null);
     setCombo(0);
-    audioService.stopSpeech();
   };
 
   const handleResetProgress = () => {
@@ -271,6 +315,12 @@ export function App() {
           onOpenArmory={() => setModal('armory')}
           onOpenSession={() => setModal('session')}
           onOpenReport={() => setModal('report')}
+          onOpenBadges={() => setModal('badges')}
+          onResetProgress={() => {
+            if (window.confirm('همهٔ پیشرفت بازی (ستاره‌ها، سکه‌ها و مرحله‌های باز شده) پاک شود؟')) {
+              handleResetProgress();
+            }
+          }}
         />
       )}
 
@@ -380,6 +430,12 @@ export function App() {
 
       <SpellingGuideModal isOpen={modal === 'guide'} onClose={() => setModal(null)} />
 
+      <AchievementsModal
+        isOpen={modal === 'badges'}
+        progress={progress}
+        onClose={() => setModal(null)}
+      />
+
       <TeacherCustomWordsModal
         isOpen={modal === 'teacherWords'}
         onClose={() => setModal(null)}
@@ -390,8 +446,10 @@ export function App() {
           result={result}
           level={level}
           bestCombo={bestCombo}
-          hasNext={!!nextLevel}
+          hasNext={!!nextLevel && !isPractice}
+          isPractice={isPractice}
           projector={projector}
+          onPractice={startPractice}
           onNext={() => nextLevel && startLevel(nextLevel)}
           onRetry={handleRestart}
           onMap={backToMap}
@@ -399,19 +457,6 @@ export function App() {
         />
       )}
 
-      {/* دکمهٔ پنهان بازنشانی پیشرفت — فقط در نقشه */}
-      {view === 'map' && (
-        <button
-          onClick={() => {
-            if (window.confirm('همهٔ پیشرفت بازی (ستاره‌ها، سکه‌ها و مرحله‌های باز شده) پاک شود؟')) {
-              handleResetProgress();
-            }
-          }}
-          className="fixed bottom-3 left-3 z-40 px-3 py-1.5 rounded-lg bg-slate-900/70 hover:bg-slate-800 border border-slate-800 text-[10px] text-slate-500 hover:text-slate-300 transition"
-        >
-          بازنشانی پیشرفت
-        </button>
-      )}
     </div>
   );
 }

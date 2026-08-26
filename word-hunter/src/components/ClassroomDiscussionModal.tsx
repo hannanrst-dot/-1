@@ -1,9 +1,8 @@
 import React from 'react';
 import { SpellingItem } from '../types/game';
 import { Modal } from './Modal';
-import { audioService } from '../services/AudioService';
 import { spellingContentAdapter } from '../services/SpellingContentAdapter';
-import { Volume2, CheckCircle2, XCircle, Lightbulb, Quote } from 'lucide-react';
+import { CheckCircle2, XCircle, Lightbulb, Quote } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -52,18 +51,9 @@ export const ClassroomDiscussionModal: React.FC<Props> = ({ isOpen, item, projec
         {/* واژهٔ درست */}
         <div className="flex flex-col items-center gap-2 p-6 rounded-3xl bg-gradient-to-b from-emerald-950/70 to-slate-950 border-2 border-emerald-500/50">
           <span className="text-[11px] font-black text-emerald-400">املای درست</span>
-          <div className="flex items-center gap-3">
-            <span className={`font-black text-emerald-200 tracking-wide ${big ? 'text-6xl' : 'text-5xl'}`}>
-              {item.correctSpelling}
-            </span>
-            <button
-              onClick={() => audioService.speakPersian(item.word)}
-              className="p-3 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 transition active:scale-95"
-              title="شنیدن تلفظ واژه"
-            >
-              <Volume2 className={big ? 'w-7 h-7' : 'w-5 h-5'} />
-            </button>
-          </div>
+          <span className={`font-black text-emerald-200 tracking-wide ${big ? 'text-6xl' : 'text-5xl'}`}>
+            {item.correctSpelling}
+          </span>
           <p className={`text-slate-300 ${big ? 'text-lg' : 'text-sm'}`}>{item.meaning}</p>
         </div>
 

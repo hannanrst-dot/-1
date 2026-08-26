@@ -3,14 +3,16 @@ import { LevelConfig, LevelResult } from '../types/game';
 import { Modal, Stat } from './Modal';
 import { fa } from '../engine/world';
 import { spellingContentAdapter } from '../services/SpellingContentAdapter';
-import { Star, RotateCcw, ArrowLeft, Map, BarChart3 } from 'lucide-react';
+import { Star, RotateCcw, ArrowLeft, Map, BarChart3, Target } from 'lucide-react';
 
 interface Props {
   result: LevelResult;
   level: LevelConfig;
   bestCombo: number;
   hasNext: boolean;
+  isPractice: boolean;
   projector: boolean;
+  onPractice: () => void;
   onNext: () => void;
   onRetry: () => void;
   onMap: () => void;
@@ -25,7 +27,7 @@ const STAR_MSG = [
 ];
 
 export const LevelEndModal: React.FC<Props> = ({
-  result, level, bestCombo, hasNext, projector, onNext, onRetry, onMap, onOpenReport,
+  result, level, bestCombo, hasNext, isPractice, projector, onPractice, onNext, onRetry, onMap, onOpenReport,
 }) => {
   const win = result.victory;
   const acc = Math.round(result.accuracy * 100);
@@ -42,7 +44,7 @@ export const LevelEndModal: React.FC<Props> = ({
   return (
     <Modal
       isOpen
-      title={win ? 'پیروزی در میدان!' : 'کمانت شکست…'}
+      title={isPractice ? (win ? 'تمرین تمام شد!' : 'باز هم تمرین کن') : win ? 'پیروزی در میدان!' : 'کمانت شکست…'}
       subtitle={`${level.title} — ${info.fa}`}
       icon={win ? '🏆' : '💔'}
       accent={win ? 'amber' : 'rose'}
@@ -50,6 +52,15 @@ export const LevelEndModal: React.FC<Props> = ({
       projector={projector}
       footer={
         <div className="flex flex-col sm:flex-row items-stretch gap-2.5">
+          {result.missedItems.length > 0 && (
+            <button
+              onClick={onPractice}
+              className="flex-1 py-3.5 rounded-2xl bg-gradient-to-l from-sky-500 to-cyan-400 hover:from-sky-400 text-slate-950 font-black text-sm shadow-lg shadow-sky-500/25 transition active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Target className="w-4 h-4" />
+              تمرین {fa(result.missedItems.length)} واژهٔ اشتباه
+            </button>
+          )}
           {win && hasNext && (
             <button
               onClick={onNext}
@@ -114,7 +125,20 @@ export const LevelEndModal: React.FC<Props> = ({
           <Stat label="سکهٔ دریافتی" value={fa(result.coins + result.stars * 40)} icon="🪙" tone="text-yellow-300" />
         </div>
 
-        {result.stars < 3 && win && (
+        {result.missedItems.length > 0 && (
+          <div className="w-full p-3.5 rounded-2xl bg-rose-950/30 border border-rose-900/60 text-right">
+            <div className="text-[11px] font-black text-rose-300 mb-1.5">این واژه‌ها را اشتباه زدی:</div>
+            <div className="flex flex-wrap gap-2">
+              {result.missedItems.map((m) => (
+                <span key={m.id} className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-sm font-bold text-emerald-300">
+                  {m.correctSpelling}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {result.stars < 3 && win && !isPractice && (
           <div className="w-full p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-right">
             <p className="text-xs text-slate-400 leading-relaxed">
               <span className="text-amber-300 font-bold">برای سه ستاره: </span>

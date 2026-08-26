@@ -4,6 +4,10 @@ import { RealmTheme } from '../types/game';
  * موتور صدای بازی — همهٔ صداها با Web Audio ساخته می‌شوند
  * تا بازی به هیچ فایل صوتی بیرونی نیاز نداشته باشد
  * (مناسب کلاس‌هایی که اینترنت ندارند).
+ *
+ * گفتار فارسی (تبدیل متن به صدا) عمداً اینجا نیست: روی بیشتر رایانه‌های
+ * ویندوزی صدای فارسی نصب نیست و نتیجه یا سکوت بود یا لهجهٔ نامفهوم.
+ * به‌جایش، حالتِ «شکار در جمله» ساخته شد که به صدا نیازی ندارد.
  */
 
 type Wave = OscillatorType;
@@ -31,16 +35,9 @@ class AudioService {
   private musicOn = true;
   private padNodes: { osc: OscillatorNode; gain: GainNode; lfo: OscillatorNode }[] = [];
   private currentTheme: RealmTheme | null = null;
-  private voices: SpeechSynthesisVoice[] = [];
-
   constructor() {
     this.muted = localStorage.getItem('wh_muted') === '1';
     this.musicOn = localStorage.getItem('wh_music') !== '0';
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      const load = () => { this.voices = window.speechSynthesis.getVoices(); };
-      load();
-      window.speechSynthesis.onvoiceschanged = load;
-    }
   }
 
   /* ─────────── زیرساخت ─────────── */
@@ -145,7 +142,6 @@ class AudioService {
     if (this.master && ctx) {
       this.master.gain.setTargetAtTime(this.muted ? 0 : 0.9, ctx.currentTime, 0.05);
     }
-    if (this.muted) this.stopSpeech();
     return this.muted;
   }
 
@@ -323,58 +319,6 @@ class AudioService {
 
   public playUiClick() {
     this.note(720, { type: 'sine', dur: 0.07, gain: 0.07 });
-  }
-
-  /* ─────────── گفتار فارسی ─────────── */
-
-  public hasPersianVoice(): boolean {
-    return this.pickVoice() !== undefined;
-  }
-
-  private pickVoice(): SpeechSynthesisVoice | undefined {
-    if (!this.voices.length && 'speechSynthesis' in window) {
-      this.voices = window.speechSynthesis.getVoices();
-    }
-    return this.voices.find(
-      (v) => v.lang?.toLowerCase().startsWith('fa') || /persian|farsi/i.test(v.name)
-    );
-  }
-
-  /**
-   * واژه را با صدای فارسی می‌خواند.
-   * اگر صدای فارسی روی دستگاه نصب نباشد، یک آهنگ کوتاه پخش می‌شود
-   * و onEnd فراخوانی می‌گردد تا بازی متوقف نماند.
-   */
-  public speakPersian(text: string, onEnd?: () => void) {
-    if (this.muted) { onEnd?.(); return; }
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
-      this.playUnlock();
-      setTimeout(() => onEnd?.(), 900);
-      return;
-    }
-    try {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'fa-IR';
-      u.rate = 0.82;
-      u.pitch = 1.0;
-      const v = this.pickVoice();
-      if (v) u.voice = v;
-      let done = false;
-      const finish = () => { if (!done) { done = true; onEnd?.(); } };
-      u.onend = finish;
-      u.onerror = finish;
-      window.speechSynthesis.speak(u);
-      // تور ایمنی: اگر رویداد پایان نیامد
-      window.setTimeout(finish, 4000);
-    } catch {
-      this.playUnlock();
-      window.setTimeout(() => onEnd?.(), 900);
-    }
-  }
-
-  public stopSpeech() {
-    try { window.speechSynthesis?.cancel(); } catch { /* پشتیبانی نمی‌شود */ }
   }
 }
 

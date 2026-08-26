@@ -4,7 +4,7 @@ import { fa } from '../engine/world';
 import { spellingContentAdapter } from '../services/SpellingContentAdapter';
 import { audioService } from '../services/AudioService';
 import confetti from 'canvas-confetti';
-import { Volume2, CheckCircle2, XCircle, LogOut, BookOpen } from 'lucide-react';
+import { CheckCircle2, XCircle, LogOut, BookOpen } from 'lucide-react';
 
 interface Props {
   result: MissionResult;
@@ -112,16 +112,7 @@ export const MissionEndModal: React.FC<Props> = ({ result, config, onExit }) => 
           {tab === 'review' ? (
             result.missed.map((m) => (
               <div key={m.wordId} className="p-3.5 rounded-2xl bg-rose-950/30 border border-rose-900/60">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="text-lg font-black text-emerald-300">{m.correctSpelling}</span>
-                  <button
-                    onClick={() => audioService.speakPersian(m.correctSpelling)}
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-emerald-300 transition"
-                    title="شنیدن واژه"
-                  >
-                    <Volume2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                <span className="text-lg font-black text-emerald-300">{m.correctSpelling}</span>
                 {m.rule && <p className="mt-1.5 text-[11px] text-slate-300 leading-relaxed">{m.rule}</p>}
               </div>
             ))

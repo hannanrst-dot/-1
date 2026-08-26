@@ -277,6 +277,88 @@ export function drawSlotTablet(
   ctx.restore();
 }
 
+/* ═══════════ لوح جمله (حالت شکار در جمله) ═══════════ */
+
+/**
+ * جمله را با یک جای خالی به‌جای واژه نشان می‌دهد و معنی واژه را زیرش می‌نویسد.
+ * دانش‌آموز باید املای درستِ همان واژه را از میان گویچه‌ها بزند.
+ */
+export function drawSentencePlaque(
+  ctx: CanvasRenderingContext2D,
+  before: string,
+  after: string,
+  meaning: string,
+  time: number,
+  projector: boolean
+) {
+  const maxW = VW - 180;
+  let size = projector ? 30 : 25;
+  const gapW = () => size * 3.4;
+
+  // اگر جمله جا نشد، قلم را کوچک کن تا جا شود
+  let wBefore = 0, wAfter = 0, inner = 0;
+  for (let i = 0; i < 8; i++) {
+    wBefore = before ? measure(ctx, before, size, 700) : 0;
+    wAfter = after ? measure(ctx, after, size, 700) : 0;
+    inner = wBefore + wAfter + gapW() + 24;
+    if (inner <= maxW - 60 || size <= 15) break;
+    size -= 2;
+  }
+
+  const boxW = Math.min(maxW, inner + 56);
+  const boxH = size + 66;
+  const cx = VW / 2;
+  const y = 152;
+  const textY = y - 10;
+
+  ctx.save();
+  blit(ctx, rectGlow(boxW, boxH, 18, 24, '#38bdf8', 2), cx, y);
+  const g = ctx.createLinearGradient(0, y - boxH / 2, 0, y + boxH / 2);
+  g.addColorStop(0, 'rgba(12,26,40,0.96)');
+  g.addColorStop(1, 'rgba(6,14,24,0.97)');
+  ctx.fillStyle = g;
+  roundRect(ctx, cx - boxW / 2, y - boxH / 2, boxW, boxH, 18);
+  ctx.fill();
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2.4;
+  ctx.stroke();
+
+  rtlText(ctx);
+  font(ctx, size, 700);
+  ctx.fillStyle = '#e0f2fe';
+
+  // چیدمان راست‌به‌چپ: آغاز جمله در سمت راست
+  const right = cx + inner / 2;
+  const beforeCx = right - wBefore / 2;
+  const gapCx = right - wBefore - 12 - gapW() / 2;
+  const afterCx = right - wBefore - 24 - gapW() - wAfter / 2;
+
+  if (before) ctx.fillText(before, beforeCx, textY);
+  if (after) ctx.fillText(after, afterCx, textY);
+
+  // جای خالی
+  const pulse = 0.55 + 0.45 * Math.sin(time * 4);
+  blit(ctx, rectGlow(gapW(), size * 1.5, 9, 14, '#fbbf24'), gapCx, textY, pulse * 0.8);
+  ctx.fillStyle = 'rgba(251,191,36,0.12)';
+  roundRect(ctx, gapCx - gapW() / 2, textY - size * 0.75, gapW(), size * 1.5, 9);
+  ctx.fill();
+  ctx.strokeStyle = `rgba(251,191,36,${0.45 + pulse * 0.45})`;
+  ctx.lineWidth = 2.2;
+  ctx.setLineDash([6, 5]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  font(ctx, size * 0.85, 800);
+  ctx.fillStyle = `rgba(251,191,36,${0.4 + pulse * 0.4})`;
+  ctx.fillText('؟', gapCx, textY + 1);
+
+  // معنی، زیر جمله
+  font(ctx, projector ? 16 : 14, 600);
+  ctx.fillStyle = '#7dd3fc';
+  const m = meaning.length > 60 ? meaning.slice(0, 58) + '…' : meaning;
+  ctx.fillText(m, cx, y + boxH / 2 - 15);
+  ctx.restore();
+}
+
 /* ═══════════ قفل طلسم و واژهٔ اسیر ═══════════ */
 
 export function drawCageLock(ctx: CanvasRenderingContext2D, t: Target, opts: { fontSize: number }) {

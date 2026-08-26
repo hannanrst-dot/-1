@@ -48,14 +48,14 @@ const DEFAULTS: MissionConfig = {
   categories: [],
   grade: 'all',
   difficulty: 2,
-  gameModes: ['word_hunt', 'letter_snipe', 'audio_whisper'],
+  gameModes: ['word_hunt', 'letter_snipe', 'sentence_hunt'],
   showEconomy: true,
   locale: 'fa',
 };
 
 const VALID_MODES: GameMode[] = [
   'word_hunt', 'letter_snipe', 'word_rescue', 'monster_combat',
-  'audio_whisper', 'speed_rush', 'boss_battle',
+  'sentence_hunt', 'speed_rush', 'boss_battle',
 ];
 const VALID_CATS: SpellingCategory[] = [
   's_s_th', 'z_z_z_z', 't_t', 'gh_gh', 'h_h', 'khva', 'tanvin', 'gozar', 'peyvaste', 'all',

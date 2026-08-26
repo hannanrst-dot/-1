@@ -102,7 +102,7 @@ frame.contentWindow.postMessage({ type: 'wordhunter:mission', config }, '*');
   "grade": "grade_5_6",
   "difficulty": 2,                       // ۱ تا ۳
 
-  "gameModes": ["word_hunt", "letter_snipe", "audio_whisper"],
+  "gameModes": ["word_hunt", "letter_snipe", "sentence_hunt"],
   "showEconomy": false,                  // در آزمون، سکه و فروشگاه خاموش
 
   "words": [                             // اختیاری — واژه‌های همین درس
@@ -133,7 +133,11 @@ frame.contentWindow.postMessage({ type: 'wordhunter:mission', config }, '*');
 
 ### حالت‌های بازی در مأموریت
 
-`word_hunt` · `letter_snipe` · `word_rescue` · `monster_combat` · `audio_whisper`
+`word_hunt` · `letter_snipe` · `sentence_hunt` · `word_rescue` · `monster_combat`
+
+«شکار در جمله» جمله را با یک جای خالی نشان می‌دهد؛ برای همین بهتر است
+واژه‌هایی که می‌فرستید ستون «جمله» را هم داشته باشند (اگر نداشته باشند،
+معنی به‌تنهایی سرنخ می‌شود).
 
 «نبرد با غول» و «حملهٔ زمان‌دار» در مأموریت نمی‌آیند: اولی یک صحنهٔ پایانی
 مرحله‌محور است و دومی تایمر مستقل خودش را دارد که با زمان کل آزمون تداخل
@@ -233,7 +237,7 @@ app.post('/api/spelling/sessions', auth, async (req, res) => {
     title: `املای ${lessonId}`,
     questionCount, durationSec, lives: 5,
     categories: [], grade: 'all', difficulty: 2,
-    gameModes: ['word_hunt', 'letter_snipe', 'audio_whisper'],
+    gameModes: ['word_hunt', 'letter_snipe', 'sentence_hunt'],
     showEconomy: false,
     words: words.map(w => ({
       word: w.correct,

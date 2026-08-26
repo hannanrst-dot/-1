@@ -2,10 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { Realm, LevelConfig, PlayerProgress, ClassSessionState } from '../types/game';
 import { spellingContentAdapter } from '../services/SpellingContentAdapter';
 import { fa } from '../engine/world';
-import {
-  Star, Lock, Play, Tv, HelpCircle, ShoppingBag, BookOpen,
-  Volume2, VolumeX, Music, Music2, Users, BarChart3, Trophy,
-} from 'lucide-react';
+import { TeacherMenu } from './TeacherMenu';
+import { countUnlocked, ACHIEVEMENTS } from '../services/Achievements';
+import { Star, Lock, Play, Tv, Volume2, VolumeX, Trophy, Medal } from 'lucide-react';
 
 interface Props {
   realms: Realm[];
@@ -25,6 +24,8 @@ interface Props {
   onOpenArmory: () => void;
   onOpenSession: () => void;
   onOpenReport: () => void;
+  onOpenBadges: () => void;
+  onResetProgress: () => void;
 }
 
 const REALM_BG: Record<string, string> = {
@@ -39,7 +40,7 @@ const REALM_BG: Record<string, string> = {
 export const WorldMap: React.FC<Props> = ({
   realms, progress, totalStars, maxStars, projector, muted, musicOn, session,
   onSelectLevel, onToggleProjector, onToggleMute, onToggleMusic,
-  onOpenGuide, onOpenTeacherWords, onOpenArmory, onOpenSession, onOpenReport,
+  onOpenGuide, onOpenTeacherWords, onOpenArmory, onOpenSession, onOpenReport, onOpenBadges, onResetProgress,
 }) => {
   const [realmId, setRealmId] = useState(realms[0].id);
   const realm = realms.find((r) => r.id === realmId) || realms[0];
@@ -85,33 +86,41 @@ export const WorldMap: React.FC<Props> = ({
             <span className="text-sm">🪙</span>
             <span className="text-sm font-black text-amber-300">{fa(progress.coins)}</span>
           </button>
-          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800">
+          <button
+            onClick={onOpenBadges}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-amber-500/40 transition active:scale-95"
+            title="نشان‌های شکارچی"
+          >
+            <Medal className="w-4 h-4 text-amber-400" />
+            <span className="text-sm font-black text-amber-300">
+              {fa(countUnlocked(progress))}
+              <span className="text-[10px] text-slate-500"> / {fa(ACHIEVEMENTS.length)}</span>
+            </span>
+          </button>
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800">
             <Trophy className="w-4 h-4 text-emerald-400" />
             <span className="text-sm font-black text-emerald-300">{fa(progress.score)}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={onOpenSession} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600/90 hover:bg-teal-500 text-white font-bold text-xs border border-teal-400/50 transition active:scale-95" title="فهرست کلاس و نوبت‌ها">
-            <Users className="w-4 h-4" /> <span className="hidden md:inline">جلسهٔ کلاس</span>
-          </button>
-          <button onClick={onOpenReport} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold text-xs border border-indigo-400/50 transition active:scale-95" title="گزارش و کارنامهٔ کلاس">
-            <BarChart3 className="w-4 h-4" /> <span className="hidden md:inline">گزارش</span>
-          </button>
-          <button onClick={onOpenTeacherWords} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-600/90 hover:bg-violet-500 text-white font-bold text-xs border border-violet-400/50 transition active:scale-95" title="افزودن واژه‌های درس">
-            <BookOpen className="w-4 h-4" /> <span className="hidden md:inline">واژه‌های معلم</span>
-          </button>
-          <button onClick={onOpenArmory} className={iconBtn} title="زرادخانه"><ShoppingBag className="w-5 h-5" /></button>
-          <button onClick={onOpenGuide} className={iconBtn} title="دانشنامهٔ املا"><HelpCircle className="w-5 h-5" /></button>
+          <TeacherMenu
+            session={session}
+            musicOn={musicOn}
+            onOpenSession={onOpenSession}
+            onOpenReport={onOpenReport}
+            onOpenTeacherWords={onOpenTeacherWords}
+            onOpenGuide={onOpenGuide}
+            onToggleMusic={onToggleMusic}
+            onResetProgress={onResetProgress}
+          />
+          {/* فقط دو چیزی که معلم وسط کلاس مدام به آن‌ها دست می‌زند بیرون می‌مانند */}
           <button
             onClick={onToggleProjector}
             className={`${iconBtn} ${projector ? '!bg-amber-400 !text-slate-950 !border-amber-300' : ''}`}
-            title="حالت ویدئوپروژکتور"
+            title="حالت ویدئوپروژکتور — قلم درشت‌تر برای دیده شدن از ته کلاس"
           >
             <Tv className="w-5 h-5" />
-          </button>
-          <button onClick={onToggleMusic} className={iconBtn} title={musicOn ? 'قطع موسیقی' : 'پخش موسیقی'}>
-            {musicOn ? <Music className="w-5 h-5 text-sky-400" /> : <Music2 className="w-5 h-5 text-slate-600" />}
           </button>
           <button onClick={onToggleMute} className={iconBtn} title={muted ? 'روشن کردن صدا' : 'قطع صدا'}>
             {muted ? <VolumeX className="w-5 h-5 text-rose-400" /> : <Volume2 className="w-5 h-5 text-emerald-400" />}

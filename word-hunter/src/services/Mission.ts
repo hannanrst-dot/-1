@@ -9,7 +9,7 @@ import { spellingContentAdapter } from './SpellingContentAdapter';
  * آزمون تداخل پیدا می‌کند.
  */
 export const MISSION_MODES: GameMode[] = [
-  'word_hunt', 'letter_snipe', 'word_rescue', 'monster_combat', 'audio_whisper',
+  'word_hunt', 'letter_snipe', 'word_rescue', 'monster_combat', 'sentence_hunt',
 ];
 
 const MODE_TITLE: Record<string, string> = {
@@ -17,7 +17,7 @@ const MODE_TITLE: Record<string, string> = {
   letter_snipe: 'پر کردن جای خالی',
   word_rescue: 'نجات واژه',
   monster_combat: 'پاکسازی غلط املایی',
-  audio_whisper: 'املای شنیداری',
+  sentence_hunt: 'شکار واژه در جمله',
 };
 
 /**

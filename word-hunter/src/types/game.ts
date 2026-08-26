@@ -5,7 +5,7 @@ export type GameMode =
   | 'letter_snipe'    // ۲. تیراندازی به حرف — پر کردن جای خالی کلمه
   | 'word_rescue'     // ۳. نجات کلمه — شکستن قفل‌های غلط و آزادسازی واژه
   | 'monster_combat'  // ۴. شکار غلط املایی — پاکسازی هیولای غلط‌نویس
-  | 'audio_whisper'   // ۵. املا شنیداری — شنیدن واژه و یافتن نوشتار درست
+  | 'sentence_hunt'   // ۵. شکار در جمله — جای خالی جمله را با املای درست پر کن
   | 'speed_rush'      // ۶. حمله زمان‌دار — شکار سریع در پرتال‌ها
   | 'boss_battle';    // ۷. نبرد با غول غلط‌نویس
 
@@ -233,6 +233,8 @@ export interface LevelResult {
   elapsed: number;
   victory: boolean;
   livesLeft: number;
+  /** واژه‌هایی که در این مرحله اشتباه زده شد — برای تمرین جبرانی */
+  missedItems: SpellingItem[];
 }
 
 export interface PlayerProgress {

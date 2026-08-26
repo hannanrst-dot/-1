@@ -91,6 +91,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
     // دور جاری
     item: null as SpellingItem | null,
     recent: [] as string[],
+    missedItems: [] as SpellingItem[],
     phase: 'active' as Phase,
     verdict: 'none' as Verdict,
     verdictTargetId: null as string | null,
@@ -103,6 +104,8 @@ export const GameCanvas: React.FC<Props> = (props) => {
     // حالت‌های ویژه
     locksLeft: 0,
     slotFilled: null as string | null,
+    sentBefore: '',
+    sentAfter: '',
     slotFlash: 0,
     bossHp: 0,
     bossMax: 0,
@@ -135,7 +138,6 @@ export const GameCanvas: React.FC<Props> = (props) => {
     timeLeft: level.timeLimit || 0,
     bossHp: level.bossMaxHealth || 0,
     bossMax: level.bossMaxHealth || 0,
-    speaking: false,
     banner: null as { kind: 'right' | 'wrong'; item: SpellingItem } | null,
     hint: '',
   });
@@ -206,12 +208,6 @@ export const GameCanvas: React.FC<Props> = (props) => {
     }));
   };
 
-  const speakItem = useCallback((item: SpellingItem | null) => {
-    if (!item) return;
-    setUi((u) => ({ ...u, speaking: true }));
-    audioService.speakPersian(item.word, () => setUi((u) => ({ ...u, speaking: false })));
-  }, []);
-
   /* ═══════════════ آماده‌سازی یک دور ═══════════════ */
 
   const startRound = useCallback(() => {
@@ -255,7 +251,27 @@ export const GameCanvas: React.FC<Props> = (props) => {
         : lvl.mode;
     s.roundMode = effectiveMode;
 
-    if (effectiveMode === 'word_hunt' || effectiveMode === 'audio_whisper' || effectiveMode === 'speed_rush') {
+    // «شکار در جمله»: جمله را دو تکه می‌کنیم تا جای واژه خالی بماند
+    if (effectiveMode === 'sentence_hunt') {
+      const sentence = item.sentence || '';
+      let at = sentence.indexOf(item.word);
+      let len = item.word.length;
+      if (at < 0) { at = sentence.indexOf(item.correctSpelling); len = item.correctSpelling.length; }
+      if (at >= 0) {
+        s.sentBefore = sentence.slice(0, at).trim();
+        s.sentAfter = sentence.slice(at + len).trim();
+      } else {
+        // اگر واژه در جمله پیدا نشد، معنی به‌تنهایی سرنخ می‌شود
+        s.sentBefore = '';
+        s.sentAfter = '';
+      }
+    }
+
+    // هرچه در مرحله جلوتر می‌رویم، اهداف کمی تندتر می‌شوند تا مرحله
+    // یکنواخت نباشد و آخرش واقعاً چالش داشته باشد
+    const ramp = 1 + Math.min(1, s.roundsDone / Math.max(1, lvl.rounds)) * 0.55;
+
+    if (effectiveMode === 'word_hunt' || effectiveMode === 'sentence_hunt' || effectiveMode === 'speed_rush') {
       const count = lvl.mode === 'speed_rush' ? 2 : lvl.difficulty >= 2 ? 3 : 2;
       const pool = mkWordPool(count);
       const fs = proj ? 26 : 22;
@@ -268,8 +284,8 @@ export const GameCanvas: React.FC<Props> = (props) => {
           makeTarget({
             id: `w${s.roundSeq}_${i}`, kind: 'word', text: p.text, isCorrect: p.ok,
             x: sp.x, y: sp.y,
-            vx: (0.34 + Math.random() * 0.5) * (i % 2 ? 1 : -1) * (fast ? 2.2 : 1) * (0.75 + lvl.difficulty * 0.3),
-            vy: (0.18 + Math.random() * 0.3) * (i % 2 ? -1 : 1) * (fast ? 1.8 : 1) * (0.75 + lvl.difficulty * 0.3),
+            vx: (0.34 + Math.random() * 0.5) * (i % 2 ? 1 : -1) * (fast ? 2.2 : 1) * (0.75 + lvl.difficulty * 0.3) * ramp,
+            vy: (0.18 + Math.random() * 0.3) * (i % 2 ? -1 : 1) * (fast ? 1.8 : 1) * (0.75 + lvl.difficulty * 0.3) * ramp,
             hue: HUES[i % HUES.length],
             pattern: lvl.mode === 'speed_rush' ? 'portal' : 'drift',
             p: { opacity: 1, fadeDir: -0.9 },
@@ -277,7 +293,6 @@ export const GameCanvas: React.FC<Props> = (props) => {
           })
         );
       });
-      if (effectiveMode === 'audio_whisper') window.setTimeout(() => speakItem(item), 420);
     } else if (lvl.mode === 'letter_snipe' && item.isSnipeable && item.missingLetter) {
       const key = item.missingLetter;
       const decoys = shuffle(item.decoyLetters.filter((d) => d !== key)).slice(0, Math.min(3, 1 + lvl.difficulty));
@@ -292,7 +307,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
             x: sp.x, y: sp.y, radius: r, halfW: r, halfH: r,
             hue: HUES[(i + 2) % HUES.length],
             pattern: 'orbit',
-            p: { cx: sp.x, cy: sp.y, r: 34 + i * 9, angle: i * 1.3, speed: (0.9 + lvl.difficulty * 0.35) * (i % 2 ? 1 : -1) },
+            p: { cx: sp.x, cy: sp.y, r: 34 + i * 9, angle: i * 1.3, speed: (0.9 + lvl.difficulty * 0.35) * ramp * (i % 2 ? 1 : -1) },
             item,
           })
         );
@@ -315,7 +330,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
             id: `lock${s.roundSeq}_${i}`, kind: 'cage_lock', text: lw, isCorrect: false,
             x: cx + Math.cos(a) * 170, y: cy + Math.sin(a) * 120,
             hue: 0, pattern: 'orbit',
-            p: { cx, cy, r: 170, angle: a, speed: 0.5 + lvl.difficulty * 0.22 },
+            p: { cx, cy, r: 170, angle: a, speed: (0.5 + lvl.difficulty * 0.22) * ramp },
             item,
           })
         );
@@ -326,7 +341,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
         makeTarget({
           id: `mon${s.roundSeq}`, kind: 'monster', text: bad, isCorrect: false,
           x: FIELD.maxX - 110, y: FIELD.maxY - 40,
-          vx: -(0.9 + lvl.difficulty * 0.5), radius: proj ? 66 : 56,
+          vx: -(0.9 + lvl.difficulty * 0.5) * ramp, radius: proj ? 66 : 56,
           hue: 270, pattern: 'patrol',
           p: { minX: FIELD.minX + 80, maxX: FIELD.maxX - 60 },
           health: 1, item,
@@ -387,7 +402,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
       });
       s.curseTimer = s.enraged ? 2.6 : 4.2;
     }
-  }, [makeTarget, proj, speakItem]);
+  }, [makeTarget, proj]);
 
   /* ═══════════════ راه‌اندازی مرحله ═══════════════ */
 
@@ -399,6 +414,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
     s.time = 0; s.tScale = 1; s.slowTimer = 0; s.hitStop = 0;
     s.arrows = []; s.particles = []; s.floats = []; s.waves = [];
     s.recent = [];
+    s.missedItems = [];
     s.roundsDone = 0; s.roundSeq = 0;
     s.lives = level.lives; s.maxLives = level.lives;
     s.combo = 0; s.bestCombo = 0;
@@ -417,7 +433,6 @@ export const GameCanvas: React.FC<Props> = (props) => {
     }));
     startRound();
     audioService.startAmbient(level.theme);
-    return () => audioService.stopSpeech();
   }, [level, startRound]);
 
   /* ═══════════════ ورودی ═══════════════ */
@@ -526,11 +541,10 @@ export const GameCanvas: React.FC<Props> = (props) => {
       else if (e.key === '3') P.current.onSelectArrowType('slow_mo');
       else if (e.key === '4') P.current.onSelectArrowType('piercing');
       else if (e.key === '5') P.current.onSelectArrowType('multi_shot');
-      else if (e.key.toLowerCase() === 'r' && P.current.level.mode === 'audio_whisper') speakItem(S.current.item);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [speakItem]);
+  }, []);
 
   /* ═══════════════ جلوه‌ها ═══════════════ */
 
@@ -604,6 +618,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
       }
     } else {
       s.wrong++;
+      if (!s.missedItems.some((m) => m.id === s.item!.id)) s.missedItems.push(s.item);
       s.combo = 0;
       pr.onComboChange(0);
       s.lives = Math.max(0, s.lives - 1);
@@ -641,6 +656,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
       accuracy, shots: s.shots, hits: s.hits,
       bestCombo: s.bestCombo, rounds: s.roundsDone,
       elapsed: s.elapsed, victory, livesLeft: s.lives,
+      missedItems: [...s.missedItems],
     });
   };
 
@@ -979,6 +995,11 @@ export const GameCanvas: React.FC<Props> = (props) => {
       }
 
       s.scene?.drawBack(ctx);
+
+      // لوح جمله
+      if (s.roundMode === 'sentence_hunt' && s.item) {
+        D.drawSentencePlaque(ctx, s.sentBefore, s.sentAfter, s.item.meaning, s.time, proj);
+      }
 
       // لوح جای خالی
       if (s.roundMode === 'letter_snipe' && s.item && s.item.missingLetter) {
@@ -1362,16 +1383,6 @@ export const GameCanvas: React.FC<Props> = (props) => {
           </div>
           )}
 
-          {level.mode === 'audio_whisper' && (
-            <button
-              onClick={() => speakItem(S.current.item)}
-              className={`shrink-0 flex items-center gap-1.5 rounded-xl font-bold shadow-md transition active:scale-95 ${
-                proj ? 'px-4 py-2.5 text-base' : 'px-3 py-2 text-xs'
-              } ${ui.speaking ? 'bg-amber-400 text-slate-950 animate-pulse' : 'bg-sky-600 hover:bg-sky-500 text-white'}`}
-            >
-              🔊 <span>شنیدن دوباره</span>
-            </button>
-          )}
         </div>
       </div>
 

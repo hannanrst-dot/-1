@@ -58,7 +58,7 @@ export const GAME_REALMS: Realm[] = [
     [
       { n: 1, t: 'رقص بلورهای چهارگانه', d: 'واژه‌های «ز / ض / ظ / ذ» را درست تشخیص بده', mode: 'word_hunt', rounds: 5, lives: 3, cat: 'z_z_z_z', g: 'grade_3_4', diff: 2 },
       { n: 2, t: 'شکار در تاریکی', d: 'حرف درست را روی بلورهای چرخان بزن', mode: 'letter_snipe', rounds: 5, lives: 3, cat: 'z_z_z_z', g: 'grade_3_4', diff: 2 },
-      { n: 3, t: 'زمزمهٔ بلورها', d: 'واژه را بشنو و املای درستش را پیدا کن', mode: 'audio_whisper', rounds: 4, lives: 3, cat: 'z_z_z_z', g: 'grade_3_4', diff: 2 },
+      { n: 3, t: 'واژه در دل جمله', d: 'جای خالی جمله را با املای درست پر کن', mode: 'sentence_hunt', rounds: 5, lives: 3, cat: 'z_z_z_z', g: 'grade_3_4', diff: 2 },
       { n: 4, t: 'شکستن طلسم بلور', d: 'واژهٔ طلایی را از قفس بیرون بکش', mode: 'word_rescue', rounds: 3, lives: 3, cat: 'z_z_z_z', g: 'grade_5_6', diff: 2 },
     ]
   ),
@@ -101,7 +101,7 @@ export const GAME_REALMS: Realm[] = [
     [
       { n: 1, t: 'طومار گزاردن و گذاشتن', d: 'تفاوت «گزار» و «گذار» را در عمل بیاموز', mode: 'word_hunt', rounds: 5, lives: 3, cat: 'gozar', g: 'grade_5_6', diff: 3 },
       { n: 2, t: 'دیو فاصله‌خوار', d: 'هیولایی که نیم‌فاصله‌ها را می‌بلعد', mode: 'monster_combat', rounds: 4, lives: 3, cat: 'peyvaste', g: 'grade_5_6', diff: 3 },
-      { n: 3, t: 'نجوای شن‌ها', d: 'واژه را بشنو و درست‌نویسی‌اش را برگزین', mode: 'audio_whisper', rounds: 4, lives: 3, cat: 'gozar', g: 'middle_school', diff: 3 },
+      { n: 3, t: 'طومار جمله‌های گمشده', d: 'واژهٔ درست را در جای خالی جمله بنشان', mode: 'sentence_hunt', rounds: 5, lives: 3, cat: 'gozar', g: 'middle_school', diff: 3 },
       { n: 4, t: 'توفان شن', d: 'در توفان، نیم‌فاصله‌ها را نجات بده', mode: 'speed_rush', rounds: 8, lives: 3, time: 60, cat: 'peyvaste', g: 'grade_5_6', diff: 3 },
     ]
   ),

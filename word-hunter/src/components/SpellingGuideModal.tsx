@@ -2,9 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { SpellingCategory } from '../types/game';
 import { Modal } from './Modal';
 import { spellingContentAdapter } from '../services/SpellingContentAdapter';
-import { audioService } from '../services/AudioService';
 import { fa } from '../engine/world';
-import { Search, Volume2, Lightbulb } from 'lucide-react';
+import { Search, Lightbulb } from 'lucide-react';
 
 const CATS: SpellingCategory[] = [
   'all', 's_s_th', 'z_z_z_z', 't_t', 'gh_gh', 'h_h', 'khva', 'tanvin', 'gozar', 'peyvaste',
@@ -109,13 +108,6 @@ export const SpellingGuideModal: React.FC<{ isOpen: boolean; onClose: () => void
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() => audioService.speakPersian(i.word)}
-                  className="shrink-0 p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-emerald-300 transition"
-                  title="شنیدن واژه"
-                >
-                  <Volume2 className="w-3.5 h-3.5" />
-                </button>
               </div>
               <p className="mt-1 text-xs text-slate-400">{i.meaning}</p>
               <p className="mt-1.5 text-[11px] text-slate-300 leading-relaxed">{i.ruleExplanation}</p>
