@@ -1,163 +1,158 @@
-import React, { useState } from 'react';
-import { X, Users, RefreshCw } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import React, { useState, useRef, useEffect } from 'react';
+import { ClassSessionState } from '../types/game';
+import { Modal } from './Modal';
+import { classSession } from '../services/ClassSession';
 import { audioService } from '../services/AudioService';
+import { fa } from '../engine/world';
+import confetti from 'canvas-confetti';
+import { RefreshCw, SkipForward, Settings2 } from 'lucide-react';
 
-interface StudentPickerModalProps {
+interface Props {
   isOpen: boolean;
+  session: ClassSessionState;
+  projector: boolean;
   onClose: () => void;
-  onSelectStudent: (name: string) => void;
+  onOpenSession: () => void;
 }
 
-const DEFAULT_STUDENTS = [
-  'علی رضایی',
-  'سارا محمدی',
-  'امیرحسین کریمی',
-  'فاطمه حسینی',
-  'محمد پوریا',
-  'نازنین زهرا',
-  'آرشام کاظمی',
-  'هلیا اکبری',
-  'گروه سیمرغ',
-  'گروه آرش کمانگیر',
-];
+export const StudentPickerModal: React.FC<Props> = ({ isOpen, session, projector, onClose, onOpenSession }) => {
+  const [spinning, setSpinning] = useState(false);
+  const [shown, setShown] = useState<string | null>(session.currentStudent);
+  const timer = useRef<number | null>(null);
 
-export const StudentPickerModal: React.FC<StudentPickerModalProps> = ({
-  isOpen,
-  onClose,
-  onSelectStudent,
-}) => {
-  const [studentNames, setStudentNames] = useState<string[]>(DEFAULT_STUDENTS);
-  const [inputText, setInputText] = useState<string>(DEFAULT_STUDENTS.join('، '));
-  const [isSpinning, setIsSpinning] = useState<boolean>(false);
-  const [chosenStudent, setChosenStudent] = useState<string | null>(null);
+  useEffect(() => () => { if (timer.current) window.clearInterval(timer.current); }, []);
+  useEffect(() => { if (isOpen) setShown(session.currentStudent); }, [isOpen, session.currentStudent]);
 
-  if (!isOpen) return null;
+  const roster = session.roster;
 
-  const handleUpdateNames = (text: string) => {
-    setInputText(text);
-    const parsed = text
-      .split(/[،,\n]/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-    setStudentNames(parsed.length > 0 ? parsed : DEFAULT_STUDENTS);
-  };
-
-  const handleSpinRoulette = () => {
-    if (studentNames.length === 0 || isSpinning) return;
-
-    setIsSpinning(true);
-    setChosenStudent(null);
-    audioService.playTargetHit(true, 1);
-
-    let counter = 0;
-    const totalSteps = 20 + Math.floor(Math.random() * 10);
-    const interval = setInterval(() => {
-      const randomIdx = Math.floor(Math.random() * studentNames.length);
-      setChosenStudent(studentNames[randomIdx]);
-      counter++;
-
-      if (counter >= totalSteps) {
-        clearInterval(interval);
-        const finalSelected = studentNames[Math.floor(Math.random() * studentNames.length)];
-        setChosenStudent(finalSelected);
-        setIsSpinning(false);
-        audioService.playTargetHit(true, 5);
-        confetti({
-          particleCount: 60,
-          spread: 60,
-          origin: { y: 0.6 },
-        });
+  const spin = () => {
+    if (spinning || roster.length === 0) return;
+    setSpinning(true);
+    audioService.playUiClick();
+    let n = 0;
+    const total = 18 + Math.floor(Math.random() * 10);
+    timer.current = window.setInterval(() => {
+      setShown(roster[Math.floor(Math.random() * roster.length)]);
+      n++;
+      if (n >= total) {
+        if (timer.current) window.clearInterval(timer.current);
+        const winner = classSession.randomStudent();
+        setShown(winner);
+        if (winner) classSession.setCurrentStudent(winner);
+        setSpinning(false);
+        audioService.playComboFanfare();
+        confetti({ particleCount: 70, spread: 65, origin: { y: 0.5 } });
       }
-    }, 90);
+    }, 85);
   };
 
-  const handleConfirm = () => {
-    if (chosenStudent) {
-      onSelectStudent(chosenStudent);
-    }
-    onClose();
-  };
+  const rec = shown ? session.students[shown] : undefined;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md select-none">
-      <div className="relative w-full max-w-lg bg-slate-900 border-2 border-teal-500/70 rounded-3xl p-6 shadow-2xl text-slate-100 flex flex-col gap-5">
-        {/* Close Button */}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="نوبت دانش‌آموز"
+      subtitle="انتخاب تصادفی و عادلانه — کسانی که کمتر نوبت گرفته‌اند شانس بیشتری دارند."
+      icon="🎯"
+      accent="teal"
+      size="sm"
+      projector={projector}
+      footer={
         <button
           onClick={onClose}
-          className="absolute top-5 left-5 p-2 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+          className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm border border-slate-700 transition active:scale-95"
         >
-          <X className="w-5 h-5" />
+          بازگشت به بازی
         </button>
-
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-2xl">
-            🎯
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-100">گردونه انتخاب دانش‌آموز</h2>
-            <p className="text-xs text-slate-400">
-              انتخاب تصادفی دانش‌آموز یا گروه برای نشانه گرفتن هدف بعدی
-            </p>
-          </div>
-        </div>
-
-        {/* Roulette Display Wheel */}
-        <div className="relative overflow-hidden p-8 rounded-2xl bg-gradient-to-b from-slate-950 to-teal-950/40 border border-teal-500/40 flex flex-col items-center justify-center text-center min-h-[160px]">
-          <div className="text-xs text-teal-400 font-bold mb-2">نوبت پرتاب تیر با:</div>
-
-          {chosenStudent ? (
-            <div
-              className={`text-2xl lg:text-3xl font-black text-amber-300 transition-transform ${
-                isSpinning ? 'scale-110 opacity-75' : 'scale-100 animate-pulse'
-              }`}
-            >
-              🏹 {chosenStudent}
-            </div>
-          ) : (
-            <div className="text-sm text-slate-500">
-              روی دکمه «چرخاندن گردونه» کلیک کنید...
-            </div>
-          )}
-
-          {/* Spin Button */}
+      }
+    >
+      {roster.length === 0 ? (
+        <div className="py-8 text-center flex flex-col items-center gap-3">
+          <div className="text-5xl">🧑‍🏫</div>
+          <p className="text-sm text-slate-300 font-bold">هنوز فهرست کلاس را وارد نکرده‌ای.</p>
+          <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
+            اسامی دانش‌آموزان یا گروه‌ها را یک‌بار وارد کن؛ از آن پس بازی نوبت‌ها و آمار هر نفر را نگه می‌دارد.
+          </p>
           <button
-            onClick={handleSpinRoulette}
-            disabled={isSpinning}
-            className="mt-5 flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-black text-sm shadow-lg shadow-teal-500/20 transition active:scale-95 disabled:opacity-50"
+            onClick={onOpenSession}
+            className="mt-1 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs transition active:scale-95"
           >
-            <RefreshCw className={`w-4 h-4 ${isSpinning ? 'animate-spin' : ''}`} />
-            <span>{isSpinning ? 'در حال چرخش...' : 'چرخاندن گردونه 🎲'}</span>
+            <Settings2 className="w-4 h-4" /> تنظیم فهرست کلاس
           </button>
         </div>
-
-        {/* Edit Student List */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span className="flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-teal-400" />
-              <span>فهرست اسامی دانش‌آموزان / گروه‌ها:</span>
-            </span>
-            <span className="text-teal-400 font-bold">{studentNames.length} نفر / گروه</span>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <div className="relative overflow-hidden p-7 rounded-2xl bg-gradient-to-b from-slate-950 to-teal-950/40 border border-teal-500/40 flex flex-col items-center justify-center text-center min-h-[170px]">
+            <span className="text-[11px] text-teal-400 font-black mb-2">نوبت پرتاب تیر با</span>
+            {shown ? (
+              <div className={`font-black text-amber-300 transition-transform duration-100 ${spinning ? 'scale-105 opacity-70 blur-[0.4px]' : 'scale-100'} ${projector ? 'text-4xl' : 'text-3xl'}`}>
+                🏹 {shown}
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500">گردونه را بچرخان…</div>
+            )}
+            {rec && rec.attempts > 0 && !spinning && (
+              <div className="mt-2 text-[11px] text-slate-400">
+                تاکنون {fa(rec.correct)} پاسخ درست از {fa(rec.attempts)} تلاش
+                {rec.bestStreak > 1 && <> · بهترین زنجیره ×{fa(rec.bestStreak)}</>}
+              </div>
+            )}
           </div>
-          <textarea
-            value={inputText}
-            onChange={(e) => handleUpdateNames(e.target.value)}
-            rows={2}
-            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-teal-500 transition leading-relaxed resize-none"
-            placeholder="اسامی را با ویرگول (،) از هم جدا کنید..."
-          />
-        </div>
 
-        {/* Action Button */}
-        <button
-          onClick={handleConfirm}
-          className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition"
-        >
-          تأیید و بازگشت به بازی
-        </button>
-      </div>
-    </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              onClick={spin}
+              disabled={spinning}
+              className="py-3 rounded-2xl bg-gradient-to-l from-teal-500 to-emerald-400 hover:from-teal-400 hover:to-emerald-300 text-slate-950 font-black text-xs shadow-lg shadow-teal-500/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${spinning ? 'animate-spin' : ''}`} />
+              {spinning ? 'در حال چرخش…' : 'چرخاندن گردونه'}
+            </button>
+            <button
+              onClick={() => { const n = classSession.nextTurn(); setShown(n); audioService.playUiClick(); }}
+              className="py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition active:scale-95 flex items-center justify-center gap-2"
+            >
+              <SkipForward className="w-4 h-4" /> نفر بعدی فهرست
+            </button>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-bold text-slate-400">
+                انتخاب دستی ({fa(roster.length)} نفر)
+              </span>
+              <button onClick={onOpenSession} className="text-[11px] text-teal-400 hover:text-teal-300 flex items-center gap-1">
+                <Settings2 className="w-3 h-3" /> ویرایش فهرست
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2.5 rounded-2xl bg-slate-950 border border-slate-800">
+              {roster.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => { classSession.setCurrentStudent(n); setShown(n); }}
+                  className={`px-2.5 py-1 rounded-xl text-xs border transition ${
+                    session.currentStudent === n
+                      ? 'bg-teal-500 text-slate-950 border-teal-300 font-black'
+                      : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-teal-500/60'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {session.turnMode === 'free' && (
+            <button
+              onClick={() => classSession.setTurnMode('turns')}
+              className="w-full py-2.5 rounded-xl bg-teal-950/60 border border-teal-700/60 text-teal-200 text-[11px] font-bold hover:bg-teal-900/60 transition"
+            >
+              فعال کردن حالت نوبتی — بعد از هر پاسخ، نوبت خودکار به نفر بعد می‌رسد
+            </button>
+          )}
+        </div>
+      )}
+    </Modal>
   );
 };

@@ -1,88 +1,111 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    color-scheme: dark;
+    /* اگر فونت وزیرمتن بارگیری نشد، فونت‌های فارسی نصب‌شده روی سیستم جایگزین می‌شوند */
+    --wh-font: 'Vazirmatn', 'Vazir', 'IRANSans', 'Sahel', 'Tahoma', 'Segoe UI', system-ui, sans-serif;
+  }
+
   * {
-    font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
+    font-family: var(--wh-font);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body, #root {
+    height: 100%;
   }
 
   body {
-    background-color: #090d16;
+    margin: 0;
+    background-color: #05070f;
     color: #f1f5f9;
-    overflow-x: hidden;
+    overflow: hidden;
+    overscroll-behavior: none;
     touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* در فیلدهای ورودی انتخاب متن باید ممکن باشد */
+  input, textarea, select {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  /* اعداد فارسی در همهٔ متن‌ها */
+  body {
+    font-variant-numeric: normal;
   }
 }
 
-/* Custom glowing effects and animations for game elements */
-@keyframes pulseGlow {
-  0%, 100% {
-    filter: drop-shadow(0 0 12px rgba(234, 179, 8, 0.6)) drop-shadow(0 0 25px rgba(234, 179, 8, 0.3));
-  }
-  50% {
-    filter: drop-shadow(0 0 22px rgba(234, 179, 8, 0.9)) drop-shadow(0 0 40px rgba(234, 179, 8, 0.5));
-  }
+/* ═══════ انیمیشن‌ها ═══════ */
+
+@keyframes wh-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-@keyframes floatGentle {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-8px) rotate(1deg);
-  }
+@keyframes wh-pop {
+  from { opacity: 0; transform: scale(.92) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-@keyframes bossBreathe {
-  0%, 100% {
-    transform: scale(1) translateY(0);
-  }
-  50% {
-    transform: scale(1.03) translateY(-6px);
-  }
+@keyframes wh-rise {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes laserCharge {
-  0% {
-    opacity: 0.3;
-    transform: scaleX(0.2);
-  }
-  50% {
-    opacity: 0.8;
-    transform: scaleX(0.8);
-  }
-  100% {
-    opacity: 1;
-    transform: scaleX(1);
-  }
+@keyframes wh-glow {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(251, 191, 36, .5)); }
+  50%      { filter: drop-shadow(0 0 22px rgba(251, 191, 36, .9)); }
 }
 
-.animate-pulse-glow {
-  animation: pulseGlow 2.5s infinite ease-in-out;
+@keyframes wh-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
 }
 
-.animate-float {
-  animation: floatGentle 3s infinite ease-in-out;
-}
+.animate-glow  { animation: wh-glow 2.4s ease-in-out infinite; }
+.animate-float { animation: wh-float 3s ease-in-out infinite; }
 
-.animate-boss {
-  animation: bossBreathe 4s infinite ease-in-out;
-}
+/* ═══════ نوار پیمایش ═══════ */
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(15, 23, 42, .5); }
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.5);
+  background: rgba(100, 116, 139, .55);
   border-radius: 9999px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.8);
+::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, .8); }
+
+/* ═══════ چاپ کارنامهٔ کلاس ═══════ */
+
+@media print {
+  @page { margin: 14mm; }
+
+  body { background: #fff !important; color: #000 !important; overflow: visible !important; }
+
+  /* همه چیز پنهان می‌شود جز کارنامه */
+  body * { visibility: hidden !important; }
+  #wh-report, #wh-report * { visibility: visible !important; }
+
+  #wh-report {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    padding: 0;
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  #wh-report * {
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #94a3b8 !important;
+    box-shadow: none !important;
+  }
+
+  #wh-report table { border-collapse: collapse; width: 100%; }
+  #wh-report th, #wh-report td { border: 1px solid #94a3b8 !important; padding: 6px 8px; }
 }

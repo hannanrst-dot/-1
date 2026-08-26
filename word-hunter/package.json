@@ -1,12 +1,13 @@
 {
-  "name": "react-vite-tailwind",
+  "name": "word-hunter",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@types/canvas-confetti": "^1.9.0",
@@ -27,5 +28,6 @@
     "typescript": "5.9.3",
     "vite": "7.3.2",
     "vite-plugin-singlefile": "2.3.0"
-  }
+  },
+  "description": "شکارچی کلمات — بازی اکشن آموزش املای فارسی برای کلاس درس"
 }

@@ -1,258 +1,156 @@
 import React from 'react';
 import { ArcherBow, ArrowType } from '../types/game';
-import { ARCHER_BOWS } from '../services/WorldData';
-import { audioService } from '../services/AudioService';
-import { X, ShoppingBag, Check } from 'lucide-react';
+import { Modal } from './Modal';
+import { ARCHER_BOWS, ARROW_SHOP } from '../services/WorldData';
+import { fa } from '../engine/world';
+import { Check, Lock, Zap } from 'lucide-react';
 
-interface ArmoryModalProps {
+interface Props {
   isOpen: boolean;
   coins: number;
   equippedBowId: string;
   unlockedBows: string[];
-  arrowInventory: Record<ArrowType, number>;
+  inventory: Record<ArrowType, number>;
   onClose: () => void;
-  onEquipBow: (bowId: string) => void;
+  onEquipBow: (id: string) => void;
   onBuyBow: (bow: ArcherBow) => void;
   onBuyArrows: (type: ArrowType, cost: number, count: number) => void;
 }
 
-export const ArmoryModal: React.FC<ArmoryModalProps> = ({
-  isOpen,
-  coins,
-  equippedBowId,
-  unlockedBows,
-  arrowInventory,
-  onClose,
-  onEquipBow,
-  onBuyBow,
-  onBuyArrows,
-}) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md select-none">
-      <div className="relative w-full max-w-3xl bg-slate-900 border-2 border-amber-500/70 rounded-3xl p-6 lg:p-8 shadow-2xl text-slate-100 flex flex-col gap-6 max-h-[90vh] overflow-y-auto">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-5 left-5 p-2 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-2xl">
-              🏹
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-100">اسلحه‌خانه و ارتقای شکارچی</h2>
-              <p className="text-xs text-slate-400">
-                خرید و تجهیز کمان‌های کهن و تیرهای جادویی با سکه‌های کسب‌شده
-              </p>
-            </div>
-          </div>
-
-          {/* Current Gold Coins */}
-          <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-slate-950 border border-amber-500/50 shadow-inner">
-            <span className="text-base">🪙</span>
-            <span className="text-base font-black text-amber-300">
-              {coins.toLocaleString('fa-IR')} سکه
-            </span>
-          </div>
-        </div>
-
-        {/* Section 1: Bows */}
-        <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2">
-            <span>کمان‌های شکارچی:</span>
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {ARCHER_BOWS.map((bow) => {
-              const isUnlocked = unlockedBows.includes(bow.id) || bow.isUnlocked;
-              const isEquipped = equippedBowId === bow.id;
-              const canAfford = coins >= bow.price;
-
-              return (
-                <div
-                  key={bow.id}
-                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
-                    isEquipped
-                      ? 'bg-slate-800/90 border-amber-400 shadow-lg shadow-amber-500/10'
-                      : isUnlocked
-                      ? 'bg-slate-950/70 border-slate-700 hover:border-slate-600'
-                      : 'bg-slate-950/40 border-slate-800 opacity-75'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
-                      style={{ background: `${bow.glowColor}22`, border: `1px solid ${bow.glowColor}55` }}
-                    >
-                      {bow.icon}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-slate-100">{bow.name}</h4>
-                        {isEquipped && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950">
-                            مجهز شده
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                        {bow.description}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Attributes & Action Button */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
-                    <div className="flex items-center gap-3 text-[11px] text-slate-400 font-medium">
-                      <span>سرعت تیر: {bow.arrowSpeed}x</span>
-                      <span>قدرت: {bow.powerMultiplier}x</span>
-                    </div>
-
-                    {isUnlocked ? (
-                      <button
-                        onClick={() => {
-                          audioService.playCoin();
-                          onEquipBow(bow.id);
-                        }}
-                        disabled={isEquipped}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
-                          isEquipped
-                            ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30'
-                            : 'bg-slate-700 hover:bg-slate-600 text-white'
-                        }`}
-                      >
-                        {isEquipped ? (
-                          <>
-                            <Check className="w-3.5 h-3.5" />
-                            <span>فعال</span>
-                          </>
-                        ) : (
-                          'تجهیز کمان'
-                        )}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          if (canAfford) {
-                            audioService.playCoin();
-                            onBuyBow(bow);
-                          }
-                        }}
-                        disabled={!canAfford}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
-                          canAfford
-                            ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md'
-                            : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                        }`}
-                      >
-                        <ShoppingBag className="w-3.5 h-3.5" />
-                        <span>{bow.price} سکه</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Section 2: Special Arrows Ammo Shop */}
-        <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2">
-            <span>مهمات و تیرهای جادویی:</span>
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Fire Arrows */}
-            <div className="p-4 rounded-2xl bg-slate-950/70 border border-orange-500/30 flex flex-col justify-between gap-3">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl">🔥</span>
-                  <span className="text-xs font-bold text-orange-400">
-                    موجودی: {arrowInventory.fire}
-                  </span>
-                </div>
-                <h4 className="text-sm font-bold text-slate-100 mt-2">بسته تیر آتشین</h4>
-                <p className="text-[11px] text-slate-400 mt-1">انفجار محیطی و خرد کردن اهداف</p>
-              </div>
-
-              <button
-                onClick={() => {
-                  if (coins >= 80) {
-                    audioService.playCoin();
-                    onBuyArrows('fire', 80, 5);
-                  }
-                }}
-                disabled={coins < 80}
-                className="w-full py-2 rounded-xl text-xs font-bold bg-orange-600 hover:bg-orange-500 text-white transition disabled:opacity-40"
-              >
-                خرید ۵ تیر (۸۰ سکه)
-              </button>
-            </div>
-
-            {/* Slow-mo Ice Arrows */}
-            <div className="p-4 rounded-2xl bg-slate-950/70 border border-sky-500/30 flex flex-col justify-between gap-3">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl">❄️</span>
-                  <span className="text-xs font-bold text-sky-400">
-                    موجودی: {arrowInventory.slow_mo}
-                  </span>
-                </div>
-                <h4 className="text-sm font-bold text-slate-100 mt-2">تیر بلورین آهسته</h4>
-                <p className="text-[11px] text-slate-400 mt-1">حرکت روان و آهسته‌تر تیر</p>
-              </div>
-
-              <button
-                onClick={() => {
-                  if (coins >= 100) {
-                    audioService.playCoin();
-                    onBuyArrows('slow_mo', 100, 5);
-                  }
-                }}
-                disabled={coins < 100}
-                className="w-full py-2 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white transition disabled:opacity-40"
-              >
-                خرید ۵ تیر (۱۰۰ سکه)
-              </button>
-            </div>
-
-            {/* Multi-shot Arrows */}
-            <div className="p-4 rounded-2xl bg-slate-950/70 border border-purple-500/30 flex flex-col justify-between gap-3">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl">✨</span>
-                  <span className="text-xs font-bold text-purple-400">
-                    موجودی: {arrowInventory.multi_shot}
-                  </span>
-                </div>
-                <h4 className="text-sm font-bold text-slate-100 mt-2">تیر سه‌گانه</h4>
-                <p className="text-[11px] text-slate-400 mt-1">پرتاب همزمان ۳ تیر در یک شلیک</p>
-              </div>
-
-              <button
-                onClick={() => {
-                  if (coins >= 120) {
-                    audioService.playCoin();
-                    onBuyArrows('multi_shot', 120, 5);
-                  }
-                }}
-                disabled={coins < 120}
-                className="w-full py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition disabled:opacity-40"
-              >
-                خرید ۵ تیر (۱۲۰ سکه)
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+const Bar: React.FC<{ label: string; value: number; max: number }> = ({ label, value, max }) => (
+  <div className="flex items-center gap-2">
+    <span className="w-16 text-[10px] text-slate-500 shrink-0">{label}</span>
+    <div className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+      <div className="h-full rounded-full bg-gradient-to-l from-amber-400 to-yellow-300" style={{ width: `${(value / max) * 100}%` }} />
     </div>
-  );
-};
+  </div>
+);
+
+export const ArmoryModal: React.FC<Props> = ({
+  isOpen, coins, equippedBowId, unlockedBows, inventory,
+  onClose, onEquipBow, onBuyBow, onBuyArrows,
+}) => (
+  <Modal
+    isOpen={isOpen}
+    onClose={onClose}
+    title="زرادخانهٔ شکارچی"
+    subtitle="کمان‌ها و تیرهای ویژه — سکه‌ها را با پاسخ‌های درست به دست می‌آوری."
+    icon="🏹"
+    accent="amber"
+    size="lg"
+    footer={
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-slate-400">موجودی شما</span>
+        <span className="flex items-center gap-1.5 text-lg font-black text-yellow-300">🪙 {fa(coins)}</span>
+      </div>
+    }
+  >
+    <div className="flex flex-col gap-6">
+      {/* کمان‌ها */}
+      <section>
+        <h3 className="text-sm font-black text-slate-100 mb-3">کمان‌ها</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {ARCHER_BOWS.map((b) => {
+            const owned = unlockedBows.includes(b.id);
+            const equipped = equippedBowId === b.id;
+            const afford = coins >= b.price;
+            return (
+              <div
+                key={b.id}
+                className={`p-4 rounded-2xl border transition ${
+                  equipped ? 'bg-amber-500/10 border-amber-400 ring-1 ring-amber-400/40' : 'bg-slate-950 border-slate-800'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className="shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center text-2xl border"
+                    style={{ borderColor: `${b.glowColor}66`, background: `${b.glowColor}18`, boxShadow: `0 0 18px ${b.glowColor}33` }}
+                  >
+                    {b.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-black text-slate-100">{b.name}</h4>
+                      {equipped && <span className="px-1.5 py-0.5 rounded-md bg-amber-400 text-slate-950 text-[9px] font-black">در دست</span>}
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">{b.description}</p>
+                    <div className="mt-2 space-y-1">
+                      <Bar label="سرعت تیر" value={b.arrowSpeed} max={1.8} />
+                      <Bar label="سرعت کشش" value={b.drawSpeed} max={1.8} />
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  {equipped ? (
+                    <div className="w-full py-2 rounded-xl bg-amber-400/15 border border-amber-400/40 text-amber-300 text-xs font-black text-center flex items-center justify-center gap-1.5">
+                      <Check className="w-3.5 h-3.5" /> در حال استفاده
+                    </div>
+                  ) : owned ? (
+                    <button
+                      onClick={() => onEquipBow(b.id)}
+                      className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition active:scale-95"
+                    >
+                      برداشتن این کمان
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onBuyBow(b)}
+                      disabled={!afford}
+                      className={`w-full py-2 rounded-xl text-xs font-black transition active:scale-95 flex items-center justify-center gap-1.5 ${
+                        afford
+                          ? 'bg-gradient-to-l from-amber-400 to-yellow-300 text-slate-950'
+                          : 'bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed'
+                      }`}
+                    >
+                      {afford ? <>🪙 خرید با {fa(b.price)} سکه</> : <><Lock className="w-3.5 h-3.5" /> {fa(b.price)} سکه لازم است</>}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* تیرها */}
+      <section>
+        <h3 className="text-sm font-black text-slate-100 mb-1 flex items-center gap-2">
+          <Zap className="w-4 h-4 text-amber-400" /> تیرهای ویژه
+        </h3>
+        <p className="text-[11px] text-slate-500 mb-3">تیر ساده همیشه بی‌نهایت است؛ این‌ها فقط برای هیجان بیشترند.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {ARROW_SHOP.map((a) => {
+            const afford = coins >= a.price;
+            return (
+              <div key={a.type} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-start gap-3">
+                <div className="shrink-0 w-11 h-11 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center text-xl">
+                  {a.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-black text-slate-100">{a.name}</h4>
+                    <span className="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-700 text-[10px] font-black text-amber-300">
+                      موجودی: {fa(inventory[a.type] ?? 0)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">{a.desc}</p>
+                  <button
+                    onClick={() => onBuyArrows(a.type, a.price, a.count)}
+                    disabled={!afford}
+                    className={`mt-2.5 w-full py-2 rounded-xl text-xs font-black transition active:scale-95 ${
+                      afford
+                        ? 'bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40'
+                        : 'bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed'
+                    }`}
+                  >
+                    🪙 {fa(a.count)} عدد — {fa(a.price)} سکه
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  </Modal>
+);

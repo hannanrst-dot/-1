@@ -1,43 +1,50 @@
 // Game Types and Interfaces for Word Hunter (شکارچی کلمات)
 
 export type GameMode =
-  | 'word_hunt'       // ۱. شکار کلمه (Floating word targets)
-  | 'letter_snipe'    // ۲. تیراندازی به حرف (Missing letter in incomplete word)
-  | 'word_rescue'     // ۳. نجات کلمه (Freeing caged trapped word)
-  | 'monster_combat'  // ۴. شکار غلط املایی (Spell-mistake beast)
-  | 'audio_whisper'   // ۵. املا شنیداری (Auditory spelling challenge)
-  | 'speed_rush'      // ۶. حمله زمان‌دار (Rapid vanishing portal targets)
-  | 'boss_battle';    // ۷. نبرد با هیولای غلط‌نویس (Arch-Misspeller Colossus)
+  | 'word_hunt'       // ۱. شکار کلمه — انتخاب املای درست از میان گویچه‌های شناور
+  | 'letter_snipe'    // ۲. تیراندازی به حرف — پر کردن جای خالی کلمه
+  | 'word_rescue'     // ۳. نجات کلمه — شکستن قفل‌های غلط و آزادسازی واژه
+  | 'monster_combat'  // ۴. شکار غلط املایی — پاکسازی هیولای غلط‌نویس
+  | 'audio_whisper'   // ۵. املا شنیداری — شنیدن واژه و یافتن نوشتار درست
+  | 'speed_rush'      // ۶. حمله زمان‌دار — شکار سریع در پرتال‌ها
+  | 'boss_battle';    // ۷. نبرد با غول غلط‌نویس
 
 export type GradeLevel = 'all' | 'grade_1_2' | 'grade_3_4' | 'grade_5_6' | 'middle_school';
 
 export type SpellingCategory =
   | 's_s_th'     // س / ص / ث
-  | 'z_z_z_z'   // ز / ض / ظ / ذ
-  | 't_t'       // ت / ط
-  | 'gh_gh'     // غ / ق
-  | 'h_h'       // ه / ح
-  | 'khva'      // خوا / خا
-  | 'tashdid'   // تشدید و تنوین
+  | 'z_z_z_z'    // ز / ض / ظ / ذ
+  | 't_t'        // ت / ط
+  | 'gh_gh'      // غ / ق
+  | 'h_h'        // ه / ح
+  | 'khva'       // واو معدوله: خوا / خا
+  | 'tanvin'     // تنوین نصب: اً
+  | 'gozar'      // گزار / گذار
+  | 'peyvaste'   // نیم‌فاصله و پیوسته‌نویسی
   | 'all';
 
 export type ArrowType = 'standard' | 'fire' | 'slow_mo' | 'piercing' | 'multi_shot';
 
 export interface SpellingItem {
   id: string;
-  word: string;                   // Correct word (e.g. "مدرسه")
-  correctSpelling: string;        // Correct form
-  incorrectVariants: string[];    // e.g. ["مدرثه", "مدرسح"]
-  incompleteForm?: string;        // e.g. "مـ د _ سـ ه"
-  missingLetter?: string;         // e.g. "ر"
-  decoyLetters?: string[];        // e.g. ["ز", "د", "س"]
-  meaning: string;                // e.g. "محل درس خواندن و آموزش"
-  ruleExplanation: string;        // e.g. "مدرسه از ریشه درس و با «س» نوشته می‌شود و با «ث» یا «ح» غلط است."
-  audioPhrase?: string;           // Text for speech synthesis
-  hint: string;                   // Hint for hunter
+  word: string;                   // واژه (شکل درست)
+  correctSpelling: string;        // املای درست
+  incorrectVariants: string[];    // املاهای نادرست رایج
+  /** حرفِ کلیدی و چالش‌برانگیز واژه (برای حالت «تیراندازی به حرف») */
+  missingLetter?: string;
+  /** جایگاه حرف کلیدی در واژه */
+  missingIndex?: number;
+  /** آیا این واژه برای حالت جای‌خالی مناسب است؟ */
+  isSnipeable: boolean;
+  decoyLetters: string[];         // حروف هم‌آوای فریبنده
+  meaning: string;                // معنی واژه
+  ruleExplanation: string;        // قاعدهٔ املایی
+  sentence: string;               // نمونه در جمله
+  hint: string;                   // سرنخ برای شکارچی
   category: SpellingCategory;
   grade: GradeLevel;
   difficulty: 1 | 2 | 3;
+  isCustom?: boolean;             // واژهٔ افزودهٔ معلم
 }
 
 export interface Vector2D {
@@ -55,14 +62,23 @@ export interface Arrow {
   power: number;
   type: ArrowType;
   lifeTime: number;
-  isStuck?: boolean;
-  stuckTargetId?: string;
-  trailParticles: Particle[];
+  pierceLeft: number;
+  hitIds: string[];
+  trail: { x: number; y: number; a: number }[];
 }
+
+export type TargetKind =
+  | 'word'          // گویچهٔ واژه
+  | 'letter'        // بلور حرف
+  | 'monster'       // هیولای غلط‌نویس
+  | 'cage_lock'     // قفل طلسم
+  | 'trapped_word'  // واژهٔ اسیر
+  | 'boss'          // غول
+  | 'curse';        // پرتابهٔ نفرین غول (باید زده شود)
 
 export interface Target {
   id: string;
-  type: 'word' | 'letter' | 'monster' | 'cage_lock' | 'trapped_word' | 'boss' | 'boss_minion';
+  kind: TargetKind;
   text: string;
   subText?: string;
   isCorrect: boolean;
@@ -71,62 +87,69 @@ export interface Target {
   vx: number;
   vy: number;
   radius: number;
-  width?: number;
-  height?: number;
+  /** نیم‌عرض کادر متن — هنگام ساخت اندازه‌گیری می‌شود */
+  halfW: number;
+  halfH: number;
   health: number;
   maxHealth: number;
-  color: string;
-  glowColor: string;
-  bobOffset: number;
+  hue: number;                    // رنگ‌مایه برای درخشش
+  bob: number;
   bobSpeed: number;
-  movePattern: 'horizontal' | 'vertical' | 'circle' | 'zigzag' | 'portal_fade' | 'chase_wall' | 'static';
-  patternParams?: {
-    minX?: number;
-    maxX?: number;
-    minY?: number;
-    maxY?: number;
-    centerX?: number;
-    centerY?: number;
-    radius?: number;
-    angle?: number;
-    speed?: number;
-    opacity?: number;
-    fadeDir?: number;
+  spin: number;
+  spinSpeed: number;
+  pattern: 'horizontal' | 'vertical' | 'orbit' | 'drift' | 'portal' | 'patrol' | 'static' | 'ballistic';
+  p: {
+    minX?: number; maxX?: number; minY?: number; maxY?: number;
+    cx?: number; cy?: number; r?: number; angle?: number; speed?: number;
+    opacity?: number; fadeDir?: number; homeX?: number; homeY?: number;
   };
-  hitShudder?: number;
-  isDestroyed?: boolean;
-  itemData?: SpellingItem;
-  cageBroken?: boolean;
-  transformedToFriendly?: boolean;
-  element?: 'fire' | 'water' | 'crystal' | 'nature' | 'dark' | 'celestial';
+  /** شمارش معکوس لرزش پس از اصابت */
+  shudder: number;
+  /** ۰ تا ۱ — انیمیشن ظاهر شدن */
+  spawnT: number;
+  /** وقتی نابود می‌شود، انیمیشن محو */
+  dying: number;
+  isDead: boolean;
+  /** برای حالت نجات کلمه */
+  locked?: boolean;
+  cleansed?: boolean;
+  item?: SpellingItem;
 }
 
 export interface Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
+  x: number; y: number;
+  vx: number; vy: number;
   size: number;
   color: string;
   alpha: number;
   life: number;
   maxLife: number;
+  gravity: number;
   text?: string;
-  scale?: number;
-  rotation?: number;
-  rotationSpeed?: number;
+  rot?: number;
+  rotSpeed?: number;
+  shape?: 'dot' | 'spark' | 'ring' | 'glyph';
 }
 
 export interface FloatingText {
   id: string;
-  x: number;
-  y: number;
+  x: number; y: number;
   text: string;
   color: string;
   alpha: number;
   scale: number;
   vy: number;
+  size: number;
+  life: number;
 }
+
+export type RealmTheme =
+  | 'forest'
+  | 'crystal_cave'
+  | 'sky_city'
+  | 'dark_fortress'
+  | 'desert_ruins'
+  | 'celestial_island';
 
 export interface Realm {
   id: string;
@@ -134,7 +157,8 @@ export interface Realm {
   englishTitle: string;
   subtitle: string;
   description: string;
-  bgTheme: 'forest' | 'crystal_cave' | 'sky_city' | 'dark_fortress' | 'celestial_island';
+  icon: string;
+  bgTheme: RealmTheme;
   primaryColor: string;
   accentColor: string;
   levels: LevelConfig[];
@@ -143,22 +167,20 @@ export interface Realm {
 export interface LevelConfig {
   id: string;
   realmId: string;
+  theme: RealmTheme;
   levelNumber: number;
   title: string;
   description: string;
   mode: GameMode;
-  targetCount: number;
-  timeLimit?: number;           // in seconds (for speed rush)
+  /** تعداد دور (چالش) لازم برای پیروزی */
+  rounds: number;
+  timeLimit?: number;           // ثانیه — برای حالت زمان‌دار
+  lives: number;                // تعداد جان (کمان)
   category: SpellingCategory;
   grade: GradeLevel;
   difficulty: 1 | 2 | 3;
   bossName?: string;
   bossMaxHealth?: number;
-  requiredScore: number;
-  starsEarned: number;          // 0 to 3
-  isUnlocked: boolean;
-  isCompleted: boolean;
-  highScore: number;
 }
 
 export interface ArcherBow {
@@ -170,33 +192,57 @@ export interface ArcherBow {
   powerMultiplier: number;
   glowColor: string;
   price: number;
-  isUnlocked: boolean;
   icon: string;
 }
 
-export interface PlayerStats {
-  score: number;
-  coins: number;
-  totalHits: number;
-  accurateHits: number;
-  highestCombo: number;
-  currentCombo: number;
-  equippedBowId: string;
-  equippedArrowType: ArrowType;
-  arrowInventory: Record<ArrowType, number>;
-  unlockedRealms: string[];
-  unlockedLevels: string[];
-  completedLevels: Record<string, number>; // levelId -> stars
-  achievements: string[];
+/** آمار یک دانش‌آموز در جلسهٔ کلاسی */
+export interface StudentRecord {
+  name: string;
+  attempts: number;
+  correct: number;
+  bestStreak: number;
+  points: number;
 }
 
-export interface ClassroomSession {
-  roomCode: string;
+/** جلسهٔ کلاسی معلم */
+export interface ClassSessionState {
+  className: string;
   teacherName: string;
-  isProjectorMode: boolean;
-  isFrozenForDiscussion: boolean;
-  studentList: string[];
-  selectedStudent: string | null;
-  totalClassAttempts: number;
-  correctClassAttempts: number;
+  roster: string[];
+  turnMode: 'free' | 'turns';       // آزاد یا نوبتی
+  currentStudent: string | null;
+  turnIndex: number;
+  students: Record<string, StudentRecord>;
+  /** واژه‌هایی که کلاس در آن‌ها اشتباه کرده — id واژه به تعداد خطا */
+  missedWords: Record<string, number>;
+  totalAttempts: number;
+  totalCorrect: number;
+  startedAt: number;
+}
+
+/** نتیجهٔ یک مرحله */
+export interface LevelResult {
+  stars: number;
+  score: number;
+  coins: number;
+  accuracy: number;
+  shots: number;
+  hits: number;
+  bestCombo: number;
+  rounds: number;
+  elapsed: number;
+  victory: boolean;
+}
+
+export interface PlayerProgress {
+  score: number;
+  coins: number;
+  completedLevels: Record<string, number>;  // levelId -> ستاره
+  highScores: Record<string, number>;       // levelId -> بهترین امتیاز
+  unlockedLevels: string[];
+  unlockedBows: string[];
+  equippedBowId: string;
+  arrowInventory: Record<ArrowType, number>;
+  totalShots: number;
+  totalHits: number;
 }

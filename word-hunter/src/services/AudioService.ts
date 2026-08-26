@@ -1,367 +1,380 @@
-// High-Fidelity Web Audio Synthesizer & Speech Engine for Word Hunter
+import { RealmTheme } from '../types/game';
+
+/**
+ * موتور صدای بازی — همهٔ صداها با Web Audio ساخته می‌شوند
+ * تا بازی به هیچ فایل صوتی بیرونی نیاز نداشته باشد
+ * (مناسب کلاس‌هایی که اینترنت ندارند).
+ */
+
+type Wave = OscillatorType;
+
+const SCALE = { // گام پنتاتونیک شاد
+  c: [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51],
+};
+
+/** آکورد پایهٔ هر قلمرو — فضای صوتی متفاوت برای هر سرزمین */
+const THEME_PAD: Record<RealmTheme, number[]> = {
+  forest: [98.0, 146.83, 196.0, 293.66],
+  crystal_cave: [110.0, 164.81, 220.0, 329.63],
+  sky_city: [130.81, 196.0, 261.63, 392.0],
+  dark_fortress: [87.31, 130.81, 155.56, 233.08],
+  desert_ruins: [116.54, 174.61, 233.08, 349.23],
+  celestial_island: [123.47, 185.0, 246.94, 369.99],
+};
 
 class AudioService {
   private ctx: AudioContext | null = null;
-  private isMuted: boolean = false;
-  private ambientGain: GainNode | null = null;
-  private isAmbientPlaying: boolean = false;
+  private master: GainNode | null = null;
+  private sfxBus: GainNode | null = null;
+  private musicBus: GainNode | null = null;
+  private muted = false;
+  private musicOn = true;
+  private padNodes: { osc: OscillatorNode; gain: GainNode; lfo: OscillatorNode }[] = [];
+  private currentTheme: RealmTheme | null = null;
+  private voices: SpeechSynthesisVoice[] = [];
 
   constructor() {
-    // AudioContext will be initialized on first user gesture
+    this.muted = localStorage.getItem('wh_muted') === '1';
+    this.musicOn = localStorage.getItem('wh_music') !== '0';
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const load = () => { this.voices = window.speechSynthesis.getVoices(); };
+      load();
+      window.speechSynthesis.onvoiceschanged = load;
+    }
   }
 
-  private initContext(): AudioContext | null {
+  /* ─────────── زیرساخت ─────────── */
+
+  private ac(): AudioContext | null {
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
-      }
+      const C = window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!C) return null;
+      this.ctx = new C();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this.muted ? 0 : 0.9;
+      this.master.connect(this.ctx.destination);
+
+      this.sfxBus = this.ctx.createGain();
+      this.sfxBus.gain.value = 0.9;
+      this.sfxBus.connect(this.master);
+
+      this.musicBus = this.ctx.createGain();
+      this.musicBus.gain.value = this.musicOn ? 0.32 : 0;
+      this.musicBus.connect(this.master);
     }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
+    if (this.ctx.state === 'suspended') void this.ctx.resume();
     return this.ctx;
   }
 
+  /** یک نُت ساده با پوش ADSR */
+  private note(
+    freq: number,
+    opts: {
+      type?: Wave; at?: number; dur?: number; gain?: number;
+      slideTo?: number; filter?: number; q?: number; bus?: GainNode | null;
+    } = {}
+  ) {
+    const ctx = this.ac();
+    if (!ctx || this.muted) return;
+    const {
+      type = 'sine', at = 0, dur = 0.3, gain = 0.14,
+      slideTo, filter, q = 1,
+    } = opts;
+    const t0 = ctx.currentTime + at;
+    try {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t0);
+      if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t0 + dur);
+
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(gain, t0 + Math.min(0.03, dur * 0.2));
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+      let node: AudioNode = osc;
+      if (filter) {
+        const f = ctx.createBiquadFilter();
+        f.type = 'lowpass';
+        f.frequency.setValueAtTime(filter, t0);
+        f.Q.value = q;
+        osc.connect(f);
+        node = f;
+      }
+      node.connect(g);
+      g.connect(opts.bus ?? this.sfxBus ?? ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
+    } catch { /* بی‌صدا رد شو */ }
+  }
+
+  /** نویز فیلترشده — برای صدای برخورد، سوت تیر و ترکیدن */
+  private noise(opts: { at?: number; dur?: number; gain?: number; from?: number; to?: number; q?: number } = {}) {
+    const ctx = this.ac();
+    if (!ctx || this.muted) return;
+    const { at = 0, dur = 0.2, gain = 0.1, from = 1400, to = 300, q = 2 } = opts;
+    const t0 = ctx.currentTime + at;
+    try {
+      const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.setValueAtTime(from, t0);
+      f.frequency.exponentialRampToValueAtTime(Math.max(60, to), t0 + dur);
+      f.Q.value = q;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(gain, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      src.connect(f); f.connect(g); g.connect(this.sfxBus ?? ctx.destination);
+      src.start(t0);
+      src.stop(t0 + dur + 0.02);
+    } catch { /* بی‌صدا رد شو */ }
+  }
+
+  /* ─────────── تنظیمات ─────────── */
+
   public toggleMute(): boolean {
-    this.isMuted = !this.isMuted;
-    if (this.ambientGain) {
-      this.ambientGain.gain.setValueAtTime(this.isMuted ? 0 : 0.12, this.ctx?.currentTime || 0);
+    this.muted = !this.muted;
+    localStorage.setItem('wh_muted', this.muted ? '1' : '0');
+    const ctx = this.ac();
+    if (this.master && ctx) {
+      this.master.gain.setTargetAtTime(this.muted ? 0 : 0.9, ctx.currentTime, 0.05);
     }
-    return this.isMuted;
+    if (this.muted) this.stopSpeech();
+    return this.muted;
   }
 
-  public getIsMuted(): boolean {
-    return this.isMuted;
-  }
+  public getIsMuted() { return this.muted; }
 
-  // 1. Bow string draw back (wood strain / tension sound)
-  public playBowDraw(powerRatio: number = 0.5): void {
-    if (this.isMuted) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-
-      osc.type = 'sawtooth';
-      const baseFreq = 80 + powerRatio * 160;
-      osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(baseFreq + 70, ctx.currentTime + 0.18);
-
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(400, ctx.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.18);
-
-      gain.gain.setValueAtTime(0.01, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.18);
-    } catch {
-      // Audio error fallback
+  public toggleMusic(): boolean {
+    this.musicOn = !this.musicOn;
+    localStorage.setItem('wh_music', this.musicOn ? '1' : '0');
+    const ctx = this.ac();
+    if (this.musicBus && ctx) {
+      this.musicBus.gain.setTargetAtTime(this.musicOn ? 0.32 : 0, ctx.currentTime, 0.2);
     }
+    return this.musicOn;
   }
 
-  // 2. Bowstring release 'Twang'
-  public playBowRelease(): void {
-    if (this.isMuted) return;
-    const ctx = this.initContext();
+  public getMusicOn() { return this.musicOn; }
+
+  /** با اولین کلیک کاربر صدا را بیدار می‌کند */
+  public unlock() { this.ac(); }
+
+  /* ─────────── فضای صوتی ─────────── */
+
+  public startAmbient(theme: RealmTheme = 'forest') {
+    const ctx = this.ac();
     if (!ctx) return;
-
+    if (this.currentTheme === theme && this.padNodes.length) return;
+    this.stopAmbient();
+    this.currentTheme = theme;
+    const chord = THEME_PAD[theme] || THEME_PAD.forest;
     try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(280, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.15);
-
-      gain.gain.setValueAtTime(0.25, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.15);
-    } catch {}
-  }
-
-  // 3. Arrow flight whoosh
-  public playArrowWhoosh(): void {
-    if (this.isMuted) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    try {
-      // Noise buffer for air whistle
-      const bufferSize = ctx.sampleRate * 0.2;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
-
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(900, ctx.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.2);
-      filter.Q.value = 4.0;
-
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-
-      noise.start();
-      noise.stop(ctx.currentTime + 0.2);
-    } catch {}
-  }
-
-  // 4. Target Hit (Success with sparkling Pentatonic scale chord + combo boost)
-  public playTargetHit(isCorrect: boolean, combo: number = 0): void {
-    if (this.isMuted) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    try {
-      if (isCorrect) {
-        // Pentatonic major frequencies scaled with combo
-        const scale = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5]; // C5, D5, E5, G5, A5, C6
-        const baseIdx = Math.min(combo, scale.length - 1);
-        const freq1 = scale[baseIdx];
-        const freq2 = freq1 * 1.5; // fifth
-
-        [freq1, freq2, freq1 * 2].forEach((f, i) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-
-          osc.type = i === 0 ? 'sine' : 'triangle';
-          osc.frequency.setValueAtTime(f, ctx.currentTime + i * 0.04);
-
-          gain.gain.setValueAtTime(0.18 / (i + 1), ctx.currentTime + i * 0.04);
-          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.04 + 0.45);
-
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-
-          osc.start(ctx.currentTime + i * 0.04);
-          osc.stop(ctx.currentTime + i * 0.04 + 0.45);
-        });
-      } else {
-        // Gentle, friendly hollow wooden thud (not punitive)
+      chord.forEach((f, i) => {
         const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        const g = ctx.createGain();
+        const lfo = ctx.createOscillator();
+        const lfoGain = ctx.createGain();
 
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(140, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(70, ctx.currentTime + 0.12);
+        osc.type = i === 0 ? 'sine' : i === chord.length - 1 ? 'triangle' : 'sine';
+        osc.frequency.value = f;
+        osc.detune.value = (i - 1.5) * 5;
 
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+        g.gain.value = 0;
+        g.gain.setTargetAtTime(0.09 / (i * 0.5 + 1), ctx.currentTime, 1.5);
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
+        // نوسان آرام دامنه، تا صدا یکنواخت و آزاردهنده نباشد
+        lfo.frequency.value = 0.05 + i * 0.031;
+        lfoGain.gain.value = 0.035 / (i + 1);
+        lfo.connect(lfoGain);
+        lfoGain.connect(g.gain);
 
+        osc.connect(g);
+        g.connect(this.musicBus!);
         osc.start();
-        osc.stop(ctx.currentTime + 0.12);
-      }
-    } catch {}
-  }
-
-  // 5. Letter Magnetic Snap into incomplete word
-  public playLetterSnap(): void {
-    if (this.isMuted) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
-
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.25);
-    } catch {}
-  }
-
-  // 6. Monster Spell-Cleanse
-  public playMonsterCleanse(): void {
-    if (this.isMuted) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    try {
-      [330, 440, 550, 660, 880].forEach((freq, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.05);
-
-        gain.gain.setValueAtTime(0.12, ctx.currentTime + idx * 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.05 + 0.35);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(ctx.currentTime + idx * 0.05);
-        osc.stop(ctx.currentTime + idx * 0.05 + 0.35);
+        lfo.start();
+        this.padNodes.push({ osc, gain: g, lfo });
       });
-    } catch {}
+    } catch { /* بی‌صدا رد شو */ }
   }
 
-  // 7. Boss Hit
-  public playBossHit(): void {
-    if (this.isMuted) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
+  public stopAmbient() {
+    const ctx = this.ctx;
+    this.padNodes.forEach(({ osc, gain, lfo }) => {
+      try {
+        if (ctx) gain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+        osc.stop((ctx?.currentTime ?? 0) + 1.2);
+        lfo.stop((ctx?.currentTime ?? 0) + 1.2);
+      } catch { /* قبلاً متوقف شده */ }
+    });
+    this.padNodes = [];
+    this.currentTheme = null;
+  }
 
+  /* ─────────── جلوه‌های صوتی ─────────── */
+
+  public playBowDraw(power = 0.5) {
+    this.noise({ dur: 0.22, gain: 0.05, from: 500 + power * 400, to: 900, q: 1.4 });
+    this.note(70 + power * 60, { type: 'sawtooth', dur: 0.22, gain: 0.05, filter: 500 });
+  }
+
+  public playBowRelease() {
+    this.note(300, { type: 'triangle', dur: 0.16, gain: 0.2, slideTo: 70 });
+    this.noise({ dur: 0.24, gain: 0.09, from: 2200, to: 500, q: 3 });
+  }
+
+  public playCorrect(combo = 1) {
+    const s = SCALE.c;
+    const i = Math.min(s.length - 1, combo - 1);
+    this.note(s[i], { type: 'sine', dur: 0.42, gain: 0.16 });
+    this.note(s[i] * 1.5, { type: 'triangle', at: 0.05, dur: 0.36, gain: 0.1 });
+    this.note(s[i] * 2, { type: 'sine', at: 0.1, dur: 0.3, gain: 0.06 });
+  }
+
+  public playComboFanfare() {
+    [0, 0.07, 0.14, 0.21].forEach((at, i) =>
+      this.note(SCALE.c[i + 2], { type: 'triangle', at, dur: 0.4, gain: 0.13 })
+    );
+  }
+
+  public playWrong() {
+    // صدای «دوباره تلاش کن» — نرم و غیرتنبیهی
+    this.note(300, { type: 'sine', dur: 0.16, gain: 0.14, slideTo: 210 });
+    this.note(210, { type: 'sine', at: 0.14, dur: 0.3, gain: 0.12, slideTo: 160 });
+  }
+
+  public playThud() {
+    this.note(150, { type: 'sine', dur: 0.1, gain: 0.11, slideTo: 80 });
+    this.noise({ dur: 0.09, gain: 0.05, from: 700, to: 180 });
+  }
+
+  public playLetterSnap() {
+    this.note(660, { type: 'sine', dur: 0.2, gain: 0.14, slideTo: 1320 });
+    this.note(990, { type: 'triangle', at: 0.06, dur: 0.22, gain: 0.08 });
+  }
+
+  public playLockBreak() {
+    this.noise({ dur: 0.3, gain: 0.13, from: 2600, to: 350, q: 1.6 });
+    this.note(180, { type: 'square', dur: 0.14, gain: 0.09, slideTo: 70, filter: 900 });
+  }
+
+  public playUnlock() {
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
+      this.note(f, { type: 'triangle', at: i * 0.07, dur: 0.5, gain: 0.13 })
+    );
+  }
+
+  public playCleanse() {
+    [392, 523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
+      this.note(f, { type: 'sine', at: i * 0.05, dur: 0.55, gain: 0.11 })
+    );
+    this.noise({ dur: 0.5, gain: 0.04, from: 400, to: 3000, q: 1 });
+  }
+
+  public playBossHit() {
+    this.note(110, { type: 'sawtooth', dur: 0.3, gain: 0.2, slideTo: 42, filter: 800 });
+    this.noise({ dur: 0.28, gain: 0.11, from: 1200, to: 120, q: 1.2 });
+  }
+
+  public playBossRage() {
+    this.note(70, { type: 'sawtooth', dur: 1.1, gain: 0.2, slideTo: 160, filter: 700 });
+    this.noise({ dur: 0.9, gain: 0.09, from: 200, to: 1600, q: 0.8 });
+  }
+
+  public playBossDefeat() {
+    [261.63, 329.63, 392.0, 523.25, 659.25, 783.99, 1046.5].forEach((f, i) =>
+      this.note(f, { type: 'triangle', at: i * 0.09, dur: 0.7, gain: 0.16 })
+    );
+    this.note(65, { type: 'sawtooth', at: 0.0, dur: 1.4, gain: 0.14, slideTo: 30, filter: 400 });
+  }
+
+  public playCurseThrow() {
+    this.note(420, { type: 'sawtooth', dur: 0.32, gain: 0.08, slideTo: 180, filter: 1100 });
+  }
+
+  public playCurseBreak() {
+    this.noise({ dur: 0.16, gain: 0.09, from: 3000, to: 700, q: 2 });
+    this.note(880, { type: 'square', dur: 0.09, gain: 0.05, slideTo: 400, filter: 1800 });
+  }
+
+  public playCoin() {
+    this.note(987.77, { type: 'sine', dur: 0.1, gain: 0.1 });
+    this.note(1318.51, { type: 'sine', at: 0.07, dur: 0.25, gain: 0.09 });
+  }
+
+  public playVictory() {
+    [523.25, 659.25, 783.99, 1046.5, 1318.51].forEach((f, i) =>
+      this.note(f, { type: 'triangle', at: i * 0.11, dur: 0.75, gain: 0.16 })
+    );
+    [261.63, 392.0].forEach((f) => this.note(f, { type: 'sine', dur: 1.6, gain: 0.09 }));
+  }
+
+  public playDefeat() {
+    [440, 392, 349.23, 293.66].forEach((f, i) =>
+      this.note(f, { type: 'triangle', at: i * 0.16, dur: 0.6, gain: 0.13 })
+    );
+  }
+
+  public playUiClick() {
+    this.note(720, { type: 'sine', dur: 0.07, gain: 0.07 });
+  }
+
+  /* ─────────── گفتار فارسی ─────────── */
+
+  public hasPersianVoice(): boolean {
+    return this.pickVoice() !== undefined;
+  }
+
+  private pickVoice(): SpeechSynthesisVoice | undefined {
+    if (!this.voices.length && 'speechSynthesis' in window) {
+      this.voices = window.speechSynthesis.getVoices();
+    }
+    return this.voices.find(
+      (v) => v.lang?.toLowerCase().startsWith('fa') || /persian|farsi/i.test(v.name)
+    );
+  }
+
+  /**
+   * واژه را با صدای فارسی می‌خواند.
+   * اگر صدای فارسی روی دستگاه نصب نباشد، یک آهنگ کوتاه پخش می‌شود
+   * و onEnd فراخوانی می‌گردد تا بازی متوقف نماند.
+   */
+  public speakPersian(text: string, onEnd?: () => void) {
+    if (this.muted) { onEnd?.(); return; }
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      this.playUnlock();
+      setTimeout(() => onEnd?.(), 900);
+      return;
+    }
     try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(110, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.25);
-
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.25);
-    } catch {}
-  }
-
-  // 8. Boss Defeat Fanfare
-  public playBossDefeat(): void {
-    if (this.isMuted) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    try {
-      const notes = [261.63, 329.63, 392.0, 523.25, 659.25, 783.99, 1046.5];
-      notes.forEach((f, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(f, ctx.currentTime + i * 0.08);
-
-        gain.gain.setValueAtTime(0.2, ctx.currentTime + i * 0.08);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.6);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(ctx.currentTime + i * 0.08);
-        osc.stop(ctx.currentTime + i * 0.08 + 0.6);
-      });
-    } catch {}
-  }
-
-  // 9. Coin Collect
-  public playCoin(): void {
-    if (this.isMuted) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(987.77, ctx.currentTime); // B5
-      osc.frequency.setValueAtTime(1318.51, ctx.currentTime + 0.08); // E6
-
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.3);
-    } catch {}
-  }
-
-  // 10. Persian Speech Synthesis (Auditory spelling challenge)
-  public speakPersian(text: string, onEnd?: () => void): void {
-    if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fa-IR';
-      utterance.rate = 0.85; // slightly slower for clear educational diction
-      utterance.pitch = 1.0;
-
-      // Try to select Persian voice if available
-      const voices = window.speechSynthesis.getVoices();
-      const faVoice = voices.find((v) => v.lang.includes('fa') || v.lang.includes('per') || v.name.includes('Persian'));
-      if (faVoice) {
-        utterance.voice = faVoice;
-      }
-
-      if (onEnd) {
-        utterance.onend = onEnd;
-      }
-
-      window.speechSynthesis.speak(utterance);
-    } else {
-      // Fallback audio chime
-      this.playTargetHit(true, 1);
-      if (onEnd) setTimeout(onEnd, 1000);
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'fa-IR';
+      u.rate = 0.82;
+      u.pitch = 1.0;
+      const v = this.pickVoice();
+      if (v) u.voice = v;
+      let done = false;
+      const finish = () => { if (!done) { done = true; onEnd?.(); } };
+      u.onend = finish;
+      u.onerror = finish;
+      window.speechSynthesis.speak(u);
+      // تور ایمنی: اگر رویداد پایان نیامد
+      window.setTimeout(finish, 4000);
+    } catch {
+      this.playUnlock();
+      window.setTimeout(() => onEnd?.(), 900);
     }
   }
 
-  // 11. Relaxing Fantasy Ambient Pad
-  public startAmbient(): void {
-    if (this.isAmbientPlaying) return;
-    const ctx = this.initContext();
-    if (!ctx) return;
-
-    try {
-      this.ambientGain = ctx.createGain();
-      this.ambientGain.gain.setValueAtTime(this.isMuted ? 0 : 0.06, ctx.currentTime);
-      this.ambientGain.connect(ctx.destination);
-
-      // Low peaceful drone chords
-      [110, 164.81, 220, 329.63].forEach((freq) => {
-        if (!ctx || !this.ambientGain) return;
-        const osc = ctx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        osc.connect(this.ambientGain);
-        osc.start();
-      });
-
-      this.isAmbientPlaying = true;
-    } catch {}
+  public stopSpeech() {
+    try { window.speechSynthesis?.cancel(); } catch { /* پشتیبانی نمی‌شود */ }
   }
 }
 
