@@ -1,5 +1,6 @@
 import { Arrow, ArrowType, Target } from '../types/game';
 import { VW, GROUND_Y, fa } from './world';
+import { rectGlow, circleGlow, hexGlow, softDot, blit, blitScaled, outlinedText } from './glow';
 
 export const FONT = 'Vazirmatn, "Segoe UI", Tahoma, sans-serif';
 
@@ -76,9 +77,10 @@ export function drawWordTablet(
   ctx.setLineDash([]);
   ctx.restore();
 
+  // هالهٔ از پیش‌ساخته پشت بدنه
+  blit(ctx, rectGlow(w, h, 20, opts.projector ? 34 : 24, glow, 2), 0, 0, fade);
+
   // بدنه
-  ctx.shadowColor = glow;
-  ctx.shadowBlur = opts.projector ? 34 : 24;
   const g = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
   g.addColorStop(0, 'rgba(15,23,42,0.96)');
   g.addColorStop(0.55, deep);
@@ -87,7 +89,6 @@ export function drawWordTablet(
   roundRect(ctx, -t.halfW, -t.halfH, w, h, 20);
   ctx.fill();
 
-  ctx.shadowBlur = 0;
   ctx.strokeStyle = glow;
   ctx.lineWidth = opts.projector ? 3.6 : 2.8;
   ctx.stroke();
@@ -117,18 +118,14 @@ export function drawWordTablet(
   // واژه
   rtlText(ctx);
   font(ctx, opts.fontSize, 800);
-  ctx.shadowColor = 'rgba(0,0,0,0.85)';
-  ctx.shadowBlur = 6;
   ctx.fillStyle = opts.reveal === 'wrong' ? '#fecaca' : '#ffffff';
-  ctx.fillText(t.text, 0, 1);
+  outlinedText(ctx, t.text, 0, 1, 4);
 
   // علامت درست/غلط پس از داوری
   if (opts.reveal !== 'none') {
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = glow;
     font(ctx, opts.fontSize * 0.95, 800);
     ctx.fillStyle = glow;
-    ctx.fillText(opts.reveal === 'right' ? '✔' : '✘', t.halfW + 22, 0);
+    outlinedText(ctx, opts.reveal === 'right' ? '✔' : '✘', t.halfW + 22, 0, 4);
   }
   ctx.restore();
 }
@@ -154,18 +151,11 @@ export function drawLetterCrystal(
   ctx.translate(t.x + shake, t.y + bob);
   ctx.scale(pop, pop);
 
-  // هالهٔ نبض‌دار
-  ctx.save();
-  ctx.globalAlpha = fade * (0.2 + 0.12 * Math.sin(time * 3 + t.bob));
-  ctx.fillStyle = glow;
-  ctx.beginPath();
-  ctx.arc(0, 0, r * 1.6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  // هالهٔ نبض‌دار — نقطهٔ نورانیِ از پیش‌ساخته
+  blitScaled(ctx, softDot(glow, 4, 26), 0, 0, r * 3.4, fade * (0.30 + 0.16 * Math.sin(time * 3 + t.bob)));
+  blit(ctx, hexGlow(r, opts.projector ? 30 : 22, glow), 0, 0, fade);
 
   ctx.rotate(t.spin * 0.4);
-  ctx.shadowColor = glow;
-  ctx.shadowBlur = opts.projector ? 30 : 22;
 
   // شش‌ضلعی بلورین
   const g = ctx.createLinearGradient(0, -r, 0, r);
@@ -182,7 +172,6 @@ export function drawLetterCrystal(
   }
   ctx.closePath();
   ctx.fill();
-  ctx.shadowBlur = 0;
   ctx.strokeStyle = glow;
   ctx.lineWidth = opts.projector ? 3.4 : 2.6;
   ctx.stroke();
@@ -201,10 +190,8 @@ export function drawLetterCrystal(
   ctx.rotate(-t.spin * 0.4);
   rtlText(ctx);
   font(ctx, opts.fontSize, 900);
-  ctx.shadowColor = 'rgba(0,0,0,0.9)';
-  ctx.shadowBlur = 8;
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(t.text, 0, 2);
+  outlinedText(ctx, t.text, 0, 2, 5);
   ctx.restore();
 }
 
@@ -231,15 +218,13 @@ export function drawSlotTablet(
   const y = 150;
 
   ctx.save();
-  ctx.shadowColor = '#f59e0b';
-  ctx.shadowBlur = 26;
+  blit(ctx, rectGlow(boxW, boxH, 18, 26, '#f59e0b', 2), cx, y);
   const g = ctx.createLinearGradient(0, y - boxH / 2, 0, y + boxH / 2);
   g.addColorStop(0, 'rgba(30,25,10,0.95)');
   g.addColorStop(1, 'rgba(12,10,4,0.97)');
   ctx.fillStyle = g;
   roundRect(ctx, cx - boxW / 2, y - boxH / 2, boxW, boxH, 18);
   ctx.fill();
-  ctx.shadowBlur = 0;
   ctx.strokeStyle = '#f59e0b';
   ctx.lineWidth = 2.6;
   ctx.stroke();
@@ -261,12 +246,10 @@ export function drawSlotTablet(
   const pulse = 0.55 + 0.45 * Math.sin(time * 4);
   ctx.save();
   if (filled) {
-    ctx.shadowColor = '#34d399';
-    ctx.shadowBlur = 20 + flash * 30;
+    blit(ctx, rectGlow(slotW, size * 1.44, 9, 24, '#34d399', 2), slotCx, y - 8, 0.6 + flash * 0.4);
     ctx.fillStyle = 'rgba(16,185,129,0.22)';
   } else {
-    ctx.shadowColor = '#fbbf24';
-    ctx.shadowBlur = 12 * pulse;
+    blit(ctx, rectGlow(slotW, size * 1.44, 9, 12, '#fbbf24'), slotCx, y - 8, pulse * 0.8);
     ctx.fillStyle = 'rgba(251,191,36,0.10)';
   }
   roundRect(ctx, slotCx - slotW / 2, y - 8 - size * 0.72, slotW, size * 1.44, 9);
@@ -281,8 +264,6 @@ export function drawSlotTablet(
   if (filled) {
     font(ctx, size * 1.05, 900);
     ctx.fillStyle = '#6ee7b7';
-    ctx.shadowColor = '#34d399';
-    ctx.shadowBlur = 14;
     ctx.fillText(filled, slotCx, y - 8);
   } else {
     font(ctx, size * 0.8, 900);
@@ -290,7 +271,6 @@ export function drawSlotTablet(
     ctx.fillText('؟', slotCx, y - 7);
   }
 
-  ctx.shadowBlur = 0;
   font(ctx, projector ? 15 : 13, 600);
   ctx.fillStyle = '#a8a29e';
   ctx.fillText('حرفِ درست را شکار کن', cx, y + boxH / 2 - 14);
@@ -309,15 +289,13 @@ export function drawCageLock(ctx: CanvasRenderingContext2D, t: Target, opts: { f
   ctx.scale(pop, pop);
   ctx.rotate(Math.sin(t.bob) * 0.06);
 
-  ctx.shadowColor = '#ef4444';
-  ctx.shadowBlur = 20;
+  blit(ctx, rectGlow(t.halfW * 2, t.halfH * 2, 12, 20, '#ef4444', 2), 0, 0, fade);
   const g = ctx.createLinearGradient(0, -t.halfH, 0, t.halfH);
   g.addColorStop(0, 'rgba(76,10,10,0.97)');
   g.addColorStop(1, 'rgba(28,5,5,0.98)');
   ctx.fillStyle = g;
   roundRect(ctx, -t.halfW, -t.halfH, t.halfW * 2, t.halfH * 2, 12);
   ctx.fill();
-  ctx.shadowBlur = 0;
   ctx.strokeStyle = '#f87171';
   ctx.lineWidth = 2.6;
   ctx.stroke();
@@ -332,9 +310,7 @@ export function drawCageLock(ctx: CanvasRenderingContext2D, t: Target, opts: { f
   rtlText(ctx);
   font(ctx, opts.fontSize, 800);
   ctx.fillStyle = '#fecaca';
-  ctx.shadowColor = 'rgba(0,0,0,0.9)';
-  ctx.shadowBlur = 5;
-  ctx.fillText(t.text, 0, -3);
+  outlinedText(ctx, t.text, 0, -3, 4);
   font(ctx, 12, 600);
   ctx.fillStyle = '#fca5a5';
   ctx.fillText('🔒 قفل غلط', 0, t.halfH - 13);
@@ -356,15 +332,16 @@ export function drawTrappedWord(
   ctx.scale(pop, pop);
 
   const glow = free ? '#fde68a' : '#a16207';
-  ctx.shadowColor = glow;
-  ctx.shadowBlur = free ? 46 + Math.sin(time * 5) * 14 : 20;
+  blit(
+    ctx, rectGlow(t.halfW * 2, t.halfH * 2, 18, free ? 46 : 20, glow, free ? 2 : 1),
+    0, 0, free ? 0.75 + 0.25 * Math.sin(time * 5) : 1
+  );
   const g = ctx.createLinearGradient(0, -t.halfH, 0, t.halfH);
   g.addColorStop(0, free ? 'rgba(120,84,10,0.96)' : 'rgba(35,32,20,0.96)');
   g.addColorStop(1, free ? 'rgba(60,40,6,0.98)' : 'rgba(15,14,10,0.98)');
   ctx.fillStyle = g;
   roundRect(ctx, -t.halfW, -t.halfH, t.halfW * 2, t.halfH * 2, 18);
   ctx.fill();
-  ctx.shadowBlur = 0;
   ctx.strokeStyle = free ? '#fbbf24' : '#78716c';
   ctx.lineWidth = 3.4;
   ctx.stroke();
@@ -372,10 +349,7 @@ export function drawTrappedWord(
   rtlText(ctx);
   font(ctx, opts.fontSize, 900);
   ctx.fillStyle = free ? '#fef3c7' : '#a8a29e';
-  ctx.shadowColor = free ? '#f59e0b' : 'transparent';
-  ctx.shadowBlur = free ? 16 : 0;
-  ctx.fillText(t.text, 0, 0);
-  ctx.shadowBlur = 0;
+  outlinedText(ctx, t.text, 0, 0, 5);
 
   if (!free) {
     // میله‌های قفس
@@ -428,8 +402,7 @@ export function drawMonster(ctx: CanvasRenderingContext2D, t: Target, time: numb
   ctx.fill();
   ctx.restore();
 
-  ctx.shadowColor = glow;
-  ctx.shadowBlur = 26;
+  blit(ctx, circleGlow(t.radius, 26, glow, 2), 0, 0, fade);
 
   // شاخک‌ها
   ctx.strokeStyle = body;
@@ -456,7 +429,6 @@ export function drawMonster(ctx: CanvasRenderingContext2D, t: Target, time: numb
   ctx.beginPath();
   ctx.ellipse(0, 0, t.radius * 0.95, t.radius * 0.8, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.shadowBlur = 0;
 
   // چشم‌ها
   ctx.fillStyle = '#fff';
@@ -482,12 +454,10 @@ export function drawMonster(ctx: CanvasRenderingContext2D, t: Target, time: numb
   const bw = t.halfW;
   const bh = 34;
   const byy = -t.radius - 46;
-  ctx.shadowColor = good ? '#34d399' : '#f43f5e';
-  ctx.shadowBlur = 16;
+  blit(ctx, rectGlow(bw * 2, bh, 10, 16, good ? '#34d399' : '#f43f5e'), 0, byy, fade);
   ctx.fillStyle = 'rgba(9,13,26,0.94)';
   roundRect(ctx, -bw, byy - bh / 2, bw * 2, bh, 10);
   ctx.fill();
-  ctx.shadowBlur = 0;
   ctx.strokeStyle = good ? '#34d399' : '#f43f5e';
   ctx.lineWidth = 2.4;
   ctx.stroke();
@@ -539,8 +509,7 @@ export function drawBoss(
   ctx.restore();
 
   // ردا / بدنه
-  ctx.shadowColor = rage ? '#ef4444' : '#a855f7';
-  ctx.shadowBlur = 40;
+  blit(ctx, circleGlow(r, 40, rage ? '#ef4444' : '#a855f7', 2), 0, 0);
   const bg = ctx.createLinearGradient(0, -r, 0, r);
   bg.addColorStop(0, rage ? '#7f1d1d' : '#3b0764');
   bg.addColorStop(1, '#0c0a1a');
@@ -552,7 +521,6 @@ export function drawBoss(
   ctx.quadraticCurveTo(-r * 1.05, -r * 0.4, 0, -r);
   ctx.closePath();
   ctx.fill();
-  ctx.shadowBlur = 0;
   ctx.strokeStyle = rage ? '#f87171' : '#c084fc';
   ctx.lineWidth = 4;
   ctx.stroke();
@@ -570,15 +538,14 @@ export function drawBoss(
 
   // چشم‌های آتشین
   const eyeGlow = rage ? '#fca5a5' : '#fde68a';
-  ctx.shadowColor = eyeGlow;
-  ctx.shadowBlur = 24;
+  const eyeHalo = softDot(eyeGlow, 3, 20);
   ctx.fillStyle = eyeGlow;
   [-1, 1].forEach((s) => {
+    blitScaled(ctx, eyeHalo, s * r * 0.3, -r * 0.2, r * 0.9, 0.8);
     ctx.beginPath();
     ctx.ellipse(s * r * 0.3, -r * 0.2, r * 0.15, r * 0.09, s * 0.3, 0, Math.PI * 2);
     ctx.fill();
   });
-  ctx.shadowBlur = 0;
 
   // دهانِ نفرین
   ctx.strokeStyle = eyeGlow;
@@ -591,10 +558,7 @@ export function drawBoss(
   rtlText(ctx);
   font(ctx, opts.projector ? 22 : 19, 800);
   ctx.fillStyle = '#fff';
-  ctx.shadowColor = 'rgba(0,0,0,0.9)';
-  ctx.shadowBlur = 6;
-  ctx.fillText(t.text, 0, r + 26);
-  ctx.shadowBlur = 0;
+  outlinedText(ctx, t.text, 0, r + 26, 5);
 
   const bw = 240;
   const bh = 16;
@@ -625,8 +589,7 @@ export function drawCurse(ctx: CanvasRenderingContext2D, t: Target, time: number
   ctx.save();
   ctx.translate(t.x, t.y);
   ctx.rotate(t.spin);
-  ctx.shadowColor = '#f43f5e';
-  ctx.shadowBlur = 22;
+  blit(ctx, circleGlow(t.radius, 22, '#f43f5e', 2), 0, 0);
   ctx.fillStyle = 'rgba(60,8,20,0.95)';
   ctx.beginPath();
   for (let i = 0; i < 5; i++) {
@@ -642,7 +605,6 @@ export function drawCurse(ctx: CanvasRenderingContext2D, t: Target, time: number
   ctx.lineWidth = 2.2;
   ctx.stroke();
   ctx.rotate(-t.spin);
-  ctx.shadowBlur = 0;
   rtlText(ctx);
   font(ctx, 15, 800);
   ctx.fillStyle = '#fecdd3';
@@ -751,13 +713,11 @@ export function drawArcher(ctx: CanvasRenderingContext2D, v: ArcherView) {
   ctx.arc(2, -46, 13.5, Math.PI, Math.PI * 2);
   ctx.fill();
   // چشم درخشان
-  ctx.shadowColor = '#fde68a';
-  ctx.shadowBlur = 10;
+  blitScaled(ctx, softDot('#fde68a', 2, 9), 9, -44, 20, 0.75);
   ctx.fillStyle = '#fef08a';
   ctx.beginPath();
   ctx.ellipse(9, -44, 3.4, 2.2, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.shadowBlur = 0;
   // شال
   ctx.fillStyle = '#f59e0b';
   ctx.beginPath();
@@ -784,16 +744,17 @@ export function drawArcher(ctx: CanvasRenderingContext2D, v: ArcherView) {
   ctx.moveTo(0, 0); ctx.lineTo(-pull * 0.7, 6);
   ctx.stroke();
 
-  // کمان
-  ctx.shadowColor = v.bowGlow;
-  ctx.shadowBlur = v.projector ? 24 : 16;
-  ctx.strokeStyle = v.bowGlow;
-  ctx.lineWidth = 5;
+  // کمان — درخشش با دو خطِ پهنِ کم‌رنگ زیر خط اصلی
   ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.arc(22, 0, 30, -Math.PI * 0.44, Math.PI * 0.44);
-  ctx.stroke();
-  ctx.shadowBlur = 0;
+  ctx.strokeStyle = v.bowGlow;
+  const bowArc = () => {
+    ctx.beginPath();
+    ctx.arc(22, 0, 30, -Math.PI * 0.44, Math.PI * 0.44);
+    ctx.stroke();
+  };
+  ctx.globalAlpha = 0.12; ctx.lineWidth = v.projector ? 22 : 16; bowArc();
+  ctx.globalAlpha = 0.22; ctx.lineWidth = 10; bowArc();
+  ctx.globalAlpha = 1;    ctx.lineWidth = 5;  bowArc();
 
   // زه
   const tipX = 22 + Math.cos(-Math.PI * 0.44) * 30;
@@ -815,8 +776,7 @@ export function drawArcher(ctx: CanvasRenderingContext2D, v: ArcherView) {
     ctx.moveTo(6 - pull, 0);
     ctx.lineTo(40 - pull, 0);
     ctx.stroke();
-    ctx.shadowColor = ac;
-    ctx.shadowBlur = 12;
+    blitScaled(ctx, softDot(ac, 2, 10), 44 - pull, 0, 24, 0.7);
     ctx.fillStyle = ac;
     ctx.beginPath();
     ctx.moveTo(48 - pull, 0);
@@ -824,7 +784,6 @@ export function drawArcher(ctx: CanvasRenderingContext2D, v: ArcherView) {
     ctx.lineTo(38 - pull, 5);
     ctx.closePath();
     ctx.fill();
-    ctx.shadowBlur = 0;
   }
   ctx.restore();
   ctx.restore();
@@ -850,8 +809,7 @@ export function drawArrow(ctx: CanvasRenderingContext2D, a: Arrow) {
   ctx.save();
   ctx.translate(a.x, a.y);
   ctx.rotate(a.angle);
-  ctx.shadowColor = col;
-  ctx.shadowBlur = 14;
+  blitScaled(ctx, softDot(col, 3, 13), 4, 0, 40, 0.55);
 
   ctx.strokeStyle = '#e5e7eb';
   ctx.lineWidth = 3.4;
@@ -870,7 +828,6 @@ export function drawArrow(ctx: CanvasRenderingContext2D, a: Arrow) {
   ctx.closePath();
   ctx.fill();
 
-  ctx.shadowBlur = 0;
   ctx.fillStyle = col;
   ctx.globalAlpha = 0.85;
   ctx.beginPath();
@@ -915,11 +872,13 @@ export function drawShockwave(ctx: CanvasRenderingContext2D, x: number, y: numbe
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.strokeStyle = color;
-  ctx.lineWidth = Math.max(1, 7 * alpha);
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 22;
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.globalAlpha = alpha * 0.25;
+  ctx.lineWidth = Math.max(2, 20 * alpha);
+  ctx.stroke();
+  ctx.globalAlpha = alpha;
+  ctx.lineWidth = Math.max(1, 7 * alpha);
   ctx.stroke();
   ctx.restore();
 }

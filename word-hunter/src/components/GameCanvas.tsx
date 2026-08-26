@@ -11,6 +11,7 @@ import {
   computeTransform, screenToWorld, clamp, shuffle, fa,
 } from '../engine/world';
 import * as D from '../engine/draw';
+import { outlinedText, clearGlowCache } from '../engine/glow';
 import confetti from 'canvas-confetti';
 import { Heart } from 'lucide-react';
 
@@ -373,6 +374,8 @@ export const GameCanvas: React.FC<Props> = (props) => {
 
   useEffect(() => {
     const s = S.current;
+    // هاله‌های ذخیره‌شدهٔ مرحلهٔ پیشین دیگر لازم نیستند
+    clearGlowCache();
     s.scene = createScene(level.theme);
     s.time = 0; s.tScale = 1; s.slowTimer = 0; s.hitStop = 0;
     s.arrows = []; s.particles = []; s.floats = []; s.waves = [];
@@ -630,17 +633,47 @@ export const GameCanvas: React.FC<Props> = (props) => {
     let last = performance.now();
     let cssW = 0, cssH = 0;
 
+    /**
+     * کیفیت خودکار.
+     *
+     * روی رایانه‌های کم‌توانِ مدرسه و ویدئوپروژکتورهای بزرگ، تعداد پیکسل‌ها
+     * می‌تواند از توان کارت گرافیک بیشتر شود. اگر فریم‌ها جا بمانند، وضوح
+     * بوم پله‌پله پایین می‌آید تا بازی روان بماند. هرگز خودبه‌خود بالا نمی‌رود
+     * تا کیفیت مدام بالا و پایین نپرد.
+     */
+    const QUALITY_STEPS = [2, 1.5, 1.25, 1];
+    let qualityIdx = 0;
+    let slowFrames = 0;
+    let sampled = 0;
+
+    const pixelRatio = () =>
+      Math.min(window.devicePixelRatio || 1, QUALITY_STEPS[qualityIdx]);
+
     const resize = () => {
       const parent = canvas.parentElement;
       if (!parent) return;
       const r = parent.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = pixelRatio();
       cssW = Math.max(320, r.width);
       cssH = Math.max(240, r.height);
       canvas.width = Math.round(cssW * dpr);
       canvas.height = Math.round(cssH * dpr);
       canvas.style.width = `${cssW}px`;
       canvas.style.height = `${cssH}px`;
+    };
+
+    const considerQualityDrop = (frameMs: number) => {
+      if (qualityIdx >= QUALITY_STEPS.length - 1) return;
+      sampled++;
+      if (frameMs > 26) slowFrames++;
+      if (sampled < 90) return;
+      // اگر بیش از یک‌سوم فریم‌های اخیر کند بوده‌اند، یک پله پایین بیا
+      if (slowFrames > sampled / 3) {
+        qualityIdx++;
+        resize();
+      }
+      sampled = 0;
+      slowFrames = 0;
     };
     resize();
     const ro = new ResizeObserver(resize);
@@ -651,8 +684,10 @@ export const GameCanvas: React.FC<Props> = (props) => {
       const s = S.current;
       const pr = P.current;
       const lvl = pr.level;
-      const raw = Math.min((now - last) / 1000, 0.05);
+      const frameMs = now - last;
+      const raw = Math.min(frameMs / 1000, 0.05);
       last = now;
+      if (!pr.isPaused) considerQualityDrop(frameMs);
 
       const paused = pr.isPaused || s.finished;
 
@@ -899,7 +934,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
       }
 
       /* ── رسم ── */
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = pixelRatio();
       const tr = computeTransform(cssW, cssH);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#05070f';
@@ -1031,10 +1066,8 @@ export const GameCanvas: React.FC<Props> = (props) => {
         ctx.translate(f.x, f.y);
         ctx.scale(f.scale, f.scale);
         D.font(ctx, f.size, 800);
-        ctx.shadowColor = 'rgba(0,0,0,0.9)';
-        ctx.shadowBlur = 8;
         ctx.fillStyle = f.color;
-        ctx.fillText(f.text, 0, 0);
+        outlinedText(ctx, f.text, 0, 0, 5);
         ctx.restore();
       }
       ctx.restore();

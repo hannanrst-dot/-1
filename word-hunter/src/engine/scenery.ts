@@ -1,5 +1,6 @@
 import { RealmTheme } from '../types/game';
 import { VW, VH, GROUND_Y, makeRng } from './world';
+import { softDot, blitScaled, circleGlow, blit, rectGlow } from './glow';
 
 interface Mote {
   x: number; y: number; vx: number; vy: number;
@@ -172,18 +173,36 @@ function ground(ctx: CanvasRenderingContext2D, pal: ScenePalette) {
   ctx.fill();
 
   // لبهٔ درخشان زمین
+  // درخشش لبه با چند خطِ پهنِ کم‌رنگ ساخته می‌شود؛ نتیجه مثل blur است ولی رایگان
   ctx.save();
+  const edge = () => {
+    ctx.beginPath();
+    ctx.moveTo(0, GROUND_Y + 6);
+    ctx.quadraticCurveTo(VW * 0.3, GROUND_Y - 10, VW * 0.62, GROUND_Y + 2);
+    ctx.quadraticCurveTo(VW * 0.86, GROUND_Y + 10, VW, GROUND_Y - 4);
+    ctx.stroke();
+  };
+  ctx.strokeStyle = pal.glow;
+  ctx.lineCap = 'round';
+  ctx.globalAlpha = 0.10; ctx.lineWidth = 16; edge();
+  ctx.globalAlpha = 0.16; ctx.lineWidth = 8;  edge();
   ctx.strokeStyle = pal.rim;
-  ctx.globalAlpha = 0.75;
-  ctx.lineWidth = 2.5;
-  ctx.shadowColor = pal.glow;
-  ctx.shadowBlur = 18;
-  ctx.beginPath();
-  ctx.moveTo(0, GROUND_Y + 6);
-  ctx.quadraticCurveTo(VW * 0.3, GROUND_Y - 10, VW * 0.62, GROUND_Y + 2);
-  ctx.quadraticCurveTo(VW * 0.86, GROUND_Y + 10, VW, GROUND_Y - 4);
-  ctx.stroke();
+  ctx.globalAlpha = 0.8;  ctx.lineWidth = 2.5; edge();
   ctx.restore();
+}
+
+/**
+ * لایه‌های ثابت صحنه یک‌بار روی یک بومِ پنهان کشیده می‌شوند و در هر فریم
+ * فقط کپی می‌شوند. برای چیزهایی مثل بلورهای غار و ستاره‌های آسمان که
+ * هندسه‌شان تغییر نمی‌کند و فقط روشناییشان نوسان دارد.
+ */
+function bakeLayer(draw: (g: CanvasRenderingContext2D) => void): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = VW;
+  c.height = VH;
+  const g = c.getContext('2d')!;
+  draw(g);
+  return c;
 }
 
 /* ── ساخت صحنه ─────────────────────────────────────────── */
@@ -223,6 +242,10 @@ export function createScene(theme: RealmTheme): Scene {
   }));
   const dunes = Array.from({ length: 4 }, (_, i) => ({ y: 380 + i * 62, amp: 26 + rng() * 26, sp: 0.003 + i * 0.0012 }));
   const columns = Array.from({ length: 7 }, () => ({ x: rng() * VW, h: 90 + rng() * 150, broken: rng() > 0.5 }));
+  // لایه‌های پخته‌شده — با نیاز ساخته می‌شوند
+  let shardLayers: HTMLCanvasElement[] | null = null;
+  let starLayers: HTMLCanvasElement[] | null = null;
+
   let lightning = 0;
   let nextBolt = 3 + rng() * 5;
   const shooting = { x: 0, y: 0, life: 0, len: 0 };
@@ -308,15 +331,25 @@ export function createScene(theme: RealmTheme): Scene {
         ctx.fillRect(0, 0, VW, VH);
         ctx.restore();
 
-        shards.forEach((s, i) => {
-          const alpha = 0.3 + 0.25 * Math.sin(t * 1.1 + i);
-          ctx.save();
-          ctx.globalAlpha = alpha;
-          ctx.shadowColor = pal.glow;
-          ctx.shadowBlur = 22;
-          crystalShard(ctx, s.x, s.up ? GROUND_Y + 10 : 0, s.w, s.h, i % 3 === 0 ? '#7e22ce' : '#4c1d95', s.up);
-          ctx.restore();
-        });
+        if (!shardLayers) {
+          shardLayers = [0, 1].map((half) =>
+            bakeLayer((g) => {
+              shards.forEach((sh, i) => {
+                if (i % 2 !== half) return;
+                const cy = sh.up ? GROUND_Y + 10 - sh.h / 2 : sh.h / 2;
+                blit(g, circleGlow(Math.max(sh.w, sh.h * 0.5), 22, pal.glow), sh.x, cy, 0.55);
+                crystalShard(g, sh.x, sh.up ? GROUND_Y + 10 : 0, sh.w, sh.h, i % 3 === 0 ? '#7e22ce' : '#4c1d95', sh.up);
+              });
+            })
+          );
+        }
+        // دو لایه با نوسانِ ناهم‌فاز، همان تپشِ بلورها را می‌سازد
+        ctx.save();
+        ctx.globalAlpha = 0.34 + 0.2 * Math.sin(t * 1.1);
+        ctx.drawImage(shardLayers[0], 0, 0);
+        ctx.globalAlpha = 0.34 + 0.2 * Math.sin(t * 1.1 + 1.7);
+        ctx.drawImage(shardLayers[1], 0, 0);
+        ctx.restore();
         ground(ctx, pal);
         // برکهٔ بازتاب
         ctx.save();
@@ -443,15 +476,25 @@ export function createScene(theme: RealmTheme): Scene {
         ground(ctx, pal);
       } else {
         // celestial_island
-        stars.forEach((s) => {
-          ctx.save();
-          ctx.globalAlpha = 0.35 + 0.55 * Math.abs(Math.sin(t * 1.2 + s.ph));
-          ctx.fillStyle = '#fff';
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        });
+        if (!starLayers) {
+          starLayers = [0, 1].map((half) =>
+            bakeLayer((g) => {
+              g.fillStyle = '#fff';
+              stars.forEach((st, i) => {
+                if (i % 2 !== half) return;
+                g.beginPath();
+                g.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+                g.fill();
+              });
+            })
+          );
+        }
+        ctx.save();
+        ctx.globalAlpha = 0.45 + 0.45 * Math.abs(Math.sin(t * 1.2));
+        ctx.drawImage(starLayers[0], 0, 0);
+        ctx.globalAlpha = 0.45 + 0.45 * Math.abs(Math.sin(t * 1.2 + 1.1));
+        ctx.drawImage(starLayers[1], 0, 0);
+        ctx.restore();
         // شفق قطبی
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
@@ -474,14 +517,17 @@ export function createScene(theme: RealmTheme): Scene {
         if (shooting.life > 0) {
           ctx.save();
           ctx.globalAlpha = shooting.life;
-          ctx.strokeStyle = '#fff7d6';
-          ctx.lineWidth = 2.4;
-          ctx.shadowColor = '#fde68a';
-          ctx.shadowBlur = 16;
+          ctx.strokeStyle = '#fde68a';
+          ctx.lineWidth = 7;
+          ctx.globalAlpha = shooting.life * 0.28;
           const p = 1 - shooting.life;
           ctx.beginPath();
           ctx.moveTo(shooting.x + p * 260, shooting.y + p * 150);
           ctx.lineTo(shooting.x + p * 260 + shooting.len * 0.5, shooting.y + p * 150 + shooting.len * 0.29);
+          ctx.stroke();
+          ctx.globalAlpha = shooting.life;
+          ctx.strokeStyle = '#fff7d6';
+          ctx.lineWidth = 2.4;
           ctx.stroke();
           ctx.restore();
         }
@@ -489,8 +535,7 @@ export function createScene(theme: RealmTheme): Scene {
         islands.forEach((s, i) => {
           const fy = s.y + Math.sin(t * 0.5 + i * 2) * 12;
           ctx.save();
-          ctx.shadowColor = '#facc15';
-          ctx.shadowBlur = 26;
+          blit(ctx, rectGlow(s.w, 34, 17, 26, '#facc15'), s.x, fy, 0.85);
           ctx.fillStyle = 'rgba(45,30,80,0.9)';
           ctx.beginPath();
           ctx.ellipse(s.x, fy, s.w / 2, 16, 0, 0, Math.PI * 2);
@@ -505,18 +550,13 @@ export function createScene(theme: RealmTheme): Scene {
     },
 
     drawFront(ctx) {
-      // ذرات معلق
+      // ذرات معلق — از نقطهٔ نورانیِ از پیش‌ساخته استفاده می‌شود
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
+      const dot = softDot(pal.mote, 2, 11);
       for (const m of motes) {
         const tw = 0.55 + 0.45 * Math.sin(t * 2.4 + m.phase);
-        ctx.globalAlpha = m.a * tw * 0.8;
-        ctx.fillStyle = m.hue;
-        ctx.shadowColor = m.hue;
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
-        ctx.fill();
+        blitScaled(ctx, dot, m.x, m.y, (m.r + 9) * 2, m.a * tw * 0.55);
       }
       ctx.restore();
 
