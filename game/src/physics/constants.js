@@ -115,14 +115,14 @@ export const PULLEYS = {
   },
   COMPOUND_3: {
     id: 'COMPOUND_3',
-    name: 'سامانهٔ ۳ رشته‌ای',
+    name: 'قرقرهٔ مرکب ۳ رشته‌ای',
     shortName: 'مرکب ۳',
     icon: '⚙️⛓️',
     strands: 3,
     sheaves: 2,
     movable: 1,
-    changesDirection: false,
-    desc: 'سر طناب به بالا بسته شده و ۳ رشته وزن را نگه می‌دارند؛ نیرو یک‌سوم و طول طناب ۳ برابر می‌شود.'
+    changesDirection: true,
+    desc: 'سر طناب به قرقرهٔ متحرک بسته شده و ۳ رشته وزن را نگه می‌دارند؛ نیرو یک‌سوم و طول طناب ۳ برابر می‌شود.'
   },
   COMPOUND_4: {
     id: 'COMPOUND_4',

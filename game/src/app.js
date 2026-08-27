@@ -1,950 +1,813 @@
-// Main Application Orchestrator for Rescue the Mountain Cargo («نجات بار از کوه»)
-
+// ═══ کارگاه ماشین‌های ساده — هماهنگ‌کنندهٔ اصلی برنامه ═══
+import { fa, num, clamp, easeInOut } from './core/format.js';
+import { solve, MACHINES, MACHINE_IDS, PULLERS } from './physics/machines.js';
+import { capstone } from './physics/capstone.js';
+import { MISSIONS, missionById } from './content/missions.js';
+import { DEFAULT_PARAMS, MACHINE_CONTROLS, resolveParams, describeSetup, pullerOptions } from './content/controls.js';
+import { CURRICULUM, CLASSROOM_TIPS, notebookHTML } from './content/curriculum.js';
+import { Stage } from './render/stage.js';
+import { el, card, buildControls, renderHud, measurementTable, drawChart, CHART_SPEC } from './ui/components.js';
 import { sound } from './audio.js';
-import { physics, toPersianDigits, SURFACES, PULLEY_TYPES } from './physics.js';
-import { MISSIONS } from './missions.js';
-import { CanvasRenderer } from './canvas-renderer.js';
-import { FreeLabManager, CURIOSITY_CARDS } from './free-lab.js';
-import { teacher, CURRICULUM_GOALS } from './teacher-mode.js';
 
-class RescueCargoGame {
+const SAVE_KEY = 'kargah_mashinhaye_sadeh_v2';
+const RUN_SECONDS = 3.2;
+
+class App {
   constructor() {
-    this.currentMissionIndex = 0; // 0 to 4
-    this.isFreeLabMode = false;
-    this.freeLab = new FreeLabManager();
-
-    // Player state per mission
-    this.userState = {
-      // Mission 1
-      m1_surface: 'ROUGH_STONE',
-      m1_rollers: false,
-      // Mission 2
-      m2_rampLength: 2.5,
-      m2_surface: 'WOOD_PLANKS',
-      m2_rollers: false,
-      // Mission 3
-      m3_beamLength: 3.0,
-      m3_fulcrum: 2.2, // starts too far from load
-      // Mission 4
-      m4_pulley: 'FIXED',
-      // Mission 5 (Capstone)
-      m5_rampLength: 4.5,
-      m5_rollers: true,
-      m5_bridgeBeams: 2,
-      m5_pulley: 'MOVABLE',
-
-      completedMissions: [],
-      unlockedDiscoveries: [],
-      earnedBadges: [],
-      highContrast: false,
-      reducedMotion: false,
-      captions: true
+    this.state = {
+      mode: 'MISSIONS',
+      missionId: 'M1',
+      labMachine: 'INCLINED_PLANE',
+      missionParams: {},
+      labParams: {},
+      progress: { completed: [], discoveries: [], badges: [], predictions: {} },
+      log: [],
+      settings: {
+        theme: 'light', contrast: 'normal', reducedMotion: false,
+        captions: true, vectors: false, pullerId: 'ADULT',
+        volumes: { master: 0.75, sfx: 0.8, ambient: 0.35 }
+      }
     };
 
-    this.simSpeed = 1.0;
-    this.isTesting = false;
-    this.simProgress = 0.0;
-    this.animFrameId = null;
-    this.selectedPrediction = null;
-    this.currentHintStep = 0;
+    this.t = 0;
+    this.running = false;
+    this.slowmo = false;
+    this.hintStep = 0;
+    this.lastResult = null;
 
-    this.loadSavedProgress();
+    this.load();
+    for (const m of MISSIONS) {
+      if (!this.state.missionParams[m.id]) this.state.missionParams[m.id] = { ...m.params };
+    }
+    for (const id of MACHINE_IDS) {
+      if (!this.state.labParams[id]) this.state.labParams[id] = { ...DEFAULT_PARAMS[id] };
+    }
   }
 
-  loadSavedProgress() {
+  // ─────────── ذخیره‌سازی ───────────
+  load() {
     try {
-      const saved = localStorage.getItem('rescue_mountain_cargo_save');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        this.userState = { ...this.userState, ...parsed };
-      }
-    } catch (e) {}
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      this.state = {
+        ...this.state, ...saved,
+        progress: { ...this.state.progress, ...(saved.progress || {}) },
+        settings: { ...this.state.settings, ...(saved.settings || {}) }
+      };
+    } catch { /* ذخیرهٔ خراب را نادیده بگیر */ }
   }
 
-  saveProgress() {
-    try {
-      localStorage.setItem('rescue_mountain_cargo_save', JSON.stringify(this.userState));
-    } catch (e) {}
+  save() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.state)); } catch { /* حافظه پر است */ }
   }
 
+  // ─────────── وضعیت جاری ───────────
+  get mission() { return missionById(this.state.missionId) || MISSIONS[0]; }
+
+  get machine() {
+    return this.state.mode === 'LAB' ? this.state.labMachine : this.mission.machine;
+  }
+
+  get params() {
+    return this.state.mode === 'LAB'
+      ? this.state.labParams[this.state.labMachine]
+      : this.state.missionParams[this.state.missionId];
+  }
+
+  setParam(key, value) {
+    const target = this.params;
+    target[key] = value;
+    if (this.state.mode === 'MISSIONS' && key === 'beamLengthM') {
+      target.fulcrumM = Math.min(target.fulcrumM, value - 0.2);
+    }
+    this.reset(false);
+    this.refreshControls();
+    this.save();
+  }
+
+  compute() {
+    const machine = this.machine;
+    const p = resolveParams(machine, {
+      ...this.params,
+      pullerId: this.params.pullerId || this.state.settings.pullerId
+    });
+    return machine === 'CAPSTONE' ? capstone(p) : solve(machine, p);
+  }
+
+  goalPassed(result) {
+    const m = this.state.mode === 'MISSIONS' ? this.mission : null;
+    if (m && m.goalTest) return m.goalTest(result);
+    return !!result.feasible;
+  }
+
+  // ─────────── راه‌اندازی ───────────
   init() {
-    this.canvas = document.getElementById('gameCanvas');
-    this.renderer = new CanvasRenderer(this.canvas);
-    this.renderer.reducedMotion = this.userState.reducedMotion;
-
-    // Window resize
-    window.addEventListener('resize', () => {
-      this.renderer.resize();
-      this.render();
-    });
-    this.renderer.resize();
-
-    // Setup sound captions
-    const captionEl = document.getElementById('soundCaptions');
-    sound.setCaptionCallback(({ text, icon }) => {
-      if (!this.userState.captions) return;
-      captionEl.innerHTML = `<span>${icon}</span> <span>${text}</span>`;
-      captionEl.classList.add('visible');
-      clearTimeout(this.captionTimer);
-      this.captionTimer = setTimeout(() => {
-        captionEl.classList.remove('visible');
-      }, 2200);
-    });
-
-    // Apply saved accessibility preferences
-    if (this.userState.highContrast) {
-      document.body.classList.add('high-contrast');
-    }
-
-    this.bindEvents();
-    this.bindKeyboardShortcuts();
-    this.renderMissionTracker();
-    this.loadMissionUI(this.currentMissionIndex);
-    this.startRenderLoop();
-  }
-
-  bindEvents() {
-    // Top Bar Buttons
-    document.getElementById('btnTeacherMode').addEventListener('click', () => this.openTeacherModal());
-    document.getElementById('btnDiscoveries').addEventListener('click', () => this.openDiscoveriesModal());
-    document.getElementById('btnFreeLab').addEventListener('click', () => this.toggleFreeLabMode());
-    document.getElementById('btnSettings').addEventListener('click', () => this.openSettingsModal());
-
-    // Test & Reset Buttons
-    document.getElementById('btnRunTest').addEventListener('click', () => this.startTest());
-    document.getElementById('btnResetTest').addEventListener('click', () => this.resetTest());
-    document.getElementById('btnSlowMo').addEventListener('click', () => this.toggleSlowMo());
-    document.getElementById('btnHint').addEventListener('click', () => this.showNextHint());
-
-    // Modal Close buttons
-    document.querySelectorAll('.btn-close, .modal-backdrop').forEach(el => {
-      el.addEventListener('click', (e) => {
-        if (e.target === el || e.target.classList.contains('btn-close')) {
-          this.closeAllModals();
-        }
-      });
-    });
-
-    // Audio start on first interaction
-    document.body.addEventListener('click', () => {
-      sound.startMountainAmbience();
-    }, { once: true });
-  }
-
-  bindKeyboardShortcuts() {
-    window.addEventListener('keydown', (e) => {
-      // Space or Enter: Start Test if not in modal
-      if ((e.code === 'Space' || e.code === 'Enter') && !document.querySelector('.modal-backdrop:not(.hidden)')) {
-        if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
-          e.preventDefault();
-          this.startTest();
-        }
-      } else if (e.key === 'r' || e.key === 'R' || e.key === 'ق') {
-        this.resetTest();
-      } else if (e.key === 'h' || e.key === 'H' || e.key === 'ا') {
-        this.showNextHint();
-      } else if (e.key === 'm' || e.key === 'M' || e.key === 'پ') {
-        sound.toggleMute();
-      } else if (e.key === 'Escape') {
-        this.closeAllModals();
-      } else if (['1', '2', '3', '4', '5'].includes(e.key)) {
-        const mIdx = parseInt(e.key, 10) - 1;
-        this.switchMission(mIdx);
-      }
-    });
-  }
-
-  startRenderLoop() {
-    const loop = () => {
-      this.updateSimulationStep();
-      const currentState = this.getCurrentSimulationState();
-      this.renderer.render(currentState);
-      this.animFrameId = requestAnimationFrame(loop);
+    this.dom = {
+      body: document.body,
+      toolbar: document.getElementById('stageToolbar'),
+      canvas: document.getElementById('stageCanvas'),
+      hud: document.getElementById('hud'),
+      side: document.getElementById('sidepanel'),
+      captions: document.getElementById('captions'),
+      verdict: document.getElementById('verdict'),
+      btnRun: document.getElementById('btnRun'),
+      btnRunText: document.getElementById('btnRunText'),
+      btnReset: document.getElementById('btnReset'),
+      btnVectors: document.getElementById('btnVectors'),
+      btnSlowmo: document.getElementById('btnSlowmo'),
+      modal: document.getElementById('modal'),
+      modalTitle: document.getElementById('modalTitle'),
+      modalBody: document.getElementById('modalBody'),
+      discoveryCount: document.getElementById('discoveryCount'),
+      tabs: [...document.querySelectorAll('.tab')]
     };
-    loop();
+
+    this.stage = new Stage(this.dom.canvas);
+    this.stage.getState = () => this.viewState();
+    this.stage.onHandleChange = (id, value) => this.onHandleDrag(id, value);
+
+    this.applySettings();
+    this.bindEvents();
+    this.stage.resize();
+    this.stage.start();
+    this.renderAll();
+
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => this.stage.render());
+    }
+    window.addEventListener('resize', () => this.stage.resize());
   }
 
-  getCurrentSimulationState() {
-    if (this.isFreeLabMode) {
-      const freeState = this.freeLab.calculateCurrentState();
-      return {
-        ...freeState,
-        missionId: 'FREE_LAB',
-        isTesting: this.isTesting
-      };
+  viewState() {
+    const result = this.compute();
+    this.lastResult = result;
+    return {
+      machine: this.machine,
+      state: result,
+      t: this.t,
+      showVectors: this.state.settings.vectors,
+      interactive: !this.running
+    };
+  }
+
+  onHandleDrag(id, value) {
+    const p = this.params;
+    if (id === 'fulcrum' && 'fulcrumM' in p) {
+      const def = MACHINE_CONTROLS.LEVER.find((c) => c.key === 'fulcrumM');
+      p.fulcrumM = Math.round(clamp(value, Math.max(def.min, p.loadM + 0.1), p.beamLengthM - 0.2) * 10) / 10;
+    } else if (id === 'rampLength' && 'lengthM' in p) {
+      const def = MACHINE_CONTROLS.INCLINED_PLANE.find((c) => c.key === 'lengthM');
+      p.lengthM = Math.round(clamp(value, Math.max(def.min, p.heightM * 1.05), def.max) * 4) / 4;
+    } else return;
+    this.reset(false);
+    this.refreshControls();
+    this.save();
+  }
+
+  applySettings() {
+    const s = this.state.settings;
+    document.documentElement.dataset.theme = s.theme;
+    document.documentElement.dataset.contrast = s.contrast;
+    this.stage.setTheme(s.contrast === 'high' ? 'light' : s.theme);
+    this.stage.reducedMotion = s.reducedMotion;
+    sound.captionsEnabled = s.captions;
+    sound.setVolumes(s.volumes);
+    this.dom.btnVectors.setAttribute('aria-pressed', s.vectors ? 'true' : 'false');
+  }
+
+  // ─────────── رویدادها ───────────
+  bindEvents() {
+    const d = this.dom;
+
+    for (const tab of d.tabs) {
+      tab.addEventListener('click', () => this.setMode(tab.dataset.mode));
     }
+    d.btnRun.addEventListener('click', () => this.run());
+    d.btnReset.addEventListener('click', () => this.reset(true));
+    d.btnVectors.addEventListener('click', () => {
+      this.state.settings.vectors = !this.state.settings.vectors;
+      d.btnVectors.setAttribute('aria-pressed', this.state.settings.vectors ? 'true' : 'false');
+      sound.playClick();
+      this.save();
+    });
+    d.btnSlowmo.addEventListener('click', () => {
+      this.slowmo = !this.slowmo;
+      d.btnSlowmo.setAttribute('aria-pressed', this.slowmo ? 'true' : 'false');
+      sound.playClick();
+    });
 
-    const mission = MISSIONS[this.currentMissionIndex];
-    const s = this.userState;
+    document.getElementById('btnProgress').addEventListener('click', () => this.openProgress());
+    document.getElementById('btnTeacher').addEventListener('click', () => this.openTeacher());
+    document.getElementById('btnSettings').addEventListener('click', () => this.openSettings());
 
-    if (mission.id === 1) {
-      const res = physics.calculateFlatDrag({
-        cargoMassKg: mission.cargoMassKg,
-        surfaceType: s.m1_surface,
-        hasRollers: s.m1_rollers
-      });
-      return {
-        missionId: 1,
-        workbenchType: 'FLAT_DRAG',
-        cargoMassKg: mission.cargoMassKg,
-        selectedSurface: s.m1_surface,
-        hasRollers: s.m1_rollers,
-        isTesting: this.isTesting,
-        ...res
-      };
-    } else if (mission.id === 2) {
-      const res = physics.calculateInclinedPlane({
-        cargoMassKg: mission.cargoMassKg,
-        heightM: mission.heightM,
-        rampLengthM: s.m2_rampLength,
-        surfaceType: s.m2_surface,
-        hasRollers: s.m2_rollers
-      });
-      return {
-        missionId: 2,
-        workbenchType: 'INCLINED_PLANE',
-        cargoMassKg: mission.cargoMassKg,
-        rampLengthM: s.m2_rampLength,
-        selectedSurface: s.m2_surface,
-        hasRollers: s.m2_rollers,
-        isTesting: this.isTesting,
-        ...res
-      };
-    } else if (mission.id === 3) {
-      const res = physics.calculateLever({
-        cargoMassKg: mission.cargoMassKg,
-        totalBeamLengthM: s.m3_beamLength,
-        fulcrumPosM: s.m3_fulcrum,
-        loadPosM: 0.3,
-        effortPosM: s.m3_beamLength
-      });
-      return {
-        missionId: 3,
-        workbenchType: 'LEVER',
-        cargoMassKg: mission.cargoMassKg,
-        beamLengthM: s.m3_beamLength,
-        fulcrumPosM: s.m3_fulcrum,
-        isTesting: this.isTesting,
-        ...res
-      };
-    } else if (mission.id === 4) {
-      const res = physics.calculatePulley({
-        cargoMassKg: mission.cargoMassKg,
-        liftHeightM: mission.liftHeightM,
-        pulleyTypeId: s.m4_pulley
-      });
-      return {
-        missionId: 4,
-        workbenchType: 'PULLEY',
-        cargoMassKg: mission.cargoMassKg,
-        selectedPulley: s.m4_pulley,
-        isTesting: this.isTesting,
-        ...res
-      };
-    } else if (mission.id === 5) {
-      const res = physics.calculateCapstone({
-        cargoMassKg: mission.cargoMassKg,
-        stage1RampLength: s.m5_rampLength,
-        stage1UseRollers: s.m5_rollers,
-        stage2BridgeBeamCount: s.m5_bridgeBeams,
-        stage3PulleyType: s.m5_pulley,
-        materialsUsedCount: (s.m5_rollers ? 2 : 1) + s.m5_bridgeBeams + (s.m5_pulley === 'COMPOUND_2' ? 3 : 2),
-        materialsBudgetMax: 8
-      });
-      return {
-        missionId: 5,
-        workbenchType: 'CAPSTONE',
-        cargoMassKg: mission.cargoMassKg,
-        stage1RampLength: s.m5_rampLength,
-        hasRollers: s.m5_rollers,
-        stage2BridgeBeamCount: s.m5_bridgeBeams,
-        selectedPulley: s.m5_pulley,
-        isTesting: this.isTesting,
-        isHumanPullable: res.overallSuccess,
-        totalRequiredForceN: res.maxForceEncountered,
-        ...res
-      };
+    d.modal.querySelectorAll('[data-close]').forEach((n) =>
+      n.addEventListener('click', () => this.closeModal()));
+
+    sound.setCaptionCallback(({ text, icon }) => this.showCaption(`${icon} ${text}`));
+    document.body.addEventListener('pointerdown', () => sound.resume(), { once: true });
+
+    window.addEventListener('keydown', (e) => this.onKey(e));
+  }
+
+  onKey(e) {
+    const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
+    if (e.key === 'Escape') { this.closeModal(); return; }
+    if (typing) return;
+    const k = e.key.toLowerCase();
+    if (e.code === 'Space') { e.preventDefault(); this.run(); }
+    else if (k === 'r' || k === 'ق') this.reset(true);
+    else if (k === 'h' || k === 'ا') this.nextHint();
+    else if (k === 'v' || k === 'و') this.dom.btnVectors.click();
+    else if (k === 'm' || k === 'پ') sound.toggleMute();
+    else if (/^[1-9]$/.test(e.key)) {
+      const idx = Number(e.key) - 1;
+      if (this.state.mode === 'MISSIONS' && MISSIONS[idx]) this.goMission(MISSIONS[idx].id);
+      else if (MACHINE_IDS[idx]) this.goMachine(MACHINE_IDS[idx]);
     }
   }
 
-  updateSimulationStep() {
-    if (!this.isTesting) return;
+  // ─────────── ناوبری ───────────
+  setMode(mode) {
+    if (this.state.mode === mode) return;
+    this.state.mode = mode;
+    for (const tab of this.dom.tabs) {
+      const on = tab.dataset.mode === mode;
+      tab.classList.toggle('is-active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+    this.reset(false);
+    this.hintStep = 0;
+    sound.playClick();
+    this.renderAll();
+    this.save();
+  }
 
-    const state = this.getCurrentSimulationState();
-    const speed = 0.008 * this.simSpeed;
+  goMission(id) {
+    this.state.missionId = id;
+    this.hintStep = 0;
+    this.reset(false);
+    sound.playClick();
+    this.renderAll();
+    this.save();
+  }
 
-    if (state.isHumanPullable) {
-      this.simProgress += speed;
-      this.renderer.simProgress = Math.min(1.0, this.simProgress);
+  goMachine(id) {
+    this.state.labMachine = id;
+    this.reset(false);
+    sound.playClick();
+    this.renderAll();
+    this.save();
+  }
 
-      if (this.simProgress >= 1.0) {
-        this.isTesting = false;
-        this.handleTestSuccess(state);
+  // ─────────── اجرای آزمایش ───────────
+  run() {
+    if (this.running) return;
+    const result = this.compute();
+    const ok = this.goalPassed(result);
+
+    this.running = true;
+    this.t = 0;
+    this.hideVerdict();
+    this.dom.btnRun.disabled = true;
+    this.dom.btnRunText.textContent = 'در حال آزمایش…';
+
+    if (this.machine === 'FRICTION' && result.useRollers) sound.playRollingSound();
+    else if (this.machine === 'PULLEY') sound.playPulleyWhir();
+    else if (!ok) sound.playHeavyGrind();
+    else sound.playRopeTension();
+
+    const limit = ok ? 1 : 0.22;
+    const duration = (this.slowmo ? RUN_SECONDS * 2.6 : RUN_SECONDS) * (ok ? 1 : 0.55);
+    const start = performance.now();
+
+    const step = (now) => {
+      const raw = clamp((now - start) / (duration * 1000), 0, 1);
+      this.t = easeInOut(raw) * limit;
+      if (raw < 1) {
+        this._raf = requestAnimationFrame(step);
+      } else {
+        this.running = false;
+        this.dom.btnRun.disabled = false;
+        ok ? this.onSuccess(result) : this.onFailure(result);
       }
-    } else {
-      // Struggles and halts after slight movement
-      this.simProgress += speed * 0.3;
-      this.renderer.simProgress = Math.min(0.22, this.simProgress);
-      if (this.simProgress >= 0.22) {
-        this.isTesting = false;
-        this.handleTestStruggle(state);
-      }
+    };
+    this._raf = requestAnimationFrame(step);
+  }
+
+  reset(playSound = true) {
+    if (this._raf) cancelAnimationFrame(this._raf);
+    this.running = false;
+    this.t = 0;
+    this.hideVerdict();
+    if (this.dom) {
+      this.dom.btnRun.disabled = false;
+      this.dom.btnRunText.textContent = 'آزمایش کن';
     }
+    if (playSound) sound.playClick();
   }
 
-  startTest() {
-    sound.playClick();
-    this.isTesting = true;
-    this.simProgress = 0.0;
-    this.renderer.simProgress = 0.0;
-
-    const state = this.getCurrentSimulationState();
-    if (state.hasRollers) {
-      sound.playRollingSound();
-    } else if (state.totalRequiredForceN > 250) {
-      sound.playHeavyGrind();
-    } else if (state.selectedPulley) {
-      sound.playPulleyWhir();
-    } else {
-      sound.playRopeTension();
-    }
-
-    const testBtn = document.getElementById('btnRunTest');
-    testBtn.innerHTML = '<span>⏳</span> در حال آزمایش...';
-  }
-
-  resetTest() {
-    sound.playClick();
-    this.isTesting = false;
-    this.simProgress = 0.0;
-    this.renderer.simProgress = 0.0;
-    const testBtn = document.getElementById('btnRunTest');
-    testBtn.innerHTML = '<span>🚀</span> آزمایش کن';
-  }
-
-  toggleSlowMo() {
-    sound.playClick();
-    this.simSpeed = this.simSpeed === 1.0 ? 0.35 : 1.0;
-    const btn = document.getElementById('btnSlowMo');
-    if (this.simSpeed < 1.0) {
-      btn.classList.add('active');
-      btn.innerHTML = '<span>🔍</span> حرکت آهسته (فعال)';
-    } else {
-      btn.classList.remove('active');
-      btn.innerHTML = '<span>🔍</span> حرکت آهسته';
-    }
-  }
-
-  showNextHint() {
-    sound.playClick();
-    const mission = MISSIONS[this.currentMissionIndex];
-    if (!mission || !mission.hints) return;
-
-    this.currentHintStep = (this.currentHintStep + 1) % (mission.hints.length + 1);
-    const hintBox = document.getElementById('hintDisplayBox');
-    if (this.currentHintStep === 0) {
-      hintBox.innerHTML = '<span>💡 برای دریافت راهنمایی کلیک کنید.</span>';
-    } else {
-      const hintText = mission.hints[this.currentHintStep - 1];
-      hintBox.innerHTML = `<strong>راهنمای پله‌ی ${toPersianDigits(this.currentHintStep)}:</strong> ${hintText}`;
-    }
-  }
-
-  handleTestSuccess(state) {
-    const testBtn = document.getElementById('btnRunTest');
-    testBtn.innerHTML = '<span>✅</span> آزمایش موفق!';
-
+  onSuccess(result) {
+    this.dom.btnRunText.textContent = 'دوباره آزمایش کن';
+    this.showVerdict(true, this.successText(result));
     sound.playDiscoveryJingle();
-    this.renderer.addSparkle(this.canvas.width / (2 * this.renderer.dpr), this.canvas.height / (2 * this.renderer.dpr), 25, '#2ecc71');
+    this.stage.celebrate(this.stage.w * 0.5, this.stage.h * 0.45);
+    this.recordExperiment(result, true);
 
-    const mission = MISSIONS[this.currentMissionIndex];
-
-    // Log to teacher mode
-    teacher.logExperiment({
-      missionId: mission.id,
-      missionTitle: mission.title,
-      setupDesc: state.summaryFa || 'پیکربندی موفق با ماشین ساده',
-      forceN: state.totalRequiredForceN,
-      distanceM: state.distanceM || state.ropePullDistanceM || 3.0,
-      isSuccess: true,
-      discovery: mission.discoveryCard ? mission.discoveryCard.summary : 'موفقیت در نجات بار'
-    });
-
-    // Mark mission completed & unlock discovery card
-    if (!this.userState.completedMissions.includes(mission.id)) {
-      this.userState.completedMissions.push(mission.id);
-    }
-    if (mission.discoveryCard && !this.userState.unlockedDiscoveries.some(d => d.id === mission.discoveryCard.id)) {
-      this.userState.unlockedDiscoveries.push(mission.discoveryCard);
-      setTimeout(() => {
-        this.openDiscoveryRewardModal(mission.discoveryCard, state.badges);
-      }, 600);
-    }
-
-    this.saveProgress();
-    this.renderMissionTracker();
-  }
-
-  handleTestStruggle(state) {
-    const testBtn = document.getElementById('btnRunTest');
-    testBtn.innerHTML = '<span>⚠️</span> نیرو بیش از حد است! بازطراحی کن';
-    sound.playHeavyGrind();
-
-    const mission = MISSIONS[this.currentMissionIndex];
-    teacher.logExperiment({
-      missionId: mission.id,
-      missionTitle: mission.title,
-      setupDesc: 'تلاش با نیروی بیش از حد توان انسان',
-      forceN: state.totalRequiredForceN,
-      distanceM: state.distanceM || 0,
-      isSuccess: false,
-      discovery: 'نیاز به افزایش مزیت مکانیکی یا کاهش اصطکاک'
-    });
-  }
-
-  renderMissionTracker() {
-    const trackerEl = document.getElementById('missionTracker');
-    trackerEl.innerHTML = '';
-
-    MISSIONS.forEach((m, idx) => {
-      const stepBtn = document.createElement('button');
-      stepBtn.className = `tracker-step ${idx === this.currentMissionIndex && !this.isFreeLabMode ? 'active' : ''} ${this.userState.completedMissions.includes(m.id) ? 'completed' : ''}`;
-      const statusIcon = this.userState.completedMissions.includes(m.id) ? '✔' : m.badge;
-      stepBtn.innerHTML = `<span>${statusIcon}</span> <span>${m.title.split(':')[0]}</span>`;
-      stepBtn.addEventListener('click', () => {
-        this.switchMission(idx);
-      });
-      trackerEl.appendChild(stepBtn);
-    });
-
-    const labBtn = document.createElement('button');
-    labBtn.className = `tracker-step ${this.isFreeLabMode ? 'active' : ''}`;
-    labBtn.innerHTML = `<span>🧪</span> <span>کارگاه آزاد</span>`;
-    labBtn.addEventListener('click', () => {
-      this.toggleFreeLabMode();
-    });
-    trackerEl.appendChild(labBtn);
-  }
-
-  switchMission(idx) {
-    sound.playClick();
-    this.currentMissionIndex = idx;
-    this.isFreeLabMode = false;
-    this.resetTest();
-    this.currentHintStep = 0;
-    this.renderMissionTracker();
-    this.loadMissionUI(idx);
-  }
-
-  toggleFreeLabMode() {
-    sound.playClick();
-    this.isFreeLabMode = !this.isFreeLabMode;
-    this.resetTest();
-    this.renderMissionTracker();
-    if (this.isFreeLabMode) {
-      this.loadFreeLabUI();
-    } else {
-      this.loadMissionUI(this.currentMissionIndex);
-    }
-  }
-
-  loadMissionUI(idx) {
-    const mission = MISSIONS[idx];
-    const panel = document.getElementById('controlsDynamicContent');
-
-    // 1. Story Box
-    const storyHTML = `
-      <div class="card story-box">
-        <div class="character-avatar">${mission.story.avatar}</div>
-        <div class="story-content">
-          <h3>${mission.story.character}</h3>
-          <p>${mission.story.dialogue}</p>
-          <p style="margin-top: 6px; font-weight: 700; color: #b45309;">🎯 هدف: ${mission.story.target}</p>
-        </div>
-      </div>
-    `;
-
-    // 2. Prediction Box
-    const predictionHTML = `
-      <div class="card prediction-box">
-        <h3><span>🤔</span> فکر می‌کنی چه می‌شود؟ (پیش‌بینی تو)</h3>
-        <p style="font-size: 0.9rem; color: #15803d;">${mission.prediction.question}</p>
-        <div class="prediction-options">
-          ${mission.prediction.options.map((opt, oIdx) => `
-            <button class="prediction-btn ${this.selectedPrediction === opt.id ? 'selected' : ''}" data-opt="${opt.id}" data-feedback="${opt.feedback}">
-              ${opt.text}
-            </button>
-          `).join('')}
-        </div>
-        <div id="predictionFeedbackBox" style="margin-top: 8px; font-size: 0.85rem; font-weight: bold; color: #166534;"></div>
-      </div>
-    `;
-
-    // 3. Workbench Tools HTML
-    let workbenchHTML = `<div class="card workbench-panel"><h3><span>🛠️</span> ابزارها و تنظیمات مخترع</h3>`;
-
-    if (mission.workbench.type === 'FLAT_DRAG') {
-      workbenchHTML += `
-        <div class="tool-group">
-          <label>نوع سطح مسیر حرکت:</label>
-          <div class="button-toggle-grid">
-            ${mission.workbench.availableSurfaces.map(sKey => {
-              const surf = SURFACES[sKey];
-              return `
-                <button class="toggle-btn ${this.userState.m1_surface === sKey ? 'selected' : ''}" data-surface="${sKey}">
-                  ${surf.icon} ${surf.name.split(' ')[0]}
-                </button>
-              `;
-            }).join('')}
-          </div>
-        </div>
-        <div class="tool-group" style="margin-top: 10px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="chkRollers" ${this.userState.m1_rollers ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--primary);">
-            <span>استفاده از غلتک‌ها و چرخ‌های چوبی ⚙️</span>
-          </label>
-        </div>
-      `;
-    } else if (mission.workbench.type === 'INCLINED_PLANE') {
-      workbenchHTML += `
-        <div class="tool-group">
-          <label>طول سطح شیب‌دار (متر):</label>
-          <div class="slider-container">
-            <input type="range" id="rngRampLength" min="${mission.workbench.minRampLength}" max="${mission.workbench.maxRampLength}" step="0.2" value="${this.userState.m2_rampLength}">
-            <span class="slider-val" id="valRampLength">${toPersianDigits(this.userState.m2_rampLength)} م</span>
-          </div>
-        </div>
-        <div class="tool-group">
-          <label>جنس سطح رمپ:</label>
-          <div class="button-toggle-grid">
-            ${mission.workbench.availableSurfaces.map(sKey => {
-              const surf = SURFACES[sKey];
-              return `
-                <button class="toggle-btn ${this.userState.m2_surface === sKey ? 'selected' : ''}" data-surface-m2="${sKey}">
-                  ${surf.icon} ${surf.name.split(' ')[0]}
-                </button>
-              `;
-            }).join('')}
-          </div>
-        </div>
-        <div class="tool-group">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="chkRollersM2" ${this.userState.m2_rollers ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--primary);">
-            <span>افزودن غلتک روی سطح شیب‌دار ⚙️</span>
-          </label>
-        </div>
-      `;
-    } else if (mission.workbench.type === 'LEVER') {
-      workbenchHTML += `
-        <div class="tool-group">
-          <label>محل قرارگیری تکیه‌گاه (فاصله از ابتدا):</label>
-          <div class="slider-container">
-            <input type="range" id="rngFulcrum" min="${mission.workbench.minFulcrum}" max="${mission.workbench.maxFulcrum}" step="0.2" value="${this.userState.m3_fulcrum}">
-            <span class="slider-val" id="valFulcrum">${toPersianDigits(this.userState.m3_fulcrum)} م</span>
-          </div>
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">تکیه‌گاه را به سمت تخته‌سنگ (راست/چپ) جابه‌جا کن تا بازوی نیرو بلندتر شود.</p>
-        </div>
-        <div class="tool-group">
-          <label>طول تیرک چوبی اهرم:</label>
-          <div class="button-toggle-grid">
-            ${mission.workbench.beamLengths.map(len => `
-              <button class="toggle-btn ${this.userState.m3_beamLength === len ? 'selected' : ''}" data-beam-len="${len}">
-                🪵 ${toPersianDigits(len)} متری
-              </button>
-            `).join('')}
-          </div>
-        </div>
-      `;
-    } else if (mission.workbench.type === 'PULLEY') {
-      workbenchHTML += `
-        <div class="tool-group">
-          <label>انتخاب نوع سامانه‌ی قرقره:</label>
-          <div class="button-toggle-grid">
-            ${mission.workbench.availablePulleys.map(pKey => {
-              const p = PULLEY_TYPES[pKey];
-              return `
-                <button class="toggle-btn ${this.userState.m4_pulley === pKey ? 'selected' : ''}" data-pulley="${pKey}">
-                  ${p.icon} ${p.name.split(' ')[0]} ${p.name.split(' ')[1] || ''}
-                </button>
-              `;
-            }).join('')}
-          </div>
-        </div>
-      `;
-    } else if (mission.workbench.type === 'CAPSTONE') {
-      workbenchHTML += `
-        <div class="tool-group">
-          <label>مرحله ۱: طول رمپ ورودی (${toPersianDigits(this.userState.m5_rampLength)} م):</label>
-          <input type="range" id="rngCapRamp" min="3.0" max="6.0" step="0.5" value="${this.userState.m5_rampLength}" style="width: 100%;">
-        </div>
-        <div class="tool-group">
-          <label>مرحله ۲: تیرک‌های پل میانی:</label>
-          <div class="button-toggle-grid">
-            <button class="toggle-btn ${this.userState.m5_bridgeBeams === 1 ? 'selected' : ''}" data-cap-bridge="1">۱ تیرک (ناامن)</button>
-            <button class="toggle-btn ${this.userState.m5_bridgeBeams === 2 ? 'selected' : ''}" data-cap-bridge="2">۲ تیرک (ایمن ✔)</button>
-          </div>
-        </div>
-        <div class="tool-group">
-          <label>مرحله ۳: بالابَر نهایی ایوان:</label>
-          <div class="button-toggle-grid">
-            <button class="toggle-btn ${this.userState.m5_pulley === 'FIXED' ? 'selected' : ''}" data-cap-pulley="FIXED">قرقره ثابت</button>
-            <button class="toggle-btn ${this.userState.m5_pulley === 'MOVABLE' ? 'selected' : ''}" data-cap-pulley="MOVABLE">قرقره متحرک</button>
-            <button class="toggle-btn ${this.userState.m5_pulley === 'COMPOUND_2' ? 'selected' : ''}" data-cap-pulley="COMPOUND_2">قرقره مرکب</button>
-          </div>
-        </div>
-      `;
-    }
-
-    workbenchHTML += `</div>`;
-
-    panel.innerHTML = storyHTML + predictionHTML + workbenchHTML;
-    this.attachWorkbenchEventListeners(mission);
-  }
-
-  loadFreeLabUI() {
-    const panel = document.getElementById('controlsDynamicContent');
-    const s = this.freeLab.state;
-
-    panel.innerHTML = `
-      <div class="card story-box" style="background: #eef2ff; border-color: #c7d2fe;">
-        <div class="character-avatar">🧪</div>
-        <div class="story-content">
-          <h3 style="color: #4338ca;">کارگاه آزاد مخترع کوهستان</h3>
-          <p style="color: #3730a3;">در اینجا می‌توانید به دلخواه جرم بار، ماشین ساده، سطوح و قرقره‌ها را ترکیب کرده و داده‌های علمی را اندازه بگیرید!</p>
-        </div>
-      </div>
-
-      <div class="card workbench-panel">
-        <h3><span>⚙️</span> انتخاب ماشین ساده:</h3>
-        <div class="button-toggle-grid" style="margin-bottom: 12px;">
-          <button class="toggle-btn ${s.workbenchType === 'FLAT_DRAG' ? 'selected' : ''}" data-free-type="FLAT_DRAG">غلتک و چرخ</button>
-          <button class="toggle-btn ${s.workbenchType === 'INCLINED_PLANE' ? 'selected' : ''}" data-free-type="INCLINED_PLANE">سطح شیب‌دار</button>
-          <button class="toggle-btn ${s.workbenchType === 'LEVER' ? 'selected' : ''}" data-free-type="LEVER">اهرم</button>
-          <button class="toggle-btn ${s.workbenchType === 'PULLEY' ? 'selected' : ''}" data-free-type="PULLEY">قرقره‌ها</button>
-        </div>
-
-        <div class="tool-group">
-          <label>جرم صندوق دارو (${toPersianDigits(s.cargoMassKg)} کیلوگرم):</label>
-          <div class="slider-container">
-            <input type="range" id="freeCargoMass" min="20" max="100" step="5" value="${s.cargoMassKg}">
-            <span class="slider-val">${toPersianDigits(s.cargoMassKg)} kg</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card prediction-box" style="background: #fdf4ff; border-color: #f5d0fe;">
-        <h3 style="color: #86198f;"><span>💡</span> کارت‌های کنجکاوی و چالش‌های اختیاری:</h3>
-        ${CURIOSITY_CARDS.map(c => `
-          <div style="background: white; border: 1px solid #f0abfc; padding: 10px; border-radius: 8px; margin-top: 8px;">
-            <strong>${c.title}</strong>
-            <p style="font-size: 0.85rem; color: #701a75; margin-top: 4px;">${c.prompt}</p>
-          </div>
-        `).join('')}
-      </div>
-    `;
-
-    // Free Lab Event Listeners
-    panel.querySelectorAll('[data-free-type]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        sound.playClick();
-        this.freeLab.state.workbenchType = btn.dataset.freeType;
-        this.loadFreeLabUI();
-      });
-    });
-
-    const massInput = document.getElementById('freeCargoMass');
-    if (massInput) {
-      massInput.addEventListener('input', (e) => {
-        this.freeLab.state.cargoMassKg = parseInt(e.target.value, 10);
-        this.loadFreeLabUI();
-      });
-    }
-  }
-
-  attachWorkbenchEventListeners(mission) {
-    const panel = document.getElementById('controlsDynamicContent');
-
-    // Prediction buttons
-    panel.querySelectorAll('.prediction-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        sound.playClick();
-        this.selectedPrediction = btn.dataset.opt;
-        panel.querySelectorAll('.prediction-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        document.getElementById('predictionFeedbackBox').textContent = btn.dataset.feedback;
-      });
-    });
-
-    // Mission 1 Events
-    panel.querySelectorAll('[data-surface]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        sound.playSnap();
-        this.userState.m1_surface = btn.dataset.surface;
-        this.loadMissionUI(0);
-      });
-    });
-    const chkRollers = document.getElementById('chkRollers');
-    if (chkRollers) {
-      chkRollers.addEventListener('change', (e) => {
-        sound.playSnap();
-        this.userState.m1_rollers = e.target.checked;
-      });
-    }
-
-    // Mission 2 Events
-    const rngRamp = document.getElementById('rngRampLength');
-    if (rngRamp) {
-      rngRamp.addEventListener('input', (e) => {
-        const val = parseFloat(e.target.value);
-        this.userState.m2_rampLength = val;
-        document.getElementById('valRampLength').textContent = `${toPersianDigits(val)} م`;
-      });
-    }
-    panel.querySelectorAll('[data-surface-m2]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        sound.playSnap();
-        this.userState.m2_surface = btn.dataset.surfaceM2;
-        this.loadMissionUI(1);
-      });
-    });
-    const chkRollersM2 = document.getElementById('chkRollersM2');
-    if (chkRollersM2) {
-      chkRollersM2.addEventListener('change', (e) => {
-        sound.playSnap();
-        this.userState.m2_rollers = e.target.checked;
-      });
-    }
-
-    // Mission 3 Events
-    const rngFulcrum = document.getElementById('rngFulcrum');
-    if (rngFulcrum) {
-      rngFulcrum.addEventListener('input', (e) => {
-        const val = parseFloat(e.target.value);
-        this.userState.m3_fulcrum = val;
-        document.getElementById('valFulcrum').textContent = `${toPersianDigits(val)} م`;
-      });
-    }
-    panel.querySelectorAll('[data-beam-len]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        sound.playSnap();
-        this.userState.m3_beamLength = parseFloat(btn.dataset.beamLen);
-        this.loadMissionUI(2);
-      });
-    });
-
-    // Mission 4 Events
-    panel.querySelectorAll('[data-pulley]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        sound.playSnap();
-        this.userState.m4_pulley = btn.dataset.pulley;
-        this.loadMissionUI(3);
-      });
-    });
-
-    // Mission 5 Events
-    const rngCapRamp = document.getElementById('rngCapRamp');
-    if (rngCapRamp) {
-      rngCapRamp.addEventListener('input', (e) => {
-        this.userState.m5_rampLength = parseFloat(e.target.value);
-      });
-    }
-    panel.querySelectorAll('[data-cap-bridge]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        sound.playSnap();
-        this.userState.m5_bridgeBeams = parseInt(btn.dataset.capBridge, 10);
-        this.loadMissionUI(4);
-      });
-    });
-    panel.querySelectorAll('[data-cap-pulley]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        sound.playSnap();
-        this.userState.m5_pulley = btn.dataset.capPulley;
-        this.loadMissionUI(4);
-      });
-    });
-  }
-
-  openDiscoveryRewardModal(card, badges = []) {
-    const modal = document.getElementById('modalDiscovery');
-    const content = document.getElementById('discoveryModalBody');
-
-    let badgesHTML = '';
-    if (badges && badges.length > 0) {
-      badgesHTML = `
-        <div style="margin-top: 14px; background: #fef3c7; border: 1px solid #fde68a; padding: 12px; border-radius: 12px;">
-          <h4 style="color: #92400e; margin-bottom: 6px;">🏅 نشان‌های مهندسی کسب‌شده:</h4>
-          ${badges.map(b => `<span style="background: white; border: 1px solid #fcd34d; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; margin: 4px; display: inline-block;">${b.icon} ${b.title}</span>`).join('')}
-        </div>
-      `;
-    }
-
-    content.innerHTML = `
-      <div class="discovery-badge-card">
-        <div class="discovery-icon">${card.icon}</div>
-        <h3>${card.title}</h3>
-        <p style="font-weight: bold; color: #15803d; margin-bottom: 8px;">موضوع: ${card.concept}</p>
-        <p>${card.summary}</p>
-      </div>
-      ${badgesHTML}
-      <div style="text-align: center; margin-top: 18px;">
-        <button id="btnContinueAfterDiscovery" class="btn-primary" style="margin: 0 auto; min-width: 180px;">ادامه‌ی ماجراجویی 🚀</button>
-      </div>
-    `;
-
-    document.getElementById('btnContinueAfterDiscovery').addEventListener('click', () => {
-      this.closeAllModals();
-      if (this.currentMissionIndex < MISSIONS.length - 1) {
-        this.switchMission(this.currentMissionIndex + 1);
+    if (this.state.mode === 'MISSIONS') {
+      const m = this.mission;
+      if (!this.state.progress.completed.includes(m.id)) {
+        this.state.progress.completed.push(m.id);
       }
-    });
-
-    modal.classList.remove('hidden');
+      if (!this.state.progress.discoveries.some((d) => d.id === m.discovery.id)) {
+        this.state.progress.discoveries.push({ ...m.discovery, missionId: m.id });
+        setTimeout(() => this.openDiscovery(m, result), 700);
+      }
+      if (result.badges) {
+        for (const b of result.badges) {
+          if (!this.state.progress.badges.some((x) => x.id === b.id)) this.state.progress.badges.push(b);
+        }
+      }
+      this.renderToolbar();
+      this.updateDiscoveryCount();
+    }
+    this.save();
   }
 
-  openTeacherModal() {
-    sound.playClick();
-    const modal = document.getElementById('modalTeacher');
-    const content = document.getElementById('teacherModalBody');
-
-    const logsHTML = teacher.logs.map((log, idx) => `
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; margin-bottom: 8px;">
-        <div style="display: flex; justify-content: space-between; font-weight: bold; color: var(--primary);">
-          <span>${log.missionTitle}</span>
-          <span style="font-size: 0.85rem; color: #64748b;">${log.timestamp}</span>
-        </div>
-        <div style="font-size: 0.85rem; margin-top: 4px; color: #334155;">
-          ⚡ نیرو: <strong>${toPersianDigits(log.forceN)} N</strong> | 📏 مسافت: <strong>${toPersianDigits(log.distanceM)} m</strong> | ${log.isSuccess ? '✅ موفق' : '⚠️ سنگین'}
-        </div>
-      </div>
-    `).join('');
-
-    content.innerHTML = `
-      <div style="margin-bottom: 16px;">
-        <h3 style="color: var(--primary); margin-bottom: 8px;">📚 انطباق با برنامه درسی علوم پایه پنجم دبستان:</h3>
-        <ul style="list-style-type: square; padding-right: 20px; font-size: 0.9rem; line-height: 1.8; color: #334155;">
-          ${CURRICULUM_GOALS.map(g => `<li><strong>${g.title}:</strong> ${g.text}</li>`).join('')}
-        </ul>
-      </div>
-
-      <div style="margin-bottom: 16px;">
-        <h3 style="color: var(--primary); margin-bottom: 8px;">🔬 پیشینه‌ی آزمایش‌های ثبت‌شده دانش‌آموز:</h3>
-        ${logsHTML || '<p style="color: #64748b;">هنوز آزمایشی ثبت نشده است.</p>'}
-      </div>
-
-      <div style="text-align: center; margin-top: 20px;">
-        <button id="btnPrintNotebook" class="btn-primary" style="margin: 0 auto;">
-          📄 دریافت و چاپ «دفترچه‌ی مخترع»
-        </button>
-      </div>
-    `;
-
-    document.getElementById('btnPrintNotebook').addEventListener('click', () => {
-      const printWin = window.open('', '_blank');
-      printWin.document.write(teacher.generatePrintableNotebookHTML());
-      printWin.document.close();
-    });
-
-    modal.classList.remove('hidden');
+  onFailure(result) {
+    this.dom.btnRunText.textContent = 'دوباره آزمایش کن';
+    this.showVerdict(false, this.failureText(result));
+    sound.playHeavyGrind();
+    this.recordExperiment(result, false);
+    this.save();
   }
 
-  openDiscoveriesModal() {
-    sound.playClick();
-    const modal = document.getElementById('modalDiscoveriesList');
-    const content = document.getElementById('discoveriesListBody');
+  successText(r) {
+    if (r.machine === 'CAPSTONE') return 'محموله سالم به درمانگاه رسید! طرح مهندسی تو جواب داد.';
+    if (r.machine === 'GEARS') return `گشتاور خروجی به ${fa(r.outputTorqueNm)} نیوتون‌متر رسید — آسیاب می‌چرخد!`;
+    return `آفرین! با ${fa(num(r.effortN, 0))} نیوتون کار انجام شد؛ توان ${r.puller.name} ${fa(r.humanLimitN)} نیوتون است.`;
+  }
 
-    if (this.userState.unlockedDiscoveries.length === 0) {
-      content.innerHTML = `
-        <div style="text-align: center; padding: 30px; color: #64748b;">
-          <div style="font-size: 3rem; margin-bottom: 10px;">🔍</div>
-          <p>هنوز کارت کشفی باز نشده است. مأموریت‌ها را انجام بده تا کارت‌های علمی را جمع‌آوری کنی!</p>
-        </div>
-      `;
+  failureText(r) {
+    if (r.machine === 'CAPSTONE') return r.insightFa;
+    if (r.machine === 'GEARS') return `گشتاور خروجی فقط ${fa(r.outputTorqueNm)} نیوتون‌متر است؛ هنوز کافی نیست.`;
+    return `${fa(num(r.effortN, 0))} نیوتون لازم است، ولی ${r.puller.name} بیشتر از ${fa(r.humanLimitN)} نیوتون نمی‌تواند. طرح را عوض کن!`;
+  }
+
+  recordExperiment(result, success) {
+    const machineId = this.machine;
+    const p = resolveParams(machineId, this.params);
+    this.state.log.unshift({
+      machine: machineId,
+      machineName: machineId === 'CAPSTONE' ? 'مأموریت پایانی' : MACHINES[machineId].name,
+      setup: describeSetup(machineId, p, result),
+      effortN: result.effortN ?? result.maxForceN ?? 0,
+      effortDistanceM: result.effortDistanceM ?? 0,
+      workInJ: result.workInJ ?? result.totalWorkJ ?? 0,
+      success,
+      at: new Date().toLocaleTimeString('fa-IR')
+    });
+    if (this.state.log.length > 40) this.state.log.length = 40;
+  }
+
+  // ─────────── نمایش‌ها ───────────
+  showCaption(text) {
+    if (!this.state.settings.captions) return;
+    const c = this.dom.captions;
+    c.textContent = text;
+    c.classList.add('is-on');
+    clearTimeout(this._captionTimer);
+    this._captionTimer = setTimeout(() => c.classList.remove('is-on'), 2200);
+  }
+
+  showVerdict(ok, text) {
+    const v = this.dom.verdict;
+    v.className = `verdict is-on ${ok ? 'v-ok' : 'v-bad'}`;
+    v.textContent = `${ok ? '✅' : '⚠️'} ${text}`;
+  }
+
+  hideVerdict() {
+    if (this.dom) this.dom.verdict.className = 'verdict';
+  }
+
+  renderAll() {
+    this.renderToolbar();
+    this.renderSide();
+    this.updateHud();
+    this.updateDiscoveryCount();
+    this.dom.canvas.setAttribute('aria-label', this.canvasDescription());
+  }
+
+  canvasDescription() {
+    const r = this.compute();
+    const name = this.machine === 'CAPSTONE' ? 'مأموریت پایانی' : MACHINES[this.machine].name;
+    if (this.machine === 'GEARS') {
+      return `نمای ${name}: نسبت دنده ${fa(r.ratio)}، گشتاور خروجی ${fa(r.outputTorqueNm)} نیوتون‌متر.`;
+    }
+    return `نمای ${name}: نیروی لازم ${fa(num(r.effortN ?? r.maxForceN, 0))} نیوتون، ${this.goalPassed(r) ? 'در توان' : 'بیش از توان'} ${r.puller.name}.`;
+  }
+
+  updateHud() {
+    renderHud(this.dom.hud, this.compute());
+    this.dom.canvas.setAttribute('aria-label', this.canvasDescription());
+  }
+
+  updateDiscoveryCount() {
+    this.dom.discoveryCount.textContent = fa(this.state.progress.discoveries.length);
+  }
+
+  renderToolbar() {
+    const bar = this.dom.toolbar;
+    bar.replaceChildren();
+    if (this.state.mode === 'MISSIONS') {
+      MISSIONS.forEach((m, i) => {
+        const done = this.state.progress.completed.includes(m.id);
+        const active = m.id === this.state.missionId;
+        bar.append(el('button', {
+          class: `chip${active ? ' is-active' : ''}${done ? ' is-done' : ''}`,
+          type: 'button',
+          'aria-current': active ? 'step' : null,
+          onclick: () => this.goMission(m.id)
+        }, [
+          el('span', { class: 'chip-num', 'aria-hidden': 'true' }, [done ? '✓' : fa(i + 1)]),
+          el('span', {}, [m.title])
+        ]));
+      });
     } else {
-      content.innerHTML = `
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-          ${this.userState.unlockedDiscoveries.map(c => `
-            <div style="background: #f0fdf4; border: 2px solid #86efac; border-radius: 12px; padding: 14px; display: flex; gap: 12px; align-items: center;">
-              <div style="font-size: 2.2rem;">${c.icon}</div>
-              <div>
-                <h4 style="color: #166534; margin-bottom: 4px;">${c.title}</h4>
-                <p style="font-size: 0.9rem; color: #14532d;">${c.summary}</p>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      `;
+      for (const id of MACHINE_IDS) {
+        const active = id === this.state.labMachine;
+        bar.append(el('button', {
+          class: `chip${active ? ' is-active' : ''}`,
+          type: 'button',
+          onclick: () => this.goMachine(id)
+        }, [
+          el('span', { 'aria-hidden': 'true' }, [MACHINES[id].icon]),
+          el('span', {}, [MACHINES[id].short])
+        ]));
+      }
+    }
+  }
+
+  refreshControls() {
+    this.updateHud();
+    if (this._controlsHost) {
+      this._controlsHost.replaceChildren(
+        buildControls(this.machine, this.params, (k, v) => this.setParam(k, v), this._controlKeys)
+      );
+    }
+    this.refreshChart();
+  }
+
+  refreshChart() {
+    if (this._chartCanvas && CHART_SPEC[this.machine]) {
+      drawChart(this._chartCanvas, this.machine, resolveParams(this.machine, this.params), this.state.settings.theme);
+    }
+  }
+
+  renderSide() {
+    const side = this.dom.side;
+    side.replaceChildren();
+    this._controlsHost = null;
+    this._chartCanvas = null;
+    if (this.state.mode === 'MISSIONS') this.renderMissionSide(side);
+    else this.renderLabSide(side);
+    this.refreshChart();
+  }
+
+  // ─────────── پنل مأموریت ───────────
+  renderMissionSide(side) {
+    const m = this.mission;
+    const picked = this.state.progress.predictions[m.id];
+
+    side.append(el('section', { class: 'card story' }, [
+      el('div', { class: 'avatar', 'aria-hidden': 'true' }, [m.story.avatar]),
+      el('div', {}, [
+        el('h3', {}, [m.story.who]),
+        el('p', {}, [m.story.text]),
+        el('p', { class: 'goal' }, [`🎯 هدف: ${m.goalText || m.story.goal}`])
+      ])
+    ]));
+
+    // پیش‌بینی
+    const optionsWrap = el('div', { class: 'options' });
+    const feedback = el('p', { class: 'feedback', hidden: picked === undefined });
+    const paint = () => {
+      optionsWrap.replaceChildren();
+      m.prediction.options.forEach((opt, i) => {
+        let cls = 'option';
+        if (picked !== undefined) {
+          if (i === picked) cls += opt.correct ? ' is-right' : ' is-wrong';
+          else if (opt.correct) cls += ' is-right';
+        }
+        optionsWrap.append(el('button', {
+          class: cls, type: 'button', disabled: picked !== undefined,
+          onclick: () => {
+            this.state.progress.predictions[m.id] = i;
+            sound.playSnap();
+            this.save();
+            this.renderMissionSideRefresh();
+          }
+        }, [
+          el('span', { class: 'mark', 'aria-hidden': 'true' }, [
+            picked === undefined ? ['الف', 'ب', 'پ'][i] : (opt.correct ? '✓' : (i === picked ? '✕' : ''))
+          ]),
+          el('span', {}, [opt.text])
+        ]));
+      });
+      if (picked !== undefined) {
+        feedback.hidden = false;
+        feedback.textContent = m.prediction.options[picked].feedback;
+      }
+    };
+    paint();
+
+    side.append(card('اول پیش‌بینی کن، بعد آزمایش', '🤔', [
+      el('p', { class: 'q' }, [m.prediction.question]),
+      optionsWrap,
+      feedback
+    ], 'quiz'));
+
+    // ابزارها
+    const host = el('div', {});
+    this._controlsHost = host;
+    this._controlKeys = m.controls;
+    host.append(buildControls(m.machine, this.params, (k, v) => this.setParam(k, v), m.controls));
+    side.append(card('ابزارهای کارگاه', '🛠️', [host]));
+
+    // نمودار
+    if (CHART_SPEC[m.machine]) {
+      const cv = el('canvas', { class: 'chart' });
+      this._chartCanvas = cv;
+      side.append(card(CHART_SPEC[m.machine].title, '📈', [
+        cv, el('p', { class: 'card-note' }, ['نقطهٔ نارنجی، تنظیم فعلی توست.'])
+      ]));
     }
 
-    modal.classList.remove('hidden');
+    // راهنمایی
+    const hintBox = el('div', { class: 'hint' }, [
+      el('span', { 'aria-hidden': 'true' }, ['💡']),
+      el('span', { id: 'hintText' }, ['اگر گیر کردی، راهنمایی بگیر — سه پله راهنمایی داریم.'])
+    ]);
+    this._hintText = hintBox.querySelector('#hintText');
+    side.append(card('راهنمایی پله‌پله', '💡', [
+      hintBox,
+      el('div', { style: 'display:flex;gap:8px;margin-top:10px' }, [
+        el('button', { class: 'btn btn-ghost', style: 'flex:1', onclick: () => this.nextHint() }, ['راهنمایی بعدی']),
+        el('button', { class: 'btn btn-ghost', style: 'flex:1', onclick: () => this.openDiscovery(m, this.compute(), true) }, ['کارت علمی این درس'])
+      ])
+    ]));
   }
 
-  openSettingsModal() {
+  renderMissionSideRefresh() {
+    const scroll = this.dom.side.scrollTop;
+    this.renderSide();
+    this.dom.side.scrollTop = scroll;
+  }
+
+  nextHint() {
+    const m = this.mission;
+    if (this.state.mode !== 'MISSIONS' || !this._hintText) return;
+    this.hintStep = (this.hintStep % m.hints.length) + 1;
+    this._hintText.textContent = `پلهٔ ${fa(this.hintStep)} از ${fa(m.hints.length)}: ${m.hints[this.hintStep - 1]}`;
     sound.playClick();
-    const modal = document.getElementById('modalSettings');
-    const content = document.getElementById('settingsModalBody');
-
-    content.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 16px;">
-        <div>
-          <label style="font-weight: bold;">🔊 صدای کلی بازی:</label>
-          <input type="range" id="volMaster" min="0" max="1" step="0.05" value="${sound.volumes.master}" style="width: 100%;">
-        </div>
-        <div>
-          <label style="font-weight: bold;">🪵 جلوه‌های صوتی (ابزارها و قرقره):</label>
-          <input type="range" id="volSFX" min="0" max="1" step="0.05" value="${sound.volumes.sfx}" style="width: 100%;">
-        </div>
-        <div>
-          <label style="font-weight: bold;">🍃 صدای باد و پرندگان کوهستان:</label>
-          <input type="range" id="volAmbient" min="0" max="1" step="0.05" value="${sound.volumes.ambient}" style="width: 100%;">
-        </div>
-        <hr style="border: 0; border-top: 1px solid #e2e8f0;"/>
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" id="chkHighContrast" ${this.userState.highContrast ? 'checked' : ''} style="width: 20px; height: 20px;">
-          <span style="font-weight: bold;">حالت کنتراست بالا (برای وضوح دید بهتر)</span>
-        </label>
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" id="chkReducedMotion" ${this.userState.reducedMotion ? 'checked' : ''} style="width: 20px; height: 20px;">
-          <span style="font-weight: bold;">کاهش انیمیشن‌ها و ذرات متحرک</span>
-        </label>
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-          <input type="checkbox" id="chkCaptions" ${this.userState.captions ? 'checked' : ''} style="width: 20px; height: 20px;">
-          <span style="font-weight: bold;">نمایش زیرنویس و متن برای تمام اصوات</span>
-        </label>
-      </div>
-    `;
-
-    document.getElementById('volMaster').addEventListener('input', (e) => sound.setVolumes({ master: parseFloat(e.target.value) }));
-    document.getElementById('volSFX').addEventListener('input', (e) => sound.setVolumes({ sfx: parseFloat(e.target.value) }));
-    document.getElementById('volAmbient').addEventListener('input', (e) => sound.setVolumes({ ambient: parseFloat(e.target.value) }));
-
-    document.getElementById('chkHighContrast').addEventListener('change', (e) => {
-      this.userState.highContrast = e.target.checked;
-      document.body.classList.toggle('high-contrast', e.target.checked);
-      this.saveProgress();
-    });
-
-    document.getElementById('chkReducedMotion').addEventListener('change', (e) => {
-      this.userState.reducedMotion = e.target.checked;
-      this.renderer.reducedMotion = e.target.checked;
-      this.saveProgress();
-    });
-
-    document.getElementById('chkCaptions').addEventListener('change', (e) => {
-      this.userState.captions = e.target.checked;
-      sound.captionsEnabled = e.target.checked;
-      this.saveProgress();
-    });
-
-    modal.classList.remove('hidden');
   }
 
-  closeAllModals() {
-    document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.add('hidden'));
+  // ─────────── پنل آزمایشگاه ───────────
+  renderLabSide(side) {
+    const id = this.state.labMachine;
+    const machine = MACHINES[id];
+
+    side.append(el('section', { class: 'card story', style: 'background:var(--violet-soft);border-color:color-mix(in srgb,var(--violet) 30%,transparent)' }, [
+      el('div', { class: 'avatar', 'aria-hidden': 'true' }, [machine.icon]),
+      el('div', {}, [
+        el('h3', { style: 'color:var(--violet)' }, [machine.name]),
+        el('p', {}, [this.compute().insightFa])
+      ])
+    ]));
+
+    const host = el('div', {});
+    this._controlsHost = host;
+    this._controlKeys = null;
+    host.append(buildControls(id, this.params, (k, v) => this.setParam(k, v), null));
+    side.append(card('تنظیم آزادِ همهٔ متغیرها', '🎛️', [
+      host,
+      id === 'GEARS' ? null : el('div', { class: 'field' }, [
+        el('p', { class: 'field-label' }, [el('span', {}, ['چه کسی نیرو را وارد می‌کند؟'])]),
+        el('div', { class: 'segment' }, pullerOptions().map((o) => el('button', {
+          class: `seg${this.state.settings.pullerId === o.value ? ' is-active' : ''}`,
+          type: 'button',
+          onclick: () => {
+            this.state.settings.pullerId = o.value;
+            this.reset(false);
+            this.renderSide();
+            this.updateHud();
+            this.save();
+          }
+        }, [
+          el('span', { class: 'seg-icon', 'aria-hidden': 'true' }, [o.icon]),
+          el('span', {}, [o.label]),
+          el('span', { class: 'seg-sub' }, [o.sub])
+        ])))
+      ])
+    ]));
+
+    if (CHART_SPEC[id]) {
+      const cv = el('canvas', { class: 'chart' });
+      this._chartCanvas = cv;
+      side.append(card(CHART_SPEC[id].title, '📈', [cv]));
+    }
+
+    side.append(card('جدول اندازه‌گیری', '📋', [
+      el('div', { style: 'display:flex;gap:8px;margin-bottom:10px' }, [
+        el('button', {
+          class: 'btn btn-primary', style: 'flex:1;font-size:.86rem;padding:9px 14px',
+          onclick: () => {
+            this.recordExperiment(this.compute(), this.goalPassed(this.compute()));
+            sound.playSnap();
+            this.save();
+            this.renderSide();
+          }
+        }, ['➕ ثبت در جدول'])
+      ]),
+      measurementTable(this.state.log.slice(0, 12), () => {
+        this.state.log = [];
+        this.save();
+        this.renderSide();
+      })
+    ]));
+
+    side.append(card('نکتهٔ علمی', '🔍', [
+      el('p', { class: 'card-note' }, [
+        'یادت باشد: هیچ ماشین ساده‌ای مقدارِ «کار» را کم نمی‌کند. هر بار که نیرو کم می‌شود، مسافت زیاد می‌شود. ',
+        'فقط بخشی از انرژی صرف اصطکاک می‌شود و بازده را از ۱۰۰٪ کمتر می‌کند.'
+      ])
+    ]));
+  }
+
+  // ─────────── مودال‌ها ───────────
+  openModal(title, nodes) {
+    this.dom.modalTitle.textContent = title;
+    this.dom.modalBody.replaceChildren(...[].concat(nodes));
+    this.dom.modal.hidden = false;
+    this.dom.modal.querySelector('.modal-close').focus();
+  }
+
+  closeModal() { this.dom.modal.hidden = true; }
+
+  openDiscovery(mission, result, quiet = false) {
+    const d = mission.discovery;
+    if (!quiet) sound.playGentleFanfare();
+    const badges = (result && result.badges) || [];
+    const nextIdx = MISSIONS.findIndex((m) => m.id === mission.id) + 1;
+    this.openModal('کارت کشف علمی', [
+      el('div', { class: 'discovery' }, [
+        el('span', { class: 'd-icon', 'aria-hidden': 'true' }, [d.icon]),
+        el('h3', {}, [d.title]),
+        el('p', { class: 'd-topic' }, [`موضوع: ${d.topic}`]),
+        el('p', {}, [d.summary]),
+        d.formula ? el('p', { class: 'formula' }, [d.formula]) : null
+      ]),
+      badges.length ? el('div', { class: 'badges' }, badges.map((b) =>
+        el('span', { class: 'badge' }, [`${b.icon} ${b.title}`]))) : null,
+      el('div', { class: 'modal-actions' }, [
+        nextIdx < MISSIONS.length
+          ? el('button', {
+            class: 'btn btn-primary',
+            onclick: () => { this.closeModal(); this.goMission(MISSIONS[nextIdx].id); }
+          }, ['مأموریت بعدی 🚀'])
+          : el('button', { class: 'btn btn-primary', onclick: () => this.closeModal() }, ['عالی بود! 🎉']),
+        el('button', { class: 'btn btn-ghost', onclick: () => this.closeModal() }, ['بستن'])
+      ])
+    ]);
+  }
+
+  openProgress() {
+    sound.playClick();
+    const found = this.state.progress.discoveries;
+    const cards = MISSIONS.map((m) => {
+      const has = found.some((d) => d.id === m.discovery.id);
+      return el('div', { class: `mini-card${has ? '' : ' is-locked'}` }, [
+        el('span', { class: 'm-icon', 'aria-hidden': 'true' }, [has ? m.discovery.icon : '🔒']),
+        el('div', {}, [
+          el('h4', {}, [has ? m.discovery.title : 'هنوز باز نشده']),
+          el('p', {}, [has ? m.discovery.summary : `مأموریت «${m.title}» را کامل کن.`])
+        ])
+      ]);
+    });
+    this.openModal('کارت‌های کشف و نشان‌ها', [
+      el('p', {}, [`تا اینجا ${fa(found.length)} کارت از ${fa(MISSIONS.length)} کارت علمی را باز کرده‌ای.`]),
+      el('div', { class: 'grid-cards' }, cards),
+      this.state.progress.badges.length
+        ? el('div', {}, [
+          el('h3', {}, ['نشان‌های مهندسی']),
+          el('div', { class: 'badges' }, this.state.progress.badges.map((b) =>
+            el('span', { class: 'badge' }, [`${b.icon} ${b.title}`])))
+        ])
+        : el('p', { class: 'card-note' }, ['نشان‌های مهندسی در مأموریت پایانی به دست می‌آیند.'])
+    ]);
+  }
+
+  openTeacher() {
+    sound.playClick();
+    this.openModal('راهنمای آموزگار و اولیا', [
+      el('h3', {}, ['اهداف برنامهٔ درسی']),
+      el('ul', {}, CURRICULUM.map((g) => el('li', {}, [el('b', {}, [`${g.title}: `]), g.text]))),
+      el('h3', {}, ['پیشنهادهای کلاسی']),
+      el('ul', {}, CLASSROOM_TIPS.map((t) => el('li', {}, [t]))),
+      el('h3', {}, [`کارنامهٔ دانش‌آموز (${fa(this.state.progress.completed.length)} مأموریت از ${fa(MISSIONS.length)})`]),
+      measurementTable(this.state.log.slice(0, 10), () => { this.state.log = []; this.save(); this.openTeacher(); }),
+      el('div', { class: 'modal-actions' }, [
+        el('button', { class: 'btn btn-primary', onclick: () => this.printNotebook() }, ['🖨 دفترچهٔ مخترع (چاپ / PDF)'])
+      ])
+    ]);
+  }
+
+  printNotebook() {
+    const html = notebookHTML({
+      rows: this.state.log,
+      discoveries: this.state.progress.discoveries,
+      badges: this.state.progress.badges
+    });
+    const win = window.open('', '_blank');
+    if (!win) { this.showCaption('⚠️ مرورگر پنجرهٔ چاپ را بست؛ اجازهٔ باز شدن پنجره را بدهید.'); return; }
+    win.document.write(html);
+    win.document.close();
+  }
+
+  openSettings() {
+    sound.playClick();
+    const s = this.state.settings;
+    const themeBtn = (value, labelText, icon) => el('button', {
+      class: `seg${(value === 'high' ? s.contrast === 'high' : s.contrast !== 'high' && s.theme === value) ? ' is-active' : ''}`,
+      type: 'button',
+      onclick: () => {
+        if (value === 'high') { s.contrast = 'high'; }
+        else { s.contrast = 'normal'; s.theme = value; }
+        this.applySettings();
+        this.save();
+        this.openSettings();
+        this.refreshChart();
+      }
+    }, [el('span', { class: 'seg-icon', 'aria-hidden': 'true' }, [icon]), el('span', {}, [labelText])]);
+
+    const toggle = (labelText, subText, key, onToggle) => {
+      const input = el('input', {
+        type: 'checkbox', checked: !!s[key],
+        onchange: (e) => { s[key] = e.target.checked; (onToggle || (() => {}))(); this.applySettings(); this.save(); }
+      });
+      return el('label', { class: 'switch', style: 'width:100%' }, [
+        input, el('span', { class: 'track', 'aria-hidden': 'true' }),
+        el('span', {}, [labelText, subText ? el('span', { class: 'switch-sub' }, [subText]) : null])
+      ]);
+    };
+
+    const volume = (labelText, key) => {
+      const input = el('input', {
+        type: 'range', min: 0, max: 1, step: 0.05, value: s.volumes[key],
+        oninput: (e) => { s.volumes[key] = Number(e.target.value); sound.setVolumes(s.volumes); this.save(); }
+      });
+      input.style.setProperty('--fill', `${s.volumes[key] * 100}%`);
+      input.addEventListener('input', () => input.style.setProperty('--fill', `${Number(input.value) * 100}%`));
+      return el('div', { class: 'field' }, [el('p', { class: 'field-label' }, [el('span', {}, [labelText])]), input]);
+    };
+
+    this.openModal('تنظیمات و دسترسی‌پذیری', [
+      el('h3', {}, ['ظاهر برنامه']),
+      el('div', { class: 'segment' }, [
+        themeBtn('light', 'روشن', '☀️'),
+        themeBtn('dark', 'تیره', '🌙'),
+        themeBtn('high', 'کنتراست بالا', '🔳')
+      ]),
+      el('h3', {}, ['دسترسی‌پذیری']),
+      el('div', { style: 'display:flex;flex-direction:column;gap:8px' }, [
+        toggle('کاهش انیمیشن و ذرات متحرک', 'برای دانش‌آموزانی که به حرکت حساس‌اند', 'reducedMotion'),
+        toggle('نمایش زیرنویس صداها', 'متن هر صدا روی صحنه نوشته می‌شود', 'captions'),
+        toggle('نمایش همیشگی بردارهای نیرو', 'وزن، اصطکاک، تکیه‌گاه و نیروی دست', 'vectors', () => {
+          this.dom.btnVectors.setAttribute('aria-pressed', s.vectors ? 'true' : 'false');
+        })
+      ]),
+      el('h3', {}, ['صدا']),
+      volume('صدای کلی', 'master'),
+      volume('جلوه‌های صوتی', 'sfx'),
+      volume('صدای کوهستان', 'ambient'),
+      el('h3', {}, ['میان‌برهای صفحه‌کلید']),
+      el('p', { class: 'card-note' }, ['فاصله = آزمایش • R = از نو • H = راهنمایی • V = بردارها • M = بی‌صدا • ۱ تا ۹ = رفتن به مأموریت/ماشین • Esc = بستن پنجره']),
+      el('div', { class: 'modal-actions' }, [
+        el('button', {
+          class: 'btn btn-ghost',
+          onclick: () => {
+            if (!confirm('همهٔ پیشرفت، کارت‌های کشف و جدول اندازه‌گیری پاک شود؟')) return;
+            localStorage.removeItem(SAVE_KEY);
+            location.reload();
+          }
+        }, ['♻️ پاک کردن همهٔ پیشرفت'])
+      ])
+    ]);
   }
 }
 
-// Instantiate and start game on DOMContentLoaded
+const app = new App();
 window.addEventListener('DOMContentLoaded', () => {
-  window.rescueGame = new RescueCargoGame();
-  window.rescueGame.init();
+  app.init();
+  window.kargah = app;
 });

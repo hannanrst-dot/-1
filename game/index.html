@@ -1,143 +1,110 @@
 <!DOCTYPE html>
-<html dir="rtl" lang="fa">
+<html dir="rtl" lang="fa" data-theme="light">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>نجات بار از کوه | بازی تعاملی علوم پایه پنجم</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="آزمایشگاه تعاملی ماشین‌های ساده برای علوم تجربی پایهٔ پنجم دبستان: اهرم، قرقره، سطح شیب‌دار، چرخ و محور، گوه، پیچ و چرخ‌دنده">
+  <meta name="theme-color" content="#0ea5e9">
+  <title>کارگاه ماشین‌های ساده | علوم پنجم دبستان</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
   <link rel="stylesheet" href="./src/style.css">
 </head>
 <body>
 
-  <!-- Top App Header -->
-  <header class="app-header">
-    <div class="brand-title">
-      <span style="font-size: 1.8rem;">🏔️</span>
-      <div>
-        <h1>نجات بار از کوه</h1>
-        <span class="badge-tag">علوم تجربی پایه پنجم دبستان • ماشین‌های ساده</span>
-      </div>
+<a class="skip-link" href="#stage">پرش به محیط آزمایش</a>
+
+<!-- ═══════════ نوار بالا ═══════════ -->
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">⚙️</span>
+    <div class="brand-text">
+      <h1>کارگاه ماشین‌های ساده</h1>
+      <p>علوم تجربی پایهٔ پنجم دبستان</p>
+    </div>
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="حالت‌های برنامه">
+    <button class="tab is-active" role="tab" aria-selected="true" data-mode="MISSIONS">
+      <span aria-hidden="true">🎒</span><span>مأموریت‌ها</span>
+    </button>
+    <button class="tab" role="tab" aria-selected="false" data-mode="LAB">
+      <span aria-hidden="true">🔬</span><span>آزمایشگاه</span>
+    </button>
+  </nav>
+
+  <div class="topbar-actions">
+    <button class="iconbtn" id="btnProgress" title="کارت‌های کشف و نشان‌ها" aria-label="کارت‌های کشف و نشان‌ها">
+      <span aria-hidden="true">⭐</span><span class="iconbtn-text">کشف‌ها</span>
+      <span class="pill" id="discoveryCount" aria-hidden="true">۰</span>
+    </button>
+    <button class="iconbtn" id="btnTeacher" title="راهنمای آموزگار و اولیا" aria-label="راهنمای آموزگار و اولیا">
+      <span aria-hidden="true">👩‍🏫</span><span class="iconbtn-text">آموزگار</span>
+    </button>
+    <button class="iconbtn" id="btnSettings" title="تنظیمات و دسترسی‌پذیری" aria-label="تنظیمات و دسترسی‌پذیری">
+      <span aria-hidden="true">⚙️</span><span class="iconbtn-text">تنظیمات</span>
+    </button>
+  </div>
+</header>
+
+<!-- ═══════════ فضای کار ═══════════ -->
+<main class="workspace">
+
+  <!-- ---------- ستون صحنه ---------- -->
+  <section class="stage" id="stage" aria-label="محیط آزمایش">
+
+    <div class="stage-toolbar" id="stageToolbar">
+      <!-- تراشه‌های مأموریت یا انتخاب ماشین — با جاوااسکریپت پر می‌شود -->
     </div>
 
-    <nav class="header-nav" aria-label="منوی اصلی بازی">
-      <button id="btnTeacherMode" class="btn-icon" title="راهنمای اولیا و آموزگاران" aria-label="راهنمای آموزگار">
-        <span>👨‍🏫</span> <span>راهنمای معلمان و اولیا</span>
-      </button>
-      <button id="btnDiscoveries" class="btn-icon" title="کارت‌های کشف علمی باز شده" aria-label="کارت‌های کشف علمی">
-        <span>⭐</span> <span>کارت‌های کشف</span>
-      </button>
-      <button id="btnFreeLab" class="btn-icon" title="کارگاه آزاد و بدون محدودیت" aria-label="کارگاه آزاد">
-        <span>🧪</span> <span>کارگاه آزاد</span>
-      </button>
-      <button id="btnSettings" class="btn-icon" title="تنظیمات صدا و دسترسی‌پذیری" aria-label="تنظیمات صدا و دسترسی‌پذیری">
-        <span>⚙️</span> <span>تنظیمات</span>
-      </button>
-    </nav>
-  </header>
+    <div class="stage-canvas-wrap">
+      <canvas id="stageCanvas" role="img" aria-label="نمای آزمایش ماشین ساده"></canvas>
 
-  <!-- Main Game Workspace -->
-  <main class="game-container">
-    
-    <!-- 2.5D Visual Interactive Canvas Panel -->
-    <section class="canvas-panel" aria-label="محیط بصری و شبیه‌سازی کوهستان">
-      <canvas id="gameCanvas"></canvas>
-
-      <!-- Live Sound Captions Toast -->
-      <div id="soundCaptions" class="sound-captions" aria-live="polite"></div>
-
-      <!-- Mission Timeline / Steps Navigation -->
-      <div id="missionTracker" class="mission-tracker" role="tablist" aria-label="مراحل مأموریت‌های بازی">
-        <!-- Injected dynamically via app.js -->
-      </div>
-    </section>
-
-    <!-- Side Control & Narrative Workbench Panel -->
-    <aside class="controls-panel" aria-label="پنل کنترل و طراحی ابزار">
-      
-      <!-- Dynamic Story, Prediction & Tools Content -->
-      <div id="controlsDynamicContent" style="display: flex; flex-direction: column; gap: 14px;">
-        <!-- Injected dynamically via loadMissionUI -->
-      </div>
-
-      <!-- Action & Execution Control Row -->
-      <div class="card" style="padding: 14px;">
-        <div class="action-row">
-          <button id="btnRunTest" class="btn-primary" aria-label="اجرای آزمایش و شبیه‌سازی">
-            <span>🚀</span> آزمایش کن
-          </button>
-          <button id="btnResetTest" class="btn-secondary" aria-label="بازنشانی آزمایش">
-            <span>🔄</span> بازنشانی
-          </button>
+      <div class="stage-overlay">
+        <div class="hud" id="hud" aria-live="polite">
+          <!-- تراشه‌های عددی — با جاوااسکریپت پر می‌شود -->
         </div>
-
-        <div class="support-bar">
-          <button id="btnSlowMo" class="btn-icon" style="font-size: 0.85rem;" aria-label="حرکت آهسته">
-            <span>🔍</span> حرکت آهسته
-          </button>
-          <button id="btnHint" class="btn-icon" style="font-size: 0.85rem; background: #fef9c3; border-color: #fef08a;" aria-label="دریافت راهنمایی">
-            <span>💡</span> راهنمایی
-          </button>
-        </div>
-
-        <!-- Hint Display Box -->
-        <div id="hintDisplayBox" style="margin-top: 10px; font-size: 0.85rem; color: #854d0e; line-height: 1.5;" aria-live="polite">
-          <span>💡 برای دریافت راهنمایی کلیک کنید.</span>
-        </div>
+        <p class="canvas-alt" id="canvasAlt" aria-live="polite"></p>
       </div>
 
-    </aside>
-
-  </main>
-
-  <!-- Footer Info -->
-  <footer class="app-footer">
-    <p>طراحی شده بر اساس مباحث کتاب درسی علوم تجربی پایه پنجم دبستان (حرکت، اصطکاک، سطح شیب‌دار، اهرم‌ها و قرقره‌ها)</p>
-  </footer>
-
-  <!-- Modal: Discovery Card Reward -->
-  <div id="modalDiscovery" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="discoveryTitle">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="discoveryTitle"><span>🎉</span> کشف علمی جدید!</h2>
-        <button class="btn-close" aria-label="بستن پنجره">✕</button>
-      </div>
-      <div id="discoveryModalBody"></div>
+      <div class="captions" id="captions" aria-live="polite"></div>
+      <div class="verdict" id="verdict" role="status"></div>
     </div>
-  </div>
 
-  <!-- Modal: Teacher & Parent Dashboard -->
-  <div id="modalTeacher" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="teacherTitle">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="teacherTitle"><span>👨‍🏫</span> راهنمای آموزشی و دفترچه‌ی مخترع</h2>
-        <button class="btn-close" aria-label="بستن پنجره">✕</button>
-      </div>
-      <div id="teacherModalBody"></div>
+    <div class="stage-actions">
+      <button class="btn btn-primary" id="btnRun">
+        <span aria-hidden="true">▶</span><span id="btnRunText">آزمایش کن</span>
+      </button>
+      <button class="btn btn-ghost" id="btnReset">
+        <span aria-hidden="true">↺</span><span>از نو</span>
+      </button>
+      <div class="spacer"></div>
+      <button class="btn btn-toggle" id="btnVectors" aria-pressed="false" title="نمایش بردارهای نیرو">
+        <span aria-hidden="true">➔</span><span class="btn-text">بردارهای نیرو</span>
+      </button>
+      <button class="btn btn-toggle" id="btnSlowmo" aria-pressed="false" title="حرکت آهسته">
+        <span aria-hidden="true">🐢</span><span class="btn-text">آهسته</span>
+      </button>
     </div>
-  </div>
+  </section>
 
-  <!-- Modal: Discoveries List -->
-  <div id="modalDiscoveriesList" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="discListTitle">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="discListTitle"><span>⭐</span> کلکسیون کارت‌های کشف علمی</h2>
-        <button class="btn-close" aria-label="بستن پنجره">✕</button>
-      </div>
-      <div id="discoveriesListBody"></div>
-    </div>
-  </div>
+  <!-- ---------- ستون کنترل ---------- -->
+  <aside class="sidepanel" id="sidepanel" aria-label="پنل کنترل و آموزش">
+    <!-- با جاوااسکریپت پر می‌شود -->
+  </aside>
+</main>
 
-  <!-- Modal: Settings & Accessibility -->
-  <div id="modalSettings" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="settingsTitle"><span>⚙️</span> تنظیمات و دسترسی‌پذیری</h2>
-        <button class="btn-close" aria-label="بستن پنجره">✕</button>
-      </div>
-      <div id="settingsModalBody"></div>
-    </div>
+<!-- ═══════════ مودال‌ها ═══════════ -->
+<div class="modal" id="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <header class="modal-head">
+      <h2 id="modalTitle"></h2>
+      <button class="modal-close" data-close aria-label="بستن">✕</button>
+    </header>
+    <div class="modal-body" id="modalBody"></div>
   </div>
+</div>
 
-  <!-- Module Entrypoint -->
-  <script type="module" src="./src/app.js"></script>
+<script type="module" src="./src/app.js"></script>
 </body>
 </html>
