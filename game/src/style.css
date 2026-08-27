@@ -63,6 +63,21 @@
   --ease: cubic-bezier(.34, 1.3, .64, 1);
 }
 
+/* اگر هنوز تمی انتخاب نشده، از تنظیم سیستم کاربر پیروی می‌کنیم */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sky-1: #0d1a26; --sky-2: #0a141d; --paper: #132433; --paper-2: #0f1d29;
+    --ink: #e8f1f8; --ink-2: #a8becf; --ink-3: #7690a5; --line: #24394c; --line-strong: #365167;
+    --primary: #45b2f0; --primary-soft: #12354c; --primary-ink: #9ad6fb;
+    --accent: #fbb03b; --accent-soft: #3d2d10; --accent-ink: #fcd08a;
+    --ok: #3ed99b; --ok-soft: #10352a; --warn: #f2b23c; --warn-soft: #3a2c12;
+    --bad: #ff7b8a; --bad-soft: #401a22; --violet: #a891f5; --violet-soft: #241d3f;
+    --sh-1: 0 1px 2px rgba(0, 0, 0, .3);
+    --sh-2: 0 6px 18px rgba(0, 0, 0, .4);
+    --sh-3: 0 20px 50px rgba(0, 0, 0, .6);
+  }
+}
+
 [data-theme="dark"] {
   --sky-1: #0d1a26;
   --sky-2: #0a141d;

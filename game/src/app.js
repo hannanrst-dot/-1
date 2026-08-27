@@ -12,6 +12,13 @@ import { sound } from './audio.js';
 const SAVE_KEY = 'kargah_mashinhaye_sadeh_v2';
 const RUN_SECONDS = 3.2;
 
+/** تمِ آغازین را از انتخاب میزبان یا تنظیم سیستم کاربر برمی‌دارد */
+function detectPreferredTheme() {
+  const stamped = document.documentElement.dataset.theme;
+  if (stamped === 'dark' || stamped === 'light') return stamped;
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 class App {
   constructor() {
     this.state = {
@@ -36,6 +43,7 @@ class App {
     this.lastResult = null;
 
     this.load();
+    if (!this.hadSavedTheme) this.state.settings.theme = detectPreferredTheme();
     for (const m of MISSIONS) {
       if (!this.state.missionParams[m.id]) this.state.missionParams[m.id] = { ...m.params };
     }
@@ -50,6 +58,7 @@ class App {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return;
       const saved = JSON.parse(raw);
+      this.hadSavedTheme = !!(saved.settings && saved.settings.theme);
       this.state = {
         ...this.state, ...saved,
         progress: { ...this.state.progress, ...(saved.progress || {}) },
@@ -722,14 +731,44 @@ class App {
     ]);
   }
 
+  /**
+   * دفترچهٔ گزارش را برای چاپ آماده می‌کند.
+   * نخست از یک قاب پنهان استفاده می‌شود (در همه‌جا کار می‌کند)؛
+   * اگر نشد، سراغ باز کردن پنجرهٔ تازه می‌رویم.
+   */
   printNotebook() {
     const html = notebookHTML({
       rows: this.state.log,
       discoveries: this.state.progress.discoveries,
       badges: this.state.progress.badges
     });
+
+    try {
+      const frame = document.createElement('iframe');
+      frame.setAttribute('title', 'دفترچهٔ مخترع');
+      frame.style.cssText = 'position:fixed;inset:auto 0 0 auto;width:0;height:0;border:0;opacity:0;';
+      frame.srcdoc = html;
+      frame.addEventListener('load', () => {
+        try {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+        } catch {
+          this.openNotebookWindow(html);
+        }
+        setTimeout(() => frame.remove(), 60000);
+      }, { once: true });
+      document.body.append(frame);
+    } catch {
+      this.openNotebookWindow(html);
+    }
+  }
+
+  openNotebookWindow(html) {
     const win = window.open('', '_blank');
-    if (!win) { this.showCaption('⚠️ مرورگر پنجرهٔ چاپ را بست؛ اجازهٔ باز شدن پنجره را بدهید.'); return; }
+    if (!win) {
+      this.showCaption('⚠️ مرورگر پنجرهٔ چاپ را باز نکرد؛ اجازهٔ باز شدن پنجره را بدهید.');
+      return;
+    }
     win.document.write(html);
     win.document.close();
   }
