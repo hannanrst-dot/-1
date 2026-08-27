@@ -647,7 +647,7 @@ class App {
   // ─────────── مودال‌ها ───────────
   openModal(title, nodes) {
     this.dom.modalTitle.textContent = title;
-    this.dom.modalBody.replaceChildren(...[].concat(nodes));
+    this.dom.modalBody.replaceChildren(...[].concat(nodes).filter(Boolean));
     this.dom.modal.hidden = false;
     this.dom.modal.querySelector('.modal-close').focus();
   }

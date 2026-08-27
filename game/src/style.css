@@ -232,8 +232,10 @@ button { cursor: pointer; background: none; border: none; }
 /* ---------- صحنه ---------- */
 .stage {
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 10px; min-height: 0;
+  gap: 10px; min-height: 0; min-width: 0;
 }
+/* اندازهٔ ذاتی بوم نباید عرض چیدمان را بکشد */
+.stage > * { min-width: 0; }
 
 .stage-toolbar {
   display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px;
@@ -264,9 +266,9 @@ button { cursor: pointer; background: none; border: none; }
   position: relative; min-height: 0;
   border-radius: var(--r-xl); overflow: hidden;
   border: 1px solid var(--line-strong); box-shadow: var(--sh-2);
-  background: linear-gradient(180deg, #bfe4fa, #e8f4ea);
+  background: linear-gradient(180deg, var(--sky-1), var(--paper-2));
 }
-#stageCanvas { display: block; width: 100%; height: 100%; touch-action: none; }
+#stageCanvas { display: block; width: 100%; max-width: 100%; height: 100%; touch-action: none; }
 
 .stage-overlay {
   position: absolute; inset-inline: 10px; top: 10px;
@@ -348,7 +350,7 @@ button { cursor: pointer; background: none; border: none; }
 .sidepanel {
   display: flex; flex-direction: column; gap: 12px;
   overflow-y: auto; overscroll-behavior: contain;
-  padding-inline-end: 4px; min-height: 0;
+  padding-inline-end: 4px; min-height: 0; min-width: 0;
   scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
 }
 .sidepanel::-webkit-scrollbar { width: 8px; }
@@ -579,6 +581,8 @@ td b { font-variant-numeric: tabular-nums; }
 @media (max-width: 1100px) {
   body { grid-template-rows: auto auto; }
   .workspace { grid-template-columns: 1fr; }
+  /* ستون صحنه به جای شبکه، ستونی می‌شود تا نسبت‌ابعادِ بوم سرریز نکند */
+  .stage { display: flex; flex-direction: column; }
   .stage-canvas-wrap { aspect-ratio: 16 / 10; }
   .sidepanel { overflow: visible; max-height: none; }
   .iconbtn-text { display: none; }
@@ -593,11 +597,19 @@ td b { font-variant-numeric: tabular-nums; }
   .brand-text p { display: none; }
   .workspace { padding: 10px; gap: 12px; }
   .stage-canvas-wrap { aspect-ratio: 4 / 3; border-radius: var(--r-lg); }
-  .btn-primary { flex: 1; min-width: 0; }
-  .btn-text { display: none; }
+  /* دکمه‌ها روی دو سطر می‌نشینند تا متن‌شان خوانا بماند */
+  .stage-actions .spacer { display: none; }
+  .btn-primary { flex: 2 1 150px; min-width: 0; padding: 11px 12px; }
+  .btn-ghost { flex: 1 1 92px; }
+  .btn-toggle { flex: 1 1 128px; }
   .stage-overlay { inset-inline: 7px; top: 7px; }
   .hud-chip { padding: 4px 8px; font-size: .72rem; }
   .hud-chip b { font-size: .92rem; }
+  /* روی صفحهٔ کوچک فقط سه عدد کلیدی روی صحنه بماند */
+  .hud-chip:nth-child(n+4) { display: none; }
+  .brand-mark { font-size: 21px; padding: 4px 6px; }
+  .brand-text h1 { font-size: .95rem; }
+  .topbar { min-height: 0; }
   .modal-card { max-height: 92vh; }
 }
 

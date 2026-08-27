@@ -35,6 +35,10 @@ export const PALETTE = {
   }
 };
 
+/** پالت فعال — تا برچسب‌ها در تم تیره هم خوانا بمانند */
+let ACTIVE = PALETTE.light;
+export function setPalette(p) { ACTIVE = p; }
+
 /** مستطیل گردگوشه */
 export function rr(ctx, x, y, w, h, r = 6) {
   const rad = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
@@ -57,8 +61,9 @@ export function grad(ctx, x0, y0, x1, y1, stops) {
 /** متن با پس‌زمینهٔ کوچک (برچسب روی صحنه) */
 export function label(ctx, x, y, text, opts = {}) {
   const {
-    size = 12, weight = 700, color = '#1d3247', bg = 'rgba(255,255,255,.92)',
-    border = 'rgba(0,0,0,.10)', align = 'center', pad = 5, radius = 7
+    size = 12, weight = 700, color = ACTIVE.ink, bg = `${ACTIVE.paper}ee`,
+    border = ACTIVE === PALETTE.dark ? 'rgba(255,255,255,.16)' : 'rgba(0,0,0,.10)',
+    align = 'center', pad = 5, radius = 7
   } = opts;
   ctx.save();
   ctx.font = `${weight} ${size}px Vazirmatn, Tahoma, sans-serif`;
@@ -83,7 +88,7 @@ export function label(ctx, x, y, text, opts = {}) {
 
 /** پیکان نیرو با برچسب */
 export function arrow(ctx, x1, y1, x2, y2, opts = {}) {
-  const { color = '#ef7d17', width = 3.5, head = 10, text = null, dashed = false, textSize = 11 } = opts;
+  const { color = '#ef7d17', width = 3.5, head = 10, text = null, dashed = false, textSize = 11, labelAt = 'middle' } = opts;
   const ang = Math.atan2(y2 - y1, x2 - x1);
   const len = Math.hypot(x2 - x1, y2 - y1);
   if (len < 2) return;
@@ -106,9 +111,9 @@ export function arrow(ctx, x1, y1, x2, y2, opts = {}) {
   ctx.fill();
   ctx.restore();
   if (text) {
-    const mx = (x1 + x2) / 2 - Math.sin(ang) * 13;
-    const my = (y1 + y2) / 2 + Math.cos(ang) * 13;
-    label(ctx, mx, my, text, { size: textSize, color, bg: 'rgba(255,255,255,.9)' });
+    const mx = labelAt === 'tip' ? x2 + Math.cos(ang) * 20 : (x1 + x2) / 2 - Math.sin(ang) * 13;
+    const my = labelAt === 'tip' ? y2 + Math.sin(ang) * 14 : (y1 + y2) / 2 + Math.cos(ang) * 13;
+    label(ctx, mx, my, text, { size: textSize, color });
   }
 }
 
@@ -136,7 +141,7 @@ export function dim(ctx, x1, y1, x2, y2, text, opts = {}) {
     ctx.closePath(); ctx.fillStyle = color; ctx.fill();
   }
   ctx.restore();
-  if (text) label(ctx, (ax + bx) / 2, (ay + by) / 2, text, { size, color, bg: 'rgba(255,255,255,.92)' });
+  if (text) label(ctx, (ax + bx) / 2, (ay + by) / 2, text, { size, color });
 }
 
 /** کمان زاویه با برچسب درجه */

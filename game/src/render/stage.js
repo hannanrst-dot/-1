@@ -1,5 +1,5 @@
 // مدیریت بوم: اندازه، حلقهٔ انیمیشن، تم، ذرات و کشیدن دستگیره‌ها
-import { PALETTE, Particles, rr } from './draw.js';
+import { PALETTE, Particles, rr, setPalette } from './draw.js';
 import { SCENES, drawWorld } from './scenes.js';
 import { clamp } from '../core/format.js';
 
@@ -74,6 +74,7 @@ export class Stage {
     if (!view || !this.w) return;
     const ctx = this.ctx;
     const P = this.palette;
+    setPalette(P);
     ctx.clearRect(0, 0, this.w, this.h);
 
     const groundY = view.machine === 'GEARS' ? 0.92 : 0.80;

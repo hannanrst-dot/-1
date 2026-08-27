@@ -7,6 +7,9 @@ import { num, fa, clamp, lerp } from '../core/format.js';
 
 const N = (v) => `${num(v, 0)} نیوتون`;
 
+/** ارتفاع امن برای برچسب‌های زیر خط زمین (تا از پایین بوم بیرون نزنند) */
+const under = (gy, h, offset = 34) => Math.min(gy + offset, h - 16);
+
 /** نوار سطح مسیر با بافت مخصوص هر جنس */
 function surfaceStrip(ctx, x0, x1, y, surface, P, thickness = 12) {
   const w = x1 - x0;
@@ -101,26 +104,29 @@ function rollers(ctx, cx, y, width, spin, P) {
   }
 }
 
-/** بردارهای نیرو روی بار */
+/**
+ * بردارهای نیرو روی بار.
+ * angle = راستای حرکت (رادیان)؛ نیروی محرک در همین راستا و اصطکاک خلاف آن است.
+ */
 function forceVectors(ctx, cx, cy, size, state, P, opts = {}) {
   const { angle = 0, showNormal = true } = opts;
-  const s = clamp(46 / Math.max(60, state.loadN) * 60, 24, 70);
-  const scale = (f) => clamp((f / Math.max(state.loadN, 1)) * 74, 16, 88);
+  const forces = [state.loadN, state.effortN, state.frictionN].filter((f) => f > 0);
+  const maxF = Math.max(...forces, 1);
+  // ریشهٔ دوم تا بردارهای کوچک هم دیده شوند ولی ترتیب بزرگی حفظ شود
+  const len = (f) => clamp(Math.sqrt(clamp(f, 0, maxF) / maxF) * 84, 30, 92);
+  const A = (dx, dy, f, color, text, extra = {}) =>
+    arrow(ctx, cx, cy, cx + dx * len(f), cy + dy * len(f),
+      { color, width: 3.2, text, textSize: 10, labelAt: 'tip', ...extra });
 
-  // وزن (همیشه رو به پایین)
-  arrow(ctx, cx, cy, cx, cy + scale(state.loadN), { color: P.load, width: 3, text: `وزن ${N(state.loadN)}` });
-
+  A(0, 1, state.loadN, P.load, `وزن ${N(state.loadN)}`);
   if (showNormal && state.machine !== 'PULLEY') {
-    const nx = Math.sin(angle), ny = -Math.cos(angle);
-    arrow(ctx, cx, cy, cx + nx * scale(state.loadN * Math.cos(angle)), cy + ny * scale(state.loadN * Math.cos(angle)),
-      { color: P.normal, width: 2.6, text: 'نیروی تکیه‌گاه', dashed: true, textSize: 10 });
+    // عمود بر راستای حرکت و رو به بالا
+    A(-Math.sin(angle), Math.cos(angle), state.loadN * Math.abs(Math.cos(angle)), P.normal, 'نیروی تکیه‌گاه', { dashed: true, width: 2.4 });
   }
   if (state.frictionN > 0.5) {
-    arrow(ctx, cx, cy, cx + Math.cos(angle) * scale(state.frictionN), cy + Math.sin(angle) * scale(state.frictionN),
-      { color: P.friction, width: 2.6, text: `اصطکاک ${N(state.frictionN)}`, textSize: 10 });
+    A(-Math.cos(angle), -Math.sin(angle), state.frictionN, P.friction, `اصطکاک ${N(state.frictionN)}`, { width: 2.6 });
   }
-  arrow(ctx, cx, cy, cx - Math.cos(angle) * scale(state.effortN), cy - Math.sin(angle) * scale(state.effortN),
-    { color: P.effort, width: 3.4, text: `نیروی تو ${N(state.effortN)}` });
+  A(Math.cos(angle), Math.sin(angle), state.effortN, P.effort, `نیروی تو ${N(state.effortN)}`, { width: 3.6 });
 }
 
 // ═══════════════ ۱) اصطکاک، چرخ و غلتک ═══════════════
@@ -151,12 +157,14 @@ function sceneFriction(ctx, env) {
       { speed: 1.4, life: 0.6, size: 3, gravity: 0.03, dir: 0.5, spread: 1.6 });
   }
 
-  dim(ctx, x0, gy + 26, x1, gy + 26, `مسافت ${fa(state.geom.distanceM)} متر`, { color: P.inkSoft });
-  label(ctx, w * 0.5, gy + 52,
+  if (h - gy > 82) {
+    dim(ctx, x0, gy + 24, x1, gy + 24, `مسافت ${fa(state.geom.distanceM)} متر`, { color: P.inkSoft });
+  }
+  label(ctx, w * 0.5, under(gy, h, 50),
     `${state.surface.icon} ${state.surface.fullName} — ضریب اصطکاک ${fa(state.surface.mu)}`,
     { size: 11, color: P.ink });
 
-  if (showVectors) forceVectors(ctx, cx, cy, size, state, P, { angle: 0 });
+  if (showVectors) forceVectors(ctx, cx, cy, size, state, P, { angle: Math.PI });
   return [];
 }
 
@@ -223,7 +231,7 @@ function sceneIncline(ctx, env) {
   dim(ctx, baseX, gy, topX, topY, `طول رمپ ${fa(state.lengthM)} متر`, { color: P.effort, offset: 32 });
   angleArc(ctx, baseX, gy, 56, Math.PI, Math.PI + ang, `${fa(angleDeg)}°`, P.inkSoft);
 
-  if (showVectors) forceVectors(ctx, bx, by - size * 0.5, size, state, P, { angle: -ang });
+  if (showVectors) forceVectors(ctx, bx, by - size * 0.55, size, state, P, { angle: Math.PI + ang });
 
   return [{
     id: 'rampLength', x: topX + 16, y: topY - 26, r: 15,
@@ -455,7 +463,7 @@ function scenePulley(ctx, env) {
   // اندازه‌ها
   dim(ctx, w * 0.30, gy, w * 0.30, gy - liftPx - 1, `ارتفاع ${fa(num(state.loadDistanceM * t, 1))} از ${fa(state.loadDistanceM)} متر`,
     { color: P.inkSoft });
-  label(ctx, w * 0.68, gy - 18,
+  label(ctx, w * 0.66, gy - 16,
     `${fa(state.strands)} رشتهٔ نگهدارندهٔ بار • طول طنابی که می‌کشی: ${fa(state.ropeM)} متر`,
     { size: 11, color: P.ink });
 
@@ -540,7 +548,7 @@ function sceneWheelAxle(ctx, env) {
 
   dim(ctx, cx, axleY - Rpx - 16, cx + Rpx, axleY - Rpx - 16, `شعاع چرخ ${fa(num(g.wheelRadiusM, 2))} متر`, { color: P.effort });
   dim(ctx, cx - rpx, axleY + Rpx + 22, cx, axleY + Rpx + 22, `شعاع محور ${fa(num(g.axleRadiusM, 2))} متر`, { color: P.load, offset: 16 });
-  label(ctx, cx, gy + 30, `مزیت مکانیکی = شعاع چرخ ÷ شعاع محور = ${fa(num(state.maIdeal, 1))}`, { size: 11, color: P.ink });
+  label(ctx, cx, under(gy, h, 30), `مزیت مکانیکی = شعاع چرخ ÷ شعاع محور = ${fa(num(state.maIdeal, 1))}`, { size: 11, color: P.ink });
 
   if (showVectors) {
     const s = (f) => clamp((f / Math.max(state.loadN, 1)) * 78, 18, 84);
@@ -622,7 +630,7 @@ function sceneWedge(ctx, env) {
 
   dim(ctx, cx - wt / 2 - 44, wedgeTop, cx - wt / 2 - 44, wedgeTop + wl, `طول گوه ${fa(num(g.lengthM * 100, 0))} سانتی‌متر`, { color: P.effort });
   dim(ctx, cx - wt / 2, wedgeTop - 26, cx + wt / 2, wedgeTop - 26, `ضخامت ${fa(num(g.thicknessM * 100, 0))} سانتی‌متر`, { color: P.load });
-  label(ctx, w * 0.5, gy + 34, `گوه = سطح شیب‌دارِ متحرک • مزیت مکانیکی = طول ÷ ضخامت = ${fa(num(state.maIdeal, 1))}`, { size: 11, color: P.ink });
+  label(ctx, w * 0.5, under(gy, h, 34), `گوه = سطح شیب‌دارِ متحرک • مزیت مکانیکی = طول ÷ ضخامت = ${fa(num(state.maIdeal, 1))}`, { size: 11, color: P.ink });
 
   if (showVectors) {
     const s = (f) => clamp((f / Math.max(state.loadN, 1)) * 76, 18, 82);
@@ -709,7 +717,7 @@ function sceneScrew(ctx, env) {
 
   dim(ctx, cx, handleY + 34, cx + Rpx, handleY + 34, `شعاع دسته ${fa(num(g.handleRadiusM * 100, 0))} سانتی‌متر`, { color: P.effort });
   label(ctx, cx - shaftW / 2 - 66, topY + 60, `گامِ پیچ ${fa(num(g.pitchM * 1000, 0))} میلی‌متر`, { size: 10, color: P.load });
-  label(ctx, w * 0.5, gy + 32, `پیچ = سطح شیب‌دارِ پیچیده‌شده دور استوانه • ${fa(state.turns)} دور چرخش لازم است`, { size: 11, color: P.ink });
+  label(ctx, w * 0.5, under(gy, h, 32), `پیچ = سطح شیب‌دارِ پیچیده‌شده دور استوانه • ${fa(state.turns)} دور چرخش لازم است`, { size: 11, color: P.ink });
 
   if (showVectors) {
     const s = (f) => clamp((f / Math.max(state.loadN, 1)) * 300, 20, 84);
@@ -863,7 +871,7 @@ function sceneCapstone(ctx, env) {
       bg: st.feasible ? 'rgba(226,247,238,.96)' : 'rgba(253,234,236,.96)'
     });
   }
-  label(ctx, w * 0.5, gy + 32,
+  label(ctx, w * 0.5, under(gy, h, 32),
     `مصالح مصرفی ${fa(state.materialsUsed)} از ${fa(state.budget)} • بیشترین نیرو ${N(state.maxForceN)} • توان ${state.puller.name}: ${fa(state.humanLimitN)} نیوتون`,
     { size: 11, color: P.ink });
   return [];
