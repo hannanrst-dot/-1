@@ -1,0 +1,12 @@
+{
+  "name": "kargah-mashinhaye-sadeh",
+  "version": "2.0.0",
+  "description": "آزمایشگاه تعاملی ماشین‌های ساده — علوم تجربی پایهٔ پنجم دبستان",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/",
+    "start": "python3 -m http.server 8080",
+    "build": "node tools/build-single-file.mjs"
+  },
+  "license": "MIT"
+}
