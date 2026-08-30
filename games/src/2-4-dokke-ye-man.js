@@ -128,7 +128,7 @@ function startDay() {
   S.active = null;
   S.tray = [];
   S.tut = { on: S.day === 1, step: 0, t: 0 };
-  S.target = 4 + S.day;
+  S.target = 5 + S.day * 2;
   // صندوقِ خرد: هر روز از نو، و با ارتقا بیشتر
   const extra = S.upgrades.includes('sandogh') ? 4 : 0;
   S.box = { 500: 6 + extra, 1000: 5 + extra, 2000: 3, 5000: 2, 10000: 0 };
@@ -168,7 +168,9 @@ function canMakeChange(amount) {
 
 function spawnCustomer() {
   const stocked = S.shelf.filter((s) => s.qty > 0);
-  const maxQueue = Math.min(3, S.day);
+  // چند مشتری هم‌زمان — همان چیزی که بازی را زنده می‌کند.
+  // فقط در حینِ آموزش یکی، تا صحنه شلوغ و گیج‌کننده نشود.
+  const maxQueue = S.tut.on ? 1 : 3;
   if (!stocked.length || S.queue.length >= maxQueue) return;
 
   // اوّلین مشتریِ روزِ اوّل عمداً ساده‌ترین حالت است: قیمت ۳۰۰۰، اسکناس
@@ -220,14 +222,14 @@ function makeCustomer(item, paidV) {
 const HUD_H = 62;
 const SHELF = { x: 32, y: 108, w: 336, h: 380 };
 const COUNTER = { x: 396, y: 520, w: 456, h: 40 };
-const BOXP = { x: 880, y: 214, w: 296, h: 392 };
+const BOXP = { x: 880, y: 202, w: 296, h: 418 };
 const TRAY = { x: 396, y: 588, w: 456, h: 104 };
 const BTN_GIVE = { x: 396, y: 704, w: 216, h: 46 };
 const BTN_BACK = { x: 636, y: 704, w: 216, h: 46 };
 const BTN_OPEN = { x: 470, y: 690, w: 260, h: 56 };
 
 function boxSlot(i) {
-  return { x: BOXP.x + 26, y: BOXP.y + 62 + i * 66, w: BOXP.w - 52, h: 54 };
+  return { x: BOXP.x + 26, y: BOXP.y + 74 + i * 66, w: BOXP.w - 52, h: 56 };
 }
 function shelfSlot(i) {
   const col = i % 2, row = Math.floor(i / 2);
@@ -251,10 +253,10 @@ function step(dt) {
 
   if (S.phase === 'day') {
     S.spawnT -= dt;
-    const rate = 6.2 - S.day * .45 - (S.upgrades.includes('tablo') ? .8 : 0);
+    const rate = 4.2 - S.day * .3 - (S.upgrades.includes('tablo') ? .6 : 0);
     if (S.spawnT <= 0 && S.served + S.queue.length < S.target) {
       spawnCustomer();
-      S.spawnT = Math.max(3.0, rate);
+      S.spawnT = Math.max(2.2, rate);
     }
     // اگر کسی انتخاب نشده، خودبه‌خود اوّلینِ صف را جلو می‌آوریم؛ بچه
     // نباید برای شروعِ کار مجبور باشد چیزی را کشف کند.
@@ -914,41 +916,55 @@ function drawPatience(x, y, c) {
   }
 }
 
-/** سفارشِ مشتریِ فعّال: جنس، پولی که داده، و باقی‌ای که باید بدهی. */
+/** سفارشِ مشتریِ فعّال. عمداً هیچ جملهٔ «این منهای این» ندارد:
+ *  فقط ارزشِ محصول و پولی که مشتری داده — و کاری که باید بکنی.
+ *  خودِ کشفِ تفریق کارِ بچه است، نه کارِ نوشته.                     */
 function drawOrderBubble(c) {
-  const x = 640, y = 74, w = 436, h = 132;
-  paper(x - w/2, y, w, h, P.paper, 31, 12, .42);
-  drawGood(c.good.art, x - w/2 + 60, y + 68, .52);
-  text(c.good.name, x - w/2 + 60, y + 84, { size: 13, color: P.inkSoft });
+  const w = 500, h = 168, x = 640, cx = x - w/2, y = 66;
+  paper(cx, y, w, h, P.paper, 31, 12, .44);
 
-  text('قیمت', x - 16, y + 28, { size: 14, color: P.inkSoft });
-  text(`${fa(c.price)} تومان`, x - 16, y + 54, { size: 24, color: P.ink, family: 'Lalezar' });
+  // راست: خودِ جنس
+  drawGood(c.good.art, cx + w - 62, y + 86, .66);
+  text(c.good.name, cx + w - 62, y + 106, { size: 14, color: P.inkSoft });
 
-  text('داده', x + 136, y + 28, { size: 14, color: P.inkSoft });
-  let px = x + 104;
-  for (const v of c.paid) { drawMoney(px, y + 56, v, .62); px += 46; }
+  // وسط: ارزشِ محصول
+  text('ارزشِ محصول', cx + w - 194, y + 32, { size: 15, color: P.inkSoft });
+  text(`${fa(c.price)}`, cx + w - 194, y + 68, { size: 34, color: P.ink, family: 'Lalezar' });
+  text('تومان', cx + w - 194, y + 96, { size: 14, color: P.inkSoft });
 
-  // چقدر باقی مانده — هدفِ بازی
+  // خطِ جداکننده
+  ctx.strokeStyle = 'rgba(125,107,78,.28)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx + 152, y + 22); ctx.lineTo(cx + 152, y + 112);
+  ctx.stroke();
+
+  // چپ: پولی که مشتری داده — بزرگ و خوانا
+  text('پولِ مشتری', cx + 78, y + 32, { size: 15, color: P.inkSoft });
+  const gap = c.paid.length > 1 ? 74 : 0;
+  c.paid.forEach((v, i) => drawMoney(cx + 78 + (i - (c.paid.length - 1) / 2) * gap, y + 78, v, 1.06));
+
+  // نوارِ پایین: فقط چیزی که باید بکنی
   const left = c.change - trayTotal();
-  ctx.fillStyle = left === 0 ? P.good : P.bad;
-  wobbleRect(x - w/2 + 12, y + h - 32, w - 24, 28, 6, 33, 1.2);
+  ctx.fillStyle = left === 0 ? P.good : left > 0 ? P.awning : P.bad;
+  wobbleRect(cx + 12, y + h - 40, w - 24, 32, 6, 33, 1.2);
   ctx.fill();
-  const paidSum = c.paid.reduce((a, b) => a + b, 0);
-  text(left > 0 ? `${fa(paidSum)} − ${fa(c.price)} = ${fa(c.change)}    ·    هنوز ${fa(left)} مانده`
-     : left === 0 ? `${fa(paidSum)} − ${fa(c.price)} = ${fa(c.change)}    ·    کامل شد ✓`
-     : `${fa(-left)} تومان زیادی گذاشته‌ای!`,
-    x, y + h - 18, { size: 17, color: '#fff8ec' });
+  text(left > 0 ? `باقی را بده:  ${fa(left)} تومان`
+     : left === 0 ? 'باقی کامل شد ✓'
+     : `${fa(-left)} تومان زیادی گذاشته‌ای`,
+    x, y + h - 24, { size: 19, color: '#fff8ec', family: 'Lalezar' });
 }
 
 /* ─── صندوق ─── */
 
 function drawCashBox() {
   paper(BOXP.x, BOXP.y, BOXP.w, BOXP.h, P.paper, 41, 12, .42);
-  text('صندوقِ پول', BOXP.x + BOXP.w/2, BOXP.y + 30, { size: 22, color: P.ink, family: 'Lalezar' });
+  text('صندوقِ پول', BOXP.x + BOXP.w/2, BOXP.y + 28, { size: 22, color: P.ink, family: 'Lalezar' });
+  text('از هر کدام چند تا مانده', BOXP.x + BOXP.w/2, BOXP.y + 48, { size: 13, color: P.inkSoft });
   ctx.strokeStyle = 'rgba(125,107,78,.3)';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(BOXP.x + 22, BOXP.y + 48); ctx.lineTo(BOXP.x + BOXP.w - 22, BOXP.y + 48);
+  ctx.moveTo(BOXP.x + 22, BOXP.y + 60); ctx.lineTo(BOXP.x + BOXP.w - 22, BOXP.y + 60);
   ctx.stroke();
 
   for (let i = 0; i < MONEY.length; i++) {
@@ -960,11 +976,11 @@ function drawCashBox() {
     ctx.globalAlpha = n > 0 ? 1 : .3;
     drawMoney(r.x + 44, r.y + r.h/2, m.v, .82);
     ctx.globalAlpha = 1;
-    text(`${fa(n)} تا`, r.x + r.w - 34, r.y + r.h/2,
-      { size: 19, color: n > 0 ? P.ink : P.bad, family: 'Lalezar' });
-    if (n === 0) {
-      text('تمام شد', r.x + r.w - 34, r.y + r.h/2 + 18, { size: 12, color: P.bad });
-    }
+    // تعدادِ باقی‌ماندهٔ همین واحد — همان چیزی که باید حواسش باشد
+    text(fa(n), r.x + r.w - 46, r.y + r.h/2 - 4,
+      { size: 28, color: n > 0 ? (n <= 1 ? P.bad : P.ink) : P.bad, family: 'Lalezar' });
+    text(n > 0 ? 'تا مانده' : 'تمام شد', r.x + r.w - 46, r.y + r.h/2 + 20,
+      { size: 12, color: n > 0 ? P.inkSoft : P.bad });
   }
 }
 
@@ -1093,8 +1109,8 @@ function drawTutorial() {
   if (!c) return;
   const steps = [
     {
-      txt: `مشتری ${c.good.name} می‌خواهد.\nقیمتش ${fa(c.price)} تومان است و ${fa(c.paid.reduce((a,b)=>a+b,0))} تومان داده.\nپس باید ${fa(c.change)} تومان به او پس بدهی.`,
-      at: () => { pointer(640, 224, 'up'); },
+      txt: `مشتری ${c.good.name} می‌خواهد.\nبالا را نگاه کن: ارزشِ محصول و پولی که داده.\nباید ${fa(c.change)} تومان باقی به او بدهی.`,
+      at: () => { spotlight({ x: 390, y: 66, w: 500, h: 168 }); },
     },
     {
       txt: `از صندوقِ پول، سکه و اسکناس بردار تا روی سینی\nروی هم ${fa(c.change)} تومان شود.`,
@@ -1117,7 +1133,7 @@ function drawTutorial() {
   const st = steps[Math.min(S.tut.step, 2)];
 
   // نوارِ آموزش، پایینِ صحنه و بیرون از راهِ دست
-  const w = 496, h = 104, x = 376, y = 218;
+  const w = 496, h = 104, x = 376, y = 250;
   ctx.save();
   ctx.globalAlpha = .96;
   paper(x, y, w, h, '#fffaf0', 81, 12, .45);
