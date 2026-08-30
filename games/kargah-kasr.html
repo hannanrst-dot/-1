@@ -1,0 +1,1570 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>نانوایی ماه‌پری — کسرها</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;700;900&display=swap">
+<style>
+  html, body { margin: 0; height: 100%; background: #2a1d16; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: default; }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════════
+   نانوایی ماه‌پری — بازی کسرها، ریاضی سوم دبستان (فصل ۳)
+   ───────────────────────────────────────────────────────────────────────
+   کل بازی روی یک بوم کشیده می‌شود؛ حتی دکمه‌ها. دلیلش یکدستی تصویری است:
+   وقتی نیمی از صفحه HTML باشد و نیمی نقاشی، هیچ‌وقت یک تابلوی واحد نمی‌شود.
+
+   سبک تصویرسازی: «کاغذبُری» — لایه‌های کاغذ رنگی با لبه‌های کمی ناصاف،
+   سایه‌ی نرم بین لایه‌ها، و یک لایه‌ی دانه‌دانه‌ی کاغذ روی کل تصویر.
+   هیچ ایموجی و هیچ فایل تصویری در کار نیست؛ همه‌چیز با مسیر کشیده می‌شود.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ───────── صحنه‌ی ثابت ─────────
+   همه‌چیز در یک صحنه‌ی ۱۲۰۰×۷۶۰ چیده می‌شود و بعد کل صحنه اندازه‌ی
+   پنجره می‌شود. این‌طور ترکیب‌بندی روی هر نمایشگری دقیقاً همان می‌ماند
+   که طراحی شده. */
+const SW = 1200, SH = 760;
+
+/* ───────── پالت ─────────
+   خمیرِ گرم، چوبِ کهنه، مربای آلبالو، پستهٔ خشک. خاکستری خالص نداریم؛
+   حتی سایه‌ها هم به قهوه‌ای می‌زنند تا تصویر سرد نشود. */
+const C = {
+  wall:      '#efdfc4',
+  wallDeep:  '#e3cfae',
+  wallShade: '#d8c09b',
+  wood:      '#a9703f',
+  woodDark:  '#8a5732',
+  woodLine:  '#94603a',
+  board:     '#c08a52',
+  boardDark: '#a06f3f',
+  cream:     '#fdf6e8',
+  plate:     '#eee3d2',
+  creamEdge: '#e6d5b8',
+  dough:     '#e8c489',
+  frost:     '#fbeada',
+  frostShade:'#e6cdb2',
+  doughEdge: '#dfbc7c',
+  crust:     '#cf9350',
+  crustDark: '#b1763a',
+  jam:       '#c8434f',
+  jamDark:   '#a3313d',
+  pistachio: '#7fa356',
+  cocoa:     '#6a4327',
+  ink:       '#43291b',
+  inkSoft:   '#8a6a52',
+  paper:     '#fbf3e2',
+  sky:       '#a9d6df',
+  skyDeep:   '#89c3cf',
+  sun:       '#f6c86a',
+  glow:      'rgba(255, 216, 150, .40)',
+  leaf:      '#6f9d54',
+};
+
+/* ───────── تصویر داستان ─────────
+   چهار پرده، هر کدام با قاعده‌ی بازی متفاوت. سفارش‌ها سخت‌تر نمی‌شوند؛
+   «جور دیگری» می‌شوند. */
+const ACTS = [
+  {
+    title: 'پردهٔ اول — شاگردِ تازه',
+    intro: 'اولین روزِ کارت در نانوایی ماه‌پری است. استادکار رفته آرد بیاورد و مغازه دستِ توست.\n' +
+           'کیک را به قسمت‌های مساوی ببُر و به‌اندازه‌ای که مشتری می‌خواهد بردار.',
+    mode: 'basic',
+    orders: [
+      { n: 1, d: 2, say: 'سلام! من نصفِ این کیک را می‌خواهم.' },
+      { n: 3, d: 4, say: 'برای من سه تا از چهار قسمتِ مساوی بگذار.' },
+      { n: 2, d: 3, say: 'کیک را سه قسمتِ مساوی کن و دو تایش را بده.' },
+    ],
+  },
+  {
+    title: 'پردهٔ دوم — ترازوی استادکار',
+    intro: 'استادکار یک ترازوی قدیمی دارد که به عدد کاری ندارد.\n' +
+           'این بار روی کاغذِ سفارش هیچ عددی نوشته نشده — فقط شکل. تا ترازو صاف نشود، سفارش تحویل نمی‌رود.',
+    mode: 'scale',
+    orders: [
+      { n: 2, d: 4, say: 'من این‌قدر می‌خواهم… ببین ترازو چه می‌گوید.' },
+      { n: 5, d: 8, say: 'کمی بیشتر از نصف. ترازو راهنمایت است.' },
+    ],
+  },
+  {
+    title: 'پردهٔ سوم — دفترچهٔ مادربزرگ',
+    intro: 'در دفترچهٔ مادربزرگ نوشته «نصفِ کیک»، اما قالبِ امروز از قبل بریده شده\n' +
+           'و تعدادِ قسمت‌هایش با چیزی که نوشته جور نیست. باید راهِ دیگرش را خودت پیدا کنی.',
+    mode: 'locked',
+    orders: [
+      { n: 1, d: 2, fixed: 6, say: 'نصفِ کیک… ولی این قالب شش‌قسمتی است!' },
+      { n: 1, d: 3, fixed: 6, say: 'یک‌سومِ کیک، از همین قالبِ شش‌قسمتی.' },
+      { n: 3, d: 4, fixed: 8, say: 'سه‌چهارمِ کیک، از قالبِ هشت‌قسمتی.' },
+    ],
+  },
+  {
+    title: 'پردهٔ چهارم — شبِ جشن',
+    intro: 'شبِ جشن است و مشتری‌ها دو نفری می‌آیند.\n' +
+           'سهمِ هر دو را باید از یک کیک برداری — یعنی دو کسر را با هم جمع کنی.',
+    mode: 'sum',
+    orders: [
+      { parts: [{ n: 1, d: 6 }, { n: 2, d: 6 }], say: 'من یک قسمت، دوستم دو قسمت. از شش قسمت.' },
+      { parts: [{ n: 2, d: 8 }, { n: 3, d: 8 }], say: 'دو تا برای من، سه تا برای او. از هشت قسمت.' },
+    ],
+  },
+];
+
+/* ───────── شخصیت‌ها ─────────
+   هر مشتری از چند عدد ساخته می‌شود، نه از تصویر: رنگ پوست/خز، مدل مو،
+   کلاه، و گوش. همین چند پارامتر ده‌ها آدمِ متفاوت می‌سازد. */
+const GUESTS = [
+  { skin: '#f0c39a', hair: '#4a3220', cloth: '#7fa8c9', kind: 'kid',    hat: 'none'  },
+  { skin: '#d9a071', hair: '#2f2018', cloth: '#d98f5a', kind: 'kid',    hat: 'cap'   },
+  { skin: '#c08b5e', hair: '#8a6a52', cloth: '#9db97a', kind: 'granny', hat: 'scarf' },
+  { skin: '#c9a274', hair: '#3a2a1c', cloth: '#c58aa8', kind: 'kid',    hat: 'none'  },
+  { skin: '#b98a5c', hair: '#5a3a24', cloth: '#8fb8a8', kind: 'cat',    hat: 'none'  },
+  { skin: '#e2b184', hair: '#3a2a1c', cloth: '#b08fc9', kind: 'kid',    hat: 'cap'   },
+  { skin: '#caa079', hair: '#4a3220', cloth: '#c9a25a', kind: 'bear',   hat: 'none'  },
+  { skin: '#eec39c', hair: '#2f2018', cloth: '#7fa8c9', kind: 'kid',    hat: 'scarf' },
+];
+
+/* ═══════════════════════════════════════════════════════════════════
+   ابزارهای پایه
+   ═══════════════════════════════════════════════════════════════════ */
+
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const FA = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+const fa = (n) => String(n).replace(/\d/g, (d) => FA[+d]);
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+const easeInOut = (t) => (t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2);
+const easeBack = (t) => 1 + 2.7 * Math.pow(t-1, 3) + 1.7 * Math.pow(t-1, 2);
+
+/** نویزِ تکرارشونده‌ی بی‌تصادف — با همان بذر همیشه همان نتیجه. */
+function noise1(x) {
+  const s = Math.sin(x * 127.1) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   بوم و مقیاس
+   ═══════════════════════════════════════════════════════════════════ */
+
+const cv = document.getElementById('stage');
+const ctx = cv.getContext('2d');
+let view = { scale: 1, ox: 0, oy: 0, w: SW, h: SH };
+let grain = null;
+
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const w = innerWidth, h = innerHeight;
+  cv.width = Math.round(w * dpr);
+  cv.height = Math.round(h * dpr);
+  const scale = Math.min(w / SW, h / SH);
+  view = { scale, ox: (w - SW * scale) / 2, oy: (h - SH * scale) / 2, w, h, dpr };
+}
+addEventListener('resize', resize);
+resize();
+
+/** بافتِ کاغذ: یک‌بار ساخته و بعد روی کل تصویر ضرب می‌شود. */
+function buildGrain() {
+  const s = 260;
+  const off = document.createElement('canvas');
+  off.width = off.height = s;
+  const c = off.getContext('2d');
+  const img = c.createImageData(s, s);
+  for (let i = 0; i < s * s; i++) {
+    const v = 214 + Math.random() * 41;
+    img.data[i*4] = v; img.data[i*4+1] = v; img.data[i*4+2] = v;
+    img.data[i*4+3] = 255;
+  }
+  c.putImageData(img, 0, 0);
+  return ctx.createPattern(off, 'repeat');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   قلم‌های کاغذبُری
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** دایره‌ای که انگار با قیچی بریده شده: شعاعش کمی موج دارد. */
+function wobbleCircle(cx, cy, r, seed = 0, amp = 2.2, steps = 64) {
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * TAU;
+    const rr = r + Math.sin(a * 3 + seed) * amp + Math.sin(a * 7 + seed * 2.3) * amp * .45;
+    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/** مستطیلِ گِرد با لبه‌های کمی کج — همان حسِ بریده‌شده با دست. */
+function wobbleRect(x, y, w, h, r = 12, seed = 0, amp = 1.6) {
+  const j = (k) => (noise1(seed * 9.7 + k) - .5) * amp * 2;
+  ctx.beginPath();
+  ctx.moveTo(x + r + j(1), y + j(2));
+  ctx.lineTo(x + w - r + j(3), y + j(4));
+  ctx.quadraticCurveTo(x + w + j(5), y + j(6), x + w + j(7), y + r + j(8));
+  ctx.lineTo(x + w + j(9), y + h - r + j(10));
+  ctx.quadraticCurveTo(x + w + j(11), y + h + j(12), x + w - r + j(13), y + h + j(14));
+  ctx.lineTo(x + r + j(15), y + h + j(16));
+  ctx.quadraticCurveTo(x + j(17), y + h + j(18), x + j(19), y + h - r + j(20));
+  ctx.lineTo(x + j(21), y + r + j(22));
+  ctx.quadraticCurveTo(x + j(23), y + j(24), x + r + j(1), y + j(2));
+  ctx.closePath();
+}
+
+/** سایه‌ی نرمِ زیرِ لایه‌ی کاغذ. نور همیشه از بالا-چپ می‌تابد. */
+function withShadow(blur, dy, alpha, fn) {
+  ctx.save();
+  ctx.shadowColor = `rgba(78, 46, 24, ${alpha})`;
+  ctx.shadowBlur = blur;
+  ctx.shadowOffsetY = dy;
+  ctx.shadowOffsetX = dy * .35;
+  fn();
+  ctx.restore();
+}
+
+/** نوشتن با فونت درست و راست‌چین. */
+function text(str, x, y, {
+  size = 20, weight = 700, family = 'Vazirmatn', color = C.ink,
+  align = 'center', baseline = 'middle', alpha = 1, maxWidth,
+} = {}) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = `${family === 'Lalezar' ? '400' : weight} ${size}px "${family}", Tahoma, sans-serif`;
+  ctx.textAlign = align;
+  ctx.textBaseline = baseline;
+  ctx.fillStyle = color;
+  ctx.direction = 'rtl';
+  ctx.fillText(str, x, y, maxWidth);
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   وضعیت بازی
+   ═══════════════════════════════════════════════════════════════════ */
+
+const S = {
+  act: 0, order: 0,
+  phase: 'intro',          // intro | play | reward | finale
+  den: 4,
+  taken: [],               // برای هر برش: ۰ روی کیک، ۱ روی بشقاب
+  fly: [],                 // پیشرفتِ نرمِ پرواز هر برش
+  cutAnim: 1,
+  hover: null,
+  stars: 0,
+  t: 0,
+  guest: 0,
+  mood: 'idle',            // idle | happy | think | wonder
+  moodT: 0,
+  blink: 0,
+  scaleTilt: 0,
+  shake: 0,
+  bits: [],                // ذرات
+  introT: 0,
+  toast: null,
+};
+
+function order() { return ACTS[S.act].orders[S.order]; }
+function mode() { return ACTS[S.act].mode; }
+
+/** مقدارِ خواسته‌شده به‌صورت کسر. در پردهٔ جشن، جمعِ دو سهم. */
+function want() {
+  const o = order();
+  if (o.parts) return o.parts.reduce((s, p) => s + p.n / p.d, 0);
+  return o.n / o.d;
+}
+function takenCount() { return S.taken.reduce((a, b) => a + b, 0); }
+function mine() { return takenCount() / S.den; }
+
+function setDen(n, instant) {
+  S.den = clamp(n, 2, 12);
+  S.taken = new Array(S.den).fill(0);
+  S.fly = new Array(S.den).fill(0);
+  S.cutAnim = instant ? 1 : 0;
+}
+
+function loadOrder(actIdx, orderIdx) {
+  S.act = actIdx; S.order = orderIdx;
+  const o = order();
+  const fixed = o.fixed || (o.parts ? o.parts[0].d : null);
+  setDen(fixed || 4, true);
+  S.guest = (actIdx * 3 + orderIdx) % GUESTS.length;
+  S.mood = 'idle'; S.moodT = 0;
+  S.scaleTilt = 0;
+  S.phase = 'play';
+}
+
+function startAct(i) {
+  S.act = i; S.order = 0;
+  S.phase = 'intro'; S.introT = 0;
+  const o = ACTS[i].orders[0];
+  const fixed = o.fixed || (o.parts ? o.parts[0].d : null);
+  setDen(fixed || 4, true);
+  S.guest = (i * 3) % GUESTS.length;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ذرات — خرده‌کیک، برق، و کاغذرنگی
+   ═══════════════════════════════════════════════════════════════════ */
+
+function burst(x, y, n, kind) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * TAU;
+    const sp = kind === 'confetti' ? 120 + Math.random()*380 : 40 + Math.random()*170;
+    S.bits.push({
+      kind, x, y,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - (kind === 'confetti' ? 190 : 40),
+      r: 2 + Math.random() * (kind === 'confetti' ? 5 : 3),
+      rot: Math.random() * TAU, vr: (Math.random() - .5) * 10,
+      col: kind === 'confetti'
+        ? [C.jam, C.pistachio, C.sun, C.sky, C.crust][(Math.random()*5)|0]
+        : C.crust,
+      life: .6 + Math.random() * (kind === 'confetti' ? 1.2 : .5), age: 0,
+    });
+  }
+}
+
+function stepBits(dt) {
+  for (const p of S.bits) {
+    p.age += dt;
+    p.vy += (p.kind === 'confetti' ? 780 : 520) * dt;
+    p.vx *= .995;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+  }
+  S.bits = S.bits.filter((p) => p.age < p.life);
+}
+
+function drawBits() {
+  for (const p of S.bits) {
+    const k = 1 - p.age / p.life;
+    ctx.save();
+    ctx.globalAlpha = clamp(k, 0, 1);
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.fillStyle = p.col;
+    if (p.kind === 'confetti') ctx.fillRect(-p.r, -p.r * 1.5, p.r * 2, p.r * 3);
+    else { ctx.beginPath(); ctx.arc(0, 0, p.r, 0, TAU); ctx.fill(); }
+    ctx.restore();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   پس‌زمینه: دیوار، پنجره، قفسه، چراغ، پیشخان
+   ═══════════════════════════════════════════════════════════════════ */
+
+function drawRoom() {
+  // دیوار
+  const g = ctx.createLinearGradient(0, 0, 0, 520);
+  g.addColorStop(0, C.wall);
+  g.addColorStop(1, C.wallDeep);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, SW, 520);
+
+  // قابِ کمرنگِ پایینِ دیوار — فقط برای اینکه دیوار تخت نباشد
+  ctx.strokeStyle = C.wallShade;
+  ctx.globalAlpha = .55;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, 452); ctx.lineTo(SW, 452);
+  ctx.stroke();
+  ctx.globalAlpha = .3;
+  for (let x = 40; x < SW; x += 118) {
+    ctx.strokeRect(x, 466, 78, 24);
+  }
+  ctx.globalAlpha = 1;
+
+  drawWindow(78, 62, 210, 190);
+  drawShelf(322, 96);
+  drawLamp(620, 0);
+
+  // پیشخان چوبی
+  const wg = ctx.createLinearGradient(0, 500, 0, SH);
+  wg.addColorStop(0, C.wood);
+  wg.addColorStop(1, C.woodDark);
+  ctx.fillStyle = wg;
+  ctx.fillRect(0, 500, SW, SH - 500);
+  // لبه‌ی روشنِ پیشخان
+  ctx.fillStyle = '#c08a52';
+  ctx.fillRect(0, 500, SW, 13);
+  ctx.fillStyle = 'rgba(255,236,205,.35)';
+  ctx.fillRect(0, 500, SW, 4);
+  // درزِ تخته‌ها
+  ctx.strokeStyle = C.woodLine;
+  ctx.globalAlpha = .55;
+  ctx.lineWidth = 2;
+  for (let x = 130; x < SW; x += 210) {
+    ctx.beginPath();
+    ctx.moveTo(x + Math.sin(x) * 4, 513);
+    ctx.lineTo(x, SH);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // هالهٔ نورِ چراغ روی پیشخان
+  const lg = ctx.createRadialGradient(620, 300, 40, 620, 340, 470);
+  lg.addColorStop(0, C.glow);
+  lg.addColorStop(1, 'rgba(255,216,150,0)');
+  ctx.fillStyle = lg;
+  ctx.fillRect(0, 0, SW, SH);
+}
+
+function drawWindow(x, y, w, h) {
+  withShadow(18, 6, .18, () => {
+    ctx.fillStyle = C.cream;
+    wobbleRect(x - 10, y - 10, w + 20, h + 20, 10, 3);
+    ctx.fill();
+  });
+  // آسمان
+  const sg = ctx.createLinearGradient(0, y, 0, y + h);
+  sg.addColorStop(0, C.sky);
+  sg.addColorStop(1, C.skyDeep);
+  ctx.fillStyle = sg;
+  wobbleRect(x, y, w, h, 6, 7, 1);
+  ctx.fill();
+  // خورشید و تپه
+  ctx.save();
+  wobbleRect(x, y, w, h, 6, 7, 1);
+  ctx.clip();
+  ctx.fillStyle = C.sun;
+  wobbleCircle(x + w * .72, y + h * .28, 26, 2, 1.6);
+  ctx.fill();
+  ctx.fillStyle = C.leaf;
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y + h);
+  ctx.quadraticCurveTo(x + w * .3, y + h * .58, x + w * .62, y + h);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#5c8746';
+  ctx.beginPath();
+  ctx.moveTo(x + w * .35, y + h);
+  ctx.quadraticCurveTo(x + w * .75, y + h * .66, x + w + 10, y + h);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // چهارچوب
+  ctx.strokeStyle = C.cream;
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2, y + h);
+  ctx.moveTo(x, y + h / 2); ctx.lineTo(x + w, y + h / 2);
+  ctx.stroke();
+}
+
+function drawShelf(x, y) {
+  const w = 244;
+  // نان‌های روی قفسه
+  const loaves = [
+    { dx: 24,  r: 25, col: C.crust },
+    { dx: 88,  r: 21, col: '#e8c489' },
+    { dx: 144, r: 27, col: C.crustDark },
+    { dx: 206, r: 22, col: C.crust },
+  ];
+  for (const L of loaves) {
+    withShadow(10, 4, .16, () => {
+      ctx.fillStyle = L.col;
+      ctx.save();
+      ctx.translate(x + L.dx, y + 32 - L.r * .2);
+      ctx.scale(1.5, .74);
+      wobbleCircle(0, 0, L.r, L.dx, 2);
+      ctx.fill();
+      ctx.restore();
+    });
+    // خطّ‌های برشِ روی نان
+    ctx.strokeStyle = 'rgba(120,72,34,.32)';
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
+    for (let k = -1; k <= 1; k++) {
+      ctx.beginPath();
+      ctx.moveTo(x + L.dx + k * L.r * .5 - 5, y + 24 - L.r * .16);
+      ctx.lineTo(x + L.dx + k * L.r * .5 + 5, y + 30 + L.r * .1);
+      ctx.stroke();
+    }
+  }
+  // تخته‌ی قفسه
+  withShadow(14, 5, .2, () => {
+    ctx.fillStyle = C.board;
+    wobbleRect(x - 14, y + 48, w + 28, 16, 5, 11, 1.2);
+    ctx.fill();
+  });
+  ctx.fillStyle = C.boardDark;
+  wobbleRect(x - 14, y + 58, w + 28, 6, 3, 12, 1);
+  ctx.fill();
+}
+
+function drawLamp(x, topY) {
+  ctx.strokeStyle = C.cocoa;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x, topY); ctx.lineTo(x, topY + 74);
+  ctx.stroke();
+  withShadow(16, 6, .2, () => {
+    ctx.fillStyle = C.jam;
+    ctx.beginPath();
+    ctx.moveTo(x - 52, topY + 132);
+    ctx.quadraticCurveTo(x - 40, topY + 74, x, topY + 72);
+    ctx.quadraticCurveTo(x + 40, topY + 74, x + 52, topY + 132);
+    ctx.closePath();
+    ctx.fill();
+  });
+  ctx.fillStyle = C.jamDark;
+  ctx.beginPath();
+  ctx.ellipse(x, topY + 132, 52, 9, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = '#ffe9b8';
+  ctx.beginPath();
+  ctx.ellipse(x, topY + 130, 34, 6, 0, 0, TAU);
+  ctx.fill();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   کیک و برش‌ها
+   ═══════════════════════════════════════════════════════════════════ */
+
+const CAKE = { x: 620, y: 348, r: 128 };
+const PLATE = { x: 244, y: 378, r: 112 };
+
+/** مسیرِ یک برش، با لبه‌ی بیرونیِ ناصاف تا مثل بریده‌شده به‌نظر برسد. */
+function slicePath(cx, cy, r, a0, a1, seed) {
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  const steps = Math.max(6, Math.ceil((a1 - a0) / .09));
+  for (let i = 0; i <= steps; i++) {
+    const a = a0 + (a1 - a0) * (i / steps);
+    const rr = r + Math.sin(a * 3 + seed) * 2.2 + Math.sin(a * 7 + seed * 2.3) * 1;
+    ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+  }
+  ctx.closePath();
+}
+
+function drawBoard() {
+  withShadow(26, 12, .26, () => {
+    ctx.fillStyle = C.board;
+    wobbleCircle(CAKE.x, CAKE.y + 6, CAKE.r + 34, 5, 3);
+    ctx.fill();
+  });
+  ctx.fillStyle = C.boardDark;
+  ctx.globalAlpha = .45;
+  wobbleCircle(CAKE.x, CAKE.y + 6, CAKE.r + 24, 9, 2.4);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // دستمالِ توریِ کاغذی زیرِ کیک — کیک را از تختهٔ تیره جدا می‌کند
+  ctx.fillStyle = C.paper;
+  const teeth = 44, rd = CAKE.r + 15;
+  ctx.beginPath();
+  for (let i = 0; i <= teeth; i++) {
+    const a = (i / teeth) * TAU;
+    const rr = rd + (i % 2 ? 0 : 7);
+    const x = CAKE.x + Math.cos(a) * rr, y = CAKE.y + Math.sin(a) * rr;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = .35;
+  ctx.strokeStyle = C.creamEdge;
+  ctx.lineWidth = 2;
+  wobbleCircle(CAKE.x, CAKE.y, CAKE.r + 7, 19, 1.4);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawPlate() {
+  withShadow(30, 14, .32, () => {
+    ctx.fillStyle = C.plate;
+    wobbleCircle(PLATE.x, PLATE.y, PLATE.r, 13, 3);
+    ctx.fill();
+  });
+  ctx.fillStyle = C.cream;                       // گودیِ روشنِ وسطِ بشقاب
+  wobbleCircle(PLATE.x, PLATE.y, PLATE.r - 13, 15, 2.6);
+  ctx.fill();
+  ctx.strokeStyle = C.creamEdge;
+  ctx.lineWidth = 3;
+  wobbleCircle(PLATE.x, PLATE.y, PLATE.r - 16, 17, 2.2);
+  ctx.stroke();
+  // نقشِ گلِ کوچک وسط بشقاب، اگر خالی است
+  if (takenCount() === 0) {
+    ctx.globalAlpha = .5;
+    ctx.fillStyle = C.creamEdge;
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * TAU / 5;
+      wobbleCircle(PLATE.x + Math.cos(a) * 15, PLATE.y + Math.sin(a) * 15, 9, i, 1);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    text('بشقابِ مشتری', PLATE.x, PLATE.y + 52,
+      { size: 16, color: 'rgba(138,106,82,.75)', family: 'Vazirmatn', weight: 700 });
+  }
+}
+
+function drawCake() {
+  const step = TAU / S.den;
+  const shakeX = S.shake > 0 ? Math.sin(S.shake * 55) * 6 : 0;
+
+  // جای خالیِ برش‌های رفته — روی تخته دیده می‌شود
+  ctx.save();
+  ctx.globalAlpha = .35;
+  ctx.setLineDash([8, 7]);
+  ctx.strokeStyle = C.boardDark;
+  ctx.lineWidth = 2;
+  for (let i = 0; i < S.den; i++) {
+    if (S.fly[i] < .12) continue;
+    slicePath(CAKE.x, CAKE.y, CAKE.r, -Math.PI/2 + i*step + .012, -Math.PI/2 + (i+1)*step - .012, i);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  for (let i = 0; i < S.den; i++) drawSlice(i, step, shakeX);
+}
+
+function drawSlice(i, step, shakeX) {
+  const f = easeInOut(clamp(S.fly[i], 0, 1));
+  const a0 = -Math.PI / 2 + i * step, a1 = a0 + step;
+  const mid = (a0 + a1) / 2;
+  const cut = clamp(S.cutAnim * S.den - i, 0, 1);
+  const gap = cut * 2 + (f > .02 ? 3 : 0);
+
+  const x = lerp(CAKE.x + shakeX, PLATE.x, f) + Math.cos(mid) * gap;
+  const y = lerp(CAKE.y, PLATE.y, f) - Math.sin(Math.PI * f) * 90 + Math.sin(mid) * gap;
+  const lift = Math.sin(Math.PI * f);
+  const sc = 1 + lift * .1;
+  const hot = S.hover === i && f < .5 && S.phase === 'play';
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(sc, sc);
+
+  // سایه‌ی برش
+  ctx.save();
+  ctx.globalAlpha = .22 + lift * .18;
+  ctx.fillStyle = '#4e2e18';
+  ctx.translate(4 + lift * 10, 9 + lift * 16);
+  slicePath(0, 0, CAKE.r, a0, a1, i);
+  ctx.fill();
+  ctx.restore();
+
+  // بدنه‌ی کیک (خمیر)
+  slicePath(0, 0, CAKE.r, a0, a1, i);
+  ctx.fillStyle = C.dough;
+  ctx.fill();
+
+  // سطحِ خامه — یک لایهٔ یکدست، نه حلقه‌های تودرتو
+  ctx.save();
+  slicePath(0, 0, CAKE.r, a0, a1, i);
+  ctx.clip();
+  ctx.fillStyle = hot ? '#fff6e4' : C.frost;
+  slicePath(0, 0, CAKE.r * .92, a0 + .02, a1 - .02, i + 3);
+  ctx.fill();
+  // چند موجِ خیلی کمرنگ روی خامه، برای اینکه سطح تخت نباشد
+  ctx.globalAlpha = .32;
+  ctx.strokeStyle = C.frostShade;
+  ctx.lineWidth = 3;
+  for (let k = 1; k <= 2; k++) {
+    ctx.beginPath();
+    ctx.arc(0, 0, CAKE.r * (.34 + k * .24), a0 + .1, a1 - .1);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // حاشیهٔ خامهٔ ماسوره‌ای دورِ کیک
+  const dots = Math.max(2, Math.round(step / .22));
+  for (let k = 0; k <= dots; k++) {
+    const aa = a0 + (a1 - a0) * (k / dots);
+    ctx.fillStyle = hot ? '#fff6e4' : C.frost;
+    wobbleCircle(Math.cos(aa) * (CAKE.r - 9), Math.sin(aa) * (CAKE.r - 9), 8, i * 7 + k, .9);
+    ctx.fill();
+  }
+
+  // تزئین: توت‌فرنگی و خردهٔ پسته، پراکنده اما ثابت
+  const seedA = mid + i * 1.7;
+  const decor = S.den <= 5 ? 4 : S.den <= 8 ? 2 : 1;
+  for (let k = 0; k < decor; k++) {
+    const rr = CAKE.r * (.30 + noise1(i * 3 + k) * .40);
+    const aa = a0 + step * (.28 + noise1(i * 5 + k) * .44);
+    const bx = Math.cos(aa) * rr, by = Math.sin(aa) * rr;
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.rotate(seedA + k * 1.3);
+    if (k % 2 === 0) {                   // نصفِ توت‌فرنگی
+      ctx.fillStyle = C.jam;
+      ctx.beginPath();
+      ctx.moveTo(-9, -7);
+      ctx.quadraticCurveTo(9, -9, 8, 2);
+      ctx.quadraticCurveTo(4, 12, -1, 12);
+      ctx.quadraticCurveTo(-9, 8, -9, -7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#e8737d';
+      ctx.beginPath();
+      ctx.ellipse(-1, 1, 4, 6, .2, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = C.leaf;
+      ctx.beginPath();
+      ctx.moveTo(-10, -8); ctx.lineTo(2, -12); ctx.lineTo(-2, -5);
+      ctx.closePath(); ctx.fill();
+    } else {                             // خردهٔ پسته
+      ctx.fillStyle = C.pistachio;
+      for (let m = 0; m < 3; m++) {
+        ctx.save();
+        ctx.rotate(m * 1.9);
+        ctx.fillRect(-1.7, -6 - m, 3.4, 7);
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+
+  // لبه‌ی برش‌خورده
+  if (cut > .03) {
+    ctx.strokeStyle = `rgba(200,150,92,${.75 * cut})`;   // مقطعِ بریده‌شده
+    ctx.lineWidth = 2.6;
+    slicePath(0, 0, CAKE.r, a0, a1, i);
+    ctx.stroke();
+  }
+  if (hot) {
+    ctx.strokeStyle = 'rgba(255,255,255,.95)';
+    ctx.lineWidth = 3;
+    slicePath(0, 0, CAKE.r + 3, a0, a1, i);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   مشتری
+   ═══════════════════════════════════════════════════════════════════ */
+
+function drawGuest(gx, gy) {
+  const g = GUESTS[S.guest];
+  const bob = Math.sin(S.t * 1.7) * 4;
+  const happy = S.mood === 'happy';
+  const y = gy + bob + (happy ? Math.abs(Math.sin(S.t * 7)) * -9 : 0);
+
+  ctx.save();
+  ctx.translate(gx, y);
+
+  // تن
+  withShadow(18, 8, .2, () => {
+    ctx.fillStyle = g.cloth;
+    ctx.beginPath();
+    ctx.moveTo(-56, 168);
+    ctx.quadraticCurveTo(-62, 44, 0, 34);
+    ctx.quadraticCurveTo(62, 44, 56, 168);
+    ctx.closePath();
+    ctx.fill();
+  });
+  // یقه
+  ctx.fillStyle = 'rgba(255,255,255,.3)';
+  ctx.beginPath();
+  ctx.moveTo(-22, 40); ctx.quadraticCurveTo(0, 62, 22, 40);
+  ctx.quadraticCurveTo(0, 48, -22, 40);
+  ctx.closePath(); ctx.fill();
+
+  // دست‌ها
+  ctx.strokeStyle = g.skin;
+  ctx.lineWidth = 15;
+  ctx.lineCap = 'round';
+  const wave = happy ? Math.sin(S.t * 9) * .5 : Math.sin(S.t * 1.5) * .12;
+  ctx.beginPath();
+  ctx.moveTo(-48, 78);
+  ctx.lineTo(-70 - Math.sin(wave) * 8, 128 - (happy ? 66 : 0));
+  ctx.moveTo(48, 78);
+  ctx.lineTo(70 + Math.sin(wave) * 8, 128);
+  ctx.stroke();
+
+  // سر
+  withShadow(14, 6, .18, () => {
+    ctx.fillStyle = g.skin;
+    wobbleCircle(0, -18, 50, S.guest, 2);
+    ctx.fill();
+  });
+
+  // گوشِ حیوان‌ها
+  if (g.kind === 'cat' || g.kind === 'bear') {
+    ctx.fillStyle = g.skin;
+    for (const s of [-1, 1]) {
+      if (g.kind === 'cat') {
+        ctx.beginPath();
+        ctx.moveTo(s * 20, -58); ctx.lineTo(s * 44, -86); ctx.lineTo(s * 46, -50);
+        ctx.closePath(); ctx.fill();
+      } else {
+        wobbleCircle(s * 38, -52, 17, s + 4, 1.4);
+        ctx.fill();
+      }
+    }
+  } else {
+    // مو
+    ctx.fillStyle = g.hair;
+    ctx.beginPath();
+    ctx.moveTo(-50, -22);
+    ctx.quadraticCurveTo(-54, -76, 0, -70);
+    ctx.quadraticCurveTo(54, -76, 50, -22);
+    ctx.quadraticCurveTo(30, -44, 0, -40);
+    ctx.quadraticCurveTo(-30, -44, -50, -22);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // کلاه یا روسری
+  if (g.hat === 'cap') {
+    ctx.fillStyle = C.jam;
+    ctx.beginPath();
+    ctx.moveTo(-48, -44);
+    ctx.quadraticCurveTo(0, -96, 48, -44);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = C.jamDark;
+    ctx.beginPath();
+    ctx.ellipse(-40, -42, 30, 8, -.15, 0, TAU);
+    ctx.fill();
+  } else if (g.hat === 'scarf') {
+    ctx.fillStyle = C.pistachio;
+    ctx.beginPath();
+    ctx.moveTo(-52, -26);
+    ctx.quadraticCurveTo(0, -92, 52, -26);
+    ctx.quadraticCurveTo(30, -40, 0, -38);
+    ctx.quadraticCurveTo(-30, -40, -52, -26);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // چشم‌ها
+  const blink = S.blink > 0 ? 1 - S.blink / .13 : 1;
+  const eh = happy ? 0 : Math.max(.08, Math.abs(blink)) * 7;
+  ctx.fillStyle = C.ink;
+  for (const s of [-1, 1]) {
+    if (happy) {
+      ctx.strokeStyle = C.ink; ctx.lineWidth = 4; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(s * 19, -24, 10, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.ellipse(s * 19, -22, 6, eh, 0, 0, TAU);
+      ctx.fill();
+    }
+  }
+  // ابرو در حالت فکر
+  if (S.mood === 'think' || S.mood === 'wonder') {
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-28, -42); ctx.lineTo(-10, -38 + (S.mood === 'wonder' ? -6 : 0));
+    ctx.moveTo(28, -42); ctx.lineTo(10, -38);
+    ctx.stroke();
+  }
+  // دهان
+  ctx.strokeStyle = C.ink; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath();
+  if (happy) ctx.arc(0, -4, 15, .12 * Math.PI, .88 * Math.PI);
+  else if (S.mood === 'think') { ctx.moveTo(-9, 2); ctx.lineTo(9, 0); }
+  else ctx.arc(0, -8, 11, .18 * Math.PI, .82 * Math.PI);
+  ctx.stroke();
+
+  // گونه
+  ctx.globalAlpha = .35;
+  ctx.fillStyle = C.jam;
+  wobbleCircle(-32, -8, 9, 1, .8); ctx.fill();
+  wobbleCircle(32, -8, 9, 2, .8); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+}
+
+/** حبابِ گفت‌وگو با دُم به‌سمت مشتری. */
+function drawBubble(x, y, w, h, sayText) {
+  withShadow(16, 7, .18, () => {
+    ctx.fillStyle = C.paper;
+    wobbleRect(x, y, w, h, 20, 21, 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + w - 6, y + h * .5);
+    ctx.lineTo(x + w + 30, y + h * .38);
+    ctx.lineTo(x + w - 8, y + h * .74);
+    ctx.closePath();
+    ctx.fill();
+  });
+  // متن، در چند خط
+  const words = sayText.split(' ');
+  const lines = [];
+  let line = '';
+  ctx.font = `700 20px "Vazirmatn", Tahoma, sans-serif`;
+  for (const wd of words) {
+    const test = line ? line + ' ' + wd : wd;
+    if (ctx.measureText(test).width > w - 40 && line) { lines.push(line); line = wd; }
+    else line = test;
+  }
+  if (line) lines.push(line);
+  const startY = y + h / 2 - (lines.length - 1) * 15;
+  lines.forEach((l, i) => text(l, x + w / 2, startY + i * 30, { size: 20, color: C.ink }));
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   کاغذِ سفارش — روی پیشخان، با گیره
+   ═══════════════════════════════════════════════════════════════════ */
+
+const TICKET = { x: 372, y: 546, w: 236, h: 186 };
+
+function drawTicket() {
+  const o = order();
+  ctx.save();
+  ctx.translate(TICKET.x + TICKET.w / 2, TICKET.y + TICKET.h / 2);
+  ctx.rotate(-.028);
+  ctx.translate(-TICKET.w / 2, -TICKET.h / 2);
+
+  withShadow(18, 8, .26, () => {
+    ctx.fillStyle = C.paper;
+    wobbleRect(0, 0, TICKET.w, TICKET.h, 6, 31, 2);
+    ctx.fill();
+  });
+  // خط‌های دفترچه
+  ctx.strokeStyle = 'rgba(160,120,80,.22)';
+  ctx.lineWidth = 1.5;
+  for (let y = 46; y < TICKET.h - 10; y += 26) {
+    ctx.beginPath(); ctx.moveTo(14, y); ctx.lineTo(TICKET.w - 14, y); ctx.stroke();
+  }
+  // سرتیتر
+  ctx.fillStyle = C.jam;
+  wobbleRect(0, 0, TICKET.w, 30, 6, 33, 1.4);
+  ctx.fill();
+  text('سفارش', TICKET.w / 2, 15, { size: 17, color: '#fff6e6', family: 'Vazirmatn', weight: 900 });
+
+  // بدنه: بسته به پرده فرق می‌کند
+  if (mode() === 'basic') {
+    drawFractionGlyph(TICKET.w / 2 - 40, 108, o.n, o.d, 40, C.ink);
+    drawMiniPie(TICKET.w / 2 + 58, 108, 34, o.n, o.d);
+  } else if (mode() === 'locked') {
+    text(wordFor(o.n, o.d), TICKET.w / 2, 74, { size: 24, color: C.ink, family: 'Lalezar' });
+    drawMiniPie(TICKET.w / 2, 130, 38, o.n, o.d);
+  } else if (mode() === 'scale') {
+    text('به‌اندازهٔ این شکل', TICKET.w / 2, 60, { size: 16, color: C.inkSoft });
+    drawMiniPie(TICKET.w / 2, 126, 44, o.n, o.d);
+  } else { // sum
+    const [p, q] = o.parts;
+    drawFractionGlyph(TICKET.w / 2 + 54, 104, p.n, p.d, 30, C.ink);
+    text('+', TICKET.w / 2, 104, { size: 26, color: C.inkSoft, family: 'Lalezar' });
+    drawFractionGlyph(TICKET.w / 2 - 54, 104, q.n, q.d, 30, C.ink);
+    text('هر دو از یک کیک', TICKET.w / 2, 158, { size: 15, color: C.inkSoft });
+  }
+  ctx.restore();
+
+  // گیرهٔ کاغذ
+  ctx.save();
+  ctx.translate(TICKET.x + TICKET.w / 2, TICKET.y - 2);
+  ctx.fillStyle = C.woodDark;
+  wobbleRect(-26, -12, 52, 26, 5, 41, 1);
+  ctx.fill();
+  ctx.fillStyle = '#d9c3a4';
+  wobbleRect(-20, -6, 40, 8, 3, 43, .8);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** کسر با خطِ کشیده — نه دو عدد شناور. */
+function drawFractionGlyph(x, y, n, d, size, color) {
+  text(fa(n), x, y - size * .52, { size, color, family: 'Lalezar' });
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2.5, size * .07);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x - size * .42, y);
+  ctx.lineTo(x + size * .42, y);
+  ctx.stroke();
+  text(fa(d), x, y + size * .55, { size, color, family: 'Lalezar' });
+}
+
+function drawMiniPie(x, y, r, n, d) {
+  ctx.save();
+  ctx.fillStyle = C.doughEdge;
+  wobbleCircle(x, y, r, 51, 1.2);
+  ctx.fill();
+  ctx.fillStyle = C.jam;
+  for (let i = 0; i < n; i++) {
+    const a0 = -Math.PI / 2 + i * TAU / d;
+    slicePath(x, y, r - 2, a0, a0 + TAU / d, i + 3);
+    ctx.fill();
+  }
+  ctx.strokeStyle = C.paper;
+  ctx.lineWidth = 2;
+  for (let i = 0; i < d; i++) {
+    const a = -Math.PI / 2 + i * TAU / d;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function wordFor(n, d) {
+  if (n === 1 && d === 2) return 'نصفِ کیک';
+  const ones = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت'];
+  const parts = { 3: 'سوم', 4: 'چهارم', 5: 'پنجم', 6: 'ششم', 8: 'هشتم' };
+  return `${ones[n]}‌${parts[d] || fa(d) + 'ام'}ِ کیک`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   کنترل چاقو — دسته‌ی چوبی روی پیشخان
+   ═══════════════════════════════════════════════════════════════════ */
+
+const KNIFE = { x: 74, y: 566, w: 236, h: 150 };
+const BTN_LESS = { x: 96,  y: 646, r: 28 };
+const BTN_MORE = { x: 264, y: 646, r: 28 };
+const BTN_SEND = { x: 890, y: 596, w: 232, h: 92 };
+const BTN_UNDO = { x: 890, y: 700, w: 232, h: 44 };
+
+function drawKnifePanel() {
+  const locked = !!order().fixed || mode() === 'sum';
+  withShadow(16, 7, .24, () => {
+    ctx.fillStyle = C.paper;
+    wobbleRect(KNIFE.x, KNIFE.y, KNIFE.w, KNIFE.h, 12, 61, 2);
+    ctx.fill();
+  });
+  text(locked ? 'قالبِ آماده' : 'کیک را چند قسمت کنم؟',
+    KNIFE.x + KNIFE.w / 2, KNIFE.y + 26, { size: 16, color: C.inkSoft });
+
+  // چاقو، کوچک و تزئینی
+  ctx.save();
+  ctx.translate(KNIFE.x + KNIFE.w / 2 + 4, KNIFE.y + 116);
+  ctx.rotate(-.28);
+  ctx.fillStyle = C.woodDark;
+  wobbleRect(-6, -5, 34, 11, 4, 63, .8); ctx.fill();
+  ctx.fillStyle = '#cfd6da';
+  ctx.beginPath();
+  ctx.moveTo(-8, -5); ctx.lineTo(-58, -3); ctx.lineTo(-58, 4); ctx.lineTo(-8, 6);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  text(fa(S.den), KNIFE.x + KNIFE.w / 2, KNIFE.y + 74,
+    { size: 52, color: locked ? C.inkSoft : C.jam, family: 'Lalezar' });
+
+  if (!locked) {
+    roundBtn(BTN_LESS, '−', S.den > 2);
+    roundBtn(BTN_MORE, '+', S.den < 12);
+  } else {
+    text('این قالب از قبل بریده شده', KNIFE.x + KNIFE.w / 2, KNIFE.y + 124,
+      { size: 15, color: C.inkSoft });
+  }
+}
+
+function roundBtn(b, label, on) {
+  const hot = S.hover === b;
+  withShadow(10, hot ? 3 : 5, .28, () => {
+    ctx.fillStyle = on ? (hot ? '#d95b66' : C.jam) : '#d9cbb6';
+    wobbleCircle(b.x, b.y + (hot ? 2 : 0), b.r, b.x, 1.4);
+    ctx.fill();
+  });
+  text(label, b.x, b.y + (hot ? 2 : 0) - 1,
+    { size: 32, color: on ? '#fff6e6' : '#b6a690', family: 'Lalezar' });
+}
+
+/** دکمهٔ بزرگِ تحویل — تختهٔ چوبی با میخ. */
+function drawSendButton() {
+  const ready = takenCount() > 0;
+  const hot = S.hover === BTN_SEND && ready;
+  const b = BTN_SEND;
+  withShadow(16, hot ? 4 : 8, .3, () => {
+    ctx.fillStyle = ready ? (hot ? '#87b45f' : C.pistachio) : '#b9a68d';
+    wobbleRect(b.x, b.y + (hot ? 3 : 0), b.w, b.h, 14, 71, 2);
+    ctx.fill();
+  });
+  text('تحویلِ سفارش', b.x + b.w / 2, b.y + b.h / 2 - 6 + (hot ? 3 : 0),
+    { size: 27, color: ready ? '#fdf6e8' : '#e6dccb', family: 'Lalezar' });
+  text(ready ? `${fa(takenCount())} قسمت روی بشقاب` : 'هنوز بشقاب خالی است',
+    b.x + b.w / 2, b.y + b.h / 2 + 22 + (hot ? 3 : 0),
+    { size: 14, color: ready ? 'rgba(253,246,232,.9)' : '#efe6d6' });
+
+  const u = BTN_UNDO;
+  const uhot = S.hover === BTN_UNDO;
+  ctx.fillStyle = uhot ? '#efe0c6' : 'rgba(253,246,232,.55)';
+  wobbleRect(u.x, u.y, u.w, u.h, 10, 73, 1.4);
+  ctx.fill();
+  text('همه را برگردان', u.x + u.w / 2, u.y + u.h / 2,
+    { size: 17, color: C.woodDark });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   بازخوردِ هر پرده
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** پردهٔ اول و سوم: کسرِ ساخته‌شده روی یک تابلوی کوچک. */
+function drawLiveFraction(x, y) {
+  withShadow(12, 6, .22, () => {
+    ctx.fillStyle = C.paper;
+    wobbleRect(x - 78, y - 62, 156, 124, 12, 81, 2);
+    ctx.fill();
+  });
+  text('تا الان برداشته‌ای', x, y - 42, { size: 14, color: C.inkSoft });
+  drawFractionGlyph(x, y + 6, takenCount(), S.den, 42, C.pistachio);
+  text(`${fa(takenCount())} از ${fa(S.den)} قسمت`, x, y + 50, { size: 13, color: C.inkSoft });
+}
+
+/** پردهٔ دوم: ترازو. اختلافِ کسرها زاویه‌اش را می‌سازد. */
+function drawScale(x, y) {
+  const diff = clamp((mine() - want()) * 2.4, -1, 1);
+  const ang = diff * .34;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(.82, .82);
+
+  // پایه
+  ctx.fillStyle = C.woodDark;
+  ctx.beginPath();
+  ctx.moveTo(-46, 96); ctx.lineTo(46, 96);
+  ctx.lineTo(28, 84); ctx.lineTo(-28, 84);
+  ctx.closePath(); ctx.fill();
+  ctx.fillRect(-7, -6, 14, 92);
+
+  ctx.rotate(ang);
+  // شاهین
+  ctx.fillStyle = C.wood;
+  wobbleRect(-96, -10, 192, 13, 6, 91, 1);
+  ctx.fill();
+
+  for (const s of [-1, 1]) {
+    ctx.save();
+    ctx.translate(s * 88, 3);
+    ctx.rotate(-ang);
+    ctx.strokeStyle = C.woodDark;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-16, 0); ctx.lineTo(0, 26); ctx.lineTo(16, 0);
+    ctx.stroke();
+    ctx.fillStyle = s < 0 ? C.jam : C.pistachio;
+    ctx.beginPath();
+    ctx.ellipse(0, 30, 30, 9, 0, 0, Math.PI);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  const ok = Math.abs(mine() - want()) < 1e-9;
+  text(ok ? 'ترازو صاف شد!' : (mine() < want() ? 'سبک است' : 'سنگین است'),
+    x, y + 122, { size: 17, color: ok ? C.pistachio : C.inkSoft, family: 'Lalezar' });
+}
+
+/** پردهٔ چهارم: سهمِ هر نفر به‌صورت نوار پر می‌شود. */
+function drawSumTracker(x, y) {
+  const o = order();
+  const [p, q] = o.parts;
+  const total = takenCount();
+  const rows = [
+    { label: 'سهمِ اول', need: p.n, col: C.jam },
+    { label: 'سهمِ دوم', need: q.n, col: C.pistachio },
+  ];
+  let used = 0;
+  withShadow(12, 6, .22, () => {
+    ctx.fillStyle = C.paper;
+    wobbleRect(x - 96, y - 56, 192, 116, 12, 101, 2);
+    ctx.fill();
+  });
+  rows.forEach((r, i) => {
+    const yy = y - 26 + i * 46;
+    text(r.label, x + 70, yy, { size: 14, color: C.inkSoft, align: 'center' });
+    const got = clamp(total - used, 0, r.need);
+    used += r.need;
+    for (let k = 0; k < r.need; k++) {
+      const bx = x + 34 - k * 22;
+      ctx.fillStyle = k < got ? r.col : '#e3d6c0';
+      wobbleCircle(bx, yy, 9, k + i * 5, 1);
+      ctx.fill();
+    }
+  });
+  text(`روی هم ${fa(p.n + q.n)} قسمت از ${fa(S.den)}`, x, y + 44,
+    { size: 13, color: C.inkSoft });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   تابلوی پرده و ستاره‌ها
+   ═══════════════════════════════════════════════════════════════════ */
+
+function drawSignboard() {
+  const x = 838, y = 22, w = 330, h = 66;
+  ctx.strokeStyle = C.cocoa;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(x + 40, 0); ctx.lineTo(x + 46, y + 8);
+  ctx.moveTo(x + w - 40, 0); ctx.lineTo(x + w - 46, y + 8);
+  ctx.stroke();
+  withShadow(14, 6, .24, () => {
+    ctx.fillStyle = C.wood;
+    wobbleRect(x, y, w, h, 10, 111, 1.6);
+    ctx.fill();
+  });
+  ctx.fillStyle = 'rgba(255,236,205,.18)';
+  wobbleRect(x + 6, y + 5, w - 12, 12, 6, 113, 1);
+  ctx.fill();
+  text(ACTS[S.act].title, x + w / 2, y + 24, { size: 21, color: '#fdf1dc', family: 'Lalezar' });
+
+  // ستاره‌ها
+  for (let i = 0; i < 5; i++) {
+    star(x + w / 2 + 68 - i * 34, y + 50, 10, i < S.stars % 6 ? C.sun : 'rgba(253,241,220,.28)');
+  }
+}
+
+function star(x, y, r, col) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 5;
+    const rr = i % 2 ? r * .45 : r;
+    const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   پرده‌های داستان و جشن
+   ═══════════════════════════════════════════════════════════════════ */
+
+const BTN_GO = { x: 470, y: 552, w: 260, h: 78 };
+
+function drawIntro() {
+  const k = easeOut(clamp(S.introT / .6, 0, 1));
+  ctx.fillStyle = `rgba(42,29,22,${.72 * k})`;
+  ctx.fillRect(0, 0, SW, SH);
+
+  const cy = lerp(SH * .58, SH * .46, k);
+  ctx.save();
+  ctx.translate(SW / 2, cy);
+  ctx.scale(lerp(.9, 1, easeBack(clamp(S.introT / .7, 0, 1))), lerp(.9, 1, easeBack(clamp(S.introT / .7, 0, 1))));
+  ctx.translate(-SW / 2, -cy);
+
+  withShadow(30, 14, .4, () => {
+    ctx.fillStyle = C.paper;
+    wobbleRect(230, 150, 740, 300, 18, 121, 2.4);
+    ctx.fill();
+  });
+  ctx.fillStyle = C.jam;
+  wobbleRect(230, 150, 740, 12, 6, 123, 1);
+  ctx.fill();
+
+  text(ACTS[S.act].title, SW / 2, 226, { size: 40, color: C.ink, family: 'Lalezar', alpha: k });
+  ACTS[S.act].intro.split('\n').forEach((line, i) => {
+    text(line, SW / 2, 296 + i * 36, { size: 20, color: C.inkSoft, alpha: k });
+  });
+  ctx.restore();
+
+  const hot = S.hover === BTN_GO;
+  withShadow(14, hot ? 3 : 7, .3, () => {
+    ctx.fillStyle = hot ? '#87b45f' : C.pistachio;
+    wobbleRect(BTN_GO.x, BTN_GO.y + (hot ? 3 : 0), BTN_GO.w, BTN_GO.h, 14, 131, 2);
+    ctx.fill();
+  });
+  text('شروع', BTN_GO.x + BTN_GO.w / 2, BTN_GO.y + BTN_GO.h / 2 + (hot ? 3 : 0),
+    { size: 30, color: '#fdf6e8', family: 'Lalezar' });
+}
+
+let reward = null;
+
+function drawReward() {
+  const k = easeOut(clamp((S.t - reward.t0) / .5, 0, 1));
+  ctx.fillStyle = `rgba(42,29,22,${.6 * k})`;
+  ctx.fillRect(0, 0, SW, SH);
+
+  withShadow(30, 14, .4, () => {
+    ctx.fillStyle = C.paper;
+    wobbleRect(280, 176, 640, 268, 18, 141, 2.4);
+    ctx.fill();
+  });
+  star(SW / 2, 236, 34, C.sun);
+  text(reward.title, SW / 2, 300, { size: 34, color: C.ink, family: 'Lalezar' });
+  reward.body.split('\n').forEach((l, i) =>
+    text(l, SW / 2, 344 + i * 30, { size: 19, color: C.inkSoft }));
+
+  const hot = S.hover === BTN_GO;
+  withShadow(14, hot ? 3 : 7, .3, () => {
+    ctx.fillStyle = hot ? '#87b45f' : C.pistachio;
+    wobbleRect(BTN_GO.x, BTN_GO.y + (hot ? 3 : 0), BTN_GO.w, BTN_GO.h, 14, 131, 2);
+    ctx.fill();
+  });
+  text(reward.btn, BTN_GO.x + BTN_GO.w / 2, BTN_GO.y + BTN_GO.h / 2 + (hot ? 3 : 0),
+    { size: 27, color: '#fdf6e8', family: 'Lalezar' });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   پیامِ کوتاه بالای صحنه
+   ═══════════════════════════════════════════════════════════════════ */
+
+function say(msg, kind) {
+  S.toast = { msg, kind, t: 2.4 };
+}
+
+function drawToast() {
+  if (!S.toast) return;
+  const k = clamp(S.toast.t, 0, 1) * clamp((2.4 - S.toast.t) * 4, 0, 1);
+  const w = Math.max(280, ctx.measureText(S.toast.msg).width + 80);
+  ctx.save();
+  ctx.globalAlpha = k;
+  withShadow(14, 6, .3, () => {
+    ctx.fillStyle = S.toast.kind === 'good' ? C.pistachio : C.paper;
+    wobbleRect(SW / 2 - w / 2, 108, w, 50, 12, 151, 1.6);
+    ctx.fill();
+  });
+  text(S.toast.msg, SW / 2, 133,
+    { size: 19, color: S.toast.kind === 'good' ? '#fdf6e8' : C.ink });
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ورودی
+   ═══════════════════════════════════════════════════════════════════ */
+
+function toStage(e) {
+  const r = cv.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left - view.ox) / view.scale,
+    y: (e.clientY - r.top - view.oy) / view.scale,
+  };
+}
+
+const inCircle = (p, b) => Math.hypot(p.x - b.x, p.y - b.y) <= b.r + 6;
+const inRect = (p, b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+
+/** برشِ زیرِ نشانگر: هم روی کیک، هم روی بشقاب. */
+function sliceAt(p) {
+  for (const [c, onPlate] of [[CAKE, false], [PLATE, true]]) {
+    const d = Math.hypot(p.x - c.x, p.y - c.y);
+    if (d > CAKE.r + 6) continue;
+    let a = Math.atan2(p.y - c.y, p.x - c.x) + Math.PI / 2;
+    if (a < 0) a += TAU;
+    const i = Math.floor((a / TAU) * S.den) % S.den;
+    if (onPlate ? S.taken[i] === 1 : S.taken[i] === 0) return i;
+  }
+  return null;
+}
+
+function hitTest(p) {
+  if (S.phase === 'intro' || S.phase === 'reward') {
+    return inRect(p, BTN_GO) ? BTN_GO : null;
+  }
+  const locked = !!order().fixed || mode() === 'sum';
+  if (!locked && inCircle(p, BTN_LESS)) return BTN_LESS;
+  if (!locked && inCircle(p, BTN_MORE)) return BTN_MORE;
+  if (inRect(p, BTN_SEND)) return BTN_SEND;
+  if (inRect(p, BTN_UNDO)) return BTN_UNDO;
+  const s = sliceAt(p);
+  return s === null ? null : s;
+}
+
+cv.addEventListener('pointermove', (e) => {
+  const p = toStage(e);
+  S.hover = hitTest(p);
+  cv.style.cursor = S.hover === null ? 'default' : 'pointer';
+});
+cv.addEventListener('pointerleave', () => { S.hover = null; });
+
+cv.addEventListener('pointerdown', (e) => {
+  const p = toStage(e);
+  const h = hitTest(p);
+  if (h === null) return;
+
+  if (S.phase === 'intro') { S.phase = 'play'; loadOrder(S.act, 0); return; }
+  if (S.phase === 'reward') { reward.next(); return; }
+
+  if (h === BTN_LESS) return changeDen(-1);
+  if (h === BTN_MORE) return changeDen(+1);
+  if (h === BTN_UNDO) { S.taken.fill(0); S.mood = 'idle'; return; }
+  if (h === BTN_SEND) return deliver();
+
+  // برداشتنِ برش تا وقتی چاقو کارش تمام نشده ممکن نیست
+  if (S.cutAnim < 1) return;
+
+  if (typeof h === 'number') {
+    const toPlate = S.taken[h] === 0;
+    S.taken[h] = toPlate ? 1 : 0;
+    const step = TAU / S.den, mid = -Math.PI / 2 + (h + .5) * step;
+    const src = toPlate ? CAKE : PLATE;
+    burst(src.x + Math.cos(mid) * CAKE.r * .6, src.y + Math.sin(mid) * CAKE.r * .6, 7, 'crumb');
+    S.mood = 'think'; S.moodT = 1.1;
+  }
+});
+
+function changeDen(d) {
+  const next = clamp(S.den + d, 2, 12);
+  if (next === S.den) return;
+  setDen(next, false);
+  burst(CAKE.x, CAKE.y, 12, 'crumb');
+  say(`کیک به ${fa(next)} قسمتِ مساوی بریده شد`, 'info');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   تحویلِ سفارش
+   ═══════════════════════════════════════════════════════════════════ */
+
+function deliver() {
+  if (takenCount() === 0) { say('هنوز چیزی روی بشقاب نگذاشته‌ای', 'info'); return; }
+  const diff = mine() - want();
+
+  if (Math.abs(diff) > 1e-9) {
+    S.shake = .5;
+    S.mood = 'wonder'; S.moodT = 2;
+    if (mode() === 'scale') {
+      say(diff < 0 ? 'ترازو هنوز به سمتِ سفارش خم است' : 'ترازو به سمتِ تو سنگین شده', 'info');
+    } else if (mode() === 'sum') {
+      const o = order();
+      say(`روی هم باید ${fa(o.parts[0].n + o.parts[1].n)} قسمت برداری`, 'info');
+    } else {
+      say(diff < 0 ? 'کمی کمتر از سفارش است' : 'کمی بیشتر از سفارش است', 'info');
+    }
+    return;
+  }
+
+  // درست بود
+  const o = order();
+  const wantDen = o.parts ? o.parts[0].d : o.d;
+  const equivalent = S.den !== wantDen && !o.parts;
+  S.stars += equivalent ? 2 : 1;
+  S.mood = 'happy'; S.moodT = 3;
+  burst(PLATE.x, PLATE.y, 46, 'confetti');
+  burst(CAKE.x, CAKE.y, 22, 'confetti');
+
+  const last = S.order + 1 >= ACTS[S.act].orders.length;
+  const lastAct = last && S.act + 1 >= ACTS.length;
+
+  let title, body;
+  if (equivalent) {
+    title = 'کشفِ بزرگ!';
+    body = `تو ${fa(takenCount())}/${fa(S.den)} برداشتی و سفارش ${fa(o.n)}/${fa(o.d)} بود.\n` +
+           'این دو دقیقاً یک اندازه‌اند — به این‌ها می‌گویند کسرهای مساوی.';
+  } else if (mode() === 'sum') {
+    const [p, q] = o.parts;
+    title = 'سهمِ هر دو آماده شد';
+    body = `${fa(p.n)}/${fa(p.d)} و ${fa(q.n)}/${fa(q.d)} روی هم شد ${fa(p.n + q.n)}/${fa(S.den)}.\n` +
+           'وقتی مخرج‌ها یکی باشند، فقط صورت‌ها را جمع می‌کنی.';
+  } else if (mode() === 'scale') {
+    title = 'ترازو صاف شد';
+    body = 'بدون هیچ عددی، فقط با نگاه‌کردن به شکل، اندازهٔ درست را ساختی.';
+  } else {
+    title = 'سفارش تحویل شد';
+    body = `دقیقاً همان‌قدر که خواسته بود: ${fa(takenCount())} قسمت از ${fa(S.den)} قسمتِ مساوی.`;
+  }
+
+  reward = {
+    t0: S.t, title, body,
+    btn: lastAct ? 'پایانِ روز' : (last ? 'پردهٔ بعد' : 'مشتریِ بعدی'),
+    next: () => {
+      if (lastAct) return finale();
+      if (last) startAct(S.act + 1);
+      else loadOrder(S.act, S.order + 1);
+      S.phase = last ? 'intro' : 'play';
+      if (last) S.introT = 0;
+    },
+  };
+  setTimeout(() => { if (S.phase === 'play') S.phase = 'reward'; }, 900);
+}
+
+function finale() {
+  reward = {
+    t0: S.t,
+    title: 'روزِ کاری تمام شد!',
+    body: `${fa(S.stars)} ستاره گرفتی.\n` +
+          'حالا می‌دانی مخرج یعنی به چند قسمتِ مساوی بریده‌ایم و صورت یعنی چند تا برداشته‌ایم.',
+    btn: 'از اول',
+    next: () => { S.stars = 0; startAct(0); },
+  };
+  S.phase = 'reward';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   حلقه
+   ═══════════════════════════════════════════════════════════════════ */
+
+let last = performance.now();
+
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 1 / 20);
+  last = now;
+  S.t += dt;
+
+  if (S.cutAnim < 1) S.cutAnim = clamp(S.cutAnim + dt * 1.7, 0, 1);
+  for (let i = 0; i < S.den; i++) S.fly[i] += (S.taken[i] - S.fly[i]) * clamp(dt * 9, 0, 1);
+  if (S.shake > 0) S.shake -= dt;
+  if (S.moodT > 0) { S.moodT -= dt; if (S.moodT <= 0) S.mood = 'idle'; }
+  if (S.phase === 'intro') S.introT += dt;
+  if (S.toast) { S.toast.t -= dt; if (S.toast.t <= 0) S.toast = null; }
+  S.blink -= dt;
+  if (S.blink < -3) S.blink = .13;
+  stepBits(dt);
+
+  draw();
+  requestAnimationFrame(frame);
+}
+
+function draw() {
+  const { scale, ox, oy, w, h, dpr } = view;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#2a1d16';
+  ctx.fillRect(0, 0, w, h);
+  ctx.save();
+  ctx.translate(ox, oy);
+  ctx.scale(scale, scale);
+  ctx.beginPath();
+  ctx.rect(0, 0, SW, SH);
+  ctx.clip();
+
+  drawRoom();
+  drawSignboard();
+  drawGuest(1052, 258);
+  drawBubble(756, 168, 236, 116, order().say);
+  drawBoard();
+  drawPlate();
+  drawCake();
+  drawTicket();
+  drawKnifePanel();
+  drawSendButton();
+
+  if (mode() === 'scale') drawScale(744, 626);
+  else if (mode() === 'sum') drawSumTracker(744, 622);
+  else drawLiveFraction(744, 622);
+
+  drawBits();
+  drawToast();
+
+  if (S.phase === 'intro') drawIntro();
+  if (S.phase === 'reward') drawReward();
+
+  // بافتِ کاغذ روی کل تصویر
+  if (grain) {
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = .16;
+    ctx.fillStyle = grain;
+    ctx.fillRect(0, 0, SW, SH);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  // تیرگیِ ملایمِ گوشه‌ها
+  const vg = ctx.createRadialGradient(SW/2, SH/2, SH*.42, SW/2, SH/2, SH*1.05);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(60,32,16,.30)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, SW, SH);
+
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   شروع — بعد از آماده‌شدن فونت‌ها تا متن‌ها با فونت درست کشیده شوند
+   ═══════════════════════════════════════════════════════════════════ */
+
+function boot() {
+  grain = buildGrain();
+  startAct(0);
+  requestAnimationFrame(frame);
+}
+
+if (document.fonts && document.fonts.load) {
+  Promise.all([
+    document.fonts.load('400 40px Lalezar'),
+    document.fonts.load('700 20px Vazirmatn'),
+    document.fonts.load('900 20px Vazirmatn'),
+  ]).then(boot, boot);
+  setTimeout(() => { if (!grain) boot(); }, 2500);
+} else boot();
+</script>
+</body>
+</html>
