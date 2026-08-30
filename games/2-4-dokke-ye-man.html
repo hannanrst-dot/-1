@@ -545,6 +545,7 @@ const S = {
   floats: [],           // عددهای شناور (+امتیاز، −ضرر)
   shake: 0,
   best: 0,
+  tut: { on: true, step: 0, t: 0 },
 };
 
 const bits = new Bits();
@@ -565,7 +566,8 @@ function startDay() {
   S.queue = [];
   S.active = null;
   S.tray = [];
-  S.target = 5 + S.day * 2;
+  S.tut = { on: S.day === 1, step: 0, t: 0 };
+  S.target = 4 + S.day;
   // صندوقِ خرد: هر روز از نو، و با ارتقا بیشتر
   const extra = S.upgrades.includes('sandogh') ? 4 : 0;
   S.box = { 500: 6 + extra, 1000: 5 + extra, 2000: 3, 5000: 2, 10000: 0 };
@@ -578,7 +580,7 @@ function openStall() {
     return;
   }
   S.phase = 'day'; S.phaseT = 0;
-  S.spawnT = .6;
+  S.spawnT = 1.4;
   sfx.good();
 }
 
@@ -605,32 +607,51 @@ function canMakeChange(amount) {
 
 function spawnCustomer() {
   const stocked = S.shelf.filter((s) => s.qty > 0);
-  if (!stocked.length || S.queue.length >= 3) return;
-  // چند ترکیب را امتحان می‌کنیم تا یکی پیدا شود که باقی‌اش ساختنی باشد.
-  // اگر هیچ‌کدام نشد، این لحظه مشتری نمی‌آید و بچه فرصت نفس‌کشیدن دارد.
-  let pickItem = null, paidV = 0;
+  const maxQueue = Math.min(3, S.day);
+  if (!stocked.length || S.queue.length >= maxQueue) return;
+
+  // اوّلین مشتریِ روزِ اوّل عمداً ساده‌ترین حالت است: قیمت ۳۰۰۰، اسکناس
+  // ۵۰۰۰، باقی ۲۰۰۰. قاعده باید با یک نمونهٔ تمیز جا بیفتد.
+  if (S.tut.on && S.served === 0 && S.queue.length === 0) {
+    const easy = stocked.find((x) => x.good.price === 3000) || stocked[0];
+    const v = [5000, 10000].find((n) => n > easy.good.price) || 10000;
+    S.queue.push(makeCustomer(easy, v));
+    sfx.pop();
+    return;
+  }
+
+  // چند ترکیب را امتحان می‌کنیم تا یکی پیدا شود که باقی‌اش با صندوقِ فعلی
+  // ساختنی باشد. اگر هیچ‌کدام نشد، این لحظه مشتری نمی‌آید و بچه نفس می‌کشد.
   for (let tries = 0; tries < 8; tries++) {
     const cand = stocked[Math.floor(Math.random() * stocked.length)];
     const opts = [5000, 10000, 20000].filter((v) => v > cand.good.price);
+    if (!opts.length) continue;
     const v = opts[Math.floor(Math.random() * Math.min(opts.length, 2))];
-    if (canMakeChange(v - cand.good.price)) { pickItem = cand; paidV = v; break; }
+    if (!canMakeChange(v - cand.good.price)) continue;
+    S.queue.push(makeCustomer(cand, v));
+    sfx.pop();
+    return;
   }
-  if (!pickItem) return;
-  const price = pickItem.good.price;
+}
+
+/** یک مشتری از روی جنسِ انتخابی و اسکناسی که می‌دهد می‌سازد. */
+function makeCustomer(item, paidV) {
+  const price = item.good.price;
   const paid = paidV === 20000 ? [10000, 10000] : [paidV];
-  const patience = (14 - S.day * 1.2) * (S.upgrades.includes('saye') ? 1.45 : 1);
-  S.queue.push({
+  // صبرِ مشتری عمداً سخاوتمند است: بچهٔ هشت‌ساله باید فرصت داشته باشد
+  // بشمارد، اشتباه کند و دوباره بچیند. فشار باید حس شود، نه خفه کند.
+  const patience = (34 - S.day * 2.5) * (S.upgrades.includes('saye') ? 1.5 : 1);
+  return {
     id: Math.random(),
-    good: pickItem.good,
+    good: item.good,
     price,
     paid,
     change: paidV - price,
-    patience: 1, maxP: Math.max(6, patience),
+    patience: 1, maxP: Math.max(16, patience),
     face: FACES[Math.floor(Math.random() * FACES.length)],
     x: 0, mood: 'wait',
     born: S.t,
-  });
-  sfx.pop();
+  };
 }
 
 /* ───────── چیدمان ───────── */
@@ -669,16 +690,28 @@ function step(dt) {
 
   if (S.phase === 'day') {
     S.spawnT -= dt;
-    const rate = 3.4 - S.day * .35 - (S.upgrades.includes('tablo') ? .5 : 0);
+    const rate = 6.2 - S.day * .45 - (S.upgrades.includes('tablo') ? .8 : 0);
     if (S.spawnT <= 0 && S.served + S.queue.length < S.target) {
       spawnCustomer();
-      S.spawnT = Math.max(1.2, rate);
+      S.spawnT = Math.max(3.0, rate);
     }
+    // اگر کسی انتخاب نشده، خودبه‌خود اوّلینِ صف را جلو می‌آوریم؛ بچه
+    // نباید برای شروعِ کار مجبور باشد چیزی را کشف کند.
+    if (!S.active && S.queue.length) S.active = S.queue[0];
     for (const c of S.queue) {
+      if (S.tut.on) continue;                    // در آموزش، صبر کم نمی‌شود
       c.patience -= dt / c.maxP;
       if (c.patience <= 0) leaveAngry(c);
     }
     if (S.served >= S.target || S.hearts <= 0) endDay();
+  }
+
+  if (S.tut.on && S.phase === 'day') {
+    S.tut.t += dt;
+    const c = S.active;
+    if (S.tut.step === 0 && c && S.tut.t > 5.2) { S.tut.step = 1; S.tut.t = 0; }
+    if (S.tut.step === 1 && c && trayTotal() === c.change) { S.tut.step = 2; S.tut.t = 0; }
+    if (S.tut.step === 2 && c && trayTotal() !== c.change) { S.tut.step = 1; }
   }
 
   for (const f of S.floats) { f.t += dt; f.y -= 44 * dt; }
@@ -761,6 +794,7 @@ function give() {
   S.queue = S.queue.filter((q) => q !== c);
   S.active = null;
   S.served++;
+  if (S.tut.on) { S.tut.on = false; toast.say('حالا خودت بلدی! مشتریِ بعدی می‌آید…', 'good'); }
 }
 
 function endDay() {
@@ -871,6 +905,7 @@ function draw() {
     drawTray();
     drawDayButtons();
   }
+  if (S.phase === 'day' && S.tut.on) drawTutorial();
   drawHUD();
   drawFloats();
   bits.draw();
@@ -1337,8 +1372,9 @@ function drawOrderBubble(c) {
   ctx.fillStyle = left === 0 ? P.good : P.bad;
   wobbleRect(x - w/2 + 12, y + h - 32, w - 24, 28, 6, 33, 1.2);
   ctx.fill();
-  text(left > 0 ? `باقی: ${fa(c.change)} تومان   (${fa(left)} مانده)`
-     : left === 0 ? `باقی کامل شد: ${fa(c.change)} تومان`
+  const paidSum = c.paid.reduce((a, b) => a + b, 0);
+  text(left > 0 ? `${fa(paidSum)} − ${fa(c.price)} = ${fa(c.change)}    ·    هنوز ${fa(left)} مانده`
+     : left === 0 ? `${fa(paidSum)} − ${fa(c.price)} = ${fa(c.change)}    ·    کامل شد ✓`
      : `${fa(-left)} تومان زیادی گذاشته‌ای!`,
     x, y + h - 18, { size: 17, color: '#fff8ec' });
 }
@@ -1458,6 +1494,79 @@ function drawDayButtons() {
 }
 
 /* ─── نوارِ بالا ─── */
+
+/** دستِ اشاره‌گرِ کاغذی که به جایی که باید بزنی اشاره می‌کند. */
+function pointer(x, y, dir) {
+  const bob = Math.sin(S.t * 4) * 7;
+  ctx.save();
+  ctx.translate(x, y + (dir === 'down' ? -bob : bob));
+  if (dir === 'left') ctx.rotate(-Math.PI / 2);
+  if (dir === 'right') ctx.rotate(Math.PI / 2);
+  if (dir === 'up') ctx.rotate(Math.PI);
+  withShadow(10, 5, .4, () => {
+    ctx.fillStyle = P.gold;
+    ctx.beginPath();
+    ctx.moveTo(0, 22); ctx.lineTo(-17, -6); ctx.lineTo(-7, -6);
+    ctx.lineTo(-7, -26); ctx.lineTo(7, -26); ctx.lineTo(7, -6);
+    ctx.lineTo(17, -6);
+    ctx.closePath(); ctx.fill();
+  }, '10, 8, 6');
+  ctx.restore();
+}
+
+/** قابِ نبض‌دار دورِ چیزی که باید بهش دست بزنی. */
+function spotlight(r) {
+  ctx.save();
+  ctx.strokeStyle = `rgba(232,180,72,${.55 + Math.sin(S.t * 4) * .35})`;
+  ctx.lineWidth = 5;
+  ctx.setLineDash([12, 8]);
+  ctx.lineDashOffset = -S.t * 22;
+  wobbleRect(r.x - 8, r.y - 8, r.w + 16, r.h + 16, 12, 3, 1.4);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** آموزشِ اوّلین فروش — سه گام، بدون هیچ فشارِ زمانی. */
+function drawTutorial() {
+  const c = S.active;
+  if (!c) return;
+  const steps = [
+    {
+      txt: `مشتری ${c.good.name} می‌خواهد.\nقیمتش ${fa(c.price)} تومان است و ${fa(c.paid.reduce((a,b)=>a+b,0))} تومان داده.\nپس باید ${fa(c.change)} تومان به او پس بدهی.`,
+      at: () => { pointer(640, 224, 'up'); },
+    },
+    {
+      txt: `از صندوقِ پول، سکه و اسکناس بردار تا روی سینی\nروی هم ${fa(c.change)} تومان شود.`,
+      at: () => {
+        // به ردیفی اشاره کن که بزرگ‌ترین واحدِ مفیدِ موجود است
+        let k = 0;
+        for (let i = MONEY.length - 1; i >= 0; i--) {
+          if (MONEY[i].v <= c.change - trayTotal() && (S.box[MONEY[i].v] || 0) > 0) { k = i; break; }
+        }
+        const r = boxSlot(k);
+        spotlight(r);
+        pointer(r.x - 26, r.y + r.h / 2, 'right');
+      },
+    },
+    {
+      txt: 'آفرین! دقیقاً همان‌قدر شد.\nحالا دکمهٔ «بفرمایید» را بزن.',
+      at: () => { spotlight(BTN_GIVE); pointer(BTN_GIVE.x + BTN_GIVE.w / 2, BTN_GIVE.y - 34, 'down'); },
+    },
+  ];
+  const st = steps[Math.min(S.tut.step, 2)];
+
+  // نوارِ آموزش، پایینِ صحنه و بیرون از راهِ دست
+  const w = 496, h = 104, x = 376, y = 218;
+  ctx.save();
+  ctx.globalAlpha = .96;
+  paper(x, y, w, h, '#fffaf0', 81, 12, .45);
+  ctx.restore();
+  ctx.fillStyle = P.gold;
+  wobbleRect(x, y, w, 8, 4, 83, 1);
+  ctx.fill();
+  textWrap(st.txt, x + w / 2, y + 34, w - 60, { size: 19, color: P.ink, lineHeight: 28 });
+  st.at();
+}
 
 function drawHUD() {
   ctx.fillStyle = 'rgba(28,18,10,.82)';
