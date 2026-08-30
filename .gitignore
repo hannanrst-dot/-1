@@ -3,3 +3,7 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 .env
+
+# خروجی ساخت — با «node tools/build-standalone.mjs» دوباره ساخته می‌شود
+dist/
+*.zip
