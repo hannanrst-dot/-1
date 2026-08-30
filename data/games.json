@@ -1,0 +1,45 @@
+{
+  "updated": "1405",
+  "grades": [
+    {
+      "id": "grade3",
+      "title": "پایه‌ی سوم دبستان",
+      "color": "#4b7bec",
+      "games": [
+        {
+          "id": "fraction-workshop",
+          "title": "کارگاه کسر",
+          "subject": "ریاضی",
+          "chapter": "فصل ۳ — عددهای کسری",
+          "emoji": "🍕",
+          "color": "#fc5c9c",
+          "goal": "مخرج یعنی «به چند قسمت مساوی تقسیم شده» و صورت یعنی «چند تا از آن‌ها را برداشتیم». بچه با دست خودش برش می‌زند و می‌بیند.",
+          "path": "/games/grade3/math/fraction-workshop/",
+          "status": "ready"
+        },
+        {
+          "id": "place-value-city",
+          "title": "شهر عددها",
+          "subject": "ریاضی",
+          "chapter": "فصل ۲ — عددهای چهار رقمی",
+          "emoji": "🏙️",
+          "color": "#4b7bec",
+          "goal": "ده‌تا یکی می‌شود یک ده‌تایی، ده‌تا ده‌تایی می‌شود یک صدتایی. بچه بلوک‌ها را می‌چیند و لحظه‌ی «بستن» را با انیمیشن می‌بیند.",
+          "path": "/games/grade3/math/place-value-city/",
+          "status": "ready"
+        },
+        {
+          "id": "magnet-lab",
+          "title": "آزمایشگاه آهن‌ربا",
+          "subject": "علوم",
+          "chapter": "درس ۱۰ — آهن‌ربا در زندگی",
+          "emoji": "🧲",
+          "color": "#eb3b5a",
+          "goal": "میدان آهن‌ربا را می‌بیند، قطب‌های هم‌نام را دفع و ناهم‌نام را جذب می‌کند، و می‌فهمد آهن‌ربا فقط بعضی مواد را می‌کشد.",
+          "path": "/games/grade3/science/magnet-lab/",
+          "status": "ready"
+        }
+      ]
+    }
+  ]
+}

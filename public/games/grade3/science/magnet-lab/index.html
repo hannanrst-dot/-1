@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>آزمایشگاه آهن‌ربا — علوم سوم</title>
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧲</text></svg>">
+<style>
+  body { overflow: hidden; height: 100dvh; display: flex; flex-direction: column; }
+
+  .stage { flex: 1; display: grid; grid-template-columns: 268px 1fr; gap: 12px;
+           padding: 12px 12px calc(62px + env(safe-area-inset-bottom)); min-height: 0; }
+  .side { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+
+  @media (max-width: 880px) {
+    .stage { grid-template-columns: 1fr; grid-template-rows: minmax(240px, 1fr) auto; }
+    .canvas-wrap { grid-row: 1; }
+    .side {
+      grid-row: 2; flex-direction: row; overflow-x: auto; overflow-y: hidden;
+      padding-bottom: 4px; scrollbar-width: thin;
+    }
+    .side > * { flex: 0 0 auto; width: 210px; }
+    .side .card { padding: 10px; }
+    .task h3 { font-size: .92rem; }
+    .task p { font-size: .82rem; }
+    .switcher { width: 210px; }
+    .switcher button { font-size: .74rem; }
+  }
+
+  canvas { width: 100%; height: 100%; display: block; border-radius: var(--radius); box-shadow: var(--shadow); touch-action: none; }
+  .canvas-wrap { min-height: 0; position: relative; }
+  .rotools {
+    position: absolute; inset-inline-start: 14px; bottom: 12px;
+    display: flex; gap: 8px; z-index: 5;
+  }
+  .rotools button {
+    border: 2px solid var(--line); background: rgba(255,255,255,.95); border-radius: 14px;
+    padding: .55em .9em; font-family: inherit; font-weight: 800; font-size: .88rem;
+    cursor: pointer; box-shadow: var(--shadow); color: var(--ink);
+  }
+  .rotools button:active { transform: translateY(2px); }
+
+  .task { border-inline-start: 6px solid var(--red); }
+  .task h3 { font-size: 1rem; margin: 0 0 6px; }
+  .task p  { font-size: .9rem; margin: 0; color: var(--ink-soft); }
+
+  /* دفترچه‌ی آزمایش */
+  .book__row { display: flex; gap: 8px; font-size: .86rem; }
+  .book__col { flex: 1; }
+  .book__head { font-weight: 800; padding: 4px 0; border-bottom: 2px solid var(--line); margin-bottom: 4px; }
+  .book__head--yes { color: var(--green); border-color: var(--green); }
+  .book__head--no  { color: var(--ink-soft); }
+  .book__item { padding: 3px 0; animation: popIn .35s cubic-bezier(.2,1.5,.4,1); }
+  .book__empty { color: #b9c4dd; font-size: .8rem; padding: 4px 0; }
+
+  .switcher { display: flex; gap: 6px; }
+  .switcher button {
+    flex: 1; border: 2px solid var(--line); background: #fff; border-radius: 12px;
+    padding: .5em .2em; font-weight: 800; font-size: .82rem; cursor: pointer; font-family: inherit;
+    color: var(--ink-soft);
+  }
+  .switcher button[aria-current="true"] { background: var(--red); color: #fff; border-color: var(--red); }
+  .switcher button:disabled { opacity: .4; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="btn btn--ghost" href="/">◀ خانه</a>
+  <div>
+    <h1 class="topbar__title">🧲 آزمایشگاه آهن‌ربا</h1>
+    <p class="topbar__sub">علوم سوم — درس ۱۰: آهن‌ربا در زندگی</p>
+  </div>
+  <div class="topbar__spacer"></div>
+  <span class="chip chip--star">⭐ <span id="stars">۰</span></span>
+  <div class="progress"><div class="progress__fill" id="bar"></div></div>
+</div>
+
+<div class="stage">
+  <aside class="side">
+    <div class="switcher">
+      <button type="button" data-st="0" aria-current="true">۱. چه چیزهایی؟</button>
+      <button type="button" data-st="1" disabled>۲. قطب‌ها</button>
+      <button type="button" data-st="2" disabled>۳. میدان</button>
+    </div>
+
+    <div class="card task">
+      <h3 id="taskTitle">…</h3>
+      <p id="taskText">…</p>
+    </div>
+
+    <div class="card" id="bookCard">
+      <div class="book__head" style="border:none;margin:0 0 6px">📓 دفترچه‌ی آزمایش</div>
+      <div class="book__row">
+        <div class="book__col">
+          <div class="book__head book__head--yes">جذب شد ✓</div>
+          <div id="listYes"><div class="book__empty">هنوز خالی</div></div>
+        </div>
+        <div class="book__col">
+          <div class="book__head book__head--no">جذب نشد ✗</div>
+          <div id="listNo"><div class="book__empty">هنوز خالی</div></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn--ghost" id="reset" type="button">↺ چیدن دوباره</button>
+  </aside>
+
+  <div class="canvas-wrap">
+    <canvas id="cv"></canvas>
+    <div class="rotools">
+      <button type="button" id="rotL" aria-label="چرخاندن به چپ">↺</button>
+      <button type="button" id="flip">🔄 برعکسش کن</button>
+      <button type="button" id="rotR" aria-label="چرخاندن به راست">↻</button>
+    </div>
+  </div>
+</div>
+
+<div class="hintbar" data-hint>آهن‌ربا را با انگشت یا ماوس بکش و ببر روی وسیله‌ها. ببین کدام‌ها می‌چسبند!</div>
+<div class="toasts" data-toasts></div>
+
+<script type="module" src="./game.js"></script>
+</body>
+</html>

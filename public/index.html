@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>بازی‌های ریاضی و علوم دبستان</title>
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
+<style>
+  .hero {
+    padding: 46px 20px 30px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero h1 { font-size: clamp(1.6rem, 5vw, 2.5rem); }
+  .hero p  { color: var(--ink-soft); max-width: 620px; margin: 0 auto; }
+  .hero__blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(38px);
+    opacity: .5;
+    pointer-events: none;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 18px 70px; }
+
+  .grade-head {
+    display: flex; align-items: center; gap: 12px;
+    margin: 26px 0 16px;
+  }
+  .grade-head h2 { margin: 0; font-size: 1.35rem; }
+  .grade-head__bar { flex: 1; height: 4px; border-radius: 999px; background: var(--line); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 18px;
+  }
+
+  .gcard {
+    background: #fff;
+    border-radius: 22px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+    border: 3px solid transparent;
+    transition: transform .18s cubic-bezier(.2,.9,.3,1), box-shadow .18s, border-color .18s;
+  }
+  .gcard:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
+  .gcard__emoji {
+    font-size: 2.6rem;
+    width: 64px; height: 64px;
+    border-radius: 18px;
+    display: grid; place-items: center;
+    background: #f3f6ff;
+  }
+  .gcard__title { font-size: 1.2rem; margin: 0; }
+  .gcard__meta  { font-size: .82rem; color: var(--ink-soft); display: flex; gap: 8px; flex-wrap: wrap; }
+  .gcard__goal  { font-size: .92rem; color: var(--ink-soft); line-height: 1.8; margin: 0; }
+  .gcard__go {
+    margin-top: auto;
+    align-self: flex-start;
+    font-weight: 800;
+    font-size: .95rem;
+  }
+  .gcard__ribbon {
+    position: absolute; inset-inline-end: -34px; top: 16px;
+    transform: rotate(45deg);
+    padding: 4px 40px;
+    font-size: .72rem; font-weight: 800;
+    background: var(--amber); color: #4a3400;
+  }
+  .tag {
+    background: #f3f6ff; border-radius: 999px; padding: .2em .7em; font-weight: 700;
+  }
+  .note {
+    margin-top: 34px; background: #fff8e6; border: 2px dashed #ffd88a;
+    border-radius: var(--radius); padding: 16px 18px; font-size: .92rem; line-height: 1.9;
+  }
+  .loading { text-align: center; color: var(--ink-soft); padding: 40px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero__blob" style="width:260px;height:260px;background:#a55eea;inset-inline-start:-60px;top:-70px"></div>
+  <div class="hero__blob" style="width:300px;height:300px;background:#4b7bec;inset-inline-end:-80px;top:-90px"></div>
+  <h1>🎮 بازی‌های ریاضی و علوم</h1>
+  <p>بازی‌هایی برای <b>فهمیدن</b>، نه امتحان دادن. هر بازی روی یک مفهوم اصلی کتاب درسی ساخته شده و بچه با دست خودش آن را کشف می‌کند.</p>
+</header>
+
+<main class="wrap">
+  <div id="catalog" class="loading">در حال بارگذاری بازی‌ها…</div>
+
+  <div class="note">
+    <b>یادداشت برای معلم و والد:</b> در این بازی‌ها خبری از «جواب درست را انتخاب کن» نیست.
+    بچه چیزی را می‌سازد، برش می‌زند، جابه‌جا می‌کند و نتیجه‌اش را می‌بیند.
+    اشتباه هم مجازات ندارد — فقط نتیجه‌ی دیگری نشان می‌دهد تا خودش بفهمد چرا.
+  </div>
+</main>
+
+<script type="module">
+import { faNum } from '/assets/js/engine.js';
+
+const box = document.getElementById('catalog');
+
+try {
+  const res = await fetch('/api/games');
+  const data = await res.json();
+  box.className = '';
+  box.innerHTML = data.grades.map((g) => `
+    <section>
+      <div class="grade-head">
+        <h2 style="color:${g.color}">${g.title}</h2>
+        <div class="grade-head__bar" style="background:${g.color}33"></div>
+        <span class="chip">${faNum(g.games.length)} بازی</span>
+      </div>
+      <div class="grid">
+        ${g.games.map(cardHTML).join('')}
+      </div>
+    </section>
+  `).join('');
+} catch (err) {
+  box.innerHTML = 'بارگذاری فهرست بازی‌ها ممکن نشد. سرور روشن است؟';
+}
+
+function cardHTML(game) {
+  const soon = game.status !== 'ready';
+  return `
+    <a class="gcard" href="${soon ? '#' : game.path}"
+       style="border-color:${game.color}22"
+       onmouseover="this.style.borderColor='${game.color}'"
+       onmouseout="this.style.borderColor='${game.color}22'">
+      ${soon ? '<div class="gcard__ribbon">به‌زودی</div>' : ''}
+      <div class="gcard__emoji" style="background:${game.color}1a">${game.emoji}</div>
+      <h3 class="gcard__title">${game.title}</h3>
+      <div class="gcard__meta">
+        <span class="tag">${game.subject}</span>
+        <span>${game.chapter}</span>
+      </div>
+      <p class="gcard__goal">${game.goal}</p>
+      <span class="gcard__go" style="color:${game.color}">شروع بازی ←</span>
+    </a>`;
+}
+</script>
+</body>
+</html>

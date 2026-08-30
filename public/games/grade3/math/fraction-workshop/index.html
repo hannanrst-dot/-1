@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>کارگاه کسر — ریاضی سوم</title>
+<link rel="stylesheet" href="/assets/css/base.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍕</text></svg>">
+<style>
+  body { overflow: hidden; height: 100dvh; display: flex; flex-direction: column; }
+
+  .stage {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 14px;
+    padding: 14px 14px calc(62px + env(safe-area-inset-bottom));
+    min-height: 0;
+  }
+  .side { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+
+  /* روی موبایل: بوم بازی بالا و بزرگ می‌ماند، کنترل‌ها به یک نوار
+     افقیِ قابل‌اسکرول در پایین تبدیل می‌شوند. */
+  @media (max-width: 860px) {
+    .stage { grid-template-columns: 1fr; grid-template-rows: minmax(262px, 1fr) auto; }
+    .canvas-wrap { grid-row: 1; }
+    .side {
+      grid-row: 2; flex-direction: row; overflow-x: auto; overflow-y: hidden;
+      padding-bottom: 4px; scrollbar-width: thin;
+    }
+    .side > * { flex: 0 0 auto; width: 196px; }
+    .side .card { padding: 10px; }
+    .customer__face { font-size: 2.1rem; }
+    .bubble { font-size: .82rem; padding: 8px; line-height: 1.7; }
+    .want { font-size: 1.4rem; }
+    .built__frac { font-size: 1.9rem; }
+    .knife__num { font-size: 1.7rem; }
+    .round { width: 40px; height: 40px; font-size: 1.25rem; }
+    .actions { flex-direction: column; width: 128px; }
+  }
+
+
+  /* ── کارت مشتری ── */
+  .customer { position: relative; text-align: center; }
+  .customer__face { font-size: 3rem; line-height: 1; transition: transform .3s; }
+  .customer__face.happy { animation: bob .7s ease-in-out 3; }
+  .customer__face.sad   { animation: shake .4s; }
+  .bubble {
+    background: #f3f6ff;
+    border-radius: 16px;
+    padding: 12px;
+    margin-top: 8px;
+    position: relative;
+    font-weight: 700;
+    line-height: 1.9;
+  }
+  .bubble::before {
+    content: '';
+    position: absolute; top: -9px; inset-inline-start: 50%;
+    border: 9px solid transparent; border-bottom-color: #f3f6ff; border-top: 0;
+  }
+  .want {
+    display: inline-flex; flex-direction: column; align-items: center;
+    font-size: 1.9rem; font-weight: 900; color: var(--pink); line-height: 1;
+  }
+  .want__bar { width: 100%; height: 4px; background: var(--pink); border-radius: 2px; margin: 4px 0; }
+
+  /* ── کنترل چاقو ── */
+  .knife__row { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 6px 0 2px; }
+  .knife__num {
+    font-size: 2.1rem; font-weight: 900; min-width: 2.2ch; text-align: center; color: var(--blue);
+    transition: transform .2s;
+  }
+  .round {
+    width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer;
+    font-size: 1.5rem; font-weight: 900; background: var(--blue); color: #fff;
+    box-shadow: 0 4px 0 rgba(0,0,0,.18); transition: transform .12s;
+  }
+  .round:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.18); }
+  .round:disabled { opacity: .35; cursor: not-allowed; }
+  .locked-note { font-size: .8rem; color: var(--red); font-weight: 700; text-align: center; }
+
+  /* ── نمایش کسر ساخته‌شده ── */
+  .built { text-align: center; }
+  .built__frac {
+    display: inline-flex; flex-direction: column; align-items: center;
+    font-size: 2.6rem; font-weight: 900; line-height: 1; color: var(--green);
+  }
+  .built__bar { width: 100%; height: 5px; background: var(--green); border-radius: 3px; margin: 5px 0; }
+  .built__label { font-size: .84rem; color: var(--ink-soft); font-weight: 700; }
+  .flash { animation: popIn .3s cubic-bezier(.2,1.4,.4,1); }
+
+  canvas { width: 100%; height: 100%; display: block; border-radius: var(--radius); background: #fff; box-shadow: var(--shadow); cursor: pointer; }
+  .canvas-wrap { min-height: 0; position: relative; }
+
+  .actions { display: flex; gap: 8px; }
+  .actions .btn { flex: 1; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="btn btn--ghost" href="/">◀ خانه</a>
+  <div>
+    <h1 class="topbar__title">🍕 کارگاه کسر</h1>
+    <p class="topbar__sub">ریاضی سوم — فصل ۳: عددهای کسری</p>
+  </div>
+  <div class="topbar__spacer"></div>
+  <span class="chip chip--star">⭐ <span id="stars">۰</span></span>
+  <span class="chip">سفارش <span id="lvl">۱</span> از <span id="lvlTotal">۸</span></span>
+  <div class="progress"><div class="progress__fill" id="bar"></div></div>
+</div>
+
+<div class="stage">
+  <aside class="side">
+    <div class="card customer">
+      <div class="customer__face" id="face">🙂</div>
+      <div class="bubble" id="order">…</div>
+    </div>
+
+    <div class="card">
+      <div class="built__label">🔪 پیتزا را به چند قسمت مساوی ببُرم؟</div>
+      <div class="knife__row">
+        <button class="round" id="more" type="button" aria-label="بیشتر">+</button>
+        <span class="knife__num" id="denView">۴</span>
+        <button class="round" id="less" type="button" aria-label="کمتر">−</button>
+      </div>
+      <div class="locked-note" id="lockNote" hidden>🔒 این پیتزا از قبل بریده شده</div>
+    </div>
+
+    <div class="card built">
+      <div class="built__label">تا الان برداشته‌ای</div>
+      <div class="built__frac" id="builtFrac">
+        <span id="numView">۰</span>
+        <span class="built__bar"></span>
+        <span id="denView2">۴</span>
+      </div>
+      <div class="built__label" id="builtWords">هیچ قسمتی برنداشته‌ای</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn--ghost" id="reset" type="button">↺ از نو</button>
+      <button class="btn btn--green" id="deliver" type="button">تحویل بده ✓</button>
+    </div>
+  </aside>
+
+  <div class="canvas-wrap"><canvas id="cv"></canvas></div>
+</div>
+
+<div class="hintbar" data-hint>روی <b>+</b> و <b>−</b> بزن تا پیتزا را ببُری، بعد روی قسمت‌ها بزن تا برشان داری.</div>
+<div class="toasts" data-toasts></div>
+
+<script type="module" src="./game.js"></script>
+</body>
+</html>
