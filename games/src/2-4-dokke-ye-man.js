@@ -273,8 +273,7 @@ function step(dt) {
     S.tut.t += dt;
     const c = S.active;
     if (S.tut.step === 0 && c && S.tut.t > 5.2) { S.tut.step = 1; S.tut.t = 0; }
-    if (S.tut.step === 1 && c && trayTotal() === c.change) { S.tut.step = 2; S.tut.t = 0; }
-    if (S.tut.step === 2 && c && trayTotal() !== c.change) { S.tut.step = 1; }
+    if (S.tut.step === 1 && c && (trayTotal() > 0 && S.tut.t > 8)) { S.tut.step = 2; S.tut.t = 0; }
   }
 
   for (const f of S.floats) { f.t += dt; f.y -= 44 * dt; }
@@ -324,7 +323,7 @@ function give() {
   if (t < c.change) {
     sfx.nope();
     S.shake = .25;
-    toast.say(`هنوز ${fa(c.change - t)} تومان مانده`, 'info');
+    toast.say('هنوز کم است — بیشتر بگذار', 'info');
     c.patience = Math.max(.02, c.patience - .06);
     return;
   }
@@ -944,15 +943,12 @@ function drawOrderBubble(c) {
   const gap = c.paid.length > 1 ? 74 : 0;
   c.paid.forEach((v, i) => drawMoney(cx + 78 + (i - (c.paid.length - 1) / 2) * gap, y + 78, v, 1.06));
 
-  // نوارِ پایین: فقط چیزی که باید بکنی
-  const left = c.change - trayTotal();
-  ctx.fillStyle = left === 0 ? P.good : left > 0 ? P.awning : P.bad;
+  // نوارِ پایین فقط کار را می‌گوید، نه جواب را. مبلغِ باقی هیچ‌جا نوشته
+  // نمی‌شود؛ حساب‌کردنش تمامِ کارِ بچه است.
+  ctx.fillStyle = P.awning;
   wobbleRect(cx + 12, y + h - 40, w - 24, 32, 6, 33, 1.2);
   ctx.fill();
-  text(left > 0 ? `باقی را بده:  ${fa(left)} تومان`
-     : left === 0 ? 'باقی کامل شد ✓'
-     : `${fa(-left)} تومان زیادی گذاشته‌ای`,
-    x, y + h - 24, { size: 19, color: '#fff8ec', family: 'Lalezar' });
+  text('باقیِ پولش را بده', x, y + h - 24, { size: 19, color: '#fff8ec', family: 'Lalezar' });
 }
 
 /* ─── صندوق ─── */
@@ -1051,19 +1047,18 @@ function drawTray() {
   }
   // جمعِ سینی
   const t = trayTotal();
-  const need = S.active ? S.active.change : 0;
   ctx.fillStyle = P.paper;
   wobbleRect(TRAY.x + TRAY.w - 152, TRAY.y - 26, 152, 30, 6, 57, 1.2);
   ctx.fill();
-  text(`روی سینی: ${fa(t)}`, TRAY.x + TRAY.w - 76, TRAY.y - 11,
-    { size: 16, color: S.active && t === need ? P.good : P.ink });
+  text(`روی سینی: ${fa(t)}`, TRAY.x + TRAY.w - 76, TRAY.y - 11, { size: 16, color: P.ink });
 }
 
 function drawDayButtons() {
-  const ok = S.active && trayTotal() === S.active.change;
+  // رنگِ دکمه عمداً ثابت است: اگر با سبزشدن خبر بدهد که درست شده،
+  // بچه دیگر حساب نمی‌کند، فقط منتظرِ سبزشدن می‌ماند.
   button(BTN_GIVE, 'بفرمایید', {
     hot: S.hover === BTN_GIVE, disabled: !S.active,
-    fill: ok ? P.good : P.brassDk, hotFill: ok ? '#7fae5e' : P.brass, size: 22, r: 10,
+    fill: P.good, hotFill: '#7fae5e', size: 22, r: 10,
   });
   button(BTN_BACK, 'سینی را خالی کن', {
     hot: S.hover === BTN_BACK, fill: P.woodDk, hotFill: P.wood, size: 18, r: 10,
@@ -1109,24 +1104,20 @@ function drawTutorial() {
   if (!c) return;
   const steps = [
     {
-      txt: `مشتری ${c.good.name} می‌خواهد.\nبالا را نگاه کن: ارزشِ محصول و پولی که داده.\nباید ${fa(c.change)} تومان باقی به او بدهی.`,
+      txt: `مشتری ${c.good.name} می‌خواهد.\nبالا را نگاه کن: ارزشِ محصول، و پولی که داده.\nحساب کن چقدر باید به او پس بدهی.`,
       at: () => { spotlight({ x: 390, y: 66, w: 500, h: 168 }); },
     },
     {
-      txt: `از صندوقِ پول، سکه و اسکناس بردار تا روی سینی\nروی هم ${fa(c.change)} تومان شود.`,
+      txt: 'از صندوقِ پول سکه و اسکناس بردار و روی سینی بگذار،\nتا اندازهٔ باقیِ او شود.',
       at: () => {
-        // به ردیفی اشاره کن که بزرگ‌ترین واحدِ مفیدِ موجود است
-        let k = 0;
-        for (let i = MONEY.length - 1; i >= 0; i--) {
-          if (MONEY[i].v <= c.change - trayTotal() && (S.box[MONEY[i].v] || 0) > 0) { k = i; break; }
-        }
-        const r = boxSlot(k);
-        spotlight(r);
-        pointer(r.x - 26, r.y + r.h / 2, 'right');
+        // عمداً کلِ صندوق را قاب می‌گیریم، نه همان سکه‌ای که لازم است.
+        // اشاره به سکهٔ درست یعنی گفتنِ جواب.
+        spotlight(BOXP);
+        pointer(BOXP.x - 30, BOXP.y + BOXP.h / 2, 'right');
       },
     },
     {
-      txt: 'آفرین! دقیقاً همان‌قدر شد.\nحالا دکمهٔ «بفرمایید» را بزن.',
+      txt: 'هر وقت فکر کردی درست شد،\nدکمهٔ «بفرمایید» را بزن.',
       at: () => { spotlight(BTN_GIVE); pointer(BTN_GIVE.x + BTN_GIVE.w / 2, BTN_GIVE.y - 34, 'down'); },
     },
   ];

@@ -440,12 +440,10 @@ function drawGrid() {
       ctx.fillStyle = (c + r) % 2 ? P.canvas : P.canvasDk;
       ctx.fillRect(x, y, g.cs, g.cs);
       if (col) drawKnot(x, y, g.cs, col);
-      // راهنمای کم‌رنگِ نقشه در نیمهٔ ناتمام
-      else if (!lv.free && S.target[idx(c, r)]) {
-        ctx.globalAlpha = .16;
-        drawKnot(x, y, g.cs, S.target[idx(c, r)]);
-        ctx.globalAlpha = 1;
-      }
+      // عمداً هیچ راهنمای کم‌رنگی از نقشهٔ نهایی نمی‌کشیم: آن یعنی نشان‌دادنِ
+      // جواب. مرجعِ بچه همان نیمهٔ بافته‌شدهٔ آن‌طرفِ خطّ تقارن است — و چون
+      // هر گره قرینه‌اش را هم می‌بافد، رنگِ اشتباه فوراً آن نیمه را خراب
+      // می‌کند و خودش دیده می‌شود.
       ctx.strokeStyle = P.grid;
       ctx.lineWidth = 1;
       ctx.strokeRect(x + .5, y + .5, g.cs - 1, g.cs - 1);
