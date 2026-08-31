@@ -30,14 +30,31 @@ for (const f of files) {
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="${info.bg || '#241a13'}">
 <title>${info.title || f}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;700;900&display=swap">
 <style>
-  html, body { margin: 0; height: 100%; background: ${info.bg || '#241a13'}; overflow: hidden; }
-  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  /* صفحه نباید هیچ‌جا اسکرول یا زوم شود؛ بازی باید مثل یک برنامه رفتار کند. */
+  html, body {
+    margin: 0; padding: 0; background: ${info.bg || '#241a13'};
+    overflow: hidden; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    position: fixed; inset: 0;          /* جلوی کشیده‌شدنِ صفحه در سافاریِ گوشی */
+    width: 100%; height: 100vh; height: 100dvh;
+  }
+  canvas {
+    display: block; width: 100%; height: 100%;
+    touch-action: none; -webkit-touch-callout: none;
+  }
 
   /* گوشیِ عمودی صحنه را ریز می‌کند؛ بچه باید گوشی را بچرخاند. */
   #rotate { display: none; }
@@ -45,6 +62,7 @@ for (const f of files) {
     #stage { display: none; }
     #rotate {
       display: flex; position: fixed; inset: 0;
+      z-index: 9;
       flex-direction: column; align-items: center; justify-content: center; gap: 26px;
       background: ${info.bg || '#241a13'}; color: #f6ead2;
       font: 700 20px "Vazirmatn", Tahoma, sans-serif; text-align: center; padding: 32px;
