@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0f2f6"/><stop offset="1" stop-color="#dde2ea"/></linearGradient>
+<linearGradient id="gloss" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".16"/></linearGradient>
+<linearGradient id="scr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#20344f"/><stop offset=".5" stop-color="#12203a"/><stop offset="1" stop-color="#0c1526"/></linearGradient>
+<filter id="sh" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#0b1020" flood-opacity=".26"/></filter>
+</defs>
+<rect width="600" height="600" fill="url(#bg)"/><g filter="url(#sh)" transform="translate(300 300)">
+  <circle r="150" fill="none" stroke="#3d4450" stroke-width="52"/>
+  <circle r="150" fill="none" stroke="#ffffff" stroke-width="52" stroke-opacity=".07"/>
+  <circle r="98" fill="none" stroke="#3d4450" stroke-width="34"/>
+  <circle r="62" fill="#e8ebf1"/>
+  <text x="0" y="8" text-anchor="middle" font-family="Helvetica,Arial" font-size="26" fill="#98a0ac">100m</text>
+</g></svg>

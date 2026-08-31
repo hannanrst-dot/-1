@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef1f6"/><stop offset="1" stop-color="#dbe2ec"/></linearGradient>
+<linearGradient id="gloss" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".16"/></linearGradient>
+<linearGradient id="scr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#20344f"/><stop offset=".5" stop-color="#12203a"/><stop offset="1" stop-color="#0c1526"/></linearGradient>
+<filter id="sh" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#0b1020" flood-opacity=".26"/></filter>
+</defs>
+<rect width="600" height="600" fill="url(#bg)"/><g filter="url(#sh)" transform="translate(300 300)">
+  <rect x="-130" y="-52" width="230" height="104" rx="52" fill="#e7eaf0"/>
+  <rect x="-130" y="-52" width="230" height="104" rx="52" fill="url(#gloss)"/>
+  <circle cx="86" cy="0" r="48" fill="#1b1f27"/><circle cx="86" cy="0" r="34" fill="#0a0d13"/><circle cx="86" cy="0" r="20" fill="#16233d"/><circle cx="76" cy="-12" r="7" fill="#8fbcff" opacity=".6"/>
+  <rect x="-40" y="46" width="30" height="52" rx="10" fill="#aeb4be"/>
+  <rect x="-86" y="92" width="122" height="22" rx="10" fill="#98a0ac"/>
+</g></svg>

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9f1fa"/><stop offset="1" stop-color="#d1e0f0"/></linearGradient>
+<linearGradient id="gloss" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".38"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".16"/></linearGradient>
+<linearGradient id="scr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#20344f"/><stop offset=".5" stop-color="#12203a"/><stop offset="1" stop-color="#0c1526"/></linearGradient>
+<filter id="sh" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#0b1020" flood-opacity=".26"/></filter>
+</defs>
+<rect width="600" height="600" fill="url(#bg)"/><g filter="url(#sh)" transform="translate(300 300)">
+  <rect x="-170" y="-125" width="340" height="250" rx="22" fill="#1c2430"/>
+  <rect x="-152" y="-103" width="284" height="206" rx="10" fill="#05070c"/>
+  <rect x="-148" y="-99" width="276" height="198" rx="7" fill="url(#scr)"/>
+  <g opacity=".55" transform="translate(-10 0)">
+    <circle cy="-14" r="26" fill="none" stroke="#38bdf8" stroke-width="4"/>
+    <circle cy="-22" r="10" fill="#38bdf8" opacity=".8"/>
+    <path d="M-20 24 q20 -26 40 0" fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(130 81)"><circle cx="0" cy="0" r="8.5" fill="#ffffff" opacity=".16"/><circle cx="-26" cy="0" r="8.5" fill="#ffffff" opacity=".16"/><circle cx="0" cy="-26" r="8.5" fill="#ffffff" opacity=".16"/><circle cx="-26" cy="-26" r="8.5" fill="#ffffff" opacity=".16"/></g>
+  <rect x="-170" y="-125" width="340" height="250" rx="22" fill="url(#gloss)"/>
+  <text x="-144" y="116" font-family="Helvetica,Arial" font-size="13" fill="#ffffff" opacity=".35">Wi-Fi</text>
+</g></svg>
