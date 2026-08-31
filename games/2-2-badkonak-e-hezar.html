@@ -1,0 +1,1552 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d1b30">
+<title>بادکنکِ هزار — معرّفی عدد هزار</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;700;900&display=swap">
+<style>
+  /* صفحه نباید هیچ‌جا اسکرول یا زوم شود؛ بازی باید مثل یک برنامه رفتار کند. */
+  html, body {
+    margin: 0; padding: 0; background: #0d1b30;
+    overflow: hidden; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    position: fixed; inset: 0;          /* جلوی کشیده‌شدنِ صفحه در سافاریِ گوشی */
+    width: 100%; height: 100vh; height: 100dvh;
+  }
+  canvas {
+    display: block; width: 100%; height: 100%;
+    touch-action: none; -webkit-touch-callout: none;
+  }
+
+  /* گوشیِ عمودی صحنه را ریز می‌کند؛ بچه باید گوشی را بچرخاند. */
+  #rotate { display: none; }
+  @media (orientation: portrait) and (max-width: 860px) {
+    #stage { display: none; }
+    #rotate {
+      display: flex; position: fixed; inset: 0;
+      z-index: 9;
+      flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+      background: #0d1b30; color: #f6ead2;
+      font: 700 20px "Vazirmatn", Tahoma, sans-serif; text-align: center; padding: 32px;
+    }
+    #rotate svg { animation: tilt 2.4s ease-in-out infinite; }
+    @keyframes tilt { 0%, 45% { transform: rotate(0deg); } 65%, 100% { transform: rotate(-90deg); } }
+  }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="rotate">
+  <svg width="86" height="126" viewBox="0 0 86 126" fill="none" aria-hidden="true">
+    <rect x="3" y="3" width="80" height="120" rx="12" stroke="#e8b448" stroke-width="5"/>
+    <rect x="15" y="19" width="56" height="88" rx="5" fill="#e8b448" opacity=".28"/>
+    <circle cx="43" cy="115" r="4" fill="#e8b448"/>
+  </svg>
+  <div>گوشی را بچرخان</div>
+  <div style="font-weight:400;opacity:.7;font-size:16px">این بازی خوابیده بازی می‌شود</div>
+</div>
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════════
+   هستهٔ مشترکِ بازی‌ها — سبک «کاغذبُری»
+   ───────────────────────────────────────────────────────────────────────
+   این فایل جعبه‌ابزار است، نه چارچوب: هر بازی حلقه و وضعیت خودش را دارد
+   و فقط از این توابع برای کشیدن استفاده می‌کند. دلیلش این است که هر بازی
+   باید حس‌وحال خودش را داشته باشد، نه اینکه همه شبیه هم دربیایند.
+
+   قاعده‌های ثابتِ تصویری:
+   • نور همیشه از بالا-چپ می‌تابد، پس سایه‌ها به پایین-راست می‌افتند.
+   • هیچ لبه‌ای کاملاً صاف نیست؛ همه کمی موج دارند (انگار با قیچی بریده).
+   • هیچ خاکستریِ خالصی نداریم؛ همه‌ی خنثی‌ها به گرمیِ صحنه می‌زنند.
+   • یک لایه‌ی دانه‌دانه‌ی کاغذ روی کلِ تصویر ضرب می‌شود.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const FA_D = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+const fa = (n) => String(n).replace(/\d/g, (d) => FA_D[+d]);
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+const easeIn = (t) => t * t * t;
+const easeInOut = (t) => (t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2);
+const easeBack = (t) => 1 + 2.7 * Math.pow(t-1, 3) + 1.7 * Math.pow(t-1, 2);
+const easeElastic = (t) => t === 0 || t === 1 ? t : Math.pow(2, -9*t) * Math.sin((t*10 - .75) * 2.094) + 1;
+
+/** تصادفِ تکرارپذیر: با یک بذر همیشه همان عدد. برای اینکه تزئین‌ها هر فریم نپرند. */
+function noise1(x) {
+  const s = Math.sin(x * 127.1) * 43758.5453;
+  return s - Math.floor(s);
+}
+const pick = (arr, seed) => arr[Math.floor(noise1(seed) * arr.length) % arr.length];
+
+/* ───────── بوم و صحنهٔ ثابت ───────── */
+
+let ctx, SW, SH, CV;
+let view = { scale: 1, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
+let _grain = null;
+
+function initStage(canvas, w, h) {
+  CV = canvas; SW = w; SH = h;
+  ctx = canvas.getContext('2d');
+
+  /* اندازه را از خودِ بوم می‌گیریم نه از innerHeight؛ چون در سافاریِ گوشی
+     نوارِ آدرس باز و بسته می‌شود و innerHeight دروغ می‌گوید. */
+  const fit = () => {
+    const r = canvas.getBoundingClientRect();
+    const vw = Math.round(r.width), vh = Math.round(r.height);
+    if (vw < 20 || vh < 20) return;
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.round(vw * dpr);
+    canvas.height = Math.round(vh * dpr);
+    const scale = Math.min(vw / SW, vh / SH);
+    view = { scale, ox: (vw - SW*scale)/2, oy: (vh - SH*scale)/2, w: vw, h: vh, dpr };
+    _grain = buildGrain();
+  };
+  addEventListener('resize', fit);
+  /* چرخاندنِ گوشی: اندازهٔ درست چند لحظه بعد می‌رسد، پس چندبار اندازه می‌گیریم. */
+  addEventListener('orientationchange', () => {
+    fit(); setTimeout(fit, 140); setTimeout(fit, 460);
+  });
+  if (window.visualViewport) visualViewport.addEventListener('resize', fit);
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(canvas);
+
+  /* صدا در گوشی فقط بعد از اوّلین لمس اجازهٔ پخش دارد. */
+  const unlock = () => { sfx._c(); removeEventListener('pointerdown', unlock); removeEventListener('touchstart', unlock); };
+  addEventListener('pointerdown', unlock, { passive: true });
+  addEventListener('touchstart', unlock, { passive: true });
+  /* نگه‌داشتنِ انگشت نباید منوی مرورگر را باز کند. */
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  fit();
+  return ctx;
+}
+
+/** قابِ صحنه را باز می‌کند: بعد از این، مختصات همیشه در فضای SW×SH است. */
+function beginScene(bg) {
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, view.w, view.h);
+  ctx.save();
+  ctx.translate(view.ox, view.oy);
+  ctx.scale(view.scale, view.scale);
+  ctx.beginPath();
+  ctx.rect(0, 0, SW, SH);
+  ctx.clip();
+}
+
+/** بافتِ کاغذ و تیرگیِ گوشه‌ها را می‌گذارد و قاب را می‌بندد. */
+function endScene(grainAlpha = .15, vignette = 'rgba(48,28,14,.30)') {
+  if (_grain && grainAlpha > 0) {
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = grainAlpha;
+    ctx.fillStyle = _grain;
+    ctx.fillRect(0, 0, SW, SH);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  if (vignette) {
+    const g = ctx.createRadialGradient(SW/2, SH/2, SH*.42, SW/2, SH/2, SH*1.05);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, vignette);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, SW, SH);
+  }
+  ctx.restore();
+}
+
+function buildGrain() {
+  const s = 260;
+  const off = document.createElement('canvas');
+  off.width = off.height = s;
+  const c = off.getContext('2d');
+  const img = c.createImageData(s, s);
+  for (let i = 0; i < s*s; i++) {
+    const v = 214 + Math.random() * 41;
+    img.data[i*4] = v; img.data[i*4+1] = v; img.data[i*4+2] = v; img.data[i*4+3] = 255;
+  }
+  c.putImageData(img, 0, 0);
+  return ctx.createPattern(off, 'repeat');
+}
+
+function toStage(e) {
+  const r = CV.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left - view.ox) / view.scale,
+    y: (e.clientY - r.top - view.oy) / view.scale,
+  };
+}
+
+const inRect = (p, b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+const inCircle = (p, b, pad = 0) => Math.hypot(p.x - b.x, p.y - b.y) <= b.r + pad;
+
+/* ───────── قلم‌های کاغذبُری ───────── */
+
+/** دایره‌ای که انگار با قیچی بریده شده. */
+function wobbleCircle(cx, cy, r, seed = 0, amp = 2.2, steps = 60) {
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * TAU;
+    const rr = r + Math.sin(a*3 + seed) * amp + Math.sin(a*7 + seed*2.3) * amp * .45;
+    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/** بیضیِ ناصاف — برای چیزهایی که گرد نیستند ولی نرم‌اند. */
+function wobbleEllipse(cx, cy, rx, ry, rot = 0, seed = 0, amp = 2, steps = 60) {
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * TAU;
+    const w = 1 + (Math.sin(a*3 + seed) * amp + Math.sin(a*7 + seed*2.3) * amp*.45) / Math.max(rx, ry);
+    const px = Math.cos(a) * rx * w, py = Math.sin(a) * ry * w;
+    const x = cx + px*Math.cos(rot) - py*Math.sin(rot);
+    const y = cy + px*Math.sin(rot) + py*Math.cos(rot);
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/** مستطیلِ گِرد با گوشه‌های کمی کج. */
+function wobbleRect(x, y, w, h, r = 12, seed = 0, amp = 1.6) {
+  const j = (k) => (noise1(seed*9.7 + k) - .5) * amp * 2;
+  ctx.beginPath();
+  ctx.moveTo(x + r + j(1), y + j(2));
+  ctx.lineTo(x + w - r + j(3), y + j(4));
+  ctx.quadraticCurveTo(x + w + j(5), y + j(6), x + w + j(7), y + r + j(8));
+  ctx.lineTo(x + w + j(9), y + h - r + j(10));
+  ctx.quadraticCurveTo(x + w + j(11), y + h + j(12), x + w - r + j(13), y + h + j(14));
+  ctx.lineTo(x + r + j(15), y + h + j(16));
+  ctx.quadraticCurveTo(x + j(17), y + h + j(18), x + j(19), y + h - r + j(20));
+  ctx.lineTo(x + j(21), y + r + j(22));
+  ctx.quadraticCurveTo(x + j(23), y + j(24), x + r + j(1), y + j(2));
+  ctx.closePath();
+}
+
+/** سایهٔ نرم؛ نور از بالا-چپ. */
+function withShadow(blur, dy, alpha, fn, hue = '78, 46, 24') {
+  ctx.save();
+  ctx.shadowColor = `rgba(${hue}, ${alpha})`;
+  ctx.shadowBlur = blur;
+  ctx.shadowOffsetY = dy;
+  ctx.shadowOffsetX = dy * .35;
+  fn();
+  ctx.restore();
+}
+
+/** یک برگه‌ی کاغذ با سایه — پایه‌ی همه‌ی کارت‌ها و تابلوها. */
+function paper(x, y, w, h, fill, seed = 1, r = 12, shadow = .26) {
+  withShadow(16, 7, shadow, () => {
+    ctx.fillStyle = fill;
+    wobbleRect(x, y, w, h, r, seed, 2);
+    ctx.fill();
+  });
+}
+
+function text(str, x, y, o = {}) {
+  const size = o.size || 20;
+  const fam = o.family || 'Vazirmatn';
+  ctx.save();
+  ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+  ctx.font = `${fam === 'Lalezar' ? '400' : (o.weight || 700)} ${size}px "${fam}", Tahoma, sans-serif`;
+  ctx.textAlign = o.align || 'center';
+  ctx.textBaseline = o.baseline || 'middle';
+  ctx.fillStyle = o.color || '#43291b';
+  ctx.direction = 'rtl';
+  if (o.stroke) {
+    ctx.lineWidth = o.strokeWidth || 5;
+    ctx.strokeStyle = o.stroke;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(str, x, y, o.maxWidth);
+  }
+  ctx.fillText(str, x, y, o.maxWidth);
+  ctx.restore();
+}
+
+/** متنِ چندخطی که خودش می‌شکند. ارتفاعِ اشغال‌شده را برمی‌گرداند. */
+function textWrap(str, x, y, maxW, o = {}) {
+  const size = o.size || 19, lh = o.lineHeight || size * 1.7;
+  ctx.font = `${o.weight || 700} ${size}px "${o.family || 'Vazirmatn'}", Tahoma, sans-serif`;
+  const lines = [];
+  for (const para of str.split('\n')) {
+    let line = '';
+    for (const wd of para.split(' ')) {
+      const t = line ? line + ' ' + wd : wd;
+      if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = wd; }
+      else line = t;
+    }
+    lines.push(line);
+  }
+  lines.forEach((l, i) => text(l, x, y + i * lh, o));
+  return lines.length * lh;
+}
+
+/* ───────── ذره‌ها ───────── */
+
+class Bits {
+  constructor() { this.list = []; }
+  add(x, y, n, kind, colors, opts = {}) {
+    for (let i = 0; i < n; i++) {
+      const a = opts.dir !== undefined ? opts.dir + (Math.random()-.5) * (opts.spread || 1) : Math.random() * TAU;
+      const sp = (opts.speed || 200) * (.4 + Math.random());
+      this.list.push({
+        kind, x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - (opts.lift || 0),
+        r: (opts.size || 4) * (.5 + Math.random()),
+        rot: Math.random() * TAU, vr: (Math.random()-.5) * 10,
+        col: colors[(Math.random() * colors.length) | 0],
+        grav: opts.grav === undefined ? 620 : opts.grav,
+        drag: opts.drag || .995,
+        life: (opts.life || .9) * (.6 + Math.random() * .8), age: 0,
+      });
+    }
+  }
+  confetti(x, y, n, colors) {
+    this.add(x, y, n, 'flake', colors, { speed: 420, lift: 190, size: 5, life: 1.6, grav: 780 });
+  }
+  spark(x, y, n, colors) {
+    this.add(x, y, n, 'dot', colors, { speed: 180, lift: 30, size: 3.4, life: .7, grav: 260, drag: .93 });
+  }
+  step(dt) {
+    for (const p of this.list) {
+      p.age += dt;
+      p.vy += p.grav * dt;
+      p.vx *= p.drag; p.vy *= p.drag;
+      p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+    }
+    this.list = this.list.filter((p) => p.age < p.life);
+  }
+  draw() {
+    for (const p of this.list) {
+      const k = clamp(1 - p.age / p.life, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = k;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.col;
+      if (p.kind === 'flake') ctx.fillRect(-p.r, -p.r*1.5, p.r*2, p.r*3);
+      else if (p.kind === 'leaf') { wobbleEllipse(0, 0, p.r*1.8, p.r*.8, 0, p.r, .6); ctx.fill(); }
+      else { ctx.beginPath(); ctx.arc(0, 0, p.r * k, 0, TAU); ctx.fill(); }
+      ctx.restore();
+    }
+  }
+  clear() { this.list.length = 0; }
+}
+
+/* ───────── صدا (بدون فایل صوتی) ───────── */
+
+const sfx = {
+  ac: null, on: true,
+  _c() {
+    if (!this.on) return null;
+    if (!this.ac) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; this.ac = new A(); }
+    if (this.ac.state === 'suspended') this.ac.resume();
+    return this.ac;
+  },
+  tone(f, dur = .16, type = 'sine', gain = .13, delay = 0) {
+    const c = this._c(); if (!c) return;
+    const t0 = c.currentTime + delay;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t0);
+    g.gain.setValueAtTime(.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + .012);
+    g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+    o.connect(g).connect(c.destination);
+    o.start(t0); o.stop(t0 + dur + .04);
+  },
+  tap()  { this.tone(430, .07, 'triangle', .09); },
+  place(){ this.tone(620, .11, 'sine', .12); },
+  pop()  { this.tone(760, .09, 'sine', .11); },
+  slide(){ this.tone(240, .22, 'sine', .07); },
+  good() { [523, 659, 784].forEach((f,i) => this.tone(f, .22, 'sine', .13, i*.07)); },
+  win()  { [523, 659, 784, 1047].forEach((f,i) => this.tone(f, .34, 'triangle', .13, i*.10)); },
+  nope() { this.tone(180, .2, 'sawtooth', .07); },
+  tick() { this.tone(1100, .04, 'square', .05); },
+};
+
+/* ───────── قطعه‌های آماده ───────── */
+
+function star(x, y, r, col, rot = 0) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(rot);
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI/2 + i * Math.PI/5;
+    const rr = i % 2 ? r * .45 : r;
+    const px = Math.cos(a)*rr, py = Math.sin(a)*rr;
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/** دکمهٔ کاغذی. hovered را خودِ بازی می‌دهد؛ اینجا فقط کشیده می‌شود. */
+function button(b, label, o = {}) {
+  const hot = o.hot && !o.disabled;
+  const dy = hot ? 3 : 0;
+  const fill = o.disabled ? (o.off || '#bcaa92') : (hot ? (o.hotFill || o.fill) : o.fill);
+  withShadow(14, hot ? 4 : 8, .3, () => {
+    ctx.fillStyle = fill;
+    wobbleRect(b.x, b.y + dy, b.w, b.h, o.r === undefined ? 14 : o.r, b.x + b.y, 2);
+    ctx.fill();
+  });
+  text(label, b.x + b.w/2, b.y + b.h/2 + dy - (o.sub ? 9 : 0), {
+    size: o.size || 26, color: o.color || '#fdf6e8', family: o.family || 'Lalezar',
+  });
+  if (o.sub) text(o.sub, b.x + b.w/2, b.y + b.h/2 + dy + 17,
+    { size: 14, color: o.subColor || 'rgba(255,255,255,.88)' });
+}
+
+/** دکمهٔ گرد کوچک (مثل + و −). */
+function roundButton(b, label, o = {}) {
+  const hot = o.hot && !o.disabled;
+  const dy = hot ? 2 : 0;
+  withShadow(10, hot ? 3 : 5, .3, () => {
+    ctx.fillStyle = o.disabled ? '#cbbba3' : (hot ? (o.hotFill || o.fill) : o.fill);
+    wobbleCircle(b.x, b.y + dy, b.r, b.x, 1.4);
+    ctx.fill();
+  });
+  text(label, b.x, b.y + dy - 1,
+    { size: o.size || 32, color: o.disabled ? '#a8988a' : (o.color || '#fdf6e8'), family: 'Lalezar' });
+}
+
+/** پرده‌ی تمام‌صفحه: برای شروعِ پرده و برای جشنِ پایان. */
+function overlay(o) {
+  const k = easeOut(clamp(o.t / .5, 0, 1));
+  ctx.fillStyle = `rgba(30, 22, 16, ${.66 * k})`;
+  ctx.fillRect(0, 0, SW, SH);
+
+  const w = o.w || 700, h = o.h || 290;
+  const x = (SW - w) / 2, y = o.y || (SH * .22);
+  const s = lerp(.9, 1, easeBack(clamp(o.t / .65, 0, 1)));
+  ctx.save();
+  ctx.translate(SW/2, y + h/2);
+  ctx.scale(s, s);
+  ctx.translate(-SW/2, -(y + h/2));
+
+  withShadow(30, 14, .42, () => {
+    ctx.fillStyle = o.paper || '#fbf3e2';
+    wobbleRect(x, y, w, h, 18, 121, 2.4);
+    ctx.fill();
+  });
+  ctx.fillStyle = o.band || '#c8434f';
+  wobbleRect(x, y, w, 12, 6, 123, 1);
+  ctx.fill();
+
+  if (o.icon) o.icon(SW/2, y + 56);
+  text(o.title, SW/2, y + (o.icon ? 108 : 62),
+    { size: o.titleSize || 36, color: o.ink || '#43291b', family: 'Lalezar', alpha: k });
+  textWrap(o.body, SW/2, y + (o.icon ? 158 : 116), w - 90,
+    { size: 19, color: o.inkSoft || '#8a6a52', alpha: k });
+  ctx.restore();
+
+  button(o.btn, o.btnLabel, { hot: o.btnHot, fill: o.btnFill || '#7fa356', hotFill: o.btnHotFill || '#8fb45f', size: 28 });
+}
+
+/** پیامِ کوتاهِ بالای صحنه. */
+class Toast {
+  constructor() { this.msg = null; this.t = 0; this.kind = 'info'; }
+  say(msg, kind = 'info') { this.msg = msg; this.kind = kind; this.t = 2.6; }
+  step(dt) { if (this.t > 0) { this.t -= dt; if (this.t <= 0) this.msg = null; } }
+  draw(y = 24, colors = {}) {
+    if (!this.msg) return;
+    const k = clamp(this.t, 0, 1) * clamp((2.6 - this.t) * 5, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = k;
+    ctx.font = `700 19px "Vazirmatn", Tahoma, sans-serif`;
+    const w = ctx.measureText(this.msg).width + 76;
+    const fill = this.kind === 'good' ? (colors.good || '#7fa356')
+               : this.kind === 'bad' ? (colors.bad || '#c8434f')
+               : (colors.info || '#fbf3e2');
+    paper(SW/2 - w/2, y, w, 48, fill, 151, 12, .3);
+    text(this.msg, SW/2, y + 25,
+      { size: 19, color: this.kind === 'info' ? (colors.ink || '#43291b') : '#fff8ec' });
+    ctx.restore();
+  }
+}
+
+/** فونت‌ها را می‌آورد و بعد بازی را شروع می‌کند. */
+function whenFontsReady(start) {
+  if (document.fonts && document.fonts.load) {
+    Promise.all([
+      document.fonts.load('400 40px Lalezar'),
+      document.fonts.load('700 20px Vazirmatn'),
+      document.fonts.load('900 20px Vazirmatn'),
+    ]).then(start, start);
+    setTimeout(start, 2600);
+  } else start();
+}
+
+/** حلقهٔ فریم با dtِ محدودشده. */
+function runLoop(step) {
+  let last = performance.now(), started = false;
+  const frame = (now) => {
+    const dt = Math.min((now - last) / 1000, 1/20);
+    last = now;
+    step(dt);
+    requestAnimationFrame(frame);
+  };
+  if (!started) { started = true; requestAnimationFrame(frame); }
+}
+
+/* ═════════════════ بازی ═════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   بادکنکِ هزار — ریاضی سوم، فصل ۲، درس ۲ (معرّفی عدد هزار)
+   ───────────────────────────────────────────────────────────────────────
+   کتاب سه الگو دارد که هر سه به یک جا می‌رسند:
+       ۱۰۰، ۲۰۰، … ، ۱۰۰۰      (ده تا صدتایی)
+       ۹۰۰، ۹۱۰، … ، ۱۰۰۰      (ده تا ده‌تایی)
+       ۹۹۰، ۹۹۱، … ، ۱۰۰۰      (ده تا یکی)
+
+   اینجا هر سه یک کارند: بالا رفتنِ بادکنک تا جزیرهٔ هزار. تنها چیزی که
+   عوض می‌شود، بزرگیِ خط‌کشِ کنارِ صحنه است — و بین مرحله‌ها دوربین روی
+   همان محور زوم می‌کند، از ۰ تا ۱۰۰۰ به ۹۰۰ تا ۱۰۰۰ و بعد ۹۹۰ تا ۱۰۰۰.
+   بچه با چشمِ خودش می‌بیند که هر سه راه به یک نقطه می‌رسند؛ فقط پلّه‌ها
+   کوچک‌تر شده‌اند.
+
+   سوختِ بادکنک همان دسته‌های کتاب است: مکعّبِ یکی، میلهٔ ده‌تایی و
+   صفحهٔ صدتایی. جایزهٔ آخر هم مکعّبِ بزرگِ هزارتایی است.
+
+   باید دقیقاً روی ابرِ هدف بایستی. زیادی بریزی، از آن رد می‌شوی و سرما
+   می‌خوری و برمی‌گردی سرِ جای قبلی. پس شمردن مهم است، نه تند زدن.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const SCENE_W = 1200, SCENE_H = 760;
+
+const P = {
+  skyTop:   '#12294d',
+  skyMid:   '#3f7fa8',
+  skyLo:    '#a9d6de',
+  cloud:    '#f2f6f8',
+  cloudDk:  '#cfdde6',
+  cloudFar: 'rgba(226, 240, 246, .38)',
+  hill:     '#4b7b52',
+  hillDk:   '#3a6242',
+  hillFar:  '#6d9a7a',
+  roof:     '#b3563f',
+  wall:     '#e8dcc0',
+  wood:     '#8a5a32',
+  woodDk:   '#5f3c1f',
+  woodLit:  '#a97442',
+  rope:     '#d8c49a',
+  env1:     '#e2574c',
+  env2:     '#f0b33c',
+  env3:     '#4e9ed6',
+  env4:     '#f2ece0',
+  brass:    '#d9a840',
+  brassDk:  '#a2761f',
+  ones:     '#e8b04a',
+  onesDk:   '#bd8524',
+  tens:     '#5fae7a',
+  tensDk:   '#3d8556',
+  hund:     '#5e94d6',
+  hundDk:   '#3b6bab',
+  thou:     '#e6c15a',
+  thouDk:   '#b08f2c',
+  paper:    '#fbf3e2',
+  ink:      '#26313f',
+  inkSoft:  '#6f8291',
+  good:     '#6fa85c',
+  bad:      '#cf5f4a',
+  gold:     '#f0c552',
+  flame:    '#ffcf6b',
+};
+
+/* ───────── دسته‌های کتاب: یکی، ده‌تایی، صدتایی ───────── */
+
+const UNITS = [
+  { v: 100, name: 'صدتایی', col: P.hund, dk: P.hundDk },
+  { v: 10,  name: 'ده‌تایی', col: P.tens, dk: P.tensDk },
+  { v: 1,   name: 'یکی',    col: P.ones, dk: P.onesDk },
+];
+
+const LEVELS = [
+  { name: 'ده تا صدتایی', from: 0, gates: [300, 700, 1000],
+    stock: [10, 0, 0], view: [0, 1000],
+    hint: 'فقط صدتایی داری. تا ابرِ اوّل چند تا لازم است؟' },
+  { name: 'ده تا ده‌تایی', from: 900, gates: [930, 970, 1000],
+    stock: [0, 10, 0], view: [900, 1000],
+    hint: 'خط‌کش زوم شد. حالا هر پلّه ده‌تاست.' },
+  { name: 'ده تا یکی', from: 990, gates: [993, 997, 1000],
+    stock: [0, 0, 10], view: [990, 1000],
+    hint: 'باز هم زوم. ده تا یکی هم می‌رساندت به هزار.' },
+  { name: 'هر سه با هم', from: 0, gates: [246, 583, 1000],
+    stock: [10, 11, 24], view: [0, 1000],
+    hint: 'حالا هر سه دسته را داری. راهش یکی نیست؛ خودت انتخاب کن.' },
+  { name: 'پروازِ آزاد', endless: true, from: 0,
+    stock: [12, 14, 26], view: [0, 1000],
+    hint: 'ابرها هر بار جای تازه‌ای‌اند. تا وقتی دل داری پرواز کن.' },
+];
+
+/* ───────── وضعیت ───────── */
+
+const S = {
+  phase: 'intro',
+  level: 0,
+  alt: 0,               // ارتفاعِ نشان‌داده‌شده (نرم)
+  target: 0,            // ارتفاعِ واقعی که به آن می‌رویم
+  gates: [],
+  gi: 0,                // ابرِ بعدی
+  segStart: 0,          // ارتفاعِ ابرِ قبلی
+  segSpent: [0, 0, 0],  // چقدر سوخت در این تکّه خرج شده
+  stock: [0, 0, 0],
+  view: { lo: 0, hi: 1000 },
+  viewTo: { lo: 0, hi: 1000 },
+  viewFrom: { lo: 0, hi: 1000 },
+  viewT: 1,
+  hearts: 3,
+  score: 0, best: 0,
+  flights: 0,
+  burn: 0,              // شعلهٔ مشعل
+  over: null,           // انیمیشنِ رد شدن از ابر
+  t: 0, phaseT: 0,
+  hover: null,
+  shake: 0,
+  clouds: [],
+  floats: [],
+  tut: { on: true, step: 0, t: 0 },
+};
+
+const bits = new Bits();
+const toast = new Toast();
+const L = () => LEVELS[S.level];
+const nextGate = () => S.gates[S.gi];
+
+function loadBest() { try { return +localStorage.getItem('hezar-best') || 0; } catch { return 0; } }
+function saveBest(v) { try { localStorage.setItem('hezar-best', String(v)); } catch { /* حالت خصوصی */ } }
+
+/* ───────── چیدمان ───────── */
+
+const HUD_H = 52;
+const RULER = { x: 300, top: 200, bot: 664 };
+const BX = 520;                                  // محورِ عمودیِ بادکنک
+const FUEL = { x: 762, y: 138, w: 408, h: 486 };
+const ALT_CARD = { x: 26, y: 74, w: 190, h: 92 };
+const BTN_GO = { x: 470, y: 566, w: 260, h: 76 };
+
+function fuelBox(i) {
+  const h = 132, gap = 22;
+  return { x: FUEL.x + 20, y: FUEL.y + 92 + i * (h + gap), w: FUEL.w - 40, h };
+}
+
+function yOf(v) {
+  const k = (v - S.view.lo) / (S.view.hi - S.view.lo);
+  return RULER.bot - k * (RULER.bot - RULER.top);
+}
+
+/** پلّهٔ درشتِ خط‌کش = یک‌دهمِ پنجره؛ همان چیزی که کتاب روی محور می‌کشد. */
+function majorStep() { return (S.view.hi - S.view.lo) / 10; }
+
+/* ───────── حلقه ───────── */
+
+const cv = document.getElementById('stage');
+initStage(cv, SCENE_W, SCENE_H);
+S.best = loadBest();
+for (let i = 0; i < 10; i++) {
+  S.clouds.push({ a: Math.random() * 1100, x: Math.random() * SCENE_W,
+                  w: 54 + Math.random() * 84, sp: 4 + Math.random() * 12, far: i % 2 === 0 });
+}
+whenFontsReady(() => runLoop(step));
+
+/** ابرهای هدف را برای پروازِ آزاد می‌سازد؛ همیشه صعودی. */
+function randomGates() {
+  const g1 = 120 + Math.floor(Math.random() * 260);
+  const g2 = g1 + 150 + Math.floor(Math.random() * 300);
+  return [g1, g2, 1000];
+}
+
+/** چند تا از هر دسته لازم است تا از from به این ابرها برسیم. */
+function stockFor(gates, from) {
+  const need = [0, 0, 0];
+  let cur = from;
+  for (const g of gates) {
+    let d = g - cur;
+    need[0] += Math.floor(d / 100); d %= 100;
+    need[1] += Math.floor(d / 10);  d %= 10;
+    need[2] += d;
+    cur = g;
+  }
+  return need;
+}
+
+/** آیا با این موجودی می‌شود دقیقاً به فاصلهٔ need رسید؟ */
+function canReach(need, st) {
+  const maxH = Math.min(st[0], Math.floor(need / 100));
+  for (let h = maxH; h >= 0; h--) {
+    const r = need - h * 100;
+    const maxT = Math.min(st[1], Math.floor(r / 10));
+    for (let t = maxT; t >= 0; t--) {
+      if (r - t * 10 <= st[2]) return true;
+    }
+  }
+  return false;
+}
+
+/* کمبودِ سوخت باید سخت باشد، نه بن‌بست: اگر بچه جوری خرج کرده که دیگر
+   نمی‌تواند دقیقاً روی ابر بنشیند، از زمین برایش بسته می‌فرستند. */
+function ensureReachable() {
+  if (S.gi >= S.gates.length) return;
+  const need = nextGate() - S.target;
+  if (need <= 0 || canReach(need, S.stock)) return;
+  const want = [Math.floor(need / 100), Math.floor((need % 100) / 10), need % 10];
+  for (let i = 0; i < 3; i++) if (S.stock[i] < want[i]) S.stock[i] = want[i];
+  toast.say('سوختت جور در نمی‌آمد؛ از زمین بستهٔ کمکی رسید', 'info');
+  sfx.place();
+}
+
+function startLevel(i, keepScore) {
+  const lv = LEVELS[i];
+  S.level = i;
+  S.viewFrom = { ...S.view };             // از جای فعلی زوم می‌کند
+  S.viewTo = { lo: lv.view[0], hi: lv.view[1] };
+  S.viewT = S.phase === 'intro' ? 1 : 0;
+  if (S.phase === 'intro') S.view = { ...S.viewTo };
+  S.gates = lv.endless ? randomGates() : lv.gates.slice();
+  S.alt = lv.from; S.target = lv.from;
+  S.gi = 0; S.segStart = lv.from; S.segSpent = [0, 0, 0];
+  S.stock = lv.endless
+    ? stockFor(S.gates, lv.from).map((n, k) => n + [3, 5, 8][k])
+    : lv.stock.slice();
+  S.over = null;
+  S.flights = 0;
+  if (!keepScore) S.hearts = 3;
+  S.phase = 'play'; S.phaseT = 0;
+  S.tut.on = i === 0; S.tut.step = 0; S.tut.t = 0;
+  toast.say(lv.hint, 'info');
+}
+
+function floatText(x, y, txt, col, size) { S.floats.push({ x, y, txt, col, t: 0, size: size || 26 }); }
+
+function step(dt) {
+  S.t += dt; S.phaseT += dt;
+  if (S.shake > 0) S.shake -= dt;
+
+  /* زومِ دوربین روی همان محور — زمان‌دار است تا دقیقاً سرِ عددهای گِرد
+     بایستد؛ وگرنه برچسب‌های خط‌کش عددهای عجیب می‌شوند. */
+  if (S.viewT < 1) {
+    S.viewT = Math.min(1, S.viewT + dt / .9);
+    const e = easeInOut(S.viewT);
+    S.view.lo = lerp(S.viewFrom.lo, S.viewTo.lo, e);
+    S.view.hi = lerp(S.viewFrom.hi, S.viewTo.hi, e);
+  }
+
+  /* بالا رفتنِ نرمِ بادکنک */
+  if (Math.abs(S.alt - S.target) > .02) {
+    S.alt = lerp(S.alt, S.target, Math.min(1, dt * 3.4));
+    S.burn = Math.min(1, S.burn + dt * 4);
+  } else {
+    S.alt = S.target;
+    S.burn = Math.max(0, S.burn - dt * 1.6);
+  }
+
+  stepOver(dt);
+
+  for (const c of S.clouds) {
+    c.x += c.sp * dt * (c.far ? .4 : 1);
+    if (c.x > SCENE_W + 200) { c.x = -200; c.a = Math.random() * 1100; }
+  }
+  for (const f of S.floats) { f.t += dt; f.y -= 44 * dt; }
+  S.floats = S.floats.filter((f) => f.t < 1.5);
+  if (S.phase === 'play' && S.tut.on) tutStep(dt);
+  bits.step(dt);
+  toast.step(dt);
+  draw();
+}
+
+/* ───────── ریختنِ سوخت ───────── */
+
+function burn(i) {
+  if (S.phase !== 'play' || S.over) return;
+  if (S.stock[i] <= 0) { S.shake = .16; sfx.tone(150, .1, 'sine', .05); return; }
+  const g = nextGate();
+  const nv = S.target + UNITS[i].v;
+  S.stock[i]--;
+  S.segSpent[i]++;
+  sfx.tone(520 + i * 90, .12, 'triangle', .1);
+
+  if (nv > g) {                       // از ابر رد شدی
+    S.target = nv;
+    S.over = { t: 0 };
+    return;
+  }
+  S.target = nv;
+  bits.add(BX, yOf(S.target) + 62, 8, 'dot', [P.flame, '#ffe9b0'],
+    { speed: 90, lift: -40, size: 3.4, life: .5, grav: -60 });
+  if (nv === g) reachGate(); else ensureReachable();
+}
+
+function reachGate() {
+  S.score += 200;
+  floatText(BX, yOf(nextGate()) - 70, `+${fa(200)}`, P.gold);
+  bits.confetti(BX, yOf(nextGate()) - 30, 22, [P.gold, P.cloud, P.thou]);
+  sfx.good();
+  S.gi++;
+  S.segStart = S.target;
+  S.segSpent = [0, 0, 0];
+  if (S.gi >= S.gates.length) return finishFlight();
+  toast.say('روی ابر نشستی! ابرِ بعدی', 'good');
+  ensureReachable();
+}
+
+function finishFlight() {
+  const left = S.stock.reduce((a, b) => a + b, 0);
+  S.score += 400 + left * 40;
+  if (S.score > S.best) { S.best = S.score; saveBest(S.best); }
+  sfx.win();
+  bits.confetti(BX, yOf(1000) - 20, 80, [P.gold, P.thou, P.cloud, P.env1, P.env3]);
+  S.flights++;
+  if (L().endless) {
+    /* پروازِ آزاد: دوباره از زمین، ابرهای تازه */
+    S.phase = 'won'; S.phaseT = 0;
+  } else {
+    S.phase = 'won'; S.phaseT = 0;
+  }
+}
+
+function stepOver(dt) {
+  if (!S.over) return;
+  S.over.t += dt;
+  if (S.over.t < 1.1) return;
+  /* سرما خورد و برگشت سرِ ابرِ قبلی؛ سوختِ این تکّه پس داده می‌شود
+     چون بچه نباید به بن‌بست بخورد — ولی یک دل کم می‌شود. */
+  for (let i = 0; i < 3; i++) { S.stock[i] += S.segSpent[i]; S.segSpent[i] = 0; }
+  S.target = S.segStart;
+  S.over = null;
+  S.hearts--;
+  S.shake = .4;
+  sfx.nope();
+  if (S.hearts <= 0) { S.phase = 'lost'; S.phaseT = 0; return; }
+  toast.say('از ابر رد شدی! برگشتی سرِ جای قبل', 'bad');
+  ensureReachable();
+}
+
+/* ───────── آموزش ───────── */
+
+function tutStep(dt) {
+  S.tut.t += dt;
+  if (S.tut.step === 0 && S.tut.t > 5.2) { S.tut.step = 1; S.tut.t = 0; }
+  if (S.tut.step === 1 && S.target > S.segStart) { S.tut.step = 2; S.tut.t = 0; }
+  if (S.tut.step === 2 && S.tut.t > 8) S.tut.on = false;
+}
+
+/* ───────── ورودی ───────── */
+
+function hitTest(p) {
+  if (S.phase !== 'play') return inRect(p, BTN_GO) ? BTN_GO : null;
+  for (let i = 0; i < 3; i++) if (inRect(p, fuelBox(i))) return { fuel: i };
+  return null;
+}
+
+cv.addEventListener('pointermove', (e) => {
+  S.hover = hitTest(toStage(e));
+  cv.style.cursor = S.hover ? 'pointer' : 'default';
+});
+cv.addEventListener('pointerleave', () => { S.hover = null; });
+cv.addEventListener('pointerdown', (e) => {
+  const h = hitTest(toStage(e));
+  if (S.phase === 'intro') { if (h) startLevel(0); return; }
+  if (S.phase === 'won') {
+    if (!h) return;
+    if (L().endless) startLevel(S.level, true);
+    else if (S.level + 1 < LEVELS.length) startLevel(S.level + 1, true);
+    else { S.score = 0; startLevel(0); }
+    return;
+  }
+  if (S.phase === 'lost') { if (h) { S.score = 0; startLevel(S.level); } return; }
+  if (h && h.fuel !== undefined) burn(h.fuel);
+});
+
+/* ───────── ابزارِ نقاشی ───────── */
+
+function rrPath(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function numText(str, x, y, o = {}) {
+  ctx.save();
+  ctx.font = `${o.family === 'Vazirmatn' ? (o.weight || 700) : '400'} ${o.size || 20}px "${o.family || 'Lalezar'}", Tahoma, sans-serif`;
+  ctx.textAlign = o.align || 'center';
+  ctx.textBaseline = 'middle';
+  ctx.direction = 'ltr';
+  ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+  if (o.stroke) {
+    ctx.lineWidth = o.strokeWidth || 6; ctx.lineJoin = 'round';
+    ctx.strokeStyle = o.stroke; ctx.strokeText(str, x, y);
+  }
+  ctx.fillStyle = o.color || P.ink;
+  ctx.fillText(str, x, y);
+  ctx.restore();
+}
+
+function spot(rects, alpha) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, SCENE_W, SCENE_H);
+  for (const r of rects) rrPath(r.x - 12, r.y - 12, r.w + 24, r.h + 24, 22);
+  ctx.fillStyle = `rgba(8, 18, 34, ${alpha})`;
+  ctx.fill('evenodd');
+  ctx.restore();
+}
+
+function pointHand(x, y) {
+  const bob = Math.sin(S.t * 3.4) * 8;
+  ctx.save();
+  ctx.translate(x, y + bob);
+  withShadow(12, 5, .4, () => {
+    ctx.fillStyle = '#f6dfc0';
+    ctx.beginPath();
+    ctx.moveTo(0, -6);
+    ctx.quadraticCurveTo(-9, -2, -10, 16);
+    ctx.quadraticCurveTo(-11, 34, 0, 36);
+    ctx.quadraticCurveTo(11, 34, 10, 16);
+    ctx.quadraticCurveTo(9, -2, 0, -6);
+    ctx.closePath(); ctx.fill();
+    wobbleCircle(0, -12, 8, 4, 1); ctx.fill();
+  }, '10, 24, 40');
+  ctx.strokeStyle = '#c9a982'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-7, 18); ctx.lineTo(7, 18); ctx.stroke();
+  ctx.restore();
+}
+
+/** دستهٔ ده‌تاییِ کتاب، در مقیاسِ واقعی: یکی کوچک است و صد، صد برابر.
+    x,y گوشهٔ پایین-چپِ رویهٔ جلو است. */
+function blockArt(cols, rows, x, y, cell, col, dk, lit) {
+  const w = cols * cell, h = rows * cell;
+  const d = cell * .55;
+  const bx = x, by = y - h;
+  ctx.fillStyle = lit;                        // رویهٔ بالا
+  ctx.beginPath();
+  ctx.moveTo(bx, by); ctx.lineTo(bx + d, by - d);
+  ctx.lineTo(bx + w + d, by - d); ctx.lineTo(bx + w, by);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = dk;                         // رویهٔ راست
+  ctx.beginPath();
+  ctx.moveTo(bx + w, by); ctx.lineTo(bx + w + d, by - d);
+  ctx.lineTo(bx + w + d, by + h - d); ctx.lineTo(bx + w, by + h);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = col;                        // رویهٔ جلو
+  ctx.fillRect(bx, by, w, h);
+  ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = 1;
+  for (let c = 1; c < cols; c++) { ctx.beginPath(); ctx.moveTo(bx + c * cell, by); ctx.lineTo(bx + c * cell, by + h); ctx.stroke(); }
+  for (let r = 1; r < rows; r++) { ctx.beginPath(); ctx.moveTo(bx, by + r * cell); ctx.lineTo(bx + w, by + r * cell); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1.6;
+  ctx.strokeRect(bx, by, w, h);
+}
+
+function unitArt(i, x, y, cell) {
+  const u = UNITS[i];
+  const lit = shade(u.col, 30);
+  if (i === 0) blockArt(10, 10, x, y, cell, u.col, u.dk, lit);
+  else if (i === 1) blockArt(10, 1, x, y, cell, u.col, u.dk, lit);
+  else blockArt(1, 1, x, y, cell, u.col, u.dk, lit);
+}
+
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+    .map((v) => clamp(v + amt, 0, 255).toString(16).padStart(2, '0'));
+  return `#${c.join('')}`;
+}
+
+/** ابرِ کاغذی: پهن و کم‌ارتفاع، مثل سکّویی که می‌شود رویش نشست. */
+function cloud(cx, cy, w, seed, col, alpha, solid) {
+  ctx.save();
+  ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+  if (solid) {
+    ctx.save();
+    ctx.globalAlpha = (alpha === undefined ? 1 : alpha) * .22;
+    ctx.fillStyle = '#3b6a8c';
+    wobbleEllipse(cx + 6, cy + w * .12, w * .5, w * .09, 0, seed + 21, 1.6);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.fillStyle = col;
+  const n = 5;
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1) - .5;
+    const r = w * (.19 + .13 * Math.cos(t * 3.1) + noise1(seed + i) * .05);
+    wobbleEllipse(cx + t * w * .78, cy - Math.cos(t * 2.6) * w * .05, r, r * .62,
+      0, seed + i * 3, 1.6);
+    ctx.fill();
+  }
+  wobbleEllipse(cx, cy + w * .05, w * .48, w * .09, 0, seed + 9, 1.4);
+  ctx.fill();
+  ctx.restore();
+}
+
+/* ───────── صحنه ───────── */
+
+function draw() {
+  beginScene('#0d1b30');
+  ctx.save();
+  if (S.shake > 0) {
+    const k = S.shake * 13;
+    ctx.translate(Math.sin(S.t * 60) * k, Math.cos(S.t * 47) * k * .6);
+  }
+
+  drawSky();
+  drawFarClouds();
+  drawGround();
+  drawGoal();
+  drawRuler();
+  drawGates();
+  drawBalloon();
+  drawNearClouds();
+  bits.draw();
+  drawFloats();
+  ctx.restore();
+
+  drawFuel();
+  drawAltCard();
+  drawHUD();
+  ctx.save();
+  ctx.translate(BX - SCENE_W / 2, 0);
+  toast.draw(HUD_H + 10, { good: P.good, bad: P.bad, info: P.paper, ink: P.ink });
+  ctx.restore();
+
+  if (S.phase === 'play' && S.tut.on) drawTutorial();
+  if (S.phase === 'intro') drawIntro();
+  if (S.phase === 'won') drawWon();
+  if (S.phase === 'lost') drawLost();
+
+  endScene(.1, 'rgba(8, 20, 40, .34)');
+}
+
+function drawSky() {
+  /* هرچه بالاتر، آسمان تیره‌تر و سردتر */
+  const high = clamp(S.view.lo / 1000, 0, 1);
+  const g = ctx.createLinearGradient(0, 0, 0, SCENE_H);
+  g.addColorStop(0, high > .5 ? '#0b1c38' : P.skyTop);
+  g.addColorStop(.55, high > .5 ? '#2c5e8c' : P.skyMid);
+  g.addColorStop(1, high > .8 ? '#6fb0c8' : P.skyLo);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, SCENE_W, SCENE_H);
+
+  /* خورشید و هالهٔ آن */
+  const sx = 1000, sy = 140;
+  const gl = ctx.createRadialGradient(sx, sy, 8, sx, sy, 240);
+  gl.addColorStop(0, 'rgba(255, 236, 180, .34)');
+  gl.addColorStop(1, 'rgba(255, 236, 180, 0)');
+  ctx.fillStyle = gl;
+  ctx.fillRect(sx - 240, sy - 240, 480, 480);
+  ctx.fillStyle = '#fff2cd';
+  wobbleCircle(sx, sy, 40, 3, 1.6); ctx.fill();
+
+  /* پرنده‌های دور */
+  ctx.strokeStyle = 'rgba(30, 50, 70, .3)'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+  for (let i = 0; i < 5; i++) {
+    const x = 660 + i * 54 + Math.sin(S.t * .3 + i) * 24;
+    const y = 250 + Math.sin(S.t * .5 + i * 2) * 10;
+    const f = Math.sin(S.t * 3 + i) * 4;
+    ctx.beginPath();
+    ctx.moveTo(x - 10, y + f); ctx.quadraticCurveTo(x, y - 5, x + 10, y + f);
+    ctx.stroke();
+  }
+}
+
+function drawFarClouds() {
+  for (const c of S.clouds) {
+    if (!c.far) continue;
+    const y = yOf(c.a);
+    if (y < -120 || y > SCENE_H + 120) continue;
+    cloud(c.x, y, c.w, c.a, 'rgba(226, 240, 246, .22)', 1);
+  }
+}
+
+function drawNearClouds() {
+  for (const c of S.clouds) {
+    if (c.far) continue;
+    const y = yOf(c.a);
+    if (y < -140 || y > SCENE_H + 140) continue;
+    cloud(c.x, y, c.w * 1.1, c.a + 5, P.cloud, .26);
+  }
+}
+
+/** زمین فقط وقتی دیده می‌شود که ارتفاعِ صفر توی پنجره باشد. */
+function drawGround() {
+  const y0 = yOf(0);
+  if (y0 < -60) return;
+  ctx.fillStyle = P.hillFar;
+  ctx.beginPath();
+  ctx.moveTo(0, SCENE_H);
+  for (let x = 0; x <= SCENE_W; x += 40) ctx.lineTo(x, y0 - 26 - Math.sin(x * .008) * 22);
+  ctx.lineTo(SCENE_W, SCENE_H); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = P.hill;
+  ctx.beginPath();
+  ctx.moveTo(0, SCENE_H);
+  for (let x = 0; x <= SCENE_W; x += 40) ctx.lineTo(x, y0 - Math.sin(x * .011 + 2) * 14);
+  ctx.lineTo(SCENE_W, SCENE_H); ctx.closePath(); ctx.fill();
+
+  /* خانه‌های ده */
+  for (const h of [{ x: 640, s: 1 }, { x: 730, s: .8 }, { x: 840, s: .95 }, { x: 250, s: .7 }]) {
+    const b = y0 + 16, w = 54 * h.s, hh = 42 * h.s;
+    ctx.fillStyle = P.wall;
+    wobbleRect(h.x - w / 2, b - hh, w, hh, 3, h.x, 1); ctx.fill();
+    ctx.fillStyle = P.roof;
+    ctx.beginPath();
+    ctx.moveTo(h.x - w / 2 - 6, b - hh);
+    ctx.lineTo(h.x, b - hh - 26 * h.s);
+    ctx.lineTo(h.x + w / 2 + 6, b - hh);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#5f7f9a';
+    wobbleRect(h.x - 8 * h.s, b - hh + 12, 16 * h.s, 14 * h.s, 2, h.x + 2, .6); ctx.fill();
+  }
+  /* درخت‌ها */
+  for (let i = 0; i < 9; i++) {
+    const x = 60 + i * 132 + noise1(i * 3) * 40;
+    const b = y0 + 24 + noise1(i * 7) * 14;
+    ctx.strokeStyle = P.woodDk; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x, b); ctx.lineTo(x, b - 26); ctx.stroke();
+    ctx.fillStyle = P.hillDk;
+    wobbleCircle(x, b - 40, 20, i * 3, 1.6); ctx.fill();
+  }
+}
+
+/* ───────── جزیرهٔ هزار ───────── */
+
+function drawGoal() {
+  const y = yOf(1000);
+  if (y < -220 || y > SCENE_H + 160) return;
+  const bob = Math.sin(S.t * .9) * 5;
+  cloud(BX, y + 26 + bob, 206, 77, P.cloud, 1, true);
+  cloud(BX - 150, y + 36 + bob, 96, 91, P.cloudDk, .62);
+  cloud(BX + 152, y + 34 + bob, 100, 93, P.cloudDk, .62);
+
+  /* مکعّبِ بزرگِ هزارتایی — جایزه و نمادِ درس */
+  const cx = BX, cy = y + 16 + bob, s = 70;
+  const gl = ctx.createRadialGradient(cx, cy - 20, 6, cx, cy - 20, 190);
+  gl.addColorStop(0, `rgba(255, 226, 140, ${.3 + .1 * Math.sin(S.t * 2)})`);
+  gl.addColorStop(1, 'rgba(255, 226, 140, 0)');
+  ctx.fillStyle = gl;
+  ctx.fillRect(cx - 190, cy - 210, 380, 380);
+  blockArt(10, 10, cx - s / 2, cy, s / 10, P.thou, P.thouDk, shade(P.thou, 34));
+  /* عددش را خطِ‌کش می‌گوید؛ اینجا دوباره نوشتنش لازم نیست. */
+}
+
+/* ───────── خط‌کشِ ارتفاع ───────── */
+
+function drawRuler() {
+  const ms = majorStep();
+  ctx.save();
+  ctx.strokeStyle = 'rgba(20, 40, 60, .30)'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(RULER.x + 2, RULER.top - 12); ctx.lineTo(RULER.x + 2, RULER.bot + 12); ctx.stroke();
+  ctx.strokeStyle = P.paper; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(RULER.x, RULER.top - 14); ctx.lineTo(RULER.x, RULER.bot + 14); ctx.stroke();
+
+  const start = Math.ceil(S.view.lo / ms) * ms;
+  /* خط‌های ریز = یک‌دهمِ پلّهٔ درشت؛ همان تقسیم‌بندیِ محورِ کتاب */
+  const minor = ms / 10;
+  if ((RULER.bot - RULER.top) / ((S.view.hi - S.view.lo) / minor) > 8) {
+    ctx.strokeStyle = 'rgba(251, 243, 226, .5)'; ctx.lineWidth = 2;
+    for (let v = Math.ceil(S.view.lo / minor) * minor; v <= S.view.hi + .001; v += minor) {
+      const y = yOf(v);
+      ctx.beginPath(); ctx.moveTo(RULER.x, y); ctx.lineTo(RULER.x + 9, y); ctx.stroke();
+    }
+  }
+  ctx.strokeStyle = P.paper; ctx.lineWidth = 4;
+  for (let v = start; v <= S.view.hi + .001; v += ms) {
+    const y = yOf(v);
+    ctx.beginPath(); ctx.moveTo(RULER.x - 4, y); ctx.lineTo(RULER.x + 22, y); ctx.stroke();
+    numText(fa(Math.round(v)), RULER.x - 14, y, { size: 21, color: '#f4f8fb', align: 'right',
+      alpha: S.viewT, stroke: 'rgba(20, 40, 60, .45)', strokeWidth: 5 });
+  }
+  ctx.restore();
+
+  /* نشانگرِ ارتفاعِ فعلی روی خط‌کش */
+  const y = yOf(S.alt);
+  ctx.fillStyle = P.gold;
+  ctx.beginPath();
+  ctx.moveTo(RULER.x + 26, y);
+  ctx.lineTo(RULER.x + 44, y - 9);
+  ctx.lineTo(RULER.x + 44, y + 9);
+  ctx.closePath(); ctx.fill();
+}
+
+/* ───────── ابرهای هدف ───────── */
+
+function drawGates() {
+  for (let i = 0; i < S.gates.length; i++) {
+    const g = S.gates[i];
+    if (g === 1000) continue;                 // جزیرهٔ هزار خودش کشیده شده
+    const y = yOf(g);
+    if (y < -140 || y > SCENE_H + 140) continue;
+    const done = i < S.gi;
+    const next = i === S.gi;
+    ctx.save();
+    ctx.globalAlpha = done ? .45 : 1;
+    const bob = Math.sin(S.t * 1.1 + i) * 4;
+    cloud(BX, y + 20 + bob, 158, g, done ? P.cloudDk : P.cloud, 1, true);
+    /* تیرکِ پرچم با عددِ ابر */
+    const px = BX + 84;
+    ctx.strokeStyle = P.woodDk; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(px, y + 30 + bob); ctx.lineTo(px, y - 46 + bob); ctx.stroke();
+    const fw = 12 + Math.sin(S.t * 3 + i) * 3;
+    ctx.fillStyle = done ? P.good : (next ? P.env1 : P.brassDk);
+    ctx.beginPath();
+    ctx.moveTo(px, y - 46 + bob);
+    ctx.lineTo(px + 78, y - 38 + bob + fw * .2);
+    ctx.lineTo(px + 62, y - 22 + bob);
+    ctx.lineTo(px + 78, y - 6 + bob - fw * .2);
+    ctx.lineTo(px, y - 14 + bob);
+    ctx.closePath(); ctx.fill();
+    numText(fa(g), px + 40, y - 30 + bob, { size: 22, color: '#fff6e2' });
+    if (next) {
+      ctx.strokeStyle = 'rgba(255, 226, 140, .75)';
+      ctx.lineWidth = 3; ctx.setLineDash([10, 8]);
+      ctx.lineDashOffset = -S.t * 22;
+      ctx.beginPath();
+      ctx.moveTo(BX - 150, y + 14 + bob); ctx.lineTo(BX + 150, y + 14 + bob);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
+  }
+}
+
+/* ───────── بادکنک ───────── */
+
+function drawBalloon() {
+  const y = yOf(S.alt);
+  const over = S.over ? easeOut(clamp(S.over.t / .8, 0, 1)) : 0;
+  const sway = Math.sin(S.t * 1.2) * 4 + (S.burn > .1 ? Math.sin(S.t * 9) * 1.5 : 0);
+  const x = BX + sway;
+  const ey = y - 176;                                 // مرکزِ کیسه
+
+  /* لرزشِ سرما وقتی از ابر رد شده */
+  ctx.save();
+  if (over > 0) ctx.translate(Math.sin(S.t * 26) * 5 * (1 - over * .3), 0);
+
+  /* طناب‌ها */
+  ctx.strokeStyle = P.rope; ctx.lineWidth = 2.4;
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(x + s * 44, ey + 56);
+    ctx.lineTo(x + s * 26, y - 52);
+    ctx.stroke();
+  }
+
+  /* کیسهٔ بادکنک */
+  const cols = [P.env1, P.env2, P.env3, P.env4];
+  withShadow(24, 12, .28, () => {
+    ctx.fillStyle = P.env4;
+    ctx.beginPath();
+    ctx.moveTo(x, ey - 92);
+    ctx.bezierCurveTo(x + 96, ey - 84, x + 84, ey + 34, x, ey + 62);
+    ctx.bezierCurveTo(x - 84, ey + 34, x - 96, ey - 84, x, ey - 92);
+    ctx.closePath(); ctx.fill();
+  }, '10, 24, 44');
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x, ey - 92);
+  ctx.bezierCurveTo(x + 96, ey - 84, x + 84, ey + 34, x, ey + 62);
+  ctx.bezierCurveTo(x - 84, ey + 34, x - 96, ey - 84, x, ey - 92);
+  ctx.closePath();
+  ctx.clip();
+  for (let i = 0; i < 6; i++) {
+    ctx.fillStyle = cols[i % cols.length];
+    ctx.beginPath();
+    const x0 = x - 96 + i * 32;
+    ctx.moveTo(x0, ey - 110);
+    ctx.quadraticCurveTo(x0 + 16, ey, x0, ey + 80);
+    ctx.lineTo(x0 + 32, ey + 80);
+    ctx.quadraticCurveTo(x0 + 48, ey, x0 + 32, ey - 110);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.24)';
+  wobbleEllipse(x - 34, ey - 32, 22, 40, -.4, 5, 1.6); ctx.fill();
+  ctx.fillStyle = 'rgba(20, 30, 50, .16)';
+  wobbleEllipse(x + 46, ey + 6, 26, 52, .2, 7, 1.6); ctx.fill();
+  ctx.restore();
+
+  /* شعلهٔ مشعل */
+  if (S.burn > .05) {
+    const f = S.burn * (.8 + Math.sin(S.t * 18) * .2);
+    const g = ctx.createRadialGradient(x, y - 62, 2, x, y - 62, 60 * f);
+    g.addColorStop(0, 'rgba(255, 206, 120, .55)');
+    g.addColorStop(1, 'rgba(255, 206, 120, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - 60, y - 122, 120, 120);
+    ctx.fillStyle = P.flame;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 52 - 44 * f);
+    ctx.quadraticCurveTo(x + 13, y - 62, x, y - 50);
+    ctx.quadraticCurveTo(x - 13, y - 62, x, y - 52 - 44 * f);
+    ctx.closePath(); ctx.fill();
+  }
+
+  /* سبد */
+  withShadow(14, 7, .3, () => {
+    ctx.fillStyle = P.wood;
+    wobbleRect(x - 38, y - 52, 76, 52, 7, 11, 1.4); ctx.fill();
+  }, '10, 24, 44');
+  ctx.strokeStyle = P.woodDk; ctx.lineWidth = 2.4;
+  for (let i = 1; i < 4; i++) {
+    ctx.beginPath(); ctx.moveTo(x - 38 + i * 19, y - 52); ctx.lineTo(x - 38 + i * 19, y); ctx.stroke();
+  }
+  for (let i = 1; i < 3; i++) {
+    ctx.beginPath(); ctx.moveTo(x - 38, y - 52 + i * 17); ctx.lineTo(x + 38, y - 52 + i * 17); ctx.stroke();
+  }
+  ctx.fillStyle = P.woodLit;
+  wobbleRect(x - 42, y - 58, 84, 10, 4, 13, 1); ctx.fill();
+
+  /* خلبانِ کوچک */
+  const bob = Math.sin(S.t * 2) * 1.6;
+  ctx.fillStyle = '#e8a33e';
+  wobbleCircle(x - 4, y - 74 + bob, 15, 17, 1.2); ctx.fill();     // کاله/مو
+  ctx.fillStyle = '#f3d3ac';
+  wobbleCircle(x - 4, y - 70 + bob, 12, 19, 1.1); ctx.fill();
+  ctx.fillStyle = P.ink;
+  for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(x - 4 + s * 4.4, y - 71 + bob, 2.1, 0, TAU); ctx.fill(); }
+  ctx.strokeStyle = P.ink; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.beginPath();
+  if (over > 0) ctx.arc(x - 4, y - 64 + bob, 4, Math.PI * 1.15, Math.PI * 1.85);
+  else ctx.arc(x - 4, y - 66 + bob, 5, .15 * Math.PI, .85 * Math.PI);
+  ctx.stroke();
+  ctx.fillStyle = P.env1;                                          // شالِ گردن
+  wobbleRect(x - 14, y - 60 + bob, 20, 7, 3, 21, .7); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x + 4, y - 58 + bob);
+  ctx.quadraticCurveTo(x + 24 + Math.sin(S.t * 4) * 6, y - 52 + bob, x + 30, y - 40 + bob);
+  ctx.lineTo(x + 22, y - 40 + bob);
+  ctx.quadraticCurveTo(x + 16, y - 50 + bob, x + 4, y - 52 + bob);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  /* بلورهای سرما وقتی از ابر رد شده */
+  if (over > 0) {
+    ctx.save();
+    ctx.globalAlpha = .7 * (1 - over * .4);
+    ctx.strokeStyle = '#cfeaf6'; ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * TAU + S.t;
+      const r = 110 + Math.sin(S.t * 6 + i) * 10;
+      const px = x + Math.cos(a) * r, py = ey + Math.sin(a) * r * .7;
+      for (let k = 0; k < 3; k++) {
+        const b = k / 3 * Math.PI;
+        ctx.beginPath();
+        ctx.moveTo(px - Math.cos(b) * 7, py - Math.sin(b) * 7);
+        ctx.lineTo(px + Math.cos(b) * 7, py + Math.sin(b) * 7);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+}
+
+/* ───────── تابلوی سوخت ───────── */
+
+function drawFuel() {
+  const b = FUEL;
+  withShadow(22, 10, .3, () => {
+    ctx.fillStyle = P.wood;
+    wobbleRect(b.x, b.y, b.w, b.h, 14, 31, 2); ctx.fill();
+  }, '10, 24, 44');
+  ctx.fillStyle = P.woodLit;
+  wobbleRect(b.x + 6, b.y + 6, b.w - 12, 12, 5, 33, 1); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,.2)';
+  wobbleRect(b.x + 6, b.y + b.h - 16, b.w - 12, 10, 4, 35, 1); ctx.fill();
+  text('انبارِ سوخت', b.x + b.w / 2, b.y + 46, { size: 26, family: 'Lalezar', color: '#fbf3e2' });
+  text('روی هر دسته بزن تا توی مشعل بریزد', b.x + b.w / 2, b.y + 72,
+    { size: 14, color: 'rgba(251, 243, 226, .68)' });
+
+  for (let i = 0; i < 3; i++) {
+    const r = fuelBox(i), u = UNITS[i];
+    const n = S.stock[i];
+    const hot = S.hover && S.hover.fuel === i && n > 0;
+    ctx.save();
+    ctx.globalAlpha = n > 0 ? 1 : .4;
+    withShadow(12, hot ? 3 : 6, .3, () => {
+      ctx.fillStyle = hot ? '#fffaf0' : P.paper;
+      wobbleRect(r.x, r.y + (hot ? 2 : 0), r.w, r.h, 12, r.y, 1.6); ctx.fill();
+    }, '10, 24, 44');
+    ctx.fillStyle = u.col;
+    wobbleRect(r.x, r.y + (hot ? 2 : 0), r.w, 9, 4, r.y + 2, .8); ctx.fill();
+
+    /* دسته در مقیاسِ واقعی: صدتایی صد برابرِ یکی است و همین را نشان می‌دهد */
+    unitArt(i, r.x + r.w - 132, r.y + r.h - 14 + (hot ? 2 : 0), 10);
+    numText(fa(u.v), r.x + 74, r.y + 52 + (hot ? 2 : 0), { size: 40, color: P.ink });
+    text(u.name, r.x + 74, r.y + 88 + (hot ? 2 : 0), { size: 17, color: P.inkSoft });
+
+    /* شمارهٔ باقی‌مانده */
+    ctx.fillStyle = n > 0 ? u.dk : '#96a3ad';
+    wobbleCircle(r.x + 24, r.y + 24 + (hot ? 2 : 0), 19, r.y + 5, 1.2); ctx.fill();
+    numText(fa(n), r.x + 24, r.y + 24 + (hot ? 2 : 0), { size: 21, color: '#fff' });
+    ctx.restore();
+  }
+}
+
+function drawAltCard() {
+  const b = ALT_CARD;
+  paper(b.x, b.y, b.w, b.h, P.paper, 51, 12, .3);
+  ctx.fillStyle = P.brass;
+  wobbleRect(b.x, b.y, b.w, 8, 4, 53, .8); ctx.fill();
+  text('ارتفاع', b.x + b.w / 2, b.y + 28, { size: 16, color: P.inkSoft });
+  numText(fa(Math.round(S.alt)), b.x + b.w / 2, b.y + 62, { size: 42, color: P.ink });
+}
+
+function drawFloats() {
+  for (const f of S.floats) {
+    const k = clamp(1 - f.t / 1.5, 0, 1);
+    numText(f.txt, f.x, f.y, { size: f.size, color: f.col, alpha: k,
+      stroke: 'rgba(20, 34, 52, .5)', strokeWidth: 5 });
+  }
+}
+
+function drawHUD() {
+  ctx.fillStyle = 'rgba(13, 27, 48, .74)';
+  ctx.fillRect(0, 0, SCENE_W, HUD_H);
+  ctx.fillStyle = 'rgba(217, 168, 64, .45)';
+  ctx.fillRect(0, HUD_H - 3, SCENE_W, 3);
+
+  for (let i = 0; i < 3; i++) {
+    const x = SCENE_W - 32 - i * 33;
+    ctx.save();
+    ctx.globalAlpha = i < S.hearts ? 1 : .22;
+    ctx.fillStyle = i < S.hearts ? '#d4574a' : '#4b5f66';
+    ctx.translate(x, HUD_H / 2);
+    const s = i < S.hearts ? 1 + Math.sin(S.t * 3 + i) * .05 : 1;
+    ctx.scale(s, s);
+    ctx.beginPath();
+    ctx.moveTo(0, 9);
+    ctx.bezierCurveTo(-14, -2, -9, -13, 0, -6);
+    ctx.bezierCurveTo(9, -13, 14, -2, 0, 9);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  text(L().name, SCENE_W - 146, HUD_H / 2, { size: 18, family: 'Lalezar', color: '#e8f0f6', align: 'right' });
+  numText(fa(S.score), 26, HUD_H / 2 - 1, { size: 26, color: P.gold, align: 'left' });
+  text(`رکورد ${fa(S.best)}`, 108, HUD_H / 2, { size: 14, color: 'rgba(232, 240, 246, .6)', align: 'left' });
+
+  /* ابرهای رد شده */
+  const w = 15, gap = 9, n = S.gates.length;
+  const x0 = SCENE_W / 2 - (n * w + (n - 1) * gap) / 2;
+  for (let i = 0; i < n; i++) {
+    ctx.fillStyle = i < S.gi ? P.good : 'rgba(255,255,255,.18)';
+    ctx.beginPath();
+    ctx.ellipse(x0 + i * (w + gap) + w / 2, HUD_H / 2, w / 2, w / 2 * .8, 0, 0, TAU);
+    ctx.fill();
+  }
+}
+
+/* ───────── آموزش ───────── */
+
+function drawTutorial() {
+  const st = S.tut.step;
+  let holes = [], msg = '', hand = null;
+
+  if (st === 0) {
+    holes = [{ x: RULER.x - 96, y: RULER.top - 24, w: 150, h: RULER.bot - RULER.top + 48 },
+             { x: BX - 170, y: yOf(nextGate()) - 76, w: 340, h: 130 }];
+    msg = 'خط‌کشِ کنار ارتفاع را نشان می‌دهد. باید دقیقاً روی ابرِ پرچم‌دار بایستی.';
+  } else if (st === 1) {
+    holes = [{ x: FUEL.x - 6, y: FUEL.y - 6, w: FUEL.w + 12, h: FUEL.h + 12 }];
+    msg = 'روی دسته‌ها بزن تا توی مشعل بریزند و بادکنک بالا برود.';
+    hand = { x: fuelBox(0).x + fuelBox(0).w / 2, y: fuelBox(0).y + fuelBox(0).h + 14 };
+  } else {
+    holes = [{ x: ALT_CARD.x - 6, y: ALT_CARD.y - 6, w: ALT_CARD.w + 12, h: ALT_CARD.h + 12 },
+             { x: BX - 170, y: yOf(nextGate()) - 76, w: 340, h: 130 }];
+    msg = 'زیادی بریزی از ابر رد می‌شوی و سرما می‌خوری. اوّل بشمار، بعد بریز.';
+  }
+
+  spot(holes, .56);
+  const w = 490, h = 92, x = BX - w / 2, y = SCENE_H - 118;
+  paper(x, y, w, h, P.paper, 41, 14, .42);
+  ctx.fillStyle = P.brass;
+  wobbleRect(x, y, 9, h, 4, 43, .8); ctx.fill();
+  textWrap(msg, x + w / 2 + 6, y + h / 2 - 12, w - 54, { size: 18, color: P.ink, lineHeight: 27 });
+  if (hand) pointHand(hand.x, hand.y);
+}
+
+/* ───────── پرده‌ها ───────── */
+
+function balloonIcon(x, y) {
+  ctx.save();
+  ctx.translate(x, y - 4);
+  ctx.scale(.42, .42);
+  const cols = [P.env1, P.env2, P.env3, P.env4];
+  ctx.fillStyle = P.env4;
+  ctx.beginPath();
+  ctx.moveTo(0, -92);
+  ctx.bezierCurveTo(96, -84, 84, 34, 0, 62);
+  ctx.bezierCurveTo(-84, 34, -96, -84, 0, -92);
+  ctx.closePath(); ctx.fill();
+  ctx.save(); ctx.clip();
+  for (let i = 0; i < 6; i++) {
+    ctx.fillStyle = cols[i % cols.length];
+    const x0 = -96 + i * 32;
+    ctx.beginPath();
+    ctx.moveTo(x0, -110); ctx.quadraticCurveTo(x0 + 16, 0, x0, 80);
+    ctx.lineTo(x0 + 32, 80); ctx.quadraticCurveTo(x0 + 48, 0, x0 + 32, -110);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  ctx.fillStyle = P.wood;
+  wobbleRect(-30, 76, 60, 42, 6, 3, 1.2); ctx.fill();
+  ctx.restore();
+}
+
+function drawIntro() {
+  overlay({
+    t: S.phaseT,
+    w: 740, h: 340, y: 172,
+    title: 'بادکنکِ هزار',
+    body: 'با دسته‌های یکی و ده‌تایی و صدتایی سوخت بریز و بالا برو.\nباید دقیقاً روی ابرها بنشینی تا به جزیرهٔ هزار برسی.',
+    btn: BTN_GO, btnHot: S.hover === BTN_GO, btnLabel: 'پرواز!',
+    paper: P.paper, band: P.brass, ink: P.ink, inkSoft: P.inkSoft,
+    btnFill: '#5e94d6', btnHotFill: '#6ea4e4',
+    icon: balloonIcon,
+  });
+}
+
+function drawWon() {
+  const last = !L().endless && S.level + 1 >= LEVELS.length;
+  const left = S.stock.reduce((a, b) => a + b, 0);
+  overlay({
+    t: S.phaseT,
+    w: 720, h: 320, y: 186,
+    title: L().endless ? 'یک پروازِ دیگر تمام شد' : 'رسیدی به هزار!',
+    body: L().endless
+      ? `امتیازت ${fa(S.score)} شد. ابرهای تازه منتظرند.`
+      : `${fa(left)} دسته هم برایت ماند. امتیازت ${fa(S.score)} شد.`,
+    btn: BTN_GO, btnHot: S.hover === BTN_GO,
+    btnLabel: L().endless ? 'پروازِ بعدی' : (last ? 'از اوّل' : 'مرحلهٔ بعدی'),
+    paper: P.paper, band: P.good, ink: P.ink, inkSoft: P.inkSoft,
+    btnFill: '#5e94d6', btnHotFill: '#6ea4e4',
+    icon: (x, y) => blockArt(10, 10, x - 30, y + 28, 6, P.thou, P.thouDk, shade(P.thou, 34)),
+  });
+}
+
+function drawLost() {
+  overlay({
+    t: S.phaseT,
+    w: 720, h: 300, y: 196,
+    title: 'باد خوابید',
+    body: 'سه بار از ابر رد شدی. این بار قبل از ریختن، بشمار.',
+    btn: BTN_GO, btnHot: S.hover === BTN_GO, btnLabel: 'دوباره',
+    paper: P.paper, band: P.bad, ink: P.ink, inkSoft: P.inkSoft,
+    btnFill: '#cf5f4a', btnHotFill: '#dd6f59',
+    icon: balloonIcon,
+  });
+}
+
+</script>
+</body>
+</html>
