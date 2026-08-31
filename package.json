@@ -1,35 +1,38 @@
 {
-  "name": "bazarino",
+  "name": "iphone-center",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "start": "next start",
+    "start": "prisma db push --skip-generate && tsx prisma/seed.ts && next start",
+    "start:plain": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "cross-env FORCE_SEED=1 tsx prisma/seed.ts",
     "setup": "prisma db push && tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
-    "bcryptjs": "3.0.3",
-    "jose": "6.2.10",
-    "lucide-react": "0.468.0",
-    "next": "15.5.24",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "zod": "3.25.76"
-  },
-  "devDependencies": {
     "@types/node": "22.10.2",
     "@types/react": "19.0.2",
     "@types/react-dom": "19.0.2",
     "autoprefixer": "10.4.20",
+    "bcryptjs": "3.0.3",
+    "jose": "6.2.10",
+    "lucide-react": "0.468.0",
+    "next": "15.5.24",
     "postcss": "8.4.49",
     "prisma": "6.19.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
     "tailwindcss": "3.4.19",
     "tsx": "4.19.2",
-    "typescript": "5.7.2"
+    "typescript": "5.7.2",
+    "zod": "3.25.76"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

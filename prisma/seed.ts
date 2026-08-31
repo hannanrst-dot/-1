@@ -366,6 +366,15 @@ const PRODUCTS: Seed[] = [
 ];
 
 async function main() {
+  // روی سرور، هر بار که برنامه بالا می‌آید این اسکریپت اجرا می‌شود.
+  // اگر دیتابیس از قبل داده دارد کاری نمی‌کنیم تا اطلاعات واقعی پاک نشود.
+  const existing = await prisma.user.count();
+  if (existing > 0 && process.env.FORCE_SEED !== "1") {
+    console.log("دیتابیس از قبل پر است — داده‌های نمونه دوباره ساخته نشد.");
+    console.log("برای بازنشانی کامل: FORCE_SEED=1 npm run db:seed");
+    return;
+  }
+
   console.log("پاکسازی داده‌های قبلی…");
   await prisma.$transaction([
     prisma.answer.deleteMany(), prisma.question.deleteMany(), prisma.review.deleteMany(),

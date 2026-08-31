@@ -3,28 +3,40 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { HeaderClient } from "./HeaderClient";
 
-export async function Header() {
-  const [categories, session] = await Promise.all([
-    prisma.category.findMany({
+type NavCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string | null;
+  children: { id: string; name: string; slug: string }[];
+};
+
+/**
+ * دسته‌بندی‌های منو. هدر در تمام صفحات رندر می‌شود، بنابراین اگر دیتابیس
+ * در دسترس نباشد (مثلاً هنگام build اولیه روی سرور) نباید کل سایت بشکند.
+ */
+async function loadCategories(): Promise<NavCategory[]> {
+  try {
+    const categories = await prisma.category.findMany({
       where: { parentId: null },
       orderBy: { order: "asc" },
       include: { children: { orderBy: { order: "asc" } } },
-    }),
-    getSession(),
-  ]);
+    });
+    return categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      icon: c.icon,
+      children: c.children.map((ch) => ({ id: ch.id, name: ch.name, slug: ch.slug })),
+    }));
+  } catch {
+    return [];
+  }
+}
 
-  return (
-    <HeaderClient
-      categories={categories.map((c) => ({
-        id: c.id,
-        name: c.name,
-        slug: c.slug,
-        icon: c.icon,
-        children: c.children.map((ch) => ({ id: ch.id, name: ch.name, slug: ch.slug })),
-      }))}
-      session={session}
-    />
-  );
+export async function Header() {
+  const [categories, session] = await Promise.all([loadCategories(), getSession()]);
+  return <HeaderClient categories={categories} session={session} />;
 }
 
 export function TopBanner() {

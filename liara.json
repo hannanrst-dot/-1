@@ -1,0 +1,11 @@
+{
+  "platform": "node",
+  "port": 3000,
+  "build": {
+    "location": "iran"
+  },
+  "disks": [
+    { "name": "data", "mountTo": "/app/data" },
+    { "name": "uploads", "mountTo": "/app/public/uploads" }
+  ]
+}
