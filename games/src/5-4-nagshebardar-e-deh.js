@@ -1,0 +1,767 @@
+/*!
+title: نقشه‌بردارِ ده — مساحت
+bg: #d8b982
+*/
+
+/* ═══════════════════════════════════════════════════════════════════════
+   نقشه‌بردارِ ده — ریاضی سوم، فصل ۵، درس ۴ (اندازهٔ سطح / مساحت)
+   ───────────────────────────────────────────────────────────────────────
+   مساحت یعنی «اندازهٔ سطح»، و کتاب می‌گوید سطح را با شمردنِ واحدهایی که
+   رویش جا می‌شوند اندازه می‌گیریم. پس فعلِ بازی شد: زمین جدا کردن.
+
+   کشاورزها می‌آیند و هر کدام زمینی به اندازهٔ مشخص می‌خواهند. تو با
+   طناب و میخ روی کشتزار یک مستطیل می‌کِشی. اگر تعدادِ واحدهای درونش
+   درست باشد، زمین را می‌گیرد.
+
+   نکتهٔ اصلی این است که یک جواب ندارد: برای ۱۲ واحد هم ۳×۴ می‌شود، هم
+   ۲×۶، هم ۱۲×۱ — هرکدام که در جای خالی جا شود. سنگ و درخت و برکه هم
+   وسطِ کشتزارند، پس باید ببینی کدام شکل جا می‌شود.
+
+   و از پردهٔ سوم واحد عوض می‌شود: یک‌بار «خشت» یک‌خانه‌ای، یک‌بار «تخته»
+   دوخانه‌ای، یک‌بار «قالی» چهارخانه‌ای. همان زمین، ولی عددش فرق می‌کند —
+   درست همان سؤالِ کتاب که چرا اندازهٔ یک سطح سه عددِ متفاوت می‌شود.
+
+   هیچ‌جا نوشته نمی‌شود چند در چند؛ فقط تعدادِ واحد و خودِ کشتزار.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const SCENE_W = 1200, SCENE_H = 760;
+const CELL = 46, GW = 16, GH = 10;
+const OX = 278, OY = 166;
+
+const P = {
+  sky:   '#bfe0f0',
+  soil:  '#dcbc86', soilDk: '#c19c63', soilLt: '#eed3a4', furrow: 'rgba(150, 112, 60, .22)',
+  hedge: '#5f8040', hedgeDk: '#456029',
+  rock:  '#a9a49a', rockDk: '#807b71', rockLt: '#c7c2b8',
+  tree:  '#59803c', treeDk: '#3f6029', trunk: '#7d5a30',
+  pond:  '#6fa8cf', pondDk: '#4c86ae',
+  rope:  '#c9a25f', peg: '#8a6634',
+  paper: '#fdf4e0', ink: '#4a3a20', inkSoft: '#95805c',
+  good:  '#6f9c46', bad: '#cd5f45', gold: '#eab53f',
+};
+
+const CROPS = [
+  { n: 'گندم',  c: '#e6c256', d: '#c39f36' },
+  { n: 'شبدر',  c: '#8fbf5e', d: '#6d9c40' },
+  { n: 'شقایق', c: '#d8705e', d: '#b1503f' },
+  { n: 'کتان',  c: '#83a9d6', d: '#5f86b4' },
+  { n: 'زعفران',c: '#c98ac0', d: '#a3689b' },
+];
+
+/* واحدهای اندازه‌گیریِ سطح — همان «واحدِ سطح»ِ کتاب */
+const UNITS = [
+  { id: 'kh', n: 'خشت', w: 1, h: 1, area: 1 },
+  { id: 'tx', n: 'تخته', w: 2, h: 1, area: 2 },
+  { id: 'ql', n: 'قالی', w: 2, h: 2, area: 4 },
+];
+
+const LEVELS = [
+  { name: 'کشتزارِ اوّل', units: ['kh'], lo: 4, hi: 12, rocks: 4, time: 78, quota: 4,
+    hint: 'با انگشتت روی کشتزار مستطیل بکش، به اندازه‌ای که خواسته.' },
+  { name: 'سنگ و درخت', units: ['kh'], lo: 6, hi: 24, rocks: 10, time: 76, quota: 5,
+    hint: 'سنگ و درخت وسطِ راه‌اند. ببین کدام شکل جا می‌شود.' },
+  { name: 'واحدِ تخته', units: ['tx'], lo: 3, hi: 12, rocks: 9, time: 74, quota: 5,
+    hint: 'واحد عوض شد! حالا هر «تخته» دو خانه است.' },
+  { name: 'واحدِ قالی', units: ['ql'], lo: 2, hi: 9, rocks: 8, time: 72, quota: 5,
+    hint: 'هر «قالی» چهار خانه است. همان زمین، عددِ دیگر.' },
+  { name: 'ده تا غروب', units: null, lo: 2, hi: 24, rocks: 10, time: 70, endless: true,
+    hint: 'تا غروب نشده، زمین‌ها را جدا کن.' },
+];
+
+const HUD_H = 52;
+const CARD = { x: 18, y: 92, w: 242, h: 300 };
+const BOARD = { x: OX, y: OY, w: GW * CELL, h: GH * CELL };
+const BTN_GO = { x: 470, y: 566, w: 260, h: 76 };
+
+/* ───────── وضعیت ───────── */
+
+const S = {
+  phase: 'intro',
+  level: 0,
+  grid: new Int8Array(GW * GH),    // ۰ خالی، ۱ مانع، ۲+ زمینِ داده‌شده
+  obst: [],                        // { c, r, kind }
+  plots: [],                       // { c, r, w, h, crop, t }
+  unit: UNITS[0],
+  need: 0,                         // چند واحد
+  crop: 0,
+  drag: null,
+  bad: 0,
+  firstTry: true,
+  timeLeft: 0,
+  lamp: 3,
+  cleared: 0, quota: 0,
+  score: 0, best: 0, combo: 0,
+  puffs: [],
+  t: 0, phaseT: 0, hover: null, shake: 0,
+  tut: { on: true, step: 0, t: 0 },
+};
+
+const bits = new Bits();
+const toast = new Toast();
+const L = () => LEVELS[S.level];
+const gx = (c) => OX + c * CELL;
+const gy = (r) => OY + r * CELL;
+const at = (c, r) => S.grid[r * GW + c];
+
+function loadBest() { try { return +localStorage.getItem('naghshe-best') || 0; } catch { return 0; } }
+function saveBest(v) { try { localStorage.setItem('naghshe-best', String(v)); } catch { /* حالتِ خصوصی */ } }
+
+const cv = document.getElementById('stage');
+initStage(cv, SCENE_W, SCENE_H);
+S.best = loadBest();
+whenFontsReady(() => runLoop(step));
+
+/* ───────── کشتزار ───────── */
+
+const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+
+function newFarm() {
+  const lv = L();
+  S.grid = new Int8Array(GW * GH);
+  S.obst = [];
+  S.plots = [];
+  const kinds = ['rock', 'tree', 'pond'];
+  for (let i = 0; i < lv.rocks; i++) {
+    for (let tries = 0; tries < 40; tries++) {
+      const c = R(0, GW - 1), r = R(0, GH - 1);
+      if (at(c, r)) continue;
+      /* مانع کنارِ مانع نچینیم تا کشتزار تکّه‌تکّه نشود */
+      let near = 0;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        const cc = c + dc, rr = r + dr;
+        if (cc >= 0 && rr >= 0 && cc < GW && rr < GH && at(cc, rr) === 1) near++;
+      }
+      if (near > 1) continue;
+      S.grid[r * GW + c] = 1;
+      S.obst.push({ c, r, kind: kinds[Math.floor(Math.random() * kinds.length)], ph: Math.random() * TAU });
+      break;
+    }
+  }
+  S.plots = [];
+  nextRequest(true);
+}
+
+/** جمعِ پیشوندیِ خانه‌های اشغال‌شده، برای بررسیِ سریعِ مستطیل‌ها. */
+function blockedSum() {
+  const s = new Int16Array((GW + 1) * (GH + 1));
+  for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+    s[(r + 1) * (GW + 1) + c + 1] = (at(c, r) ? 1 : 0)
+      + s[r * (GW + 1) + c + 1] + s[(r + 1) * (GW + 1) + c] - s[r * (GW + 1) + c];
+  }
+  return s;
+}
+function boxBlocked(s, c, r, w, h) {
+  return s[(r + h) * (GW + 1) + c + w] - s[r * (GW + 1) + c + w]
+       - s[(r + h) * (GW + 1) + c] + s[r * (GW + 1) + c];
+}
+
+/** همهٔ مساحت‌هایی که هنوز می‌شود از جای خالی برید، با تعدادِ شکل‌هایشان. */
+function feasibleAreas() {
+  const s = blockedSum();
+  const map = {};
+  for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+    if (at(c, r)) continue;
+    for (let h = 1; r + h <= GH; h++) {
+      for (let w = 1; c + w <= GW; w++) {
+        if (boxBlocked(s, c, r, w, h)) break;
+        const a = w * h;
+        if (!map[a]) map[a] = {};
+        map[a][w + 'x' + h] = 1;
+      }
+    }
+  }
+  return map;
+}
+
+/** درخواستِ بعدی — همیشه از میانِ چیزهایی که واقعاً جا می‌شوند. */
+function nextRequest(fresh) {
+  const lv = L();
+  const unitIds = lv.units || UNITS.map((u) => u.id);
+  const map = feasibleAreas();
+  const cand = [];
+  for (const id of unitIds) {
+    const u = UNITS.find((x) => x.id === id);
+    for (const a in map) {
+      const A = +a;
+      if (A % u.area) continue;
+      const n = A / u.area;
+      if (n < lv.lo || n > lv.hi) continue;
+      const shapes = Object.keys(map[a]).length;
+      cand.push({ u, n, shapes });
+    }
+  }
+  if (!cand.length) { if (!fresh) { newFarm(); return; } S.need = 4; S.unit = UNITS[0]; return; }
+  /* آن‌هایی که بیش از یک شکل دارند جذاب‌ترند */
+  const rich = cand.filter((q) => q.shapes >= 2);
+  const pool = rich.length ? rich : cand;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  S.unit = pick.u;
+  S.need = pick.n;
+  S.crop = (S.crop + 1 + Math.floor(Math.random() * 2)) % CROPS.length;
+  S.firstTry = true;
+}
+
+function startLevel(i, keep) {
+  const lv = LEVELS[i];
+  S.level = i;
+  S.cleared = 0;
+  S.quota = lv.endless ? Infinity : lv.quota;
+  S.combo = 0;
+  S.timeLeft = lv.time;
+  if (!keep) { S.score = 0; S.lamp = 3; }
+  S.phase = 'play'; S.phaseT = 0;
+  S.tut.on = i === 0 && !keep; S.tut.step = 0; S.tut.t = 0;
+  newFarm();
+  toast.say(lv.hint, 'info');
+}
+
+/* ───────── حلقه ───────── */
+
+function step(dt) {
+  S.t += dt; S.phaseT += dt;
+  if (S.shake > 0) S.shake -= dt;
+  if (S.bad > 0) S.bad -= dt;
+  for (const q of S.puffs) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 120 * dt; }
+  S.puffs = S.puffs.filter((q) => q.t < 1);
+  for (const q of S.plots) if (q.t < 1) q.t += dt * 2.4;
+
+  if (S.phase === 'play') {
+    const frozen = S.tut.on && S.tut.step < 2;
+    if (!frozen) {
+      S.timeLeft -= dt;
+      if (S.timeLeft <= 0) { S.timeLeft = 0; loseLamp('غروب شد!'); }
+    }
+    if (S.tut.on) S.tut.t += dt;
+  }
+  bits.step(dt);
+  toast.step(dt);
+  draw();
+}
+
+function loseLamp(msg) {
+  S.lamp--;
+  S.combo = 0;
+  S.shake = .4;
+  sfx.nope();
+  toast.say(msg, 'bad');
+  if (S.lamp <= 0) { S.phase = 'lost'; S.phaseT = 0; return; }
+  S.timeLeft = L().time;
+  newFarm();
+}
+
+function puff(x, y, n, col) {
+  for (let i = 0; i < n; i++) {
+    S.puffs.push({ x, y, t: 0, r: 3 + Math.random() * 6, col,
+      vx: (Math.random() - .5) * 120, vy: -50 - Math.random() * 80 });
+  }
+}
+
+/* ───────── طناب و میخ ───────── */
+
+function cellAt(p) {
+  const c = Math.floor((p.x - OX) / CELL), r = Math.floor((p.y - OY) / CELL);
+  if (c < 0 || r < 0 || c >= GW || r >= GH) return null;
+  return { c, r };
+}
+
+function dragBox() {
+  const d = S.drag;
+  if (!d) return null;
+  const c0 = Math.min(d.c, d.cc), c1 = Math.max(d.c, d.cc);
+  const r0 = Math.min(d.r, d.rr), r1 = Math.max(d.r, d.rr);
+  return { c: c0, r: r0, w: c1 - c0 + 1, h: r1 - r0 + 1 };
+}
+
+function boxFree(b) {
+  for (let r = b.r; r < b.r + b.h; r++) for (let c = b.c; c < b.c + b.w; c++) if (at(c, r)) return false;
+  return true;
+}
+
+function tryPlace(b) {
+  const need = S.need * S.unit.area;
+  if (!boxFree(b)) {
+    S.bad = .55; S.shake = .14; sfx.nope();
+    puff(gx(b.c) + b.w * CELL / 2, gy(b.r) + b.h * CELL / 2, 8, '#b9a179');
+    toast.say('اینجا سنگ و درخت هست.', 'bad');
+    S.firstTry = false;
+    return;
+  }
+  if (b.w * b.h !== need) {
+    S.bad = .55; S.shake = .12; sfx.nope();
+    S.timeLeft = Math.max(2, S.timeLeft - 3);
+    puff(gx(b.c) + b.w * CELL / 2, gy(b.r) + b.h * CELL / 2, 10, '#c9a25f');
+    toast.say('این‌قدر نمی‌شود. دوباره اندازه بگیر.', 'bad');
+    S.firstTry = false;
+    return;
+  }
+  const crop = CROPS[S.crop];
+  const id = 2 + S.plots.length;
+  S.plots.push({ c: b.c, r: b.r, w: b.w, h: b.h, crop, t: 0, unit: S.unit, need: S.need });
+  for (let r = b.r; r < b.r + b.h; r++) for (let c = b.c; c < b.c + b.w; c++) S.grid[r * GW + c] = id;
+  S.combo++;
+  S.cleared++;
+  const pts = 200 + S.need * S.unit.area * 14 + (S.firstTry ? 300 : 0) + Math.min(S.combo, 6) * 60;
+  S.score += pts;
+  if (S.score > S.best) { S.best = S.score; saveBest(S.best); }
+  bits.confetti(gx(b.c) + b.w * CELL / 2, gy(b.r) + b.h * CELL / 2, 34,
+    [crop.c, P.gold, '#fff', P.soilLt]);
+  sfx.win();
+  if (S.firstTry) toast.say('بارِ اوّل! زمین مالِ او شد.', 'good');
+  if (S.tut.on) S.tut.on = false;
+  if (!L().endless && S.cleared >= S.quota) { S.score += 700; S.phase = 'won'; S.phaseT = 0; return; }
+  nextRequest(false);
+}
+
+/* ───────── ورودی ───────── */
+
+cv.addEventListener('pointermove', (e) => {
+  const p = toStage(e);
+  if (S.phase !== 'play') { S.hover = inRect(p, BTN_GO) ? BTN_GO : null; cv.style.cursor = S.hover ? 'pointer' : 'default'; return; }
+  if (S.drag) {
+    const g = cellAt(p);
+    if (g) { S.drag.cc = g.c; S.drag.rr = g.r; }
+    return;
+  }
+  cv.style.cursor = cellAt(p) ? 'crosshair' : 'default';
+});
+
+cv.addEventListener('pointerdown', (e) => {
+  const p = toStage(e);
+  if (S.phase === 'intro') { startLevel(0); return; }
+  if (S.phase === 'won') {
+    if (!inRect(p, BTN_GO)) return;
+    if (L().endless) startLevel(S.level, true);
+    else if (S.level + 1 < LEVELS.length) startLevel(S.level + 1, true);
+    else startLevel(0);
+    return;
+  }
+  if (S.phase === 'lost') { if (inRect(p, BTN_GO)) startLevel(S.level); return; }
+  if (tutTap(S.tut, TUT_TAP, TUT_LAST)) return;
+  const g = cellAt(p);
+  if (!g) return;
+  S.drag = { c: g.c, r: g.r, cc: g.c, rr: g.r };
+  sfx.tap();
+  try { cv.setPointerCapture(e.pointerId); } catch { /* بعضی مرورگرها */ }
+});
+
+cv.addEventListener('pointerup', () => {
+  const b = dragBox();
+  S.drag = null;
+  if (!b || S.phase !== 'play') return;
+  if (S.tut.on && S.tut.step === 1) { S.tut.step = 2; S.tut.t = 0; }
+  tryPlace(b);
+});
+
+cv.addEventListener('pointercancel', () => { S.drag = null; });
+
+const TUT_TAP = [0, 2], TUT_LAST = 2;
+
+/* ───────── ابزارِ نقاشی ───────── */
+
+function rrPath(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function numText(str, x, y, o = {}) {
+  ctx.save();
+  ctx.font = `${o.family === 'Vazirmatn' ? (o.weight || 700) : '400'} ${o.size || 20}px "${o.family || 'Lalezar'}", Tahoma, sans-serif`;
+  ctx.textAlign = o.align || 'center';
+  ctx.textBaseline = 'middle';
+  ctx.direction = 'ltr';
+  ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+  if (o.stroke) { ctx.lineWidth = o.strokeWidth || 5; ctx.lineJoin = 'round';
+    ctx.strokeStyle = o.stroke; ctx.strokeText(str, x, y); }
+  ctx.fillStyle = o.color || P.ink;
+  ctx.fillText(str, x, y);
+  ctx.restore();
+}
+
+function spot(rects, alpha) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, SCENE_W, SCENE_H);
+  for (const r of rects) rrPath(r.x - 12, r.y - 12, r.w + 24, r.h + 24, 22);
+  ctx.fillStyle = `rgba(50, 34, 12, ${alpha})`;
+  ctx.fill('evenodd');
+  ctx.restore();
+}
+
+function tutCard(x, y, w, lines, title) {
+  const h = 26 + (title ? 44 : 0) + lines.length * 30;
+  withShadow(24, 10, .42, () => {
+    ctx.fillStyle = 'rgba(253, 244, 224, .97)';
+    wobbleRect(x, y, w, h + 20, 16, 101, 2.2); ctx.fill();
+  }, '60, 40, 10');
+  ctx.fillStyle = P.good;
+  wobbleRect(x, y, w, 9, 4, 103, 1); ctx.fill();
+  let yy = y + 34;
+  if (title) { text(title, x + w / 2, yy + 6, { size: 25, family: 'Lalezar', color: P.ink }); yy += 44; }
+  for (const l of lines) { text(l, x + w / 2, yy, { size: 18, color: '#6d5a38' }); yy += 30; }
+  return h + 20;
+}
+
+/** خودِ واحدِ اندازه‌گیری، همان‌طور که روی زمین می‌افتد. */
+function unitTile(x, y, u, s, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+  const w = u.w * CELL * s, h = u.h * CELL * s;
+  ctx.fillStyle = '#b8895180';
+  wobbleRect(x - w / 2 + 2, y - h / 2 + 3, w, h, 5, 11, 1); ctx.fill();
+  ctx.fillStyle = '#e8c98f';
+  wobbleRect(x - w / 2, y - h / 2, w, h, 5, 13, 1); ctx.fill();
+  ctx.strokeStyle = '#8a6634'; ctx.lineWidth = 2.4;
+  wobbleRect(x - w / 2, y - h / 2, w, h, 5, 13, 1); ctx.stroke();
+  ctx.strokeStyle = 'rgba(138, 102, 52, .45)'; ctx.lineWidth = 1.4;
+  for (let i = 1; i < u.w; i++) { ctx.beginPath();
+    ctx.moveTo(x - w / 2 + i * CELL * s, y - h / 2 + 3); ctx.lineTo(x - w / 2 + i * CELL * s, y + h / 2 - 3); ctx.stroke(); }
+  for (let i = 1; i < u.h; i++) { ctx.beginPath();
+    ctx.moveTo(x - w / 2 + 3, y - h / 2 + i * CELL * s); ctx.lineTo(x + w / 2 - 3, y - h / 2 + i * CELL * s); ctx.stroke(); }
+  ctx.restore();
+}
+
+/* ───────── صحنه ───────── */
+
+function draw() {
+  beginScene(P.soil);
+  ctx.save();
+  if (S.shake > 0) {
+    const k = S.shake * 9;
+    ctx.translate(Math.sin(S.t * 55) * k, Math.cos(S.t * 43) * k * .4);
+  }
+  drawLand();
+  drawPlots();
+  drawObstacles();
+  drawRope();
+  drawPuffs();
+  bits.draw();
+  ctx.restore();
+
+  drawCard();
+  drawSun();
+  drawHUD();
+  if (!(S.phase === 'play' && S.tut.on)) {
+    ctx.save();
+    ctx.translate(OX + BOARD.w / 2 - SCENE_W / 2, 0);
+    toast.draw(HUD_H + 10, { good: P.good, bad: P.bad, info: P.paper, ink: P.ink });
+    ctx.restore();
+  }
+  if (S.phase === 'play' && S.tut.on) drawTutorial();
+  if (S.phase === 'intro') drawIntro();
+  if (S.phase === 'won') drawWon();
+  if (S.phase === 'lost') drawLost();
+  endScene(.13, 'rgba(80, 52, 16, .34)');
+}
+
+function drawLand() {
+  const g = ctx.createLinearGradient(0, HUD_H, 0, SCENE_H);
+  g.addColorStop(0, P.sky);
+  g.addColorStop(.12, P.soilLt);
+  g.addColorStop(1, P.soilDk);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, SCENE_W, SCENE_H);
+
+  /* پرچین‌های دور */
+  ctx.fillStyle = P.hedge;
+  for (let i = 0; i < 16; i++) {
+    const x = 10 + i * 80 + noise1(i * 2.7) * 30;
+    wobbleCircle(x, 104, 20 + noise1(i * 5.5) * 10, i * 3, 2.4); ctx.fill();
+  }
+  ctx.fillStyle = P.hedgeDk;
+  ctx.fillRect(0, 116, SCENE_W, 8);
+
+  /* کشتزار */
+  withShadow(24, 10, .28, () => {
+    ctx.fillStyle = P.soilDk;
+    wobbleRect(BOARD.x - 12, BOARD.y - 12, BOARD.w + 24, BOARD.h + 24, 12, 7, 2); ctx.fill();
+  }, '70, 45, 12');
+  ctx.fillStyle = '#e3c48f';
+  ctx.fillRect(BOARD.x, BOARD.y, BOARD.w, BOARD.h);
+
+  /* شیارهای خاک */
+  ctx.save();
+  ctx.beginPath(); ctx.rect(BOARD.x, BOARD.y, BOARD.w, BOARD.h); ctx.clip();
+  ctx.strokeStyle = P.furrow; ctx.lineWidth = 2;
+  for (let i = 0; i <= GW; i++) { ctx.beginPath(); ctx.moveTo(gx(i), BOARD.y); ctx.lineTo(gx(i), BOARD.y + BOARD.h); ctx.stroke(); }
+  for (let i = 0; i <= GH; i++) { ctx.beginPath(); ctx.moveTo(BOARD.x, gy(i)); ctx.lineTo(BOARD.x + BOARD.w, gy(i)); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(160, 118, 60, .1)';
+  for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) if ((r + c) % 2) ctx.fillRect(gx(c), gy(r), CELL, CELL);
+  ctx.restore();
+}
+
+function drawPlots() {
+  for (const q of S.plots) {
+    const k = easeOut(clamp(q.t, 0, 1));
+    const x = gx(q.c), y = gy(q.r), w = q.w * CELL, h = q.h * CELL;
+    ctx.save();
+    ctx.globalAlpha = k;
+    ctx.fillStyle = q.crop.d;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = q.crop.c;
+    ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+    /* ردیف‌های کِشت */
+    ctx.strokeStyle = 'rgba(255, 255, 255, .22)'; ctx.lineWidth = 2;
+    for (let i = 1; i < q.h; i++) { ctx.beginPath(); ctx.moveTo(x + 5, y + i * CELL); ctx.lineTo(x + w - 5, y + i * CELL); ctx.stroke(); }
+    /* طناب و میخِ دورِ زمین */
+    ctx.strokeStyle = P.rope; ctx.lineWidth = 3.4;
+    ctx.setLineDash([9, 7]);
+    ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
+    ctx.setLineDash([]);
+    ctx.fillStyle = P.peg;
+    for (const [px2, py2] of [[x + 3, y + 3], [x + w - 3, y + 3], [x + 3, y + h - 3], [x + w - 3, y + h - 3]]) {
+      ctx.beginPath(); ctx.arc(px2, py2, 5, 0, TAU); ctx.fill();
+    }
+    /* تابلوی زمین: نامِ کِشت و تعدادِ واحد */
+    if (w >= 110 && h >= 60) {
+      ctx.fillStyle = 'rgba(70, 48, 16, .72)';
+      ctx.beginPath(); rrPath(x + w / 2 - 52, y + h / 2 - 20, 104, 40, 10); ctx.fill();
+      text(q.crop.n, x + w / 2, y + h / 2 - 8, { size: 16, family: 'Lalezar', color: P.paper });
+      text(fa(q.need) + ' ' + q.unit.n, x + w / 2, y + h / 2 + 11, { size: 13, color: 'rgba(253,244,224,.85)' });
+    }
+    ctx.restore();
+  }
+}
+
+function drawObstacles() {
+  for (const o of S.obst) {
+    const x = gx(o.c) + CELL / 2, y = gy(o.r) + CELL / 2;
+    ctx.save();
+    ctx.fillStyle = 'rgba(90, 62, 20, .2)';
+    ctx.beginPath(); ctx.ellipse(x + 2, y + 15, 16, 5, 0, 0, TAU); ctx.fill();
+    if (o.kind === 'rock') {
+      ctx.fillStyle = P.rockDk; wobbleCircle(x, y + 2, 16, o.c * 3 + o.r, 2.4); ctx.fill();
+      ctx.fillStyle = P.rock; wobbleCircle(x - 1, y, 14, o.c * 5 + o.r, 2.2); ctx.fill();
+      ctx.fillStyle = P.rockLt; wobbleCircle(x - 5, y - 4, 6, o.c * 7 + o.r, 1.4); ctx.fill();
+    } else if (o.kind === 'tree') {
+      ctx.fillStyle = P.trunk; ctx.fillRect(x - 3, y, 6, 15);
+      const sw = Math.sin(S.t * 1.4 + o.ph) * 2;
+      ctx.fillStyle = P.treeDk; wobbleCircle(x + sw, y - 6, 15, o.c + o.r * 3, 2.4); ctx.fill();
+      ctx.fillStyle = P.tree; wobbleCircle(x + sw - 2, y - 9, 12, o.c + o.r * 5, 2.2); ctx.fill();
+    } else {
+      ctx.fillStyle = P.pondDk; wobbleEllipse(x, y + 2, 18, 13, 0, o.c + o.r, 2); ctx.fill();
+      ctx.fillStyle = P.pond; wobbleEllipse(x, y, 16, 11, 0, o.c + o.r * 2, 1.8); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x - 2, y - 2, 7 + Math.sin(S.t * 2 + o.ph) * 2, 4, 0, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+/** طنابی که همین الان می‌کِشی، با واحدهای شمردنی تویش. */
+function drawRope() {
+  const b = dragBox();
+  if (!b) return;
+  const x = gx(b.c), y = gy(b.r), w = b.w * CELL, h = b.h * CELL;
+  const free = boxFree(b);
+  const u = S.unit;
+  ctx.save();
+  ctx.fillStyle = free ? 'rgba(255, 246, 214, .34)' : 'rgba(205, 95, 69, .3)';
+  ctx.fillRect(x, y, w, h);
+  /* واحدها را رویش می‌چینیم تا شمردنی باشد */
+  if (free) {
+    ctx.strokeStyle = 'rgba(122, 88, 34, .55)'; ctx.lineWidth = 2.4;
+    for (let r = 0; r + u.h <= b.h; r += u.h) for (let c = 0; c + u.w <= b.w; c += u.w) {
+      ctx.strokeRect(x + c * CELL + 3, y + r * CELL + 3, u.w * CELL - 6, u.h * CELL - 6);
+    }
+  }
+  ctx.strokeStyle = free ? P.rope : P.bad; ctx.lineWidth = 4;
+  ctx.setLineDash([10, 7]);
+  ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+  ctx.setLineDash([]);
+  ctx.fillStyle = P.peg;
+  for (const [px2, py2] of [[x + 2, y + 2], [x + w - 2, y + 2], [x + 2, y + h - 2], [x + w - 2, y + h - 2]]) {
+    ctx.beginPath(); ctx.arc(px2, py2, 6, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#5d4520'; ctx.lineWidth = 1.6; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawPuffs() {
+  for (const q of S.puffs) {
+    ctx.save();
+    ctx.globalAlpha = (1 - q.t) * .75;
+    ctx.fillStyle = q.col;
+    ctx.beginPath(); ctx.arc(q.x, q.y, q.r * (1 + q.t), 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+}
+
+/** کارتِ کشاورز: چه کسی، چند واحد، و واحد چه شکلی است. */
+function drawCard() {
+  const b = CARD;
+  const crop = CROPS[S.crop];
+  withShadow(20, 9, .34, () => {
+    ctx.fillStyle = P.paper;
+    wobbleRect(b.x, b.y, b.w, b.h, 16, 41, 2.2); ctx.fill();
+  }, '70, 45, 12');
+  ctx.fillStyle = crop.d;
+  wobbleRect(b.x, b.y, b.w, 11, 5, 43, 1); ctx.fill();
+
+  /* کشاورز */
+  const cx = b.x + b.w / 2, hy = b.y + 66;
+  const bob = Math.sin(S.t * 2) * 2;
+  ctx.fillStyle = '#8a6634';
+  ctx.beginPath();
+  ctx.moveTo(cx - 30, hy - 10 + bob); ctx.quadraticCurveTo(cx, hy - 26 + bob, cx + 30, hy - 10 + bob);
+  ctx.quadraticCurveTo(cx, hy - 4 + bob, cx - 30, hy - 10 + bob); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#f2d7b3';
+  wobbleCircle(cx, hy + 8 + bob, 17, 5, 1.2); ctx.fill();
+  ctx.fillStyle = '#3d2a16';
+  ctx.beginPath(); ctx.arc(cx - 6, hy + 5 + bob, 2.4, 0, TAU); ctx.arc(cx + 6, hy + 5 + bob, 2.4, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#b0765a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, hy + 11 + bob, 6, .2, Math.PI - .2); ctx.stroke();
+  ctx.fillStyle = crop.c;
+  wobbleRect(cx - 22, hy + 26 + bob, 44, 32, 8, 9, 1.2); ctx.fill();
+
+  text('زمینی می‌خواهم', cx, b.y + 138, { size: 19, color: P.inkSoft });
+  /* عددِ خواسته + واحدش */
+  numText(fa(S.need), cx - 34, b.y + 182, { size: 54, color: P.ink });
+  text(S.unit.n, cx + 44, b.y + 182, { size: 26, family: 'Lalezar', color: P.ink });
+
+  /* خودِ واحد، به اندازهٔ واقعی */
+  ctx.fillStyle = 'rgba(122, 88, 34, .1)';
+  ctx.beginPath(); rrPath(b.x + 16, b.y + 210, b.w - 32, 76, 12); ctx.fill();
+  text('هر ' + S.unit.n + ' این‌قدر است', cx, b.y + 226, { size: 14, color: P.inkSoft });
+  unitTile(cx, b.y + 258, S.unit, .5, 1);
+}
+
+/** خورشید = وقتِ روز؛ در ستونِ راستِ صحنه پایین می‌رود. */
+function drawSun() {
+  const k = clamp(1 - S.timeLeft / L().time, 0, 1);
+  const x = 1108 + Math.sin(k * Math.PI) * 28, y = lerp(216, 566, k);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(122, 88, 34, .26)'; ctx.lineWidth = 3;
+  ctx.setLineDash([6, 9]);
+  ctx.beginPath();
+  ctx.moveTo(1108, 216);
+  ctx.quadraticCurveTo(1108 + 56, 391, 1108, 566);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  const gg = ctx.createRadialGradient(x, y, 6, x, y, 72);
+  gg.addColorStop(0, k > .8 ? 'rgba(240, 130, 70, .5)' : 'rgba(255, 224, 130, .5)');
+  gg.addColorStop(1, 'rgba(255, 224, 130, 0)');
+  ctx.fillStyle = gg;
+  ctx.beginPath(); ctx.arc(x, y, 72, 0, TAU); ctx.fill();
+  ctx.fillStyle = k > .8 ? '#f08b46' : '#ffe07f';
+  wobbleCircle(x, y, 26, 5, 1.6); ctx.fill();
+  ctx.strokeStyle = k > .8 ? 'rgba(240, 139, 70, .5)' : 'rgba(255, 224, 127, .5)';
+  ctx.lineWidth = 3; ctx.lineCap = 'round';
+  for (let i = 0; i < 8; i++) {
+    const a = i * TAU / 8 + S.t * .3;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(a) * 33, y + Math.sin(a) * 33);
+    ctx.lineTo(x + Math.cos(a) * 43, y + Math.sin(a) * 43);
+    ctx.stroke();
+  }
+  ctx.restore();
+  text(k > .8 ? 'نزدیکِ غروب' : 'تا غروب', 1108, 604,
+    { size: 16, family: 'Lalezar', color: k > .8 ? '#b4562e' : 'rgba(74,58,32,.6)' });
+}
+
+function drawHUD() {
+  ctx.fillStyle = 'rgba(66, 46, 18, .86)';
+  ctx.fillRect(0, 0, SCENE_W, HUD_H);
+  ctx.fillStyle = 'rgba(234, 181, 63, .3)';
+  ctx.fillRect(0, HUD_H - 2, SCENE_W, 2);
+  text(L().name, SCENE_W - 24, HUD_H / 2, { size: 23, family: 'Lalezar', color: P.paper, align: 'right' });
+
+  /* فانوس‌ها = جان */
+  for (let i = 0; i < 3; i++) {
+    const x = SCENE_W - 206 - i * 32;
+    ctx.save();
+    ctx.globalAlpha = i < S.lamp ? 1 : .22;
+    ctx.fillStyle = i < S.lamp ? P.gold : '#8d8577';
+    ctx.beginPath(); rrPath(x - 9, HUD_H / 2 - 11, 18, 22, 5); ctx.fill();
+    ctx.fillStyle = 'rgba(66,46,18,.7)';
+    ctx.beginPath(); ctx.arc(x, HUD_H / 2, 4.4, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  if (!L().endless) {
+    numText(fa(Math.min(S.cleared, L().quota)) + ' / ' + fa(L().quota), SCENE_W / 2, HUD_H / 2, { size: 22, color: P.gold });
+  } else {
+    text('بی‌پایان', SCENE_W / 2, HUD_H / 2, { size: 22, family: 'Lalezar', color: P.gold });
+  }
+  numText(fa(S.score), 24, HUD_H / 2, { size: 25, color: P.gold, align: 'left' });
+  numText('بیشترین ' + fa(S.best), 140, HUD_H / 2 + 1,
+    { size: 14, color: 'rgba(253, 244, 224, .55)', align: 'left', family: 'Vazirmatn', weight: 700 });
+  if (S.combo > 1) numText('×' + fa(S.combo), 248, HUD_H / 2, { size: 22, color: P.gold, align: 'left' });
+}
+
+function drawTutorial() {
+  const st = S.tut.step;
+  if (st === 0) {
+    spot([CARD], .74);
+    const h = tutCard(410, 236, 500,
+      ['کشاورز زمینی به این اندازه می‌خواهد.', 'زیرش نوشته هر واحد چه شکلی است.'], 'نقشه‌بردارِ ده');
+    tutMore(660, 236 + h + 12, S.t, P.ink);
+  } else if (st === 1) {
+    spot([BOARD], .7);
+    tutCard(390, 630, 520, ['انگشتت را روی کشتزار بکش و رها کن —',
+      'همان‌قدر واحد که خواسته، نه کم نه زیاد.']);
+  } else {
+    spot([BOARD, CARD], .66);
+    tutCard(390, 588, 520, ['یک جواب ندارد: ۱۲ واحد هم ۳×۴ می‌شود، هم ۲×۶.',
+      'هرکدام که در جای خالی جا شود.']);
+    tutMore(650, 716, S.t, P.ink);
+  }
+}
+
+/* ───────── پرده‌ها ───────── */
+
+function pegIcon(x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = P.rope; ctx.lineWidth = 4;
+  ctx.setLineDash([8, 6]);
+  ctx.strokeRect(-30, -18, 60, 40);
+  ctx.setLineDash([]);
+  ctx.fillStyle = P.peg;
+  for (const [a, b] of [[-30,-18],[30,-18],[-30,22],[30,22]]) { ctx.beginPath(); ctx.arc(a, b, 6, 0, TAU); ctx.fill(); }
+  ctx.restore();
+}
+
+function drawIntro() {
+  overlay({
+    t: S.phaseT, w: 740, h: 276, y: 142,
+    paper: P.paper, band: P.good, ink: P.ink, inkSoft: '#8a7450',
+    icon: pegIcon,
+    title: 'نقشه‌بردارِ ده',
+    body: 'هر کشاورز زمینی به اندازهٔ مشخص می‌خواهد.\nروی کشتزار طناب بکش تا مستطیلی به همان اندازه جدا شود.\nبرای یک عدد چند شکل ممکن است — هرکدام که جا شود.',
+    btn: BTN_GO, btnLabel: 'برو سرِ کشتزار', btnHot: S.hover === BTN_GO,
+    btnFill: '#6f9c46', btnHotFill: '#7fae54',
+  });
+}
+
+function drawWon() {
+  const last = S.level + 1 >= LEVELS.length;
+  overlay({
+    t: S.phaseT, w: 720, h: 250, y: 160,
+    paper: P.paper, band: P.gold, ink: P.ink, inkSoft: '#8a7450',
+    icon: pegIcon,
+    title: L().endless ? 'ده آباد شد' : 'همهٔ زمین‌ها تقسیم شد!',
+    body: 'امتیاز: ' + fa(S.score) + (last ? '\nهمهٔ کشتزارها را نقشه‌برداری کردی. از اوّل؟' : ''),
+    btn: BTN_GO, btnLabel: last ? 'دوباره' : 'کشتزارِ بعد', btnHot: S.hover === BTN_GO,
+    btnFill: '#6f9c46', btnHotFill: '#7fae54',
+  });
+}
+
+function drawLost() {
+  overlay({
+    t: S.phaseT, w: 720, h: 250, y: 160,
+    paper: P.paper, band: P.bad, ink: P.ink, inkSoft: '#8a7450',
+    icon: (x, y) => { ctx.fillStyle = '#c07a4a';
+      wobbleCircle(x, y, 24, 161, 2); ctx.fill();
+      ctx.fillStyle = 'rgba(120, 70, 30, .35)';
+      ctx.beginPath(); ctx.arc(x, y + 16, 30, Math.PI, 0); ctx.fill(); },
+    title: 'آفتاب غروب کرد',
+    body: 'امتیاز: ' + fa(S.score) + '\nاوّل بشمار چند واحد لازم است، بعد طناب بکش.',
+    btn: BTN_GO, btnLabel: 'دوباره', btnHot: S.hover === BTN_GO,
+    btnFill: '#6f9c46', btnHotFill: '#7fae54',
+  });
+}
