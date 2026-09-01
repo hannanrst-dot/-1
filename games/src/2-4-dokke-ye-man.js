@@ -272,8 +272,8 @@ function step(dt) {
   if (S.tut.on && S.phase === 'day') {
     S.tut.t += dt;
     const c = S.active;
-    if (S.tut.step === 0 && c && S.tut.t > 5.2) { S.tut.step = 1; S.tut.t = 0; }
-    if (S.tut.step === 1 && c && (trayTotal() > 0 && S.tut.t > 8)) { S.tut.step = 2; S.tut.t = 0; }
+    if (S.tut.step === 0 && c && S.tut.t > 30) { S.tut.step = 1; S.tut.t = 0; }
+    if (S.tut.step === 1 && c && trayTotal() > 0 && S.tut.t > 1.4) { S.tut.step = 2; S.tut.t = 0; }
   }
 
   for (const f of S.floats) { f.t += dt; f.y -= 44 * dt; }
@@ -401,6 +401,10 @@ cv.addEventListener('pointermove', (e) => {
 });
 cv.addEventListener('pointerleave', () => { S.hover = null; });
 cv.addEventListener('pointerdown', (e) => {
+  /* پردهٔ اوّلِ آموزش فقط خواندنی است؛ با یک ضربه می‌رود پردهٔ بعد. */
+  if (S.phase === 'day' && S.tut.on && S.tut.step === 0 && S.active) {
+    S.tut.step = 1; S.tut.t = 0; sfx.tap(); return;
+  }
   const h = hitTest(toStage(e));
   if (!h) return;
   if (S.phase === 'intro') { startDay(); return; }
@@ -1122,6 +1126,7 @@ function drawTutorial() {
     },
   ];
   const st = steps[Math.min(S.tut.step, 2)];
+  const readable = S.tut.step === 0;          // پردهٔ اوّل فقط خواندنی است
 
   // نوارِ آموزش، پایینِ صحنه و بیرون از راهِ دست
   const w = 496, h = 104, x = 376, y = 250;
@@ -1133,6 +1138,7 @@ function drawTutorial() {
   wobbleRect(x, y, w, 8, 4, 83, 1);
   ctx.fill();
   textWrap(st.txt, x + w / 2, y + 34, w - 60, { size: 19, color: P.ink, lineHeight: 28 });
+  if (readable) tutMore(x + w / 2, y + h + 12, S.t, P.ink);
   st.at();
 }
 

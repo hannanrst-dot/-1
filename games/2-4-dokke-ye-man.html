@@ -477,6 +477,41 @@ class Toast {
   }
 }
 
+/* ───────── آموزشِ پرده‌ای ─────────
+   پرده‌هایی که منتظرِ کارِ بچه نیستند با یک ضربه جلو می‌روند. تایمر فقط
+   پشتیبان است؛ بچهٔ کلاس سومی باید فرصتِ خواندن داشته باشد، نه اینکه
+   متن قبل از تمام شدنِ خواندنش برود.                                    */
+
+/** اگر پردهٔ فعلی خواندنی است، ضربه را می‌خورد و می‌رود پردهٔ بعد. */
+function tutTap(tut, tapSteps, lastStep) {
+  if (!tut.on || tapSteps.indexOf(tut.step) < 0) return false;
+  if (tut.step >= lastStep) tut.on = false;
+  else { tut.step++; tut.t = 0; }
+  sfx.tap();
+  return true;
+}
+
+/** نشانهٔ «برای ادامه بزن» — زیرِ کارتِ آموزش. */
+function tutMore(cx, y, t, ink = '#3a2a18', bg = 'rgba(255, 250, 238, .94)') {
+  ctx.save();
+  ctx.globalAlpha = .62 + .38 * Math.sin(t * 3.2);
+  ctx.font = '700 15px "Vazirmatn", Tahoma, sans-serif';
+  const label = 'برای ادامه، هرجا را بزن';
+  const w = ctx.measureText(label).width + 40, h = 32, x = cx - w / 2, r = 16;
+  withShadow(10, 4, .3, () => {
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath(); ctx.fill();
+  });
+  text(label, cx, y + h / 2, { size: 15, color: ink });
+  ctx.restore();
+}
+
 /** فونت‌ها را می‌آورد و بعد بازی را شروع می‌کند. */
 function whenFontsReady(start) {
   if (document.fonts && document.fonts.load) {
@@ -771,8 +806,8 @@ function step(dt) {
   if (S.tut.on && S.phase === 'day') {
     S.tut.t += dt;
     const c = S.active;
-    if (S.tut.step === 0 && c && S.tut.t > 5.2) { S.tut.step = 1; S.tut.t = 0; }
-    if (S.tut.step === 1 && c && (trayTotal() > 0 && S.tut.t > 8)) { S.tut.step = 2; S.tut.t = 0; }
+    if (S.tut.step === 0 && c && S.tut.t > 30) { S.tut.step = 1; S.tut.t = 0; }
+    if (S.tut.step === 1 && c && trayTotal() > 0 && S.tut.t > 1.4) { S.tut.step = 2; S.tut.t = 0; }
   }
 
   for (const f of S.floats) { f.t += dt; f.y -= 44 * dt; }
@@ -900,6 +935,10 @@ cv.addEventListener('pointermove', (e) => {
 });
 cv.addEventListener('pointerleave', () => { S.hover = null; });
 cv.addEventListener('pointerdown', (e) => {
+  /* پردهٔ اوّلِ آموزش فقط خواندنی است؛ با یک ضربه می‌رود پردهٔ بعد. */
+  if (S.phase === 'day' && S.tut.on && S.tut.step === 0 && S.active) {
+    S.tut.step = 1; S.tut.t = 0; sfx.tap(); return;
+  }
   const h = hitTest(toStage(e));
   if (!h) return;
   if (S.phase === 'intro') { startDay(); return; }
@@ -1621,6 +1660,7 @@ function drawTutorial() {
     },
   ];
   const st = steps[Math.min(S.tut.step, 2)];
+  const readable = S.tut.step === 0;          // پردهٔ اوّل فقط خواندنی است
 
   // نوارِ آموزش، پایینِ صحنه و بیرون از راهِ دست
   const w = 496, h = 104, x = 376, y = 250;
@@ -1632,6 +1672,7 @@ function drawTutorial() {
   wobbleRect(x, y, w, 8, 4, 83, 1);
   ctx.fill();
   textWrap(st.txt, x + w / 2, y + 34, w - 60, { size: 19, color: P.ink, lineHeight: 28 });
+  if (readable) tutMore(x + w / 2, y + h + 12, S.t, P.ink);
   st.at();
 }
 

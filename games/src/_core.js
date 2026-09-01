@@ -418,6 +418,41 @@ class Toast {
   }
 }
 
+/* ───────── آموزشِ پرده‌ای ─────────
+   پرده‌هایی که منتظرِ کارِ بچه نیستند با یک ضربه جلو می‌روند. تایمر فقط
+   پشتیبان است؛ بچهٔ کلاس سومی باید فرصتِ خواندن داشته باشد، نه اینکه
+   متن قبل از تمام شدنِ خواندنش برود.                                    */
+
+/** اگر پردهٔ فعلی خواندنی است، ضربه را می‌خورد و می‌رود پردهٔ بعد. */
+function tutTap(tut, tapSteps, lastStep) {
+  if (!tut.on || tapSteps.indexOf(tut.step) < 0) return false;
+  if (tut.step >= lastStep) tut.on = false;
+  else { tut.step++; tut.t = 0; }
+  sfx.tap();
+  return true;
+}
+
+/** نشانهٔ «برای ادامه بزن» — زیرِ کارتِ آموزش. */
+function tutMore(cx, y, t, ink = '#3a2a18', bg = 'rgba(255, 250, 238, .94)') {
+  ctx.save();
+  ctx.globalAlpha = .62 + .38 * Math.sin(t * 3.2);
+  ctx.font = '700 15px "Vazirmatn", Tahoma, sans-serif';
+  const label = 'برای ادامه، هرجا را بزن';
+  const w = ctx.measureText(label).width + 40, h = 32, x = cx - w / 2, r = 16;
+  withShadow(10, 4, .3, () => {
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath(); ctx.fill();
+  });
+  text(label, cx, y + h / 2, { size: 15, color: ink });
+  ctx.restore();
+}
+
 /** فونت‌ها را می‌آورد و بعد بازی را شروع می‌کند. */
 function whenFontsReady(start) {
   if (document.fonts && document.fonts.load) {

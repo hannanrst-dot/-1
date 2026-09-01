@@ -268,11 +268,13 @@ function ledgerList() {
 
 /* ───────── آموزش ───────── */
 
+const TUT_TAP = [0, 2], TUT_LAST = 2;      // پرده‌های خواندنی
+
 function tutStep(dt) {
   S.tut.t += dt;
-  if (S.tut.step === 0 && S.tut.t > 5.4) { S.tut.step = 1; S.tut.t = 0; }
+  if (S.tut.step === 0 && S.tut.t > 30) { S.tut.step = 1; S.tut.t = 0; }
   if (S.tut.step === 1 && S.found.length + S.wasted > 0) { S.tut.step = 2; S.tut.t = 0; }
-  if (S.tut.step === 2 && S.tut.t > 8.5) S.tut.on = false;
+  if (S.tut.step === 2 && S.tut.t > 30) S.tut.on = false;
 }
 
 /* ───────── ورودی ───────── */
@@ -297,6 +299,7 @@ cv.addEventListener('pointermove', (e) => {
 });
 cv.addEventListener('pointerleave', () => { S.hover = null; });
 cv.addEventListener('pointerdown', (e) => {
+  if (S.phase === 'play' && tutTap(S.tut, TUT_TAP, TUT_LAST)) return;
   const h = hitTest(toStage(e));
   if (S.phase === 'intro') { if (h) startLevel(0); return; }
   if (S.phase === 'won') {
@@ -940,6 +943,7 @@ function drawTutorial() {
   ctx.fillStyle = P.brass;
   wobbleRect(x, y, 9, h, 4, 43, .8); ctx.fill();
   textWrap(msg, x + w / 2 + 6, y + h / 2 - 12, w - 54, { size: 18, color: P.ink, lineHeight: 27 });
+  if (TUT_TAP.indexOf(st) >= 0) tutMore(x + w / 2, y + h + 14, S.t, P.ink);
   if (hand) pointHand(hand.x, hand.y);
 }
 
