@@ -24,11 +24,14 @@ bg: #e6d5b4
 const SCENE_W = 1200, SCENE_H = 760;
 
 const P = {
-  wall:  '#f0e2c6', wallDk: '#ddcaa4', wallLt: '#fdf6e6',
-  belt:  '#5f6e78', beltDk: '#44515a', beltLt: '#7f909b',
-  crate: '#dcb87c', crateDk: '#b28f52', crateLt: '#f0d6a2',
-  paper: '#fdf7ea', ink: '#3c3020', inkSoft: '#8b7a5c',
-  brass: '#c9a24a', brassDk: '#96762f', brassLt: '#eccf85',
+  wallHi: '#4a5a63', wall: '#33414a', wallLo: '#1d272d',
+  pipe:  '#5d6d77', pipeLt: '#8ea0aa', pipeDk: '#38454d',
+  table: '#7d5a35', tableDk: '#553a1f', tableLt: '#a37845',
+  belt:  '#2c353b', beltDk: '#1a2126', frame: '#8d9aa4', frameDk: '#5c6872', rail: '#6f7d88',
+  crate: '#cfa267', crateDk: '#9a7440', crateLt: '#e8c692', tape: '#b3803f',
+  paper: '#f6ecd6', ink: '#33291a', inkSoft: '#7d6c4e',
+  brass: '#d3a94f', brassDk: '#9a7a2c', brassLt: '#f3dc9a',
+  lamp:  '#ffd992', lampCone: 'rgba(255, 214, 140, .1)',
   good:  '#5f9c56', bad: '#cb5b40', gold: '#e8b23f',
 };
 
@@ -154,6 +157,10 @@ function startLevel(i, keep) {
   if (!keep) { S.score = 0; S.lives = 3; }
   S.phase = 'play'; S.phaseT = 0;
   S.tut.on = i === 0 && !keep; S.tut.step = 0; S.tut.t = 0;
+  /* اوّلین بسته را همین حالا می‌گذاریم؛ وگرنه در آموزش نوار خالی می‌ماند
+     و پردهٔ «روی سُرسره بزن» هیچ‌وقت رد نمی‌شود. */
+  S.queue.push(makeParcel());
+  S.queue[0].x = 0;
   toast.say(lv.hint, 'info');
 }
 
@@ -171,7 +178,8 @@ function step(dt) {
 
   if (S.phase === 'play') {
     const frozen = S.tut.on && S.tut.step < 2;
-    if (!frozen) {
+    if (!S.queue.length) { S.queue.push(makeParcel()); S.spawnT = L().gap; }
+    else if (!frozen) {
       S.spawnT -= dt;
       if (S.spawnT <= 0) {
         S.queue.push(makeParcel());
@@ -364,173 +372,433 @@ function draw() {
   if (S.phase === 'intro') drawIntro();
   if (S.phase === 'won') drawWon();
   if (S.phase === 'lost') drawLost();
-  endScene(.12, 'rgba(70, 48, 16, .3)');
+  endScene(.1, 'rgba(6, 10, 14, .5)', .4, .16);
+}
+
+/** هرچه در اتاق تکان نمی‌خورد، یک‌بار کشیده و بعد فقط کپی می‌شود. */
+function paintRoomStatic() {
+  const g = ctx.createLinearGradient(0, HUD_H, 0, 470);
+  g.addColorStop(0, P.wallLo);
+  g.addColorStop(.5, P.wall);
+  g.addColorStop(1, P.wallHi);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, SCENE_W, 470);
+  ctx.save();
+  ctx.globalAlpha = .5;
+  ctx.fillStyle = texStone(P.wall, '#0e1418');
+  ctx.fillRect(0, HUD_H, SCENE_W, 470 - HUD_H);
+  ctx.restore();
+  /* ورقهٔ کرکره‌ای */
+  ctx.save();
+  ctx.globalAlpha = .3;
+  const lg = ctx.createLinearGradient(0, 0, 34, 0);
+  lg.addColorStop(0, 'rgba(0,0,0,.42)');
+  lg.addColorStop(.5, 'rgba(255,255,255,.13)');
+  lg.addColorStop(1, 'rgba(0,0,0,.42)');
+  for (let x = 0; x < SCENE_W; x += 34) {
+    ctx.save();
+    ctx.translate(x, 0);
+    ctx.fillStyle = lg;
+    ctx.fillRect(0, HUD_H, 34, 470 - HUD_H);
+    ctx.restore();
+  }
+  ctx.restore();
+  /* لوله‌های سقف */
+  for (const py of [86, 104]) {
+    ctx.fillStyle = P.pipeDk; ctx.fillRect(0, py, SCENE_W, 13);
+    ctx.fillStyle = P.pipe; ctx.fillRect(0, py, SCENE_W, 9);
+    ctx.fillStyle = P.pipeLt; ctx.fillRect(0, py + 1, SCENE_W, 2);
+    for (let x = 40; x < SCENE_W; x += 190) {
+      ctx.fillStyle = P.frameDk; ctx.fillRect(x, py - 3, 14, 19);
+      ctx.fillStyle = P.frame; ctx.fillRect(x + 2, py - 3, 10, 17);
+    }
+  }
+  /* میزِ چوبی */
+  ctx.fillStyle = P.tableDk;
+  ctx.fillRect(0, 462, SCENE_W, SCENE_H - 462);
+  ctx.fillStyle = texWood(P.table, P.tableDk);
+  ctx.fillRect(0, 470, SCENE_W, SCENE_H - 470);
+  const tg = ctx.createLinearGradient(0, 470, 0, SCENE_H);
+  tg.addColorStop(0, 'rgba(255, 220, 160, .22)');
+  tg.addColorStop(.4, 'rgba(0,0,0,0)');
+  tg.addColorStop(1, 'rgba(0,0,0,.34)');
+  ctx.fillStyle = tg;
+  ctx.fillRect(0, 470, SCENE_W, SCENE_H - 470);
+  ctx.fillStyle = P.tableLt;
+  ctx.fillRect(0, 470, SCENE_W, 3);
+  /* بدنهٔ چراغ‌ها و مخروطِ نور */
+  for (const lx of [330, 870]) {
+    ctx.strokeStyle = P.pipeDk; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(lx, 110); ctx.lineTo(lx, 150); ctx.stroke();
+    ctx.fillStyle = P.frameDk;
+    ctx.beginPath();
+    ctx.moveTo(lx - 34, 182); ctx.lineTo(lx - 12, 150); ctx.lineTo(lx + 12, 150); ctx.lineTo(lx + 34, 182);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = P.frame;
+    ctx.beginPath();
+    ctx.moveTo(lx - 30, 178); ctx.lineTo(lx - 10, 152); ctx.lineTo(lx + 10, 152); ctx.lineTo(lx + 30, 178);
+    ctx.closePath(); ctx.fill();
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const cg = ctx.createLinearGradient(0, 184, 0, SCENE_H);
+    cg.addColorStop(0, 'rgba(150, 118, 62, .5)');
+    cg.addColorStop(.55, 'rgba(96, 74, 38, .22)');
+    cg.addColorStop(1, 'rgba(60, 46, 22, 0)');
+    ctx.fillStyle = cg;
+    for (const k of [1, .72, .44]) {
+      ctx.globalAlpha = k * .42;
+      ctx.beginPath();
+      ctx.moveTo(lx - 26 * k, 184); ctx.lineTo(lx + 26 * k, 184);
+      ctx.lineTo(lx + (360 - 90 * (1 - k)), SCENE_H); ctx.lineTo(lx - (360 - 90 * (1 - k)), SCENE_H);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
 }
 
 function drawRoom() {
-  const g = ctx.createLinearGradient(0, HUD_H, 0, SCENE_H);
-  g.addColorStop(0, P.wallLt);
-  g.addColorStop(1, P.wallDk);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, SCENE_W, SCENE_H);
-  /* کاشیِ دیوار */
-  ctx.strokeStyle = 'rgba(150, 120, 70, .1)'; ctx.lineWidth = 2;
-  for (let x = 0; x < SCENE_W; x += 60) { ctx.beginPath(); ctx.moveTo(x, HUD_H); ctx.lineTo(x, SCENE_H); ctx.stroke(); }
-  for (let y = HUD_H; y < SCENE_H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(SCENE_W, y); ctx.stroke(); }
+  ctx.drawImage(staticLayer('room', SCENE_W, SCENE_H, paintRoomStatic), 0, 0, SCENE_W, SCENE_H);
+  /* حبابِ چراغ‌ها که سوسو می‌زند */
+  for (const lx of [330, 870]) {
+    const fl = .94 + Math.sin(S.t * 7 + lx) * .06;
+    ctx.fillStyle = P.lamp;
+    ctx.beginPath(); ctx.ellipse(lx, 181, 26 * fl, 8, 0, 0, TAU); ctx.fill();
+  }
+  /* گردوغبارِ توی نور */
+  ctx.fillStyle = 'rgba(255, 232, 190, .5)';
+  for (let i = 0; i < 40; i++) {
+    const x = (noise1(i * 3.1) * SCENE_W + S.t * (6 + noise1(i) * 10)) % SCENE_W;
+    const y = 190 + ((noise1(i * 7.7 + 2) * 560) + S.t * (4 + noise1(i * 2) * 8)) % 560;
+    ctx.globalAlpha = .1 + .3 * Math.abs(Math.sin(S.t * .7 + i));
+    ctx.beginPath(); ctx.arc(x, y, .8 + noise1(i * 1.9) * 1.4, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
 }
 
 function drawBelt() {
   const b = BELT;
-  ctx.fillStyle = P.beltDk;
-  ctx.fillRect(b.x, b.y, b.w, b.h);
-  ctx.fillStyle = P.belt;
-  ctx.fillRect(b.x, b.y + 6, b.w, b.h - 12);
-  /* تسمه‌ها */
-  ctx.fillStyle = P.beltLt;
-  const off = (S.t * 62) % 44;
-  for (let x = -44; x < b.w + 44; x += 44) {
-    ctx.fillRect(b.x + x - off, b.y + 8, 8, b.h - 16);
+  /* قابِ فولادیِ نوار */
+  ctx.fillStyle = P.frameDk;
+  ctx.fillRect(b.x, b.y - 10, b.w, b.h + 22);
+  ctx.fillStyle = P.frame;
+  ctx.fillRect(b.x, b.y - 10, b.w, 8);
+  ctx.fillRect(b.x, b.y + b.h + 4, b.w, 8);
+  ctx.fillStyle = shade(P.frame, .25);
+  ctx.fillRect(b.x, b.y - 10, b.w, 2);
+  /* پیچ‌ها */
+  for (let x = 22; x < b.w; x += 68) {
+    for (const yy of [b.y - 6, b.y + b.h + 8]) {
+      ctx.fillStyle = P.frameDk;
+      ctx.beginPath(); ctx.arc(x, yy, 3.4, 0, TAU); ctx.fill();
+      ctx.fillStyle = shade(P.frame, .3);
+      ctx.beginPath(); ctx.arc(x - .8, yy - .8, 2, 0, TAU); ctx.fill();
+    }
   }
-  ctx.fillStyle = P.beltDk;
-  ctx.fillRect(b.x, b.y + b.h - 6, b.w, 6);
+  /* لاستیکِ نوار */
+  const bg = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
+  bg.addColorStop(0, P.beltDk);
+  bg.addColorStop(.4, P.belt);
+  bg.addColorStop(1, P.beltDk);
+  ctx.fillStyle = bg;
+  ctx.fillRect(b.x, b.y, b.w, b.h);
+  /* هفت‌هشتِ متحرک */
+  ctx.save();
+  ctx.beginPath(); ctx.rect(b.x, b.y, b.w, b.h); ctx.clip();
+  const off = (S.t * 78) % 52;
+  ctx.strokeStyle = 'rgba(180, 200, 214, .16)'; ctx.lineWidth = 7;
+  for (let x = -60; x < b.w + 60; x += 52) {
+    ctx.beginPath();
+    ctx.moveTo(b.x + x - off, b.y + 4);
+    ctx.lineTo(b.x + x - off + 22, b.y + b.h / 2);
+    ctx.lineTo(b.x + x - off, b.y + b.h - 4);
+    ctx.stroke();
+  }
+  /* برقِ نور روی نوار */
+  const sg = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
+  sg.addColorStop(0, 'rgba(255, 232, 190, .1)');
+  sg.addColorStop(.35, 'rgba(255, 232, 190, 0)');
+  ctx.fillStyle = sg;
+  ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.restore();
 
-  /* بسته‌های در صف */
   for (let i = S.queue.length - 1; i >= 1; i--) {
     const q = S.queue[i];
-    drawCrate(q.x, b.y + b.h / 2, 130, 84, i);
+    drawCrate(q.x, b.y + b.h / 2, 132, 86, i, true);
   }
-  /* شمارندهٔ صف */
+  /* چراغ‌های صف */
   const cap = L().cap;
   for (let i = 0; i < cap; i++) {
-    const x = 24 + i * 22, on = i < S.queue.length - 1;
-    ctx.fillStyle = on ? (i >= cap - 2 ? P.bad : P.brass) : 'rgba(255,255,255,.22)';
-    ctx.beginPath(); rrPath(x, b.y + b.h + 10, 16, 10, 4); ctx.fill();
+    const x = 26 + i * 24, on = i < S.queue.length - 1;
+    const col = on ? (i >= cap - 2 ? P.bad : P.brass) : 'rgba(140,160,175,.2)';
+    if (on) {
+      const gg = ctx.createRadialGradient(x + 8, b.y + b.h + 22, 1, x + 8, b.y + b.h + 22, 16);
+      gg.addColorStop(0, col); gg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = .5; ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.arc(x + 8, b.y + b.h + 22, 16, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.fillStyle = col;
+    ctx.beginPath(); rrPath(x, b.y + b.h + 16, 17, 11, 4); ctx.fill();
   }
   if (S.jam > 0) {
     ctx.save();
-    ctx.globalAlpha = clamp(S.jam, 0, 1);
-    ctx.fillStyle = 'rgba(203, 91, 64, .3)';
-    ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.globalAlpha = clamp(S.jam, 0, 1) * .5;
+    ctx.fillStyle = P.bad;
+    ctx.fillRect(b.x, b.y - 10, b.w, b.h + 22);
     ctx.restore();
   }
 }
 
-function drawCrate(cx, cy, w, h, seed) {
+/** جعبهٔ مقوّایی: بافت، چسب، برچسب و ریسمان. */
+function drawCrate(cx, cy, w, h, seed, onBelt) {
   ctx.save();
   ctx.translate(cx, cy);
-  withShadow(10, 5, .3, () => {
+  if (onBelt) contact(0, h / 2 + 4, w * .48, 9, .5);
+  withShadow(14, 6, .4, () => {
     ctx.fillStyle = P.crateDk;
-    wobbleRect(-w / 2, -h / 2, w, h, 8, seed, 1.4); ctx.fill();
-    ctx.fillStyle = P.crate;
-    wobbleRect(-w / 2 + 3, -h / 2 + 3, w - 6, h - 6, 7, seed + 3, 1.2); ctx.fill();
-  }, '60, 40, 10');
-  ctx.strokeStyle = 'rgba(150, 110, 50, .5)'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(-w / 2 + 4, -6); ctx.lineTo(w / 2 - 4, -6); ctx.stroke();
+    wobbleRect(-w / 2, -h / 2, w, h, 7, seed, 1.4); ctx.fill();
+  }, '10, 6, 2');
+  ctx.save();
+  ctx.beginPath(); wobbleRect(-w / 2 + 2, -h / 2 + 2, w - 4, h - 4, 6, seed + 3, 1.2); ctx.clip();
+  ctx.fillStyle = texPaper(P.crate);
+  ctx.fillRect(-w / 2, -h / 2, w, h);
+  const g = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+  g.addColorStop(0, 'rgba(255,255,255,.28)');
+  g.addColorStop(.45, 'rgba(255,255,255,0)');
+  g.addColorStop(1, 'rgba(60,30,0,.3)');
+  ctx.fillStyle = g;
+  ctx.fillRect(-w / 2, -h / 2, w, h);
+  /* درزِ وسط و نوارِ چسب */
+  ctx.fillStyle = 'rgba(90, 55, 20, .35)';
+  ctx.fillRect(-w / 2, -3, w, 3);
+  ctx.fillStyle = P.tape;
+  ctx.globalAlpha = .8;
+  ctx.fillRect(-w / 2, -9, w, 15);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = 'rgba(255,255,255,.16)';
+  ctx.fillRect(-w / 2, -9, w, 3);
+  ctx.restore();
+  /* برچسبِ کاغذی */
+  ctx.fillStyle = 'rgba(20,12,4,.2)';
+  wobbleRect(-w / 2 + 15, -h / 2 + 11, w - 30, 24, 3, seed + 7, 1); ctx.fill();
   ctx.fillStyle = P.paper;
-  wobbleRect(-w / 2 + 16, -h / 2 + 12, w - 32, 22, 4, seed + 7, 1); ctx.fill();
-  ctx.strokeStyle = 'rgba(120, 100, 70, .5)'; ctx.lineWidth = 1.4;
+  wobbleRect(-w / 2 + 16, -h / 2 + 10, w - 32, 23, 3, seed + 7, 1); ctx.fill();
+  ctx.strokeStyle = 'rgba(120, 100, 70, .55)'; ctx.lineWidth = 1.4;
   for (let i = 0; i < 3; i++) {
     ctx.beginPath();
-    ctx.moveTo(-w / 2 + 22, -h / 2 + 18 + i * 5); ctx.lineTo(w / 2 - 22, -h / 2 + 18 + i * 5); ctx.stroke();
+    ctx.moveTo(-w / 2 + 22, -h / 2 + 16 + i * 5); ctx.lineTo(w / 2 - 22, -h / 2 + 16 + i * 5); ctx.stroke();
   }
+  /* مُهرِ گِرد */
+  ctx.strokeStyle = 'rgba(180, 70, 50, .5)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(w / 2 - 22, h / 2 - 20, 11, 0, TAU); ctx.stroke();
   ctx.restore();
 }
 
-/** بستهٔ جلوی صف — همان که باید سُرش بدهی. */
+/** بستهٔ جلوی صف روی گیرهٔ چوبی. */
 function drawCard() {
   const q = front();
   const b = CARD;
-  withShadow(24, 10, .38, () => {
-    ctx.fillStyle = P.crateDk;
-    wobbleRect(b.x - 10, b.y - 10, b.w + 20, b.h + 20, 14, 11, 2); ctx.fill();
-    ctx.fillStyle = P.paper;
-    wobbleRect(b.x, b.y, b.w, b.h, 10, 13, 1.8); ctx.fill();
-  }, '60, 40, 10');
+  const tilt = -.012;
+  ctx.save();
+  ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
+  ctx.rotate(tilt);
+  ctx.translate(-(b.x + b.w / 2), -(b.y + b.h / 2));
+  contact(b.x + b.w / 2, b.y + b.h + 16, b.w * .48, 16, .42);
+  /* تختهٔ چوبیِ گیره */
+  withShadow(26, 12, .45, () => {
+    ctx.fillStyle = P.tableDk;
+    wobbleRect(b.x - 16, b.y - 26, b.w + 32, b.h + 52, 10, 11, 1.6); ctx.fill();
+  }, '10, 6, 2');
+  ctx.save();
+  ctx.beginPath(); wobbleRect(b.x - 16, b.y - 26, b.w + 32, b.h + 52, 10, 11, 1.6); ctx.clip();
+  ctx.fillStyle = texWood('#8a6134', '#5a3c1c');
+  ctx.fillRect(b.x - 16, b.y - 26, b.w + 32, b.h + 52);
+  ctx.restore();
+  /* کاغذ */
+  ctx.fillStyle = 'rgba(20,12,4,.28)';
+  wobbleRect(b.x + 2, b.y + 4, b.w, b.h, 6, 13, 1.4); ctx.fill();
+  paper(b.x, b.y, b.w, b.h, P.paper, 13, 6, .3);
   if (S.wrong > 0) {
     ctx.save();
-    ctx.globalAlpha = clamp(S.wrong, 0, 1) * .35;
+    ctx.globalAlpha = clamp(S.wrong, 0, 1) * .4;
     ctx.fillStyle = P.bad;
-    ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 10); ctx.fill();
+    ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 6); ctx.fill();
     ctx.restore();
   }
-  /* نوارِ چسبِ بالای بسته */
-  ctx.fillStyle = 'rgba(201, 162, 74, .35)';
-  ctx.fillRect(b.x + b.w / 2 - 40, b.y - 10, 80, 16);
+  /* گیرهٔ فلزی */
+  const cx0 = b.x + b.w / 2;
+  ctx.fillStyle = P.frameDk;
+  ctx.beginPath(); rrPath(cx0 - 62, b.y - 22, 124, 30, 7); ctx.fill();
+  const cg = ctx.createLinearGradient(0, b.y - 22, 0, b.y + 8);
+  cg.addColorStop(0, shade(P.frame, .5));
+  cg.addColorStop(.5, P.frame);
+  cg.addColorStop(1, P.frameDk);
+  ctx.fillStyle = cg;
+  ctx.beginPath(); rrPath(cx0 - 58, b.y - 20, 116, 24, 6); ctx.fill();
+  ctx.fillStyle = 'rgba(30,40,46,.55)';
+  ctx.beginPath(); ctx.arc(cx0, b.y - 8, 5, 0, TAU); ctx.fill();
 
   if (!q) {
-    text('نوار خالی است…', b.x + b.w / 2, b.y + b.h / 2, { size: 22, color: P.inkSoft });
+    text('نوار خالی است…', cx0, b.y + b.h / 2, { size: 22, color: P.inkSoft });
+    ctx.restore();
     return;
   }
   ctx.save();
   if (S.lensT > 0) {
-    const k = 1 + Math.sin(clamp(S.lensT / .5, 0, 1) * Math.PI) * .04;
-    ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
-    ctx.scale(k, k);
-    ctx.translate(-(b.x + b.w / 2), -(b.y + b.h / 2));
+    const k = 1 + Math.sin(clamp(S.lensT / .5, 0, 1) * Math.PI) * .045;
+    ctx.translate(cx0, b.y + b.h / 2); ctx.scale(k, k); ctx.translate(-cx0, -(b.y + b.h / 2));
   }
-  const h = textWrap(storyText(q, S.small), b.x + b.w / 2, b.y + 52, b.w - 60,
+  textWrap(storyText(q, S.small), cx0, b.y + 56, b.w - 64,
     { size: S.small ? 26 : 23, color: P.ink, lineHeight: S.small ? 42 : 38 });
   if (S.small) {
-    text('عددها کوچک شدند؛ شکلِ مسئله همان است.', b.x + b.w / 2, b.y + b.h - 26,
-      { size: 15, color: '#96762f' });
+    text('عددها کوچک شدند؛ شکلِ مسئله همان است.', cx0, b.y + b.h - 26,
+      { size: 15, color: '#9a7a2c' });
   }
+  ctx.restore();
   ctx.restore();
 }
 
-/** ذرّه‌بینِ ساده‌ساز. */
+/** ذرّه‌بینِ ساده‌ساز، روی پایهٔ برنجی. */
 function drawLens() {
   const b = LENS, hot = S.hover === 'lens';
   const dy = hot ? 3 : 0;
-  withShadow(hot ? 18 : 10, hot ? 5 : 4, .32, () => {
-    ctx.fillStyle = S.small ? P.brassLt : P.paper;
+  contact(b.x + b.w / 2, b.y + b.h + 10, b.w * .42, 12, .4);
+  ctx.fillStyle = shade(S.small ? P.brassDk : '#6b5b3e', -.4);
+  wobbleRect(b.x, b.y + dy + 6, b.w, b.h, 14, 21, 1.8); ctx.fill();
+  withShadow(hot ? 20 : 12, hot ? 5 : 6, .4, () => {
+    ctx.fillStyle = S.small ? P.brass : '#8a7550';
     wobbleRect(b.x, b.y + dy, b.w, b.h, 14, 21, 1.8); ctx.fill();
-  }, '60, 40, 10');
-  if (S.small) { ctx.strokeStyle = P.brassDk; ctx.lineWidth = 3.4;
-    wobbleRect(b.x, b.y + dy, b.w, b.h, 14, 21, 1.8); ctx.stroke(); }
+  }, '10, 6, 2');
+  ctx.save();
+  ctx.beginPath(); wobbleRect(b.x, b.y + dy, b.w, b.h, 14, 21, 1.8); ctx.clip();
+  const g = ctx.createLinearGradient(0, b.y + dy, 0, b.y + dy + b.h);
+  g.addColorStop(0, 'rgba(255,255,255,.34)');
+  g.addColorStop(.5, 'rgba(255,255,255,0)');
+  g.addColorStop(1, 'rgba(0,0,0,.3)');
+  ctx.fillStyle = g;
+  ctx.fillRect(b.x, b.y + dy, b.w, b.h);
+  ctx.restore();
   const cx = b.x + b.w / 2, cy = b.y + 54 + dy;
+  if (S.small) {
+    const gg = ctx.createRadialGradient(cx, cy, 2, cx, cy, 58);
+    gg.addColorStop(0, 'rgba(255, 235, 170, .5)');
+    gg.addColorStop(1, 'rgba(255, 235, 170, 0)');
+    ctx.fillStyle = gg;
+    ctx.beginPath(); ctx.arc(cx, cy, 58, 0, TAU); ctx.fill();
+  }
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(-.5);
-  ctx.strokeStyle = P.brassDk; ctx.lineWidth = 9; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(0, 22); ctx.lineTo(0, 44); ctx.stroke();
+  ctx.rotate(-.5 + Math.sin(S.t * 1.6) * .04);
+  ctx.strokeStyle = shade(P.brassDk, -.3); ctx.lineWidth = 10; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, 22); ctx.lineTo(0, 46); ctx.stroke();
   ctx.strokeStyle = P.brass; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(0, 22); ctx.lineTo(0, 44); ctx.stroke();
+  ctx.strokeStyle = shade(P.brassDk, -.2); ctx.lineWidth = 8;
   ctx.beginPath(); ctx.arc(0, 0, 22, 0, TAU); ctx.stroke();
-  ctx.fillStyle = 'rgba(180, 220, 240, .45)';
-  ctx.beginPath(); ctx.arc(0, 0, 20, 0, TAU); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.5)';
-  ctx.beginPath(); ctx.ellipse(-7, -7, 7, 4, -.7, 0, TAU); ctx.fill();
+  ctx.strokeStyle = P.brassLt; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(0, 0, 22, -2.4, -.4); ctx.stroke();
+  ctx.fillStyle = 'rgba(190, 226, 244, .5)';
+  ctx.beginPath(); ctx.arc(0, 0, 19, 0, TAU); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.6)';
+  ctx.beginPath(); ctx.ellipse(-7, -7, 8, 4.4, -.7, 0, TAU); ctx.fill();
   ctx.restore();
-  text('ذرّه‌بین', cx, b.y + 104 + dy, { size: 20, family: 'Lalezar', color: P.ink });
-  text(S.small ? 'عددهای اصلی' : 'عددها را کوچک کن', cx, b.y + 128 + dy,
-    { size: 13, color: P.inkSoft });
+  text('ذرّه‌بین', cx, b.y + 106 + dy, { size: 20, family: 'Lalezar', color: '#241a08' });
+  text(S.small ? 'عددهای اصلی' : 'عددها را کوچک کن', cx, b.y + 130 + dy,
+    { size: 13, color: 'rgba(36, 26, 8, .7)' });
 }
 
+/** چهار قیفِ فلزیِ رنگ‌شده. */
 function drawChutes() {
   for (let i = 0; i < 4; i++) {
     const b = chuteBox(i), o = OPS[i], hot = S.hover === i;
     const pulse = S.chuteT[i] > 0 ? clamp(S.chuteT[i] * 2, 0, 1) : 0;
     const dy = hot ? 3 : 0;
-    withShadow(hot ? 20 : 12, hot ? 6 : 5, .34, () => {
-      ctx.fillStyle = o.d;
-      wobbleRect(b.x, b.y + dy, b.w, b.h, 16, b.x, 2); ctx.fill();
-      ctx.fillStyle = o.c;
-      wobbleRect(b.x + 4, b.y + 4 + dy, b.w - 8, b.h - 12, 14, b.x + 2, 1.8); ctx.fill();
-    }, '40, 28, 12');
-    /* دهانهٔ سُرسره */
-    ctx.fillStyle = 'rgba(20, 14, 6, .3)';
-    ctx.beginPath(); rrPath(b.x + 26, b.y + 14 + dy, b.w - 52, 30, 12); ctx.fill();
+    const x = b.x, y = b.y + dy, w = b.w, h = b.h;
+    contact(x + w / 2, y + h + 8, w * .46, 14, .45);
+    /* بدنهٔ قیف: بالا پهن‌تر */
+    const body = () => {
+      ctx.beginPath();
+      ctx.moveTo(x + 4, y + 10);
+      ctx.lineTo(x + w - 4, y + 10);
+      ctx.lineTo(x + w - 20, y + h);
+      ctx.lineTo(x + 20, y + h);
+      ctx.closePath();
+    };
+    ctx.fillStyle = shade(o.d, -.4);
+    ctx.beginPath();
+    ctx.moveTo(x + 4, y + 16); ctx.lineTo(x + w - 4, y + 16);
+    ctx.lineTo(x + w - 20, y + h + 8); ctx.lineTo(x + 20, y + h + 8);
+    ctx.closePath(); ctx.fill();
+    withShadow(hot ? 22 : 14, hot ? 5 : 8, .42, () => {
+      ctx.fillStyle = o.c; body(); ctx.fill();
+    }, '10, 6, 2');
+    /* حجمِ فلز */
+    ctx.save();
+    body(); ctx.clip();
+    const mg = ctx.createLinearGradient(x, 0, x + w, 0);
+    mg.addColorStop(0, 'rgba(0,0,0,.32)');
+    mg.addColorStop(.22, 'rgba(255,255,255,.3)');
+    mg.addColorStop(.55, 'rgba(255,255,255,.04)');
+    mg.addColorStop(1, 'rgba(0,0,0,.34)');
+    ctx.fillStyle = mg;
+    ctx.fillRect(x, y, w, h);
+    const vg2 = ctx.createLinearGradient(0, y, 0, y + h);
+    vg2.addColorStop(0, 'rgba(255,255,255,.2)');
+    vg2.addColorStop(.6, 'rgba(0,0,0,0)');
+    vg2.addColorStop(1, 'rgba(0,0,0,.3)');
+    ctx.fillStyle = vg2;
+    ctx.fillRect(x, y, w, h);
     if (pulse) {
-      ctx.save();
       ctx.globalAlpha = pulse * .55;
       ctx.fillStyle = '#fff';
-      wobbleRect(b.x + 4, b.y + 4 + dy, b.w - 8, b.h - 12, 14, b.x + 2, 1.8); ctx.fill();
-      ctx.restore();
+      ctx.fillRect(x, y, w, h);
+      ctx.globalAlpha = 1;
     }
-    numText(o.s, b.x + b.w / 2, b.y + 108 + dy, { size: 78, color: '#fff' });
-    text(o.n, b.x + b.w / 2, b.y + 176 + dy, { size: 30, family: 'Lalezar', color: 'rgba(255,255,255,.94)' });
-    /* بازوی فلزی پایینِ سُرسره */
-    ctx.fillStyle = 'rgba(20, 14, 6, .22)';
-    ctx.fillRect(b.x + 20, b.y + b.h - 8 + dy, b.w - 40, 10);
+    ctx.restore();
+    /* لبهٔ فلزیِ دهانه */
+    ctx.fillStyle = shade(o.d, -.3);
+    ctx.beginPath(); rrPath(x, y, w, 22, 8); ctx.fill();
+    const lg2 = ctx.createLinearGradient(0, y, 0, y + 22);
+    lg2.addColorStop(0, 'rgba(255,255,255,.4)');
+    lg2.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = lg2;
+    ctx.beginPath(); rrPath(x, y, w, 22, 8); ctx.fill();
+    /* دهانهٔ تاریک */
+    ctx.fillStyle = '#0d1114';
+    ctx.beginPath(); rrPath(x + 26, y + 6, w - 52, 26, 11); ctx.fill();
+    const dg = ctx.createLinearGradient(0, y + 6, 0, y + 32);
+    dg.addColorStop(0, 'rgba(0,0,0,.85)');
+    dg.addColorStop(1, 'rgba(90,90,90,.25)');
+    ctx.fillStyle = dg;
+    ctx.beginPath(); rrPath(x + 26, y + 6, w - 52, 26, 11); ctx.fill();
+    /* پیچ‌ها */
+    for (const px2 of [x + 16, x + w - 16]) {
+      ctx.fillStyle = shade(o.d, -.45);
+      ctx.beginPath(); ctx.arc(px2, y + 42, 5, 0, TAU); ctx.fill();
+      ctx.fillStyle = shade(o.c, .35);
+      ctx.beginPath(); ctx.arc(px2 - 1, y + 41, 3, 0, TAU); ctx.fill();
+    }
+    /* پلاکِ لعابیِ نشانه */
+    const px = x + w / 2, py2 = y + 116;
+    ctx.fillStyle = 'rgba(0,0,0,.28)';
+    ctx.beginPath(); rrPath(px - 62, py2 - 54, 124, 108, 14); ctx.fill();
+    ctx.fillStyle = shade(o.d, -.12);
+    ctx.beginPath(); rrPath(px - 58, py2 - 52, 116, 104, 12); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
+    ctx.beginPath(); rrPath(px - 52, py2 - 46, 104, 92, 9); ctx.stroke();
+    numText(o.s, px, py2 - 12, { size: 66, color: '#fff', stroke: 'rgba(0,0,0,.3)', strokeWidth: 6 });
+    text(o.n, px, py2 + 32, { size: 27, family: 'Lalezar', color: 'rgba(255,255,255,.96)' });
+    /* چراغِ نشانگر */
+    const on = pulse > .05;
+    if (on) {
+      const gg = ctx.createRadialGradient(px, y + h - 14, 2, px, y + h - 14, 34);
+      gg.addColorStop(0, 'rgba(255, 240, 190, .85)');
+      gg.addColorStop(1, 'rgba(255, 240, 190, 0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.arc(px, y + h - 14, 34, 0, TAU); ctx.fill();
+    }
+    ctx.fillStyle = on ? '#fff3cf' : 'rgba(0,0,0,.4)';
+    ctx.beginPath(); ctx.arc(px, y + h - 14, 7, 0, TAU); ctx.fill();
   }
 }
 
@@ -539,14 +807,14 @@ function drawFly() {
   const k = clamp(S.fly.t / .55, 0, 1);
   const box = chuteBox(S.fly.to);
   const x = lerp(CARD.x + CARD.w / 2, box.x + box.w / 2, k);
-  const y = lerp(CARD.y + CARD.h / 2, box.y + 30, easeIn(k));
-  const s = lerp(1, .35, k);
+  const y = lerp(CARD.y + CARD.h / 2, box.y + 26, easeIn(k));
+  const s = lerp(1, .3, k);
   ctx.save();
-  ctx.globalAlpha = 1 - k * .3;
+  ctx.globalAlpha = 1 - k * .35;
   ctx.translate(x, y);
-  ctx.rotate(k * .6);
+  ctx.rotate(k * .7);
   ctx.scale(s, s);
-  drawCrate(0, 0, 220, 130, 5);
+  drawCrate(0, 0, 220, 132, 5, false);
   ctx.restore();
 }
 

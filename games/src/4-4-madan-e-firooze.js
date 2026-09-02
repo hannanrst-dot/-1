@@ -448,14 +448,14 @@ function draw() {
   endScene(.13, 'rgba(2, 6, 8, .56)');
 }
 
-function drawMine() {
+/** دیوار و چاهِ معدن تکان نمی‌خورند؛ یک‌بار کشیده و بعد کپی می‌شوند. */
+function paintMineStatic() {
   const g = ctx.createLinearGradient(300, 60, 900, 760);
   g.addColorStop(0, P.rockHi);
   g.addColorStop(1, P.rockLo);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, SCENE_W, SCENE_H);
 
-  /* سنگ‌های دیوار */
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,.028)';
   for (let r = 0; r < 16; r++) for (let c = 0; c < 12; c++) {
@@ -464,7 +464,6 @@ function drawMine() {
   }
   ctx.restore();
 
-  /* رگهٔ فیروزه توی دیوار */
   ctx.save();
   ctx.globalAlpha = .12;
   ctx.strokeStyle = P.gem; ctx.lineWidth = 7; ctx.lineCap = 'round';
@@ -481,7 +480,6 @@ function drawMine() {
   }
   ctx.restore();
 
-  /* دهانهٔ چاه */
   ctx.fillStyle = 'rgba(5, 10, 12, .55)';
   ctx.fillRect(SHAFT.x, 0, SHAFT.w, CART.y);
   ctx.fillStyle = P.woodDk;
@@ -491,6 +489,10 @@ function drawMine() {
   for (let y = 66; y < CART.y; y += 108) {
     wobbleRect(SHAFT.x - 26, y, SHAFT.w + 52, 12, 3, y, 1); ctx.fill();
   }
+}
+
+function drawMine() {
+  ctx.drawImage(staticLayer('mine', SCENE_W, SCENE_H, paintMineStatic), 0, 0, SCENE_W, SCENE_H);
 
   /* چراغ‌های معدن */
   for (const lx of [SHAFT.x - 54, SHAFT.x + SHAFT.w + 54]) {

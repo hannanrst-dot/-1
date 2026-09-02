@@ -534,15 +534,14 @@ function draw() {
   endScene(.12, 'rgba(2, 4, 14, .5)');
 }
 
-function drawNight() {
+/** آسمانِ ثابت: شیب و کهکشان. */
+function paintSkyStatic() {
   const g = ctx.createLinearGradient(0, HUD_H, 0, SCENE_H);
   g.addColorStop(0, P.deep);
   g.addColorStop(.45, P.sky1);
   g.addColorStop(1, P.sky2);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, SCENE_W, SCENE_H);
-
-  /* کهکشان */
   ctx.save();
   ctx.globalAlpha = .1;
   const mg = ctx.createLinearGradient(0, 180, SCENE_W, 480);
@@ -556,10 +555,14 @@ function drawNight() {
   for (let x = SCENE_W; x >= 0; x -= 20) ctx.lineTo(x, 360 + Math.sin(x * .0035) * 60);
   ctx.closePath(); ctx.fill();
   ctx.restore();
+}
 
-  /* غبارِ ستاره‌ای ثابت */
+function drawNight() {
+  ctx.drawImage(staticLayer('sky', SCENE_W, SCENE_H, paintSkyStatic), 0, 0, SCENE_W, SCENE_H);
+
+  /* غبارِ ستاره‌ایِ چشمک‌زن */
   ctx.fillStyle = 'rgba(210, 226, 255, .5)';
-  for (let i = 0; i < 150; i++) {
+  for (let i = 0; i < 110; i++) {
     const x = noise1(i * 3.1) * SCENE_W, y = HUD_H + noise1(i * 7.7 + 2) * (SCENE_H - HUD_H - 60);
     const r = .5 + noise1(i * 1.9) * 1.4;
     ctx.globalAlpha = .2 + .5 * Math.abs(Math.sin(S.t * .8 + i));
