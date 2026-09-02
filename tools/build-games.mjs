@@ -11,6 +11,18 @@ const SRC = path.join(ROOT, 'games', 'src');
 const OUT = path.join(ROOT, 'games');
 
 const core = await fs.readFile(path.join(SRC, '_core.js'), 'utf8');
+
+/** نام‌هایی که هسته در بالاترین سطح اعلام می‌کند. اگر بازی هم‌نامشان را
+    اعلام کند، مرورگر همان اوّل «Identifier has already been declared»
+    می‌دهد و کلِّ بازی بالا نمی‌آید — پس قبل از ساخت جلویش را می‌گیریم. */
+function topNames(code) {
+  const out = new Set();
+  const re = /^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm;
+  let m;
+  while ((m = re.exec(code))) out.add(m[1]);
+  return out;
+}
+const coreNames = topNames(core);
 const only = process.argv[2];
 
 const files = (await fs.readdir(SRC))
@@ -25,6 +37,13 @@ for (const f of files) {
       .filter((p) => p.length === 2)
   );
   const body = src.replace(/\/\*!\s*[\s\S]*?\*\/\s*/, '');
+
+  const clash = [...topNames(body)].filter((n) => coreNames.has(n));
+  if (clash.length) {
+    console.error(`✗ ${f}: نامِ تکراری با هسته → ${clash.join('، ')}`);
+    process.exitCode = 1;
+    continue;
+  }
 
   const html = `<!doctype html>
 <html lang="fa" dir="rtl">
