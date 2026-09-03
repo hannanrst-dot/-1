@@ -40,7 +40,7 @@ for (const f of files) {
 
   /* رنگِ خراب در مرورگر بی‌صدا نادیده گرفته می‌شود و شکل را خالی می‌گذارد،
      پس همین‌جا جلویش را می‌گیریم. */
-  const badCol = [...body.matchAll(/['"](#[^'"\s]*)['"]/g)]
+  const badCol = [...body.matchAll(/['"](#[^'"]{0,40})['"]/g)]
     .map((m) => m[1])
     .filter((c) => !/^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(c));
   if (badCol.length) {
