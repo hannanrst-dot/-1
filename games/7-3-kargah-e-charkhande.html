@@ -864,7 +864,7 @@ const S = {
   sec: [],                 /* رنگِ هر قسمت */
   conds: [],
   brush: 0,
-  rot: 0, spin: null,
+  na: -Math.PI / 2, spin: null,   /* عقربه می‌چرخد، نه خودِ چرخ */
   tally: [0, 0, 0, 0], spins: 0,
   ok: false, sold: 0,
   timeLeft: 0, lanterns: 3,
@@ -1007,7 +1007,7 @@ function step(dt) {
     const sp = S.spin;
     sp.t += dt;
     const k = easeOut(clamp(sp.t / sp.dur, 0, 1));
-    S.rot = lerp(sp.from, sp.to, k);
+    S.na = lerp(sp.from, sp.to, k);
     if (sp.t >= sp.dur) {
       S.tally[S.sec[sp.seq[sp.i]]]++;
       S.spins++;
@@ -1054,7 +1054,7 @@ function paintSector(i) {
   S.tally = [0, 0, 0, 0]; S.spins = 0;      /* چرخ عوض شد، آزمایشِ قبلی بی‌اعتبار است */
   S.ok = allOK(S.sec);
   sfx.tone(360 + i * 14, .05, 'triangle', .05);
-  const a = (i + .5) / S.n * TAU + S.rot;
+  const a = -Math.PI / 2 + (i + .5) / S.n * TAU;
   S.sparks.push({ x: WHEEL.x + Math.cos(a) * WHEEL.r * .7, y: WHEEL.y + Math.sin(a) * WHEEL.r * .7,
                   t: 0, life: .5, c: WC[S.brush].c });
   if (S.tut.on && S.tut.step === 1 && S.ok) { S.tut.step = 2; S.tut.t = 0; }
@@ -1066,7 +1066,7 @@ function pullLever() {
   const seq = [];
   for (let i = 0; i < 10; i++) seq.push(R(0, S.n - 1));
   S.tally = [0, 0, 0, 0]; S.spins = 0;
-  S.spin = { seq, i: 0, t: 0, dur: .42, from: S.rot, to: S.rot };
+  S.spin = { seq, i: 0, t: 0, dur: .42, from: S.na, to: S.na };
   nextSpin(S.spin);
   sfx.slide();
 }
@@ -1074,16 +1074,18 @@ function pullLever() {
 function nextSpin(sp) {
   const i = sp.seq[sp.i];
   const step2 = TAU / S.n;
-  /* عقربه بالای چرخ است؛ چرخ را طوری می‌چرخانیم که قسمتِ i زیرش بیفتد */
-  let target = -Math.PI / 2 - (i + .5) * step2 + (Math.random() - .5) * step2 * .5;
+  /* خودِ چرخ سرِ جایش می‌ماند — کاری که بچّه ساخته نباید جابه‌جا شود.
+     عقربه می‌چرخد تا روی قسمتِ i بایستد، درست مثلِ چرخندهٔ کتاب. */
+  let target = -Math.PI / 2 + (i + .5) * step2 + (Math.random() - .5) * step2 * .5;
   while (target < sp.to + TAU * 2) target += TAU;
-  sp.from = S.rot;
+  sp.from = S.na;
   sp.to = target;
   sp.t = 0;
   sp.dur = .42;
 }
 
 function finishSpin() {
+  S.drawing = false;
   if (S.ok) sell();
   else {
     S.nope = .8;
@@ -1120,7 +1122,7 @@ function sectorAt(p) {
   const dx = p.x - WHEEL.x, dy = p.y - WHEEL.y;
   const d = Math.hypot(dx, dy);
   if (d > WHEEL.r || d < 34) return -1;
-  let a = Math.atan2(dy, dx) - S.rot;
+  let a = Math.atan2(dy, dx) + Math.PI / 2;
   a = ((a % TAU) + TAU) % TAU;
   return Math.floor(a / (TAU / S.n)) % S.n;
 }
@@ -1128,7 +1130,11 @@ function sectorAt(p) {
 cv.addEventListener('pointermove', (e) => {
   const p = toStage(e);
   if (S.phase !== 'play') { S.hover = inRect(p, BTN_GO) ? BTN_GO : null; cv.style.cursor = S.hover ? 'pointer' : 'default'; return; }
-  if (S.drawing) { paintSector(sectorAt(p)); return; }
+  if (S.drawing) {
+    if (e.buttons === 0 && e.pointerType === 'mouse') { S.drawing = false; return; }
+    paintSector(sectorAt(p));
+    return;
+  }
   S.hover = null;
   const s = sectorAt(p);
   if (s >= 0) S.hover = { k: 'sec', i: s };
@@ -1149,6 +1155,7 @@ cv.addEventListener('pointerdown', (e) => {
   }
   if (S.phase === 'lost') { if (inRect(p, BTN_GO)) startLevel(S.level); return; }
   if (tutTap(S.tut, TUT_TAP, TUT_LAST)) return;
+  S.drawing = false;
   for (let i = 0; i < S.pal; i++) if (inRect(p, potBox(i))) { S.brush = i; sfx.tap(); return; }
   if (inCircle(p, leverKnob(), 12)) { pullLever(); return; }
   const s = sectorAt(p);
@@ -1161,6 +1168,8 @@ cv.addEventListener('pointerdown', (e) => {
 
 cv.addEventListener('pointerup', () => { S.drawing = false; });
 cv.addEventListener('pointercancel', () => { S.drawing = false; });
+cv.addEventListener('pointerleave', () => { S.drawing = false; });
+addEventListener('blur', () => { S.drawing = false; });
 
 /* ───────── ابزارِ نقاشی ───────── */
 
@@ -1341,7 +1350,7 @@ function drawWheel() {
 
   const stepA = TAU / S.n;
   for (let i = 0; i < S.n; i++) {
-    const a0 = S.rot + i * stepA, a1 = a0 + stepA;
+    const a0 = -Math.PI / 2 + i * stepA, a1 = a0 + stepA;
     const k = S.sec[i];
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -1382,18 +1391,33 @@ function drawWheel() {
   ctx.beginPath(); ctx.arc(x, y + 2, 30, 0, TAU); ctx.fill();
   ctx.fillStyle = ball(x - 8, y - 8, 52, P.brassLt, P.brass, P.brassDk);
   ctx.beginPath(); ctx.arc(x, y, 28, 0, TAU); ctx.fill();
-  /* عقربه بالای چرخ */
-  const bob = S.spin ? Math.sin(S.t * 40) * 2 : 0;
-  ctx.fillStyle = '#22182e';
+  /* عقربهٔ چرخان روی چرخِ ثابت */
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(S.na);
+  withShadow(16, 6, .45, () => {
+    ctx.fillStyle = '#22182e';
+    ctx.beginPath();
+    ctx.moveTo(-16, -13); ctx.lineTo(r - 16, -6);
+    ctx.lineTo(r - 2, 0); ctx.lineTo(r - 16, 6); ctx.lineTo(-16, 13);
+    ctx.closePath(); ctx.fill();
+  }, '10, 6, 20');
+  const ng = ctx.createLinearGradient(0, -13, 0, 13);
+  ng.addColorStop(0, P.brassLt); ng.addColorStop(.5, P.brass); ng.addColorStop(1, P.brassDk);
+  ctx.fillStyle = ng;
   ctx.beginPath();
-  ctx.moveTo(x - 20, y - r - 34 + bob); ctx.lineTo(x + 20, y - r - 34 + bob);
-  ctx.lineTo(x, y - r + 12 + bob);
+  ctx.moveTo(-13, -10); ctx.lineTo(r - 18, -4.5);
+  ctx.lineTo(r - 6, 0); ctx.lineTo(r - 18, 4.5); ctx.lineTo(-13, 10);
   ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  ctx.beginPath(); ctx.moveTo(-10, -7); ctx.lineTo(r - 20, -2.6); ctx.lineTo(r - 20, -.6); ctx.lineTo(-10, -3);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  /* پیچِ میانِ عقربه */
+  ctx.fillStyle = P.brassDk;
+  ctx.beginPath(); ctx.arc(x, y, 9, 0, TAU); ctx.fill();
   ctx.fillStyle = P.brassLt;
-  ctx.beginPath();
-  ctx.moveTo(x - 15, y - r - 32 + bob); ctx.lineTo(x + 15, y - r - 32 + bob);
-  ctx.lineTo(x, y - r + 6 + bob);
-  ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.arc(x - 1.5, y - 1.5, 4.5, 0, TAU); ctx.fill();
 }
 
 /** «چه کسری از چرخنده سبز است؟» — کارِ خودِ بچّه، زیرِ چرخ. */
