@@ -38,6 +38,17 @@ for (const f of files) {
   );
   const body = src.replace(/\/\*!\s*[\s\S]*?\*\/\s*/, '');
 
+  /* رنگِ خراب در مرورگر بی‌صدا نادیده گرفته می‌شود و شکل را خالی می‌گذارد،
+     پس همین‌جا جلویش را می‌گیریم. */
+  const badCol = [...body.matchAll(/['"](#[^'"\s]*)['"]/g)]
+    .map((m) => m[1])
+    .filter((c) => !/^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(c));
+  if (badCol.length) {
+    console.error(`✗ ${f}: رنگِ نامعتبر → ${[...new Set(badCol)].join('، ')}`);
+    process.exitCode = 1;
+    continue;
+  }
+
   const clash = [...topNames(body)].filter((n) => coreNames.has(n));
   if (clash.length) {
     console.error(`✗ ${f}: نامِ تکراری با هسته → ${clash.join('، ')}`);
