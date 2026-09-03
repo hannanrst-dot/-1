@@ -457,13 +457,14 @@ function blockArt(cols, rows, x, y, cell, col, dk, lit) {
 
 function unitArt(i, x, y, cell) {
   const u = UNITS[i];
-  const lit = shade(u.col, 30);
+  const lit = tint(u.col, 30);
   if (i === 0) blockArt(10, 10, x, y, cell, u.col, u.dk, lit);
   else if (i === 1) blockArt(10, 1, x, y, cell, u.col, u.dk, lit);
   else blockArt(1, 1, x, y, cell, u.col, u.dk, lit);
 }
 
-function shade(hex, amt) {
+/* روشن/تیره‌کردن با مقدارِ صحیح — با shadeِ هسته که ضریبی کار می‌کند فرق دارد */
+function tint(hex, amt) {
   const n = parseInt(hex.slice(1), 16);
   const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255]
     .map((v) => clamp(v + amt, 0, 255).toString(16).padStart(2, '0'));
@@ -643,7 +644,7 @@ function drawGoal() {
   gl.addColorStop(1, 'rgba(255, 226, 140, 0)');
   ctx.fillStyle = gl;
   ctx.fillRect(cx - 190, cy - 210, 380, 380);
-  blockArt(10, 10, cx - s / 2, cy, s / 10, P.thou, P.thouDk, shade(P.thou, 34));
+  blockArt(10, 10, cx - s / 2, cy, s / 10, P.thou, P.thouDk, tint(P.thou, 34));
   /* عددش را خطِ‌کش می‌گوید؛ اینجا دوباره نوشتنش لازم نیست. */
 }
 
@@ -1037,7 +1038,7 @@ function drawWon() {
     btnLabel: L().endless ? 'پروازِ بعدی' : (last ? 'از اوّل' : 'مرحلهٔ بعدی'),
     paper: P.paper, band: P.good, ink: P.ink, inkSoft: P.inkSoft,
     btnFill: '#5e94d6', btnHotFill: '#6ea4e4',
-    icon: (x, y) => blockArt(10, 10, x - 30, y + 28, 6, P.thou, P.thouDk, shade(P.thou, 34)),
+    icon: (x, y) => blockArt(10, 10, x - 30, y + 28, 6, P.thou, P.thouDk, tint(P.thou, 34)),
   });
 }
 

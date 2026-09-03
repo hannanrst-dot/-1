@@ -17,9 +17,17 @@ const core = await fs.readFile(path.join(SRC, '_core.js'), 'utf8');
     می‌دهد و کلِّ بازی بالا نمی‌آید — پس قبل از ساخت جلویش را می‌گیریم. */
 function topNames(code) {
   const out = new Set();
-  const re = /^(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/gm;
+  const re = /^(?:function|class)\s+([A-Za-z_$][\w$]*)/gm;
   let m;
   while ((m = re.exec(code))) out.add(m[1]);
+  /* «let ctx, SW, SH, CV» هم باید همه‌اش دیده شود، نه فقط اوّلی */
+  const re2 = /^(?:const|let|var)\s+([^;=\n]+?)(?:\s*=|;|$)/gm;
+  while ((m = re2.exec(code))) {
+    for (const part of m[1].split(',')) {
+      const name = part.trim().split(/[\s=]/)[0];
+      if (/^[A-Za-z_$][\w$]*$/.test(name)) out.add(name);
+    }
+  }
   return out;
 }
 const coreNames = topNames(core);
@@ -40,7 +48,8 @@ for (const f of files) {
 
   /* رنگِ خراب در مرورگر بی‌صدا نادیده گرفته می‌شود و شکل را خالی می‌گذارد،
      پس همین‌جا جلویش را می‌گیریم. */
-  const badCol = [...body.matchAll(/['"](#[^'"]{0,40})['"]/g)]
+  /* «'#'» تنها برای چسباندن به کار می‌رود و ایراد ندارد؛ بقیه باید هگزِ درست باشند. */
+  const badCol = [...body.matchAll(/['"](#[^'"]{1,40})['"]/g)]
     .map((m) => m[1])
     .filter((c) => !/^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(c));
   if (badCol.length) {
