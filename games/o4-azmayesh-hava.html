@@ -1218,7 +1218,9 @@ function drawBalloons() {
   text('هوا جرم دارد؟', B.x + B.w - 18, B.y + 30, { size: 20, family: 'Lalezar', color: P.ink, align: 'right' });
   const cx = B.x + B.w / 2, cy = B.y + 150;
   const m = airMass(S.blown);                    /* گرمِ هوای داخل */
-  const ang = -0.3 * Math.tanh(m / 1.6);         /* راست سنگین‌تر ⟵ راست پایین */
+  /* بادکنکِ بادشده سنگین‌تر است و باید پایین برود. زاویه مثبت یعنی
+     سمتِ راست پایین می‌آید (چون y به سمتِ پایین زیاد می‌شود). */
+  const ang = 0.3 * Math.tanh(m / 1.6);
   ctx.strokeStyle = P.steelDk; ctx.lineWidth = 5;
   ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + 190); ctx.stroke();
   ctx.fillStyle = P.steel;

@@ -170,6 +170,8 @@ function loadLevel(i) {
     if (S.cell[y][x] === 'S') S.src = { x, y };
     if (S.cell[y][x] === 'G') S.goal = { x, y };
   }
+  /* راهنما فقط مالِ مرحلهٔ اوّل است و نباید با بچّه به مرحله‌های بعد بیاید */
+  if (i > 0) S.tut.on = false;
   S.leftH = lv.h; S.leftC = lv.c;
   S.tool = lv.h > 0 ? 'H' : 'C';
   S.run = null; S.won = false; S.failMsg = '';
@@ -312,7 +314,10 @@ function cellAtPoint(p) {
 
 /* ───────── ورودی ───────── */
 
-const TUT_TAP = [0, 2], TUT_LAST = 2;
+/* هر سه پرده با ضربه جلو می‌روند. پیش‌تر پردهٔ دوم فقط با گذاشتنِ
+   ابزار جلو می‌رفت، ولی دو مرحلهٔ اوّل اصلاً ابزار ندارند — پس راهنما
+   گیر می‌کرد و کارتش روی نقشه می‌ماند. */
+const TUT_TAP = [0, 1, 2], TUT_LAST = 2;
 
 cv.addEventListener('pointermove', (e) => {
   const p = toStage(e);
