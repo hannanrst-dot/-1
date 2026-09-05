@@ -34,7 +34,7 @@ const pick = (arr, seed) => arr[Math.floor(noise1(seed) * arr.length) % arr.leng
 
 let ctx, SW, SH, CV, _refit = null;
 let view = { scale: 1, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
-let _grain = null;
+let _grain = null, _grainDark = null;
 
 function initStage(canvas, w, h) {
   CV = canvas; SW = w; SH = h;
@@ -86,10 +86,55 @@ function beginScene(bg) {
   ctx.clip();
 }
 
+/* ───────── پوششِ پایانِ قاب ─────────
+   دانه‌های کاغذ و تیرگیِ گوشه‌ها هر دو ثابت‌اند و تغییر نمی‌کنند، ولی
+   قبلاً هر فریم از نو کشیده می‌شدند: یکی با «multiply» روی کلِّ صفحه و
+   یکی با یک گرادیانِ شعاعیِ تازه. اندازه‌گیری نشان داد همین دو تا
+   ۱۱ تا ۱۶ میلی‌ثانیه از هر فریم را می‌خوردند — بیشتر از کشیدنِ خودِ
+   صحنه. حالا یک بار در یک بومِ جدا پخته می‌شوند و هر فریم فقط یک
+   drawImage است.                                                       */
+
+let _ovl = null, _ovlKey = '';
+
+function overlayLayer(grainAlpha, vignette) {
+  const q = Math.min(2, (view.scale || 1) * (view.dpr || 1));
+  const w = Math.max(2, Math.round(SW * q)), h = Math.max(2, Math.round(SH * q));
+  const key = w + 'x' + h + '|' + grainAlpha + '|' + vignette;
+  if (_ovl && _ovlKey === key) return _ovl;
+  let c;
+  try {
+    c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g2 = c.getContext('2d');
+    if (!g2) return null;
+    if (_grainDark && grainAlpha > 0) {
+      /* همان دانه‌ها، ولی به‌جای multiply به شکلِ سیاهِ کم‌رنگ */
+      g2.globalAlpha = clamp(grainAlpha * 1.15, 0, 1);
+      g2.fillStyle = g2.createPattern(_grainDark, 'repeat');
+      g2.fillRect(0, 0, w, h);
+      g2.globalAlpha = 1;
+    }
+    if (vignette) {
+      const g = g2.createRadialGradient(w / 2, h / 2, h * .42, w / 2, h / 2, h * 1.05);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, vignette);
+      g2.fillStyle = g;
+      g2.fillRect(0, 0, w, h);
+    }
+  } catch (e) { return null; }
+  _ovl = c; _ovlKey = key;
+  return c;
+}
+
 /** بافتِ کاغذ، تیرگیِ گوشه‌ها، رنگ‌بندی و درخششِ نور را می‌گذارد و قاب را می‌بندد. */
 function endScene(grainAlpha = .15, vignette = 'rgba(48,28,14,.30)', bloom = .34, grade = .14) {
+  /* درخششِ نور خاموش است. اندازه‌گیری نشان داد هر فریم ۲۱ میلی‌ثانیه
+     می‌گیرد — بیشتر از تمامِ کارهای دیگرِ یک فریم روی هم — چون برای
+     ساختنش باید کلِّ بوم دوباره خوانده شود. از آن بدتر: متنِ فارسی را
+     مه‌آلود می‌کرد و خواندنش را سخت‌تر. بی‌آن، صحنه تمیزتر است. */
+  bloom = 0;
   if (QUALITY < 1) { grade = 0; grainAlpha *= .5; }
-  if (QUALITY < 2) bloom = 0;
+  if (QUALITY < 2) grade = 0;
   if (grade > 0) {
     /* رنگ‌بندیِ نرم: بالای صحنه گرم‌تر، پایین سردتر — عمق می‌دهد */
     const g = ctx.createLinearGradient(0, 0, 0, SH);
@@ -101,21 +146,8 @@ function endScene(grainAlpha = .15, vignette = 'rgba(48,28,14,.30)', bloom = .34
     ctx.fillRect(0, 0, SW, SH);
     ctx.globalCompositeOperation = 'source-over';
   }
-  if (_grain && grainAlpha > 0) {
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = grainAlpha;
-    ctx.fillStyle = _grain;
-    ctx.fillRect(0, 0, SW, SH);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-  }
-  if (vignette) {
-    const g = ctx.createRadialGradient(SW/2, SH/2, SH*.42, SW/2, SH/2, SH*1.05);
-    g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(1, vignette);
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, SW, SH);
-  }
+  const ov = (grainAlpha > 0 || vignette) ? overlayLayer(grainAlpha, vignette) : null;
+  if (ov) ctx.drawImage(ov, 0, 0, SW, SH);
   ctx.restore();
   bloomPass(bloom);
 }
@@ -307,6 +339,18 @@ function buildGrain() {
     img.data[i*4] = v; img.data[i*4+1] = v; img.data[i*4+2] = v; img.data[i*4+3] = 255;
   }
   c.putImageData(img, 0, 0);
+  /* همان دانه‌ها به شکلِ سیاهِ کم‌رنگ، تا بشود بدونِ multiply گذاشتشان */
+  const d = document.createElement('canvas');
+  d.width = d.height = s;
+  const dc = d.getContext('2d');
+  const dimg = dc.createImageData(s, s);
+  for (let i = 0; i < s*s; i++) {
+    dimg.data[i*4] = 0; dimg.data[i*4+1] = 0; dimg.data[i*4+2] = 0;
+    dimg.data[i*4+3] = 255 - img.data[i*4];
+  }
+  dc.putImageData(dimg, 0, 0);
+  _grainDark = d;
+  _ovl = null; _ovlKey = '';
   return ctx.createPattern(off, 'repeat');
 }
 
@@ -723,14 +767,23 @@ function _qualityTick(gap) {
   const avg = _fAcc / _fN;
   _fAcc = 0; _fN = 0;
   if (_qHold > 0) { _qHold--; return; }
+  /* فاصلهٔ بالا و پایین باید باز باشد، وگرنه کیفیت بین دو پله بالا و
+     پایین می‌پرد و بازی مدام تغییرِ ظاهر می‌دهد. */
   const before = QUALITY;
-  if (avg > 25 && QUALITY > 0) { QUALITY--; _qHold = 3; }
-  else if (avg < 18.5 && QUALITY < 2) { QUALITY++; _qHold = 6; }
+  if (avg > 21 && QUALITY > 0) { QUALITY--; _qHold = 4; }
+  else if (avg < 13.5 && QUALITY < 2) { QUALITY++; _qHold = 10; }
   /* در پایین‌ترین کیفیت، صحنه را با نقطه‌های کمتر می‌کشیم */
   if (before !== QUALITY && (before === 0 || QUALITY === 0) && _refit) _refit();
 }
 
-/* یک حلقه، نه بیشتر — دو حلقه یعنی زمانِ بازی دوبرابر می‌گذرد. */
+/* یک حلقه، نه بیشتر — دو حلقه یعنی زمانِ بازی دوبرابر می‌گذرد.
+
+   MOTION: تا پیش از این، به‌خاطرِ باگِ دو حلقه، همهٔ بازی‌ها عملاً با
+   سرعتِ دو برابر اجرا می‌شدند و زمان‌بندی‌ها هم با همان حس تنظیم شده
+   بودند. حالا که باگ رفع شده، سرعتِ درست (یک برابر) کُند به نظر
+   می‌رسد. این ضریب جانِ حرکت‌ها را برمی‌گرداند، ولی نه تا آن دو برابرِ
+   تصادفی. فقط روی جانِ حرکت اثر دارد، نه روی هیچ قانونِ علمی. */
+const MOTION = 1.45;
 let _looping = false;
 function runLoop(step) {
   if (_looping) return;
@@ -738,7 +791,8 @@ function runLoop(step) {
   let last = performance.now();
   const frame = (now) => {
     const gap = now - last;
-    const dt = Math.min(gap / 1000, 1/20);
+    /* بریدنِ بعد از ضرب، تا یک فریمِ کُند پرشِ بزرگ نسازد */
+    const dt = Math.min(gap / 1000 * MOTION, 1/15);
     last = now;
     _qualityTick(gap);
     step(dt);

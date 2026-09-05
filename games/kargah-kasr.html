@@ -231,7 +231,45 @@ function buildGrain() {
     img.data[i*4+3] = 255;
   }
   c.putImageData(img, 0, 0);
+  /* همان دانه‌ها به شکلِ سیاهِ کم‌رنگ، تا بشود بی‌multiply گذاشتشان */
+  const d = document.createElement('canvas');
+  d.width = d.height = s;
+  const dc = d.getContext('2d');
+  const dimg = dc.createImageData(s, s);
+  for (let i = 0; i < s * s; i++) {
+    dimg.data[i*4] = 0; dimg.data[i*4+1] = 0; dimg.data[i*4+2] = 0;
+    dimg.data[i*4+3] = 255 - img.data[i*4];
+  }
+  dc.putImageData(dimg, 0, 0);
+  grainDark = d; ovl = null;
   return ctx.createPattern(off, 'repeat');
+}
+
+/* پوششِ پایانِ قاب: دانه‌ها و تیرگیِ گوشه‌ها ثابت‌اند، پس یک بار پخته
+   می‌شوند و هر فریم فقط یک drawImage است. قبلاً هر فریم یک multiply روی
+   کلِّ صفحه و یک گرادیانِ شعاعیِ تازه بود که تنهایی بیشتر از خودِ صحنه
+   وقت می‌گرفت. */
+let grainDark = null, ovl = null;
+function overlayLayer() {
+  if (ovl) return ovl;
+  if (!grainDark) return null;
+  try {
+    const c = document.createElement('canvas');
+    c.width = SW; c.height = SH;
+    const g2 = c.getContext('2d');
+    if (!g2) return null;
+    g2.globalAlpha = .19;
+    g2.fillStyle = g2.createPattern(grainDark, 'repeat');
+    g2.fillRect(0, 0, SW, SH);
+    g2.globalAlpha = 1;
+    const vg = g2.createRadialGradient(SW/2, SH/2, SH*.42, SW/2, SH/2, SH*1.05);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(60,32,16,.30)');
+    g2.fillStyle = vg;
+    g2.fillRect(0, 0, SW, SH);
+    ovl = c;
+  } catch (e) { return null; }
+  return ovl;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1577,21 +1615,9 @@ function draw() {
   if (S.phase === 'intro') drawIntro();
   if (S.phase === 'reward') drawReward();
 
-  // بافتِ کاغذ روی کل تصویر
-  if (grain) {
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = .16;
-    ctx.fillStyle = grain;
-    ctx.fillRect(0, 0, SW, SH);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-  }
-  // تیرگیِ ملایمِ گوشه‌ها
-  const vg = ctx.createRadialGradient(SW/2, SH/2, SH*.42, SW/2, SH/2, SH*1.05);
-  vg.addColorStop(0, 'rgba(0,0,0,0)');
-  vg.addColorStop(1, 'rgba(60,32,16,.30)');
-  ctx.fillStyle = vg;
-  ctx.fillRect(0, 0, SW, SH);
+  // بافتِ کاغذ و تیرگیِ گوشه‌ها — یک‌بار پخته، هر فریم یک کپی
+  const ov = overlayLayer();
+  if (ov) ctx.drawImage(ov, 0, 0, SW, SH);
 
   ctx.restore();
 }
