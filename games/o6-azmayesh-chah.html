@@ -1,0 +1,1316 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1c2a22">
+<title>آزمایشگاهِ چاه — زندگی ما و آب (آزمایش)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;700;900&display=swap">
+<style>
+  /* صفحه نباید هیچ‌جا اسکرول یا زوم شود؛ بازی باید مثل یک برنامه رفتار کند. */
+  html, body {
+    margin: 0; padding: 0; background: #1c2a22;
+    overflow: hidden; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    position: fixed; inset: 0;          /* جلوی کشیده‌شدنِ صفحه در سافاریِ گوشی */
+    width: 100%; height: 100vh; height: 100dvh;
+  }
+  canvas {
+    display: block; width: 100%; height: 100%;
+    touch-action: none; -webkit-touch-callout: none;
+  }
+
+  /* گوشیِ عمودی صحنه را ریز می‌کند؛ بچه باید گوشی را بچرخاند. */
+  #rotate { display: none; }
+  @media (orientation: portrait) and (max-width: 860px) {
+    #stage { display: none; }
+    #rotate {
+      display: flex; position: fixed; inset: 0;
+      z-index: 9;
+      flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+      background: #1c2a22; color: #f6ead2;
+      font: 700 20px "Vazirmatn", Tahoma, sans-serif; text-align: center; padding: 32px;
+    }
+    #rotate svg { animation: tilt 2.4s ease-in-out infinite; }
+    @keyframes tilt { 0%, 45% { transform: rotate(0deg); } 65%, 100% { transform: rotate(-90deg); } }
+  }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="rotate">
+  <svg width="86" height="126" viewBox="0 0 86 126" fill="none" aria-hidden="true">
+    <rect x="3" y="3" width="80" height="120" rx="12" stroke="#e8b448" stroke-width="5"/>
+    <rect x="15" y="19" width="56" height="88" rx="5" fill="#e8b448" opacity=".28"/>
+    <circle cx="43" cy="115" r="4" fill="#e8b448"/>
+  </svg>
+  <div>گوشی را بچرخان</div>
+  <div style="font-weight:400;opacity:.7;font-size:16px">این بازی خوابیده بازی می‌شود</div>
+</div>
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════════
+   هستهٔ مشترکِ بازی‌ها — سبک «کاغذبُری»
+   ───────────────────────────────────────────────────────────────────────
+   این فایل جعبه‌ابزار است، نه چارچوب: هر بازی حلقه و وضعیت خودش را دارد
+   و فقط از این توابع برای کشیدن استفاده می‌کند. دلیلش این است که هر بازی
+   باید حس‌وحال خودش را داشته باشد، نه اینکه همه شبیه هم دربیایند.
+
+   قاعده‌های ثابتِ تصویری:
+   • نور همیشه از بالا-چپ می‌تابد، پس سایه‌ها به پایین-راست می‌افتند.
+   • هیچ لبه‌ای کاملاً صاف نیست؛ همه کمی موج دارند (انگار با قیچی بریده).
+   • هیچ خاکستریِ خالصی نداریم؛ همه‌ی خنثی‌ها به گرمیِ صحنه می‌زنند.
+   • یک لایه‌ی دانه‌دانه‌ی کاغذ روی کلِ تصویر ضرب می‌شود.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const FA_D = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+const fa = (n) => String(n).replace(/\d/g, (d) => FA_D[+d]);
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+const easeIn = (t) => t * t * t;
+const easeInOut = (t) => (t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2);
+const easeBack = (t) => 1 + 2.7 * Math.pow(t-1, 3) + 1.7 * Math.pow(t-1, 2);
+const easeElastic = (t) => t === 0 || t === 1 ? t : Math.pow(2, -9*t) * Math.sin((t*10 - .75) * 2.094) + 1;
+
+/** تصادفِ تکرارپذیر: با یک بذر همیشه همان عدد. برای اینکه تزئین‌ها هر فریم نپرند. */
+function noise1(x) {
+  const s = Math.sin(x * 127.1) * 43758.5453;
+  return s - Math.floor(s);
+}
+const pick = (arr, seed) => arr[Math.floor(noise1(seed) * arr.length) % arr.length];
+
+/* ───────── بوم و صحنهٔ ثابت ───────── */
+
+let ctx, SW, SH, CV, _refit = null;
+let view = { scale: 1, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
+let _grain = null, _grainDark = null;
+
+function initStage(canvas, w, h) {
+  CV = canvas; SW = w; SH = h;
+  ctx = canvas.getContext('2d');
+
+  /* اندازه را از خودِ بوم می‌گیریم نه از innerHeight؛ چون در سافاریِ گوشی
+     نوارِ آدرس باز و بسته می‌شود و innerHeight دروغ می‌گوید. */
+  const fit = () => {
+    const r = canvas.getBoundingClientRect();
+    const vw = Math.round(r.width), vh = Math.round(r.height);
+    if (vw < 20 || vh < 20) return;
+    const dpr = Math.min(devicePixelRatio || 1, QUALITY > 0 ? 2 : 1);
+    canvas.width = Math.round(vw * dpr);
+    canvas.height = Math.round(vh * dpr);
+    const scale = Math.min(vw / SW, vh / SH);
+    view = { scale, ox: (vw - SW*scale)/2, oy: (vh - SH*scale)/2, w: vw, h: vh, dpr };
+    _grain = buildGrain();
+  };
+  _refit = fit;
+  addEventListener('resize', fit);
+  /* چرخاندنِ گوشی: اندازهٔ درست چند لحظه بعد می‌رسد، پس چندبار اندازه می‌گیریم. */
+  addEventListener('orientationchange', () => {
+    fit(); setTimeout(fit, 140); setTimeout(fit, 460);
+  });
+  if (window.visualViewport) visualViewport.addEventListener('resize', fit);
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(canvas);
+
+  /* صدا در گوشی فقط بعد از اوّلین لمس اجازهٔ پخش دارد. */
+  const unlock = () => { sfx._c(); removeEventListener('pointerdown', unlock); removeEventListener('touchstart', unlock); };
+  addEventListener('pointerdown', unlock, { passive: true });
+  addEventListener('touchstart', unlock, { passive: true });
+  /* نگه‌داشتنِ انگشت نباید منوی مرورگر را باز کند. */
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  fit();
+  return ctx;
+}
+
+/** قابِ صحنه را باز می‌کند: بعد از این، مختصات همیشه در فضای SW×SH است. */
+function beginScene(bg) {
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, view.w, view.h);
+  ctx.save();
+  ctx.translate(view.ox, view.oy);
+  ctx.scale(view.scale, view.scale);
+  ctx.beginPath();
+  ctx.rect(0, 0, SW, SH);
+  ctx.clip();
+}
+
+/* ───────── پوششِ پایانِ قاب ─────────
+   دانه‌های کاغذ و تیرگیِ گوشه‌ها هر دو ثابت‌اند و تغییر نمی‌کنند، ولی
+   قبلاً هر فریم از نو کشیده می‌شدند: یکی با «multiply» روی کلِّ صفحه و
+   یکی با یک گرادیانِ شعاعیِ تازه. اندازه‌گیری نشان داد همین دو تا
+   ۱۱ تا ۱۶ میلی‌ثانیه از هر فریم را می‌خوردند — بیشتر از کشیدنِ خودِ
+   صحنه. حالا یک بار در یک بومِ جدا پخته می‌شوند و هر فریم فقط یک
+   drawImage است.                                                       */
+
+let _ovl = null, _ovlKey = '';
+
+function overlayLayer(grainAlpha, vignette) {
+  const q = Math.min(2, (view.scale || 1) * (view.dpr || 1));
+  const w = Math.max(2, Math.round(SW * q)), h = Math.max(2, Math.round(SH * q));
+  const key = w + 'x' + h + '|' + grainAlpha + '|' + vignette;
+  if (_ovl && _ovlKey === key) return _ovl;
+  let c;
+  try {
+    c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g2 = c.getContext('2d');
+    if (!g2) return null;
+    if (_grainDark && grainAlpha > 0) {
+      /* همان دانه‌ها، ولی به‌جای multiply به شکلِ سیاهِ کم‌رنگ */
+      g2.globalAlpha = clamp(grainAlpha * 1.15, 0, 1);
+      g2.fillStyle = g2.createPattern(_grainDark, 'repeat');
+      g2.fillRect(0, 0, w, h);
+      g2.globalAlpha = 1;
+    }
+    if (vignette) {
+      const g = g2.createRadialGradient(w / 2, h / 2, h * .42, w / 2, h / 2, h * 1.05);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, vignette);
+      g2.fillStyle = g;
+      g2.fillRect(0, 0, w, h);
+    }
+  } catch (e) { return null; }
+  _ovl = c; _ovlKey = key;
+  return c;
+}
+
+/** بافتِ کاغذ، تیرگیِ گوشه‌ها، رنگ‌بندی و درخششِ نور را می‌گذارد و قاب را می‌بندد. */
+function endScene(grainAlpha = .15, vignette = 'rgba(48,28,14,.30)', bloom = .34, grade = .14) {
+  /* درخششِ نور خاموش است. اندازه‌گیری نشان داد هر فریم ۲۱ میلی‌ثانیه
+     می‌گیرد — بیشتر از تمامِ کارهای دیگرِ یک فریم روی هم — چون برای
+     ساختنش باید کلِّ بوم دوباره خوانده شود. از آن بدتر: متنِ فارسی را
+     مه‌آلود می‌کرد و خواندنش را سخت‌تر. بی‌آن، صحنه تمیزتر است. */
+  bloom = 0;
+  if (QUALITY < 1) { grade = 0; grainAlpha *= .5; }
+  if (QUALITY < 2) grade = 0;
+  if (grade > 0) {
+    /* رنگ‌بندیِ نرم: بالای صحنه گرم‌تر، پایین سردتر — عمق می‌دهد */
+    const g = ctx.createLinearGradient(0, 0, 0, SH);
+    g.addColorStop(0, `rgba(255, 214, 150, ${grade})`);
+    g.addColorStop(.55, 'rgba(255, 255, 255, 0)');
+    g.addColorStop(1, `rgba(40, 60, 110, ${grade * .9})`);
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, SW, SH);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  const ov = (grainAlpha > 0 || vignette) ? overlayLayer(grainAlpha, vignette) : null;
+  if (ov) ctx.drawImage(ov, 0, 0, SW, SH);
+  ctx.restore();
+  bloomPass(bloom);
+}
+
+/* ───────── درخششِ نور (bloom) ─────────
+   قابِ رسم‌شده را کوچک می‌کنیم، دو بار در خودش ضرب می‌کنیم تا فقط
+   روشن‌ها بمانند، محوش می‌کنیم و با حالتِ «lighter» رویش می‌گذاریم.
+   نتیجه: چراغ‌ها، شعله‌ها و رنگ‌های روشن نور پخش می‌کنند. */
+let _bl, _blc, _bl2, _bl2c, _blNo = false, _blTick = 0;
+
+function bloomPass(amount) {
+  if (!amount || _blNo || !CV.width) return;
+  /* کوچک‌کردن و بزرگ‌کردنِ دوباره، خودش محو می‌کند — از filter خیلی ارزان‌تر است */
+  const W = Math.max(4, Math.round(CV.width * .2)), H = Math.max(4, Math.round(CV.height * .2));
+  const W2 = Math.max(2, Math.round(W * .28)), H2 = Math.max(2, Math.round(H * .28));
+  try {
+    if (!_bl) {
+      _bl = document.createElement('canvas'); _blc = _bl.getContext('2d');
+      _bl2 = document.createElement('canvas'); _bl2c = _bl2.getContext('2d');
+      if (!_blc || !_bl2c) { _blNo = true; return; }
+    }
+    if (_bl.width !== W || _bl.height !== H) { _bl.width = W; _bl.height = H; }
+    if (_bl2.width !== W2 || _bl2.height !== H2) { _bl2.width = W2; _bl2.height = H2; }
+    /* ساختنِ نور یک قاب در میان کافی است؛ گذاشتنش هر قاب. */
+    _blTick = (_blTick + 1) & 1;
+    if (!_blTick) {
+      _blc.globalCompositeOperation = 'source-over';
+      _blc.clearRect(0, 0, W, H);
+      _blc.drawImage(CV, 0, 0, W, H);
+      _blc.globalCompositeOperation = 'multiply';
+      _blc.drawImage(_bl, 0, 0);
+      _blc.drawImage(_bl, 0, 0);
+      _blc.globalCompositeOperation = 'source-over';
+      _bl2c.clearRect(0, 0, W2, H2);
+      _bl2c.drawImage(_bl, 0, 0, W2, H2);
+    }
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = amount;
+    ctx.drawImage(_bl2, 0, 0, CV.width, CV.height);
+    ctx.restore();
+  } catch (e) { _blNo = true; }
+}
+
+/* ───────── لایهٔ ثابت ─────────
+   هرچه در صحنه تکان نمی‌خورد را یک‌بار می‌کشیم و بعد فقط کپی می‌کنیم. */
+const _layers = {};
+function staticLayer(key, w, h, paint) {
+  const q = Math.min(2, (view.scale || 1) * (view.dpr || 1));
+  const L = _layers[key];
+  if (L && L.q === q && L.w === w && L.h === h) return L.cv;
+  const off = document.createElement('canvas');
+  off.width = Math.max(1, Math.round(w * q));
+  off.height = Math.max(1, Math.round(h * q));
+  const c = off.getContext('2d');
+  c.setTransform(q, 0, 0, q, 0, 0);
+  const prev = ctx;
+  ctx = c;
+  try { paint(); } finally { ctx = prev; }
+  _layers[key] = { cv: off, q, w, h };
+  return off;
+}
+
+/* ───────── نورپردازی و بافت ─────────
+   کارِ این‌ها این است که هیچ سطحی «تختِ یک‌رنگ» نماند. */
+
+/** شیبِ عمودی: بالا روشن، پایین تیره. */
+function vgrad(y0, y1, top, bot) {
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, top); g.addColorStop(1, bot);
+  return g;
+}
+
+/** حجمِ کروی: نور از بالا-چپ، سایه در پایین-راست. */
+function ball(cx, cy, r, lit, base, dark) {
+  const g = ctx.createRadialGradient(cx - r * .38, cy - r * .42, r * .06, cx, cy, r * 1.06);
+  g.addColorStop(0, lit); g.addColorStop(.45, base); g.addColorStop(1, dark);
+  return g;
+}
+
+/** لبهٔ روشنِ بالا-چپِ یک مسیر — همان «rim light». */
+function rim(pathFn, col, w = 2.2) {
+  ctx.save();
+  ctx.beginPath(); pathFn();
+  ctx.clip();
+  ctx.beginPath(); pathFn();
+  ctx.strokeStyle = col; ctx.lineWidth = w * 2; ctx.lineJoin = 'round';
+  ctx.translate(-w * .5, -w * .6);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** سایهٔ چسبیده به زمین — چیزها را روی سطح می‌نشاند. */
+function contact(cx, cy, rx, ry, alpha = .26) {
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(rx, ry));
+  g.addColorStop(0, `rgba(20, 12, 6, ${alpha})`);
+  g.addColorStop(1, 'rgba(20, 12, 6, 0)');
+  ctx.save();
+  ctx.fillStyle = g;
+  ctx.translate(cx, cy); ctx.scale(1, ry / Math.max(rx, ry));
+  ctx.beginPath(); ctx.arc(0, 0, Math.max(rx, ry), 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
+const _tex = {};
+/** بافتِ تکرارشونده؛ یک‌بار ساخته و بعد از حافظه خوانده می‌شود. */
+function texture(key, w, h, paint) {
+  if (_tex[key]) return _tex[key];
+  const off = document.createElement('canvas');
+  off.width = w; off.height = h;
+  const c = off.getContext('2d');
+  paint(c, w, h);
+  _tex[key] = ctx.createPattern(off, 'repeat');
+  return _tex[key];
+}
+
+/** رگهٔ چوب. */
+function texWood(base, grain) {
+  return texture('w' + base + grain, 120, 120, (c, w, h) => {
+    c.fillStyle = base; c.fillRect(0, 0, w, h);
+    c.strokeStyle = grain; c.lineWidth = 1.4;
+    for (let i = 0; i < 9; i++) {
+      c.globalAlpha = .18 + noise1(i * 3.1) * .3;
+      c.beginPath();
+      const y0 = i * 14 + noise1(i) * 6;
+      c.moveTo(0, y0);
+      for (let x = 0; x <= w; x += 10) c.lineTo(x, y0 + Math.sin(x * .09 + i) * 2.6);
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+  });
+}
+
+/** تارِ پارچه. */
+function texCloth(base, thread) {
+  return texture('c' + base + thread, 16, 16, (c, w, h) => {
+    c.fillStyle = base; c.fillRect(0, 0, w, h);
+    c.strokeStyle = thread; c.lineWidth = 1; c.globalAlpha = .5;
+    for (let i = 0; i < w; i += 4) {
+      c.beginPath(); c.moveTo(i, 0); c.lineTo(i, h); c.stroke();
+      c.beginPath(); c.moveTo(0, i); c.lineTo(w, i); c.stroke();
+    }
+    c.globalAlpha = 1;
+  });
+}
+
+/** دانه‌های سنگ. */
+function texStone(base, spec) {
+  return texture('s' + base + spec, 90, 90, (c, w, h) => {
+    c.fillStyle = base; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 260; i++) {
+      c.globalAlpha = .05 + noise1(i * 1.7) * .16;
+      c.fillStyle = spec;
+      const r = .6 + noise1(i * 5.3) * 1.9;
+      c.beginPath();
+      c.arc(noise1(i * 2.1) * w, noise1(i * 3.7 + 1) * h, r, 0, TAU);
+      c.fill();
+    }
+    c.globalAlpha = 1;
+  });
+}
+
+/** الیافِ کاغذ. */
+function texPaper(base) {
+  return texture('p' + base, 100, 100, (c, w, h) => {
+    c.fillStyle = base; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 130; i++) {
+      c.globalAlpha = .04 + noise1(i * 2.3) * .07;
+      c.strokeStyle = i % 2 ? '#ffffff' : '#5a4326';
+      c.lineWidth = .9;
+      const x = noise1(i * 1.3) * w, y = noise1(i * 4.1 + 2) * h;
+      const a = noise1(i * 7.7) * TAU, l = 4 + noise1(i * 9.1) * 12;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); c.stroke();
+    }
+    c.globalAlpha = 1;
+  });
+}
+
+function buildGrain() {
+  const s = 260;
+  const off = document.createElement('canvas');
+  off.width = off.height = s;
+  const c = off.getContext('2d');
+  const img = c.createImageData(s, s);
+  for (let i = 0; i < s*s; i++) {
+    const v = 214 + Math.random() * 41;
+    img.data[i*4] = v; img.data[i*4+1] = v; img.data[i*4+2] = v; img.data[i*4+3] = 255;
+  }
+  c.putImageData(img, 0, 0);
+  /* همان دانه‌ها به شکلِ سیاهِ کم‌رنگ، تا بشود بدونِ multiply گذاشتشان */
+  const d = document.createElement('canvas');
+  d.width = d.height = s;
+  const dc = d.getContext('2d');
+  const dimg = dc.createImageData(s, s);
+  for (let i = 0; i < s*s; i++) {
+    dimg.data[i*4] = 0; dimg.data[i*4+1] = 0; dimg.data[i*4+2] = 0;
+    dimg.data[i*4+3] = 255 - img.data[i*4];
+  }
+  dc.putImageData(dimg, 0, 0);
+  _grainDark = d;
+  _ovl = null; _ovlKey = '';
+  return ctx.createPattern(off, 'repeat');
+}
+
+function toStage(e) {
+  const r = CV.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left - view.ox) / view.scale,
+    y: (e.clientY - r.top - view.oy) / view.scale,
+  };
+}
+
+const inRect = (p, b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+const inCircle = (p, b, pad = 0) => Math.hypot(p.x - b.x, p.y - b.y) <= b.r + pad;
+
+/* ───────── قلم‌های کاغذبُری ───────── */
+
+/** دایره‌ای که انگار با قیچی بریده شده. */
+function wobbleCircle(cx, cy, r, seed = 0, amp = 2.2, steps = 60) {
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * TAU;
+    const rr = r + Math.sin(a*3 + seed) * amp + Math.sin(a*7 + seed*2.3) * amp * .45;
+    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/** بیضیِ ناصاف — برای چیزهایی که گرد نیستند ولی نرم‌اند. */
+function wobbleEllipse(cx, cy, rx, ry, rot = 0, seed = 0, amp = 2, steps = 60) {
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * TAU;
+    const w = 1 + (Math.sin(a*3 + seed) * amp + Math.sin(a*7 + seed*2.3) * amp*.45) / Math.max(rx, ry);
+    const px = Math.cos(a) * rx * w, py = Math.sin(a) * ry * w;
+    const x = cx + px*Math.cos(rot) - py*Math.sin(rot);
+    const y = cy + px*Math.sin(rot) + py*Math.cos(rot);
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/** مستطیلِ گِرد با گوشه‌های کمی کج. */
+function wobbleRect(x, y, w, h, r = 12, seed = 0, amp = 1.6) {
+  const j = (k) => (noise1(seed*9.7 + k) - .5) * amp * 2;
+  ctx.beginPath();
+  ctx.moveTo(x + r + j(1), y + j(2));
+  ctx.lineTo(x + w - r + j(3), y + j(4));
+  ctx.quadraticCurveTo(x + w + j(5), y + j(6), x + w + j(7), y + r + j(8));
+  ctx.lineTo(x + w + j(9), y + h - r + j(10));
+  ctx.quadraticCurveTo(x + w + j(11), y + h + j(12), x + w - r + j(13), y + h + j(14));
+  ctx.lineTo(x + r + j(15), y + h + j(16));
+  ctx.quadraticCurveTo(x + j(17), y + h + j(18), x + j(19), y + h - r + j(20));
+  ctx.lineTo(x + j(21), y + r + j(22));
+  ctx.quadraticCurveTo(x + j(23), y + j(24), x + r + j(1), y + j(2));
+  ctx.closePath();
+}
+
+/** سایهٔ نرم؛ نور از بالا-چپ. */
+function withShadow(blur, dy, alpha, fn, hue = '78, 46, 24') {
+  ctx.save();
+  ctx.shadowColor = `rgba(${hue}, ${alpha})`;
+  ctx.shadowBlur = blur;
+  ctx.shadowOffsetY = dy;
+  ctx.shadowOffsetX = dy * .35;
+  fn();
+  ctx.restore();
+}
+
+/** یک برگه‌ی کاغذ با سایه — پایه‌ی همه‌ی کارت‌ها و تابلوها. */
+function paper(x, y, w, h, fill, seed = 1, r = 12, shadow = .26) {
+  withShadow(16, 7, shadow, () => {
+    ctx.fillStyle = fill;
+    wobbleRect(x, y, w, h, r, seed, 2);
+    ctx.fill();
+  });
+  /* الیافِ کاغذ و لبهٔ روشن، تا سطح تخت نماند */
+  ctx.save();
+  ctx.beginPath(); wobbleRect(x, y, w, h, r, seed, 2); ctx.clip();
+  ctx.globalAlpha = .5;
+  ctx.fillStyle = texPaper(fill);
+  ctx.fillRect(x, y, w, h);
+  ctx.globalAlpha = 1;
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, 'rgba(255,255,255,.3)');
+  g.addColorStop(.4, 'rgba(255,255,255,0)');
+  g.addColorStop(1, 'rgba(90,60,20,.1)');
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, w, h);
+  ctx.restore();
+}
+
+function text(str, x, y, o = {}) {
+  const size = o.size || 20;
+  const fam = o.family || 'Vazirmatn';
+  ctx.save();
+  ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+  ctx.font = `${fam === 'Lalezar' ? '400' : (o.weight || 700)} ${size}px "${fam}", Tahoma, sans-serif`;
+  ctx.textAlign = o.align || 'center';
+  ctx.textBaseline = o.baseline || 'middle';
+  ctx.fillStyle = o.color || '#43291b';
+  ctx.direction = 'rtl';
+  if (o.stroke) {
+    ctx.lineWidth = o.strokeWidth || 5;
+    ctx.strokeStyle = o.stroke;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(str, x, y, o.maxWidth);
+  }
+  ctx.fillText(str, x, y, o.maxWidth);
+  ctx.restore();
+}
+
+/** متنِ چندخطی که خودش می‌شکند. ارتفاعِ اشغال‌شده را برمی‌گرداند. */
+function textWrap(str, x, y, maxW, o = {}) {
+  const size = o.size || 19, lh = o.lineHeight || size * 1.7;
+  ctx.font = `${o.weight || 700} ${size}px "${o.family || 'Vazirmatn'}", Tahoma, sans-serif`;
+  const lines = [];
+  for (const para of str.split('\n')) {
+    let line = '';
+    for (const wd of para.split(' ')) {
+      const t = line ? line + ' ' + wd : wd;
+      if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = wd; }
+      else line = t;
+    }
+    lines.push(line);
+  }
+  lines.forEach((l, i) => text(l, x, y + i * lh, o));
+  return lines.length * lh;
+}
+
+/* ───────── ذره‌ها ───────── */
+
+class Bits {
+  constructor() { this.list = []; }
+  add(x, y, n, kind, colors, opts = {}) {
+    for (let i = 0; i < n; i++) {
+      const a = opts.dir !== undefined ? opts.dir + (Math.random()-.5) * (opts.spread || 1) : Math.random() * TAU;
+      const sp = (opts.speed || 200) * (.4 + Math.random());
+      this.list.push({
+        kind, x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - (opts.lift || 0),
+        r: (opts.size || 4) * (.5 + Math.random()),
+        rot: Math.random() * TAU, vr: (Math.random()-.5) * 10,
+        col: colors[(Math.random() * colors.length) | 0],
+        grav: opts.grav === undefined ? 620 : opts.grav,
+        drag: opts.drag || .995,
+        life: (opts.life || .9) * (.6 + Math.random() * .8), age: 0,
+      });
+    }
+  }
+  confetti(x, y, n, colors) {
+    this.add(x, y, n, 'flake', colors, { speed: 420, lift: 190, size: 5, life: 1.6, grav: 780 });
+  }
+  spark(x, y, n, colors) {
+    this.add(x, y, n, 'dot', colors, { speed: 180, lift: 30, size: 3.4, life: .7, grav: 260, drag: .93 });
+  }
+  step(dt) {
+    for (const p of this.list) {
+      p.age += dt;
+      p.vy += p.grav * dt;
+      p.vx *= p.drag; p.vy *= p.drag;
+      p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+    }
+    this.list = this.list.filter((p) => p.age < p.life);
+  }
+  draw() {
+    for (const p of this.list) {
+      const k = clamp(1 - p.age / p.life, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = k;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.col;
+      if (p.kind === 'flake') ctx.fillRect(-p.r, -p.r*1.5, p.r*2, p.r*3);
+      else if (p.kind === 'leaf') { wobbleEllipse(0, 0, p.r*1.8, p.r*.8, 0, p.r, .6); ctx.fill(); }
+      else { ctx.beginPath(); ctx.arc(0, 0, p.r * k, 0, TAU); ctx.fill(); }
+      ctx.restore();
+    }
+  }
+  clear() { this.list.length = 0; }
+}
+
+/* ───────── صدا (بدون فایل صوتی) ───────── */
+
+const sfx = {
+  ac: null, on: true,
+  _c() {
+    if (!this.on) return null;
+    if (!this.ac) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; this.ac = new A(); }
+    if (this.ac.state === 'suspended') this.ac.resume();
+    return this.ac;
+  },
+  tone(f, dur = .16, type = 'sine', gain = .13, delay = 0) {
+    const c = this._c(); if (!c) return;
+    const t0 = c.currentTime + delay;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t0);
+    g.gain.setValueAtTime(.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + .012);
+    g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+    o.connect(g).connect(c.destination);
+    o.start(t0); o.stop(t0 + dur + .04);
+  },
+  tap()  { this.tone(430, .07, 'triangle', .09); },
+  place(){ this.tone(620, .11, 'sine', .12); },
+  pop()  { this.tone(760, .09, 'sine', .11); },
+  slide(){ this.tone(240, .22, 'sine', .07); },
+  good() { [523, 659, 784].forEach((f,i) => this.tone(f, .22, 'sine', .13, i*.07)); },
+  win()  { [523, 659, 784, 1047].forEach((f,i) => this.tone(f, .34, 'triangle', .13, i*.10)); },
+  nope() { this.tone(180, .2, 'sawtooth', .07); },
+  tick() { this.tone(1100, .04, 'square', .05); },
+};
+
+/* ───────── قطعه‌های آماده ───────── */
+
+function star(x, y, r, col, rot = 0) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(rot);
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI/2 + i * Math.PI/5;
+    const rr = i % 2 ? r * .45 : r;
+    const px = Math.cos(a)*rr, py = Math.sin(a)*rr;
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/** دکمهٔ کاغذی. hovered را خودِ بازی می‌دهد؛ اینجا فقط کشیده می‌شود. */
+/** رنگ را روشن‌تر (k>0) یا تیره‌تر (k<0) می‌کند. */
+function shade(col, k) {
+  const c = String(col).trim();
+  let r, g2, b2;
+  if (c[0] === '#') {
+    const h = c.length === 4 ? c[1]+c[1]+c[2]+c[2]+c[3]+c[3] : c.slice(1, 7);
+    r = parseInt(h.slice(0,2), 16); g2 = parseInt(h.slice(2,4), 16); b2 = parseInt(h.slice(4,6), 16);
+  } else {
+    const m = c.match(/[\d.]+/g);
+    if (!m || m.length < 3) return col;
+    r = +m[0]; g2 = +m[1]; b2 = +m[2];
+  }
+  const f = (v) => Math.round(clamp(k < 0 ? v * (1 + k) : v + (255 - v) * k, 0, 255));
+  return 'rgb(' + f(r) + ',' + f(g2) + ',' + f(b2) + ')';
+}
+
+function button(b, label, o = {}) {
+  const hot = o.hot && !o.disabled;
+  const dy = hot ? 3 : 0;
+  const fill = o.disabled ? (o.off || '#bcaa92') : (hot ? (o.hotFill || o.fill) : o.fill);
+  const r = o.r === undefined ? 14 : o.r;
+  /* لبهٔ زیرینِ تیره — دکمه از صفحه بیرون می‌زند */
+  ctx.fillStyle = shade(fill, -.36);
+  wobbleRect(b.x, b.y + dy + 7, b.w, b.h, r, b.x + b.y, 2);
+  ctx.fill();
+  withShadow(hot ? 22 : 14, hot ? 5 : 8, .32, () => {
+    ctx.fillStyle = fill;
+    wobbleRect(b.x, b.y + dy, b.w, b.h, r, b.x + b.y, 2);
+    ctx.fill();
+  });
+  /* حجم: روشن از بالا، تیره به پایین */
+  ctx.save();
+  ctx.beginPath(); wobbleRect(b.x, b.y + dy, b.w, b.h, r, b.x + b.y, 2); ctx.clip();
+  const g = ctx.createLinearGradient(0, b.y + dy, 0, b.y + dy + b.h);
+  g.addColorStop(0, 'rgba(255,255,255,.3)');
+  g.addColorStop(.45, 'rgba(255,255,255,.04)');
+  g.addColorStop(1, 'rgba(0,0,0,.22)');
+  ctx.fillStyle = g;
+  ctx.fillRect(b.x, b.y + dy, b.w, b.h);
+  /* برقِ باریکِ لبهٔ بالا */
+  ctx.fillStyle = 'rgba(255,255,255,.4)';
+  ctx.fillRect(b.x + r, b.y + dy + 2, b.w - r * 2, 2);
+  ctx.restore();
+  text(label, b.x + b.w/2, b.y + b.h/2 + dy - (o.sub ? 9 : 0), {
+    size: o.size || 26, color: o.color || '#fdf6e8', family: o.family || 'Lalezar',
+  });
+  if (o.sub) text(o.sub, b.x + b.w/2, b.y + b.h/2 + dy + 17,
+    { size: 14, color: o.subColor || 'rgba(255,255,255,.88)' });
+}
+
+/** دکمهٔ گرد کوچک (مثل + و −). */
+function roundButton(b, label, o = {}) {
+  const hot = o.hot && !o.disabled;
+  const dy = hot ? 2 : 0;
+  withShadow(10, hot ? 3 : 5, .3, () => {
+    ctx.fillStyle = o.disabled ? '#cbbba3' : (hot ? (o.hotFill || o.fill) : o.fill);
+    wobbleCircle(b.x, b.y + dy, b.r, b.x, 1.4);
+    ctx.fill();
+  });
+  text(label, b.x, b.y + dy - 1,
+    { size: o.size || 32, color: o.disabled ? '#a8988a' : (o.color || '#fdf6e8'), family: 'Lalezar' });
+}
+
+/** پرده‌ی تمام‌صفحه: برای شروعِ پرده و برای جشنِ پایان. */
+function overlay(o) {
+  const k = easeOut(clamp(o.t / .5, 0, 1));
+  ctx.fillStyle = `rgba(30, 22, 16, ${.66 * k})`;
+  ctx.fillRect(0, 0, SW, SH);
+
+  const w = o.w || 700, h = o.h || 290;
+  const x = (SW - w) / 2, y = o.y || (SH * .22);
+  const s = lerp(.9, 1, easeBack(clamp(o.t / .65, 0, 1)));
+  ctx.save();
+  ctx.translate(SW/2, y + h/2);
+  ctx.scale(s, s);
+  ctx.translate(-SW/2, -(y + h/2));
+
+  withShadow(30, 14, .42, () => {
+    ctx.fillStyle = o.paper || '#fbf3e2';
+    wobbleRect(x, y, w, h, 18, 121, 2.4);
+    ctx.fill();
+  });
+  ctx.fillStyle = o.band || '#c8434f';
+  wobbleRect(x, y, w, 12, 6, 123, 1);
+  ctx.fill();
+
+  if (o.icon) o.icon(SW/2, y + 56);
+  text(o.title, SW/2, y + (o.icon ? 108 : 62),
+    { size: o.titleSize || 36, color: o.ink || '#43291b', family: 'Lalezar', alpha: k });
+  textWrap(o.body, SW/2, y + (o.icon ? 158 : 116), w - 90,
+    { size: 19, color: o.inkSoft || '#8a6a52', alpha: k });
+  ctx.restore();
+
+  button(o.btn, o.btnLabel, { hot: o.btnHot, fill: o.btnFill || '#7fa356', hotFill: o.btnHotFill || '#8fb45f', size: 28 });
+}
+
+/** پیامِ کوتاهِ بالای صحنه. */
+class Toast {
+  constructor() { this.msg = null; this.t = 0; this.kind = 'info'; }
+  say(msg, kind = 'info') { this.msg = msg; this.kind = kind; this.t = 2.6; }
+  step(dt) { if (this.t > 0) { this.t -= dt; if (this.t <= 0) this.msg = null; } }
+  draw(y = 24, colors = {}) {
+    if (!this.msg) return;
+    const k = clamp(this.t, 0, 1) * clamp((2.6 - this.t) * 5, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = k;
+    ctx.font = `700 19px "Vazirmatn", Tahoma, sans-serif`;
+    const w = ctx.measureText(this.msg).width + 76;
+    const fill = this.kind === 'good' ? (colors.good || '#7fa356')
+               : this.kind === 'bad' ? (colors.bad || '#c8434f')
+               : (colors.info || '#fbf3e2');
+    paper(SW/2 - w/2, y, w, 48, fill, 151, 12, .3);
+    text(this.msg, SW/2, y + 25,
+      { size: 19, color: this.kind === 'info' ? (colors.ink || '#43291b') : '#fff8ec' });
+    ctx.restore();
+  }
+}
+
+/* ───────── آموزشِ پرده‌ای ─────────
+   پرده‌هایی که منتظرِ کارِ بچه نیستند با یک ضربه جلو می‌روند. تایمر فقط
+   پشتیبان است؛ بچهٔ کلاس سومی باید فرصتِ خواندن داشته باشد، نه اینکه
+   متن قبل از تمام شدنِ خواندنش برود.                                    */
+
+/** اگر پردهٔ فعلی خواندنی است، ضربه را می‌خورد و می‌رود پردهٔ بعد. */
+function tutTap(tut, tapSteps, lastStep) {
+  if (!tut.on || tapSteps.indexOf(tut.step) < 0) return false;
+  if (tut.step >= lastStep) tut.on = false;
+  else { tut.step++; tut.t = 0; }
+  sfx.tap();
+  return true;
+}
+
+/** نشانهٔ «برای ادامه بزن» — زیرِ کارتِ آموزش. */
+function tutMore(cx, y, t, ink = '#3a2a18', bg = 'rgba(255, 250, 238, .94)') {
+  ctx.save();
+  ctx.globalAlpha = .62 + .38 * Math.sin(t * 3.2);
+  ctx.font = '700 15px "Vazirmatn", Tahoma, sans-serif';
+  const label = 'برای ادامه، هرجا را بزن';
+  const w = ctx.measureText(label).width + 40, h = 32, x = cx - w / 2, r = 16;
+  withShadow(10, 4, .3, () => {
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath(); ctx.fill();
+  });
+  text(label, cx, y + h / 2, { size: 15, color: ink });
+  ctx.restore();
+}
+
+/** فونت‌ها را می‌آورد و بعد بازی را شروع می‌کند.
+    مهم: هر دو راه (رسیدنِ فونت و مهلتِ پشتیبان) ممکن است برسند، ولی
+    شروع فقط باید یک بار انجام شود؛ وگرنه دو حلقهٔ فریم راه می‌افتد و
+    بازی دوبرابر سریع می‌شود. */
+function whenFontsReady(start) {
+  let done = false;
+  const go = () => { if (done) return; done = true; start(); };
+  if (document.fonts && document.fonts.load) {
+    Promise.all([
+      document.fonts.load('400 40px Lalezar'),
+      document.fonts.load('700 20px Vazirmatn'),
+      document.fonts.load('900 20px Vazirmatn'),
+    ]).then(go, go);
+    setTimeout(go, 2600);
+  } else go();
+}
+
+/** حلقهٔ فریم با dtِ محدودشده. */
+/* ───────── کیفیتِ خودکار ─────────
+   اگر دستگاه کُند بود، اوّل درخشش و بعد رنگ‌بندی خاموش می‌شود تا بازی
+   روان بماند. روی دستگاهِ قوی همه‌چیز روشن است. */
+let QUALITY = 2;
+let _fAcc = 0, _fN = 0, _qHold = 0;
+
+function _qualityTick(gap) {
+  if (gap <= 0 || gap > 200) return;
+  _fAcc += gap; _fN++;
+  if (_fN < 45) return;
+  const avg = _fAcc / _fN;
+  _fAcc = 0; _fN = 0;
+  if (_qHold > 0) { _qHold--; return; }
+  /* فاصلهٔ بالا و پایین باید باز باشد، وگرنه کیفیت بین دو پله بالا و
+     پایین می‌پرد و بازی مدام تغییرِ ظاهر می‌دهد. */
+  const before = QUALITY;
+  if (avg > 21 && QUALITY > 0) { QUALITY--; _qHold = 4; }
+  else if (avg < 13.5 && QUALITY < 2) { QUALITY++; _qHold = 10; }
+  /* در پایین‌ترین کیفیت، صحنه را با نقطه‌های کمتر می‌کشیم */
+  if (before !== QUALITY && (before === 0 || QUALITY === 0) && _refit) _refit();
+}
+
+/* یک حلقه، نه بیشتر — دو حلقه یعنی زمانِ بازی دوبرابر می‌گذرد.
+
+   MOTION: تا پیش از این، به‌خاطرِ باگِ دو حلقه، همهٔ بازی‌ها عملاً با
+   سرعتِ دو برابر اجرا می‌شدند و زمان‌بندی‌ها هم با همان حس تنظیم شده
+   بودند. حالا که باگ رفع شده، سرعتِ درست (یک برابر) کُند به نظر
+   می‌رسد. این ضریب جانِ حرکت‌ها را برمی‌گرداند، ولی نه تا آن دو برابرِ
+   تصادفی. فقط روی جانِ حرکت اثر دارد، نه روی هیچ قانونِ علمی. */
+const MOTION = 1.45;
+let _looping = false;
+function runLoop(step) {
+  if (_looping) return;
+  _looping = true;
+  let last = performance.now();
+  const frame = (now) => {
+    const gap = now - last;
+    /* بریدنِ بعد از ضرب، تا یک فریمِ کُند پرشِ بزرگ نسازد */
+    const dt = Math.min(gap / 1000 * MOTION, 1/15);
+    last = now;
+    _qualityTick(gap);
+    step(dt);
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
+/* ═════════════════ بازی ═════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   آزمایشگاهِ چاه — علومِ سوم، درس ۶ «زندگی ما و آب»  (آزمایش)
+
+   کتاب سه چیز می‌پرسد و این آزمایشگاه هر سه را نشان می‌دهد:
+
+   ۱) «آیا از هر سه چاه می‌توان به آب رسید؟ از کجا فهمیدید؟»
+      سه چاه با ژرفای متفاوت. چاهی آب می‌دهد که کفش زیرِ سطحِ آبِ
+      زیرزمینی باشد. همین و بس — و روی صحنه دیدنی است.
+
+   ۲) «اگر چند سال دیگر بگذرد و آب‌های زیرزمینی مثل قبل مصرف شوند، چه
+      اتّفاقی خواهد افتاد؟» سطحِ آبِ زیرزمینی با ترازِ آب بالا و پایین
+      می‌رود: بارش آن را بالا می‌آورد و برداشت پایین می‌برد. چاهِ
+      کم‌عمق زودتر خشک می‌شود. این همان معادلهٔ سادهٔ ترازِ آب است:
+          تغییرِ ذخیره = تغذیه (بارش) − برداشت
+      و بالا و پایین رفتنِ سطح = تغییرِ ذخیره ÷ تخلخلِ خاک.
+      تخلخل عددِ واقعی است: ماسه حدودِ ۳۰٪، خاکِ باغچه ۲۵٪، رُس ۴۵٪ ولی
+      رُس آب را به‌سختی پس می‌دهد. اینجا از ماسه استفاده می‌شود.
+
+   ۳) «آبِ بعضی چاه‌ها آلوده است… دلیلِ آلوده شدنِ این چاه چیست؟»
+      چاهِ فاضلاب کنارِ چاهِ آب. آلودگی با آبِ زیرزمینی حرکت می‌کند و
+      به چاه‌هایی می‌رسد که پایین‌دستِ آن‌اند. سرعتِ حرکت هم واقعی
+      است: آبِ زیرزمینی در ماسه روزی چند ده سانتی‌متر جابه‌جا می‌شود.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const SCENE_W = 1200, SCENE_H = 760;
+
+const P = {
+  sky:   '#8fc0d8', skyLo: '#5f96b4',
+  grass: '#6b9a4a', grassDk: '#3f6a28',
+  soil:  '#9a7a52', soilDk: '#6b5232', soilLo: '#4e3a20',
+  aqua:  '#4f9fc4', aquaDk: '#2c6f92', aquaLt: '#9fd8ea',
+  waste: '#8a6a3a', wasteDk: '#5c4520', foul: '#a8703c',
+  steel: '#8d99a3', steelDk: '#54606a',
+  paper: '#fbfaf2', card: '#ffffff',
+  ink:   '#20302a', inkSoft: '#7b8b80',
+  good:  '#4e9f6c', bad: '#c04a34', gold: '#c9962c', accent: '#4fa3b8',
+};
+
+/* ───────── قانونِ ترازِ آب ─────────
+   ذخیرهٔ آب در خاک با بارش زیاد و با برداشت کم می‌شود؛ سطحِ آب
+   به‌اندازهٔ تغییرِ ذخیره تقسیم بر تخلخل بالا و پایین می‌رود.        */
+
+const POROSITY = .30;          /* تخلخلِ ماسه، نسبتِ حجمِ خالی */
+const GROUND_M = 0;            /* سطحِ زمین، متر */
+const BEDROCK_M = 14;          /* سنگِ سختِ کف، متر پایین‌تر از زمین */
+const WELLS = [
+  { n: 'چاهِ کم‌عمق',  depth: 4 },
+  { n: 'چاهِ میانه',   depth: 7.5 },
+  { n: 'چاهِ عمیق',    depth: 11 },
+];
+const CESSPIT_M = 2.5;         /* ژرفای چاهِ فاضلاب */
+const FLOW_M_PER_MONTH = 4.5;  /* حرکتِ آبِ زیرزمینی در ماسه */
+
+/** سطحِ تازهٔ آب بعد از یک ماه. rain و pump به میلی‌متر بر ماه. */
+function nextTable(level, rainMM, pumpMM) {
+  const net = (rainMM - pumpMM) / 1000;      /* متر آبِ خالص */
+  const dz = net / POROSITY;                 /* سطح چقدر بالا/پایین می‌رود */
+  return clamp(level - dz, GROUND_M, BEDROCK_M);
+}
+/** آیا این چاه آب می‌دهد؟ */
+const wellWet = (w, level) => w.depth > level;
+
+const STEPS = [
+  { n: 'سه چاه',   t: 'کدام چاه به آب می‌رسد؟ از کجا فهمیدی؟' },
+  { n: 'سال‌ها',   t: 'بارش و برداشت را تنظیم کن و ماه‌ها را جلو ببر.' },
+  { n: 'آلودگی',   t: 'چاهِ فاضلاب را جابه‌جا کن و ببین کدام چاه آلوده می‌شود.' },
+];
+
+const S = {
+  stepI: 0,
+  level: 3,              /* ژرفای سطحِ آبِ زیرزمینی از زمین، متر — اوّل هر سه چاه آب دارند */
+  rain: 40, pump: 40,    /* میلی‌متر بر ماه */
+  month: 0, running: false, runT: 0,
+  hist: [],              /* سطحِ آب در ماه‌های گذشته */
+  pitX: 300,             /* جای چاهِ فاضلاب روی صحنه */
+  plume: 0,              /* پیشرویِ آلودگی، متر */
+  dragPit: false,
+  t: 0, hover: null, tip: '', tipT: 0, flash: 0,
+};
+
+const bits = new Bits();
+const cv = document.getElementById('stage');
+initStage(cv, SCENE_W, SCENE_H);
+function tip(msg) { S.tip = msg; S.tipT = 3.6; }
+
+/* ───────── جای‌ها ───────── */
+
+const FIELD = { x: 24, y: 96, w: 760, h: 560 };
+const SIDE = { x: 804, y: 96, w: 372, h: 560 };
+const GY = FIELD.y + 96;                    /* سطحِ زمین روی صحنه */
+const MPX = (FIELD.h - 120) / BEDROCK_M;    /* پیکسل بر متر */
+const yOfM = (m) => GY + m * MPX;
+/* جای هر چاه روی صحنه */
+const wellX = (i) => FIELD.x + 210 + i * 180;
+
+function slider(i) { return { x: SIDE.x + 24, y: SIDE.y + 150 + i * 92, w: SIDE.w - 48, h: 40 }; }
+const BTN_RUN = { x: SIDE.x + 24, y: SIDE.y + 348, w: 158, h: 54 };
+const BTN_STEP = { x: SIDE.x + 190, y: SIDE.y + 348, w: 158, h: 54 };
+const BTN_RESET = { x: SIDE.x + 24, y: SIDE.y + 396, w: SIDE.w - 48, h: 44 };
+const CHART = { x: SIDE.x + 24, y: SIDE.y + 462, w: SIDE.w - 48, h: 54 };
+const BTN_TICK = { x: FIELD.x + 20, y: FIELD.y + FIELD.h - 60, w: 200, h: 44 };
+
+/* ───────── کارها ───────── */
+
+function advance() {
+  S.level = nextTable(S.level, S.rain, S.pump);
+  S.month++;
+  S.hist.push(S.level);
+  if (S.hist.length > 120) S.hist.shift();
+  /* آلودگی با آبِ زیرزمینی جلو می‌رود */
+  S.plume += FLOW_M_PER_MONTH / 12;
+  S.stepI = Math.max(S.stepI, 1);
+}
+
+function resetAll() {
+  S.level = 3; S.month = 0; S.hist = []; S.running = false; S.plume = 0;
+  sfx.tap();
+}
+
+/* ───────── حلقه ───────── */
+
+function step(dt) {
+  S.t += dt;
+  if (S.tipT > 0) S.tipT -= dt;
+  if (S.flash > 0) S.flash -= dt;
+  if (S.running) {
+    S.runT += dt;
+    while (S.runT >= .34) { S.runT -= .34; advance(); }
+    if (S.month >= 120) S.running = false;
+  }
+  bits.step(dt);
+  draw();
+}
+
+whenFontsReady(() => runLoop(step));
+
+/* ───────── ورودی ───────── */
+
+function setSlider(i, px) {
+  const b = slider(i);
+  const u = clamp((px - b.x) / b.w, 0, 1);
+  if (i === 0) S.rain = Math.round(u * 120);
+  else S.pump = Math.round(u * 120);
+}
+
+cv.addEventListener('pointermove', (e) => {
+  const p = toStage(e);
+  if (S.hover && S.hover.k === 'drag') { setSlider(S.hover.i, p.x); return; }
+  if (S.dragPit) {
+    S.pitX = clamp(p.x, FIELD.x + 40, FIELD.x + FIELD.w - 40);
+    S.stepI = Math.max(S.stepI, 2);
+    return;
+  }
+  S.hover = null;
+  for (let i = 0; i < 2; i++) if (inRect(p, slider(i))) S.hover = { k: 'sl', i };
+  if (inRect(p, BTN_RUN)) S.hover = { k: 'run' };
+  if (inRect(p, BTN_STEP)) S.hover = { k: 'step' };
+  if (inRect(p, BTN_RESET)) S.hover = { k: 'reset' };
+  if (Math.abs(p.x - S.pitX) < 42 && p.y > GY - 70 && p.y < GY + 40) S.hover = { k: 'pit' };
+  cv.style.cursor = S.hover ? 'pointer' : 'default';
+});
+
+cv.addEventListener('pointerdown', (e) => {
+  const p = toStage(e);
+  for (let i = 0; i < 2; i++) if (inRect(p, slider(i))) {
+    S.hover = { k: 'drag', i }; setSlider(i, p.x);
+    try { cv.setPointerCapture(e.pointerId); } catch { /* ok */ }
+    return;
+  }
+  if (inRect(p, BTN_RUN)) { S.running = !S.running; sfx.tap(); return; }
+  if (inRect(p, BTN_STEP)) { advance(); sfx.tick(); return; }
+  if (inRect(p, BTN_RESET)) { resetAll(); return; }
+  if (Math.abs(p.x - S.pitX) < 42 && p.y > GY - 70 && p.y < GY + 40) {
+    S.dragPit = true;
+    try { cv.setPointerCapture(e.pointerId); } catch { /* ok */ }
+    sfx.tap();
+  }
+});
+
+function release() { if (S.hover && S.hover.k === 'drag') S.hover = null; S.dragPit = false; }
+cv.addEventListener('pointerup', release);
+cv.addEventListener('pointercancel', release);
+cv.addEventListener('pointerleave', release);
+addEventListener('blur', release);
+
+/* ───────── ابزارِ نقاشی ───────── */
+
+function rrPath(x, y, w, h, r) {
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function numText(str, x, y, o = {}) {
+  ctx.save();
+  ctx.direction = 'ltr';
+  ctx.textAlign = o.align || 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = o.color || P.ink;
+  ctx.font = `${o.weight || 700} ${o.size || 18}px "${o.family || 'Vazirmatn'}", Tahoma, sans-serif`;
+  ctx.fillText(str, x, y);
+  ctx.restore();
+}
+
+function faNum(v, d) {
+  const s = d === 0 ? String(Math.round(v)) : v.toFixed(d).replace(/\.?0+$/, '');
+  return fa(s).replace('.', '٫');
+}
+
+/* ───────── نقاشیِ صحنه ───────── */
+
+function paintBackStatic() {
+  const g = ctx.createLinearGradient(0, 0, 0, SCENE_H);
+  g.addColorStop(0, '#2e4438'); g.addColorStop(1, '#141f18');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, SCENE_W, SCENE_H);
+  ctx.fillStyle = 'rgba(255, 253, 246, .95)';
+  ctx.beginPath(); rrPath(SIDE.x, SIDE.y, SIDE.w, SIDE.h, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(12, 28, 22, .22)'; ctx.lineWidth = 2;
+  ctx.beginPath(); rrPath(SIDE.x, SIDE.y, SIDE.w, SIDE.h, 16); ctx.stroke();
+}
+
+function drawField() {
+  const f = FIELD;
+  ctx.save();
+  ctx.beginPath(); rrPath(f.x, f.y, f.w, f.h, 14); ctx.clip();
+  /* آسمان */
+  const sg = ctx.createLinearGradient(0, f.y, 0, GY);
+  sg.addColorStop(0, P.skyLo); sg.addColorStop(1, P.sky);
+  ctx.fillStyle = sg; ctx.fillRect(f.x, f.y, f.w, GY - f.y);
+  /* باران، به اندازهٔ تنظیم */
+  const drops = Math.round(S.rain / 8);
+  ctx.strokeStyle = 'rgba(220, 240, 250, .6)'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  for (let i = 0; i < drops; i++) {
+    const x = f.x + ((i * 97) % f.w);
+    const y = f.y + ((i * 53 + S.t * 160) % (GY - f.y));
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 2, y + 12); ctx.stroke();
+  }
+  /* خاک */
+  ctx.fillStyle = P.soilDk; ctx.fillRect(f.x, GY, f.w, f.h);
+  ctx.fillStyle = P.soil; ctx.fillRect(f.x, GY, f.w, f.h);
+  ctx.fillStyle = 'rgba(80,60,32,.25)';
+  for (let i = 0; i < 220; i++) {
+    const x = f.x + ((i * 71) % f.w), y = GY + 8 + ((i * 131) % (f.y + f.h - GY - 8));
+    ctx.beginPath(); ctx.arc(x, y, 2.4, 0, TAU); ctx.fill();
+  }
+  /* سبزه */
+  ctx.fillStyle = P.grassDk; ctx.fillRect(f.x, GY - 6, f.w, 10);
+  ctx.fillStyle = P.grass; ctx.fillRect(f.x, GY - 6, f.w, 6);
+  /* سنگِ سختِ کف */
+  ctx.fillStyle = P.steelDk; ctx.fillRect(f.x, yOfM(BEDROCK_M), f.w, f.y + f.h - yOfM(BEDROCK_M));
+  ctx.fillStyle = P.steel; ctx.fillRect(f.x, yOfM(BEDROCK_M), f.w, 8);
+
+  /* آبِ زیرزمینی */
+  const wy = yOfM(S.level);
+  ctx.save();
+  ctx.globalAlpha = .8;
+  const ag = ctx.createLinearGradient(0, wy, 0, yOfM(BEDROCK_M));
+  ag.addColorStop(0, P.aquaLt); ag.addColorStop(.2, P.aqua); ag.addColorStop(1, P.aquaDk);
+  ctx.fillStyle = ag;
+  ctx.fillRect(f.x, wy, f.w, yOfM(BEDROCK_M) - wy);
+  ctx.restore();
+  ctx.strokeStyle = '#dff2fb'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(f.x, wy); ctx.lineTo(f.x + f.w, wy); ctx.stroke();
+
+  /* آلودگی از چاهِ فاضلاب: در آبِ زیرزمینی جلو می‌رود */
+  if (S.plume > 0) {
+    const r = S.plume * MPX;
+    ctx.save();
+    ctx.globalAlpha = .5;
+    ctx.fillStyle = P.foul;
+    ctx.beginPath();
+    ctx.ellipse(S.pitX, Math.max(wy + 10, yOfM(CESSPIT_M) + 20), r, r * .55, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /* چاهِ فاضلاب */
+  const px = S.pitX;
+  ctx.fillStyle = P.wasteDk;
+  ctx.fillRect(px - 15, GY - 4, 30, yOfM(CESSPIT_M) - GY + 4);
+  ctx.fillStyle = P.waste;
+  ctx.fillRect(px - 11, GY - 2, 22, yOfM(CESSPIT_M) - GY);
+  ctx.fillStyle = P.foul;
+  ctx.fillRect(px - 11, yOfM(CESSPIT_M) - 22, 22, 22);
+  ctx.fillStyle = 'rgba(20, 34, 24, .7)';
+  ctx.beginPath(); rrPath(px - 44, GY - 108, 88, 24, 10); ctx.fill();
+  text('چاهِ فاضلاب', px, GY - 96, { size: 13, color: '#f2e2cc' });
+  if (S.hover && S.hover.k === 'pit') {
+    ctx.strokeStyle = P.gold; ctx.lineWidth = 2.4; ctx.setLineDash([6, 5]);
+    ctx.strokeRect(px - 26, GY - 46, 52, yOfM(CESSPIT_M) - GY + 52);
+    ctx.setLineDash([]);
+  }
+
+  /* سه چاهِ آب */
+  for (let i = 0; i < WELLS.length; i++) {
+    const w = WELLS[i], x = wellX(i), by = yOfM(w.depth);
+    const wet = wellWet(w, S.level);
+    /* آلوده اگر در بُردِ آلودگی باشد و آب داشته باشد */
+    const dist = Math.abs(x - S.pitX) / MPX;
+    const foul = wet && S.plume >= dist && w.depth > CESSPIT_M;
+    ctx.fillStyle = P.soilLo;
+    ctx.fillRect(x - 17, GY - 6, 34, by - GY + 6);
+    ctx.fillStyle = '#2a2018';
+    ctx.fillRect(x - 12, GY - 4, 24, by - GY + 4);
+    /* آبِ داخلِ چاه */
+    if (wet) {
+      const top = Math.max(yOfM(S.level), GY);
+      ctx.fillStyle = foul ? P.foul : P.aqua;
+      ctx.fillRect(x - 12, top, 24, by - top);
+      ctx.fillStyle = foul ? '#c88a52' : P.aquaLt;
+      ctx.fillRect(x - 12, top, 24, 3);
+    }
+    /* دیوارهٔ چاه */
+    ctx.fillStyle = P.steel;
+    ctx.fillRect(x - 20, GY - 14, 40, 12);
+    ctx.fillStyle = P.steelDk;
+    ctx.fillRect(x - 20, GY - 4, 40, 4);
+    /* برچسب */
+    ctx.fillStyle = wet ? (foul ? 'rgba(168,112,60,.9)' : 'rgba(30,60,72,.85)') : 'rgba(150,60,40,.9)';
+    ctx.beginPath(); rrPath(x - 56, GY - 46, 112, 26, 11); ctx.fill();
+    text(w.n, x, GY - 33, { size: 13, color: '#eaf4f8' });
+    ctx.fillStyle = wet ? (foul ? P.foul : P.good) : P.bad;
+    ctx.beginPath(); rrPath(x - 40, GY - 78, 80, 24, 10); ctx.fill();
+    text(wet ? (foul ? 'آلوده' : 'آب دارد') : 'خشک', x, GY - 66, { size: 13, color: '#fff' });
+    numText(faNum(w.depth, 1) + ' متر', x, by + 16, { size: 12, color: '#f0e6d2' });
+  }
+
+  /* خط‌کشِ ژرفا */
+  for (let m = 0; m <= BEDROCK_M; m += 2) {
+    ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(f.x + 6, yOfM(m)); ctx.lineTo(f.x + 24, yOfM(m)); ctx.stroke();
+    numText(fa(m), f.x + 38, yOfM(m), { size: 11, color: 'rgba(255,255,255,.6)' });
+  }
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(10, 24, 18, .5)'; ctx.lineWidth = 3;
+  ctx.beginPath(); rrPath(f.x, f.y, f.w, f.h, 14); ctx.stroke();
+
+  /* نوارهای خبری پایینِ صحنه — بالای صحنه جای برچسبِ چاه‌هاست */
+  const by = f.y + f.h - 46;
+  ctx.fillStyle = 'rgba(12, 26, 32, .85)';
+  ctx.beginPath(); rrPath(f.x + 16, by, 322, 32, 10); ctx.fill();
+  numText('سطحِ آبِ زیرزمینی: ' + faNum(S.level, 1) + ' متر زیرِ زمین',
+    f.x + 177, by + 16, { size: 14, color: '#dff2fb' });
+  ctx.fillStyle = 'rgba(12, 26, 32, .85)';
+  ctx.beginPath(); rrPath(f.x + f.w - 176, by, 160, 32, 10); ctx.fill();
+  numText('ماهِ ' + fa(S.month), f.x + f.w - 96, by + 16, { size: 14, color: '#dff2fb' });
+}
+
+function drawSide() {
+  text('تنظیم', SIDE.x + SIDE.w - 18, SIDE.y + 30, { size: 20, family: 'Lalezar', color: P.ink, align: 'right' });
+  text('هر ماه چقدر باران می‌بارد و چقدر آب برداشت می‌شود؟',
+    SIDE.x + SIDE.w / 2, SIDE.y + 62, { size: 13, color: P.inkSoft });
+  const names = ['بارش', 'برداشت'], vals = [S.rain, S.pump], cols = [P.accent, P.bad];
+  for (let i = 0; i < 2; i++) {
+    const b = slider(i), u = vals[i] / 120;
+    text(names[i], b.x + b.w, b.y - 14, { size: 16, family: 'Lalezar', color: P.ink, align: 'right' });
+    numText(fa(vals[i]) + ' میلی‌متر در ماه', b.x + 92, b.y - 14, { size: 13, color: P.inkSoft });
+    ctx.fillStyle = 'rgba(32,48,42,.12)';
+    ctx.beginPath(); rrPath(b.x, b.y + 14, b.w, 12, 6); ctx.fill();
+    ctx.fillStyle = cols[i];
+    ctx.beginPath(); rrPath(b.x, b.y + 14, b.w * u, 12, 6); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(b.x + b.w * u, b.y + 20, 12, 0, TAU); ctx.fill();
+    ctx.strokeStyle = cols[i]; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(b.x + b.w * u, b.y + 20, 12, 0, TAU); ctx.stroke();
+  }
+  /* تراز */
+  const net = S.rain - S.pump;
+  ctx.fillStyle = net > 0 ? 'rgba(78,159,108,.14)' : (net < 0 ? 'rgba(192,74,52,.14)' : 'rgba(32,48,42,.07)');
+  ctx.beginPath(); rrPath(SIDE.x + 24, SIDE.y + 296, SIDE.w - 48, 38, 9); ctx.fill();
+  text(net > 0 ? 'بیشتر می‌بارد تا برداشت ⟵ سطحِ آب بالا می‌آید'
+     : net < 0 ? 'بیشتر برداشت می‌شود تا بارش ⟵ سطح پایین می‌رود'
+               : 'بارش و برداشت برابرند ⟵ سطح ثابت می‌ماند',
+    SIDE.x + SIDE.w / 2, SIDE.y + 315, { size: 13, color: net > 0 ? P.good : (net < 0 ? P.bad : P.inkSoft) });
+
+  button(BTN_RUN, S.running ? 'ایست' : 'ماه‌ها جلو', {
+    hot: S.hover && S.hover.k === 'run', fill: S.running ? '#a8552c' : '#2f7f96', hotFill: '#4fa3b8', size: 19 });
+  button(BTN_STEP, 'یک ماه', {
+    hot: S.hover && S.hover.k === 'step', fill: '#4a7f5c', hotFill: '#5f9f72', size: 19 });
+  button(BTN_RESET, 'از نو', {
+    hot: S.hover && S.hover.k === 'reset', fill: '#5c6870', hotFill: '#77848d', size: 18 });
+
+  /* نمودارِ سطحِ آب در گذرِ ماه‌ها */
+  const c = CHART;
+  ctx.fillStyle = 'rgba(32,48,42,.06)';
+  ctx.beginPath(); rrPath(c.x, c.y, c.w, c.h, 8); ctx.fill();
+  text('سطحِ آب در گذرِ ماه‌ها', c.x + c.w / 2, c.y - 12, { size: 13, color: P.inkSoft });
+  if (S.hist.length > 1) {
+    ctx.strokeStyle = P.accent; ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    for (let i = 0; i < S.hist.length; i++) {
+      const x = c.x + (i / Math.max(1, S.hist.length - 1)) * c.w;
+      const y = c.y + (S.hist[i] / BEDROCK_M) * c.h;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  /* خطِ ژرفای هر چاه روی نمودار */
+  for (const w of WELLS) {
+    const y = c.y + (w.depth / BEDROCK_M) * c.h;
+    ctx.strokeStyle = 'rgba(192,74,52,.45)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(c.x, y); ctx.lineTo(c.x + c.w, y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  /* شمارشِ چاه‌های خشک */
+  const dry = WELLS.filter((w) => !wellWet(w, S.level)).length;
+  ctx.fillStyle = dry ? 'rgba(192,74,52,.14)' : 'rgba(78,159,108,.16)';
+  ctx.beginPath(); rrPath(SIDE.x + 24, SIDE.y + 522, SIDE.w - 48, 32, 9); ctx.fill();
+  text(dry === 0 ? 'هر سه چاه آب دارند.' : fa(dry) + ' چاه خشک شده است.',
+    SIDE.x + SIDE.w / 2, SIDE.y + 538, { size: 15, family: 'Lalezar', color: dry ? P.bad : P.good });
+}
+
+function drawSteps() {
+  for (let i = 0; i < STEPS.length; i++) {
+    const w = 180, x = SCENE_W - 24 - (i + 1) * (w + 8) + 8, y = 16, h = 44;
+    const on = i === S.stepI, done = i < S.stepI;
+    ctx.fillStyle = on ? P.accent : (done ? 'rgba(79, 163, 184, .28)' : 'rgba(255,255,255,.1)');
+    ctx.beginPath(); rrPath(x, y, w, h, 12); ctx.fill();
+    numText(fa(i + 1), x + w - 20, y + h / 2, { size: 15, color: on ? '#fff' : 'rgba(255,255,255,.6)' });
+    text(STEPS[i].n, x + w / 2 + 6, y + h / 2,
+      { size: 16, family: 'Lalezar', color: on ? '#fff' : 'rgba(255,255,255,.62)' });
+  }
+  ctx.save();
+  ctx.beginPath(); ctx.rect(16, 12, 540, 52); ctx.clip();
+  text(STEPS[S.stepI].t, 556, 39, { size: 16, color: 'rgba(255,255,255,.82)', align: 'right' });
+  ctx.restore();
+}
+
+function draw() {
+  beginScene('#141f18');
+  const layer = staticLayer('back', SCENE_W, SCENE_H, paintBackStatic);
+  ctx.drawImage(layer, 0, 0, SCENE_W, SCENE_H);
+  drawSteps();
+  drawField();
+  drawSide();
+  bits.draw();
+  if (S.tipT > 0) {
+    ctx.save();
+    ctx.globalAlpha = clamp(S.tipT, 0, 1);
+    const w = 520;
+    paper(SCENE_W / 2 - w / 2, SCENE_H - 60, w, 42, P.paper, 51, 12, .3);
+    text(S.tip, SCENE_W / 2, SCENE_H - 39, { size: 16, color: P.ink });
+    ctx.restore();
+  }
+  endScene(.09, 'rgba(6, 20, 14, .42)', 0, .1);
+}
+
+</script>
+</body>
+</html>
