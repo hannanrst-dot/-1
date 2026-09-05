@@ -1047,11 +1047,22 @@ function finish() {
 
 const TUT_TAP = [0, 2], TUT_LAST = 2;
 
-const CARD = { x: 232, y: 140, w: 420, h: 508 };
+const CARD = { x: 250, y: 128, w: 700, h: 502 };
+/* تصویرِ نمونه سمتِ راست (اوّلِ خواندن) و شمارنده‌ها سمتِ چپ می‌نشینند. */
+const PLATE = { x: CARD.x + CARD.w - 24 - 356, y: CARD.y + 66, w: 356, h: 352 };
+const COUNT_X0 = CARD.x + 24, COUNT_X1 = PLATE.x - 22;
 function stepBtn(i, plus) {
-  return { x: CARD.x + (plus ? CARD.w - 96 : 40), y: CARD.y + 138 + i * 88, w: 56, h: 56 };
+  return { x: plus ? COUNT_X1 - 58 : COUNT_X0, y: CARD.y + 76 + i * 96, w: 58, h: 58 };
 }
-const CARD_OK = { x: CARD.x + 96, y: CARD.y + 404, w: 228, h: 60 };
+const CARD_OK = { x: COUNT_X0, y: CARD.y + 402, w: COUNT_X1 - COUNT_X0, h: 62 };
+/* اندازهٔ تقریبیِ هر نمونه، برای اینکه خودش در قابِ صفحه جا بیفتد */
+const SPEC_BOX = {
+  worm:   { w: 60,  y0: -96, y1: 106 },
+  spider: { w: 124, y0: -42, y1: 62 },
+  ant:    { w: 104, y0: -78, y1: 48 },
+  fly:    { w: 150, y0: -78, y1: 42 },
+  butter: { w: 166, y0: -80, y1: 46 },
+};
 function noteRow(i) {
   return { x: NOTE.x + 14, y: NOTE.y + 96 + i * 96, w: NOTE.w - 28, h: 86 };
 }
@@ -1164,108 +1175,288 @@ function tutCard(x, y, w, lines, title) {
    شمارِ پا و بال و شاخک دقیقاً همان چیزی است که کشیده می‌شود؛
    بچّه از روی همین شکل می‌شمارد، پس باید درست باشد.            */
 
-function legPair(x, y, len, ang, col, w) {
-  ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
+/** یک جفت پا با زانو — از هر طرف یکی، جدا و شمردنی. */
+function legPair(x, len, col, w, sw) {
+  ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (const s of [-1, 1]) {
+    const kx = x + s * len * .55, ky = 5 + len * .18;
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.quadraticCurveTo(x + s * len * .6, y + Math.sin(ang) * len * .5,
-                         x + s * len, y + len * .75);
+    ctx.moveTo(x, 3);
+    ctx.lineTo(kx, ky - 4 + sw * 2);
+    ctx.lineTo(x + s * len, ky + len * .55);
     ctx.stroke();
   }
 }
 
+/** بالِ نیمه‌شفاف با لبهٔ پررنگ — بالا کشیده می‌شود تا روی پاها نیفتد. */
+function wing(cx, cy, rx, ry, rot, fill, edge) {
+  ctx.save();
+  ctx.globalAlpha = .82;
+  ctx.fillStyle = fill;
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, rot, 0, TAU); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = edge; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, rot, 0, TAU); ctx.stroke();
+  ctx.restore();
+}
+
+/* شکلِ هر جانور «نمودارِ جانورشناسی» است نه عکس: بال‌ها بالا و
+   نیمه‌شفاف، پاها زیرِ بدن و جدا از هم، شاخک‌ها جلو — تا هر کدام
+   شمردنی باشد. تعدادها همان است که در طبیعت هست. */
 function drawBug(k, sc, t) {
   const b = BUG[k];
   ctx.save();
   ctx.scale(sc, sc);
+  const sw = Math.sin(t * 5) * .5;
+
   if (b.id === 'worm') {
-    ctx.strokeStyle = b.d; ctx.lineWidth = 11; ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(-18, 0);
-    for (let i = 0; i <= 8; i++) ctx.lineTo(-18 + i * 4.5, Math.sin(i * .9 + t * 2) * 3.4);
-    ctx.stroke();
-    ctx.strokeStyle = b.c; ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.moveTo(-18, 0);
-    for (let i = 0; i <= 8; i++) ctx.lineTo(-18 + i * 4.5, Math.sin(i * .9 + t * 2) * 3.4);
-    ctx.stroke();
+    for (const [col, w] of [[b.d, 11], [b.c, 8]]) {
+      ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-19, 0);
+      for (let i = 0; i <= 8; i++) ctx.lineTo(-19 + i * 4.8, Math.sin(i * .9 + t * 2) * 3.4);
+      ctx.stroke();
+    }
     ctx.strokeStyle = b.d; ctx.lineWidth = 1.6;
     for (let i = 1; i < 8; i++) {
-      const x = -18 + i * 4.5, y = Math.sin(i * .9 + t * 2) * 3.4;
+      const x = -19 + i * 4.8, y = Math.sin(i * .9 + t * 2) * 3.4;
       ctx.beginPath(); ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 4); ctx.stroke();
     }
     ctx.restore();
     return;
   }
-  const sw = Math.sin(t * 6) * .12;
-  /* پاها */
-  if (b.legs > 0) {
-    const pairs = b.legs / 2;
-    for (let i = 0; i < pairs; i++) {
-      const px = -8 + i * (16 / Math.max(1, pairs - 1)) * (pairs > 1 ? 1 : 0);
-      legPair(px, 2, b.id === 'spider' ? 15 : 11, sw + i, b.d, b.id === 'spider' ? 2 : 1.8);
-    }
-  }
-  /* بال‌ها */
+
+  /* ۱) بال‌ها — پشتِ همه، رو به بالا */
   if (b.wings === 4) {
     for (const s of [-1, 1]) {
-      ctx.fillStyle = 'rgba(255, 236, 200, .92)';
-      ctx.beginPath(); ctx.ellipse(s * 12, -8, 13, 10, s * (.5 + sw), 0, TAU); ctx.fill();
-      ctx.fillStyle = b.c;
-      ctx.beginPath(); ctx.ellipse(s * 12, -8, 13, 10, s * (.5 + sw), 0, TAU);
-      ctx.globalAlpha = .8; ctx.fill(); ctx.globalAlpha = 1;
-      ctx.fillStyle = 'rgba(255, 240, 210, .95)';
-      ctx.beginPath(); ctx.ellipse(s * 10, 7, 9, 7, s * (-.4 + sw), 0, TAU); ctx.fill();
-      ctx.fillStyle = b.d;
-      ctx.globalAlpha = .55;
-      ctx.beginPath(); ctx.ellipse(s * 10, 7, 9, 7, s * (-.4 + sw), 0, TAU); ctx.fill();
-      ctx.globalAlpha = 1;
+      wing(s * 13, -14 + sw, 13, 9, s * .5, b.c, b.d);
+      wing(s * 11, -2 + sw * .6, 10, 7, s * -.32, shade(b.c, .3), b.d);
     }
   } else if (b.wings === 2) {
     for (const s of [-1, 1]) {
-      ctx.fillStyle = 'rgba(226, 240, 246, .62)';
-      ctx.beginPath(); ctx.ellipse(s * 10, -3, 12, 5.5, s * (.35 + sw), 0, TAU); ctx.fill();
-      ctx.strokeStyle = 'rgba(120, 150, 165, .7)'; ctx.lineWidth = .9;
-      ctx.beginPath(); ctx.ellipse(s * 10, -3, 12, 5.5, s * (.35 + sw), 0, TAU); ctx.stroke();
+      wing(s * 13, -10 + sw, 14, 6, s * .4, 'rgba(226, 240, 246, .75)', 'rgba(90, 120, 135, .9)');
     }
   }
-  /* بدن */
+
+  /* ۲) پاها — زیرِ بدن */
+  if (b.legs > 0) {
+    const pairs = b.legs / 2;
+    const span = b.id === 'spider' ? 8 : 6;
+    for (let i = 0; i < pairs; i++) {
+      const px = -(pairs - 1) * span / 2 + i * span;
+      legPair(px, b.id === 'spider' ? 15 : 11, b.d, b.id === 'spider' ? 2.4 : 2.2, sw + i * .4);
+    }
+  }
+
+  /* ۳) بدن */
   if (b.id === 'spider') {
     ctx.fillStyle = b.d;
-    ctx.beginPath(); ctx.ellipse(3, 0, 11, 9, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6, 0, 12, 10, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = b.c;
-    ctx.beginPath(); ctx.ellipse(-8, 0, 6, 5, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#e8e2d0';
-    ctx.beginPath(); ctx.arc(-10, -2, 1.6, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.arc(-10, 2, 1.6, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-8, 0, 7, 6, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#efe8d6';
+    for (const dy of [-2.6, 2.6]) { ctx.beginPath(); ctx.arc(-11, dy, 1.9, 0, TAU); ctx.fill(); }
   } else if (b.id === 'ant') {
     ctx.fillStyle = b.c;
-    ctx.beginPath(); ctx.ellipse(10, 0, 7, 5.5, 0, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(0, 0, 4, 3.6, 0, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(-9, 0, 5, 4.4, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(12, 0, 8, 6, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(1, 0, 5, 4.4, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-9, 0, 5.6, 5, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = b.d;
-    ctx.beginPath(); ctx.ellipse(10, 1.4, 7, 4, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(12, 1.6, 8, 4.2, 0, 0, TAU); ctx.fill();
   } else {
     ctx.fillStyle = b.d;
-    ctx.beginPath(); ctx.ellipse(4, 0, 10, 6, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6, 0, 11, 7, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = b.c;
-    ctx.beginPath(); ctx.ellipse(-8, 0, 5.4, 4.8, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-8, 0, 6, 5.4, 0, 0, TAU); ctx.fill();
     if (b.id === 'fly') {
       ctx.fillStyle = '#b03a2a';
-      ctx.beginPath(); ctx.ellipse(-10, -1.6, 2.6, 2.2, 0, 0, TAU); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(-10, 2, 2.6, 2.2, 0, 0, TAU); ctx.fill();
+      for (const dy of [-2, 2.4]) { ctx.beginPath(); ctx.ellipse(-10, dy, 2.8, 2.4, 0, 0, TAU); ctx.fill(); }
+    }
+    if (b.id === 'butter') {
+      ctx.strokeStyle = b.d; ctx.lineWidth = 1.2;
+      for (let i = -1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(i * 4, -6); ctx.lineTo(i * 4, 6); ctx.stroke(); }
     }
   }
-  /* شاخک‌ها */
+
+  /* ۴) شاخک‌ها — جلوِ سر، واضح */
   if (b.ant > 0) {
-    ctx.strokeStyle = b.d; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+    ctx.strokeStyle = b.d; ctx.lineWidth = 2; ctx.lineCap = 'round';
     for (const s of [-1, 1]) {
       ctx.beginPath();
-      ctx.moveTo(-11, s * 2);
-      ctx.quadraticCurveTo(-20, s * 6 + sw * 6, -25, s * 11);
+      ctx.moveTo(-12, s * 2.4);
+      ctx.quadraticCurveTo(-19, s * 6 + sw * 3, -24, s * 11);
       ctx.stroke();
-      if (b.id === 'butter') { ctx.fillStyle = b.d; ctx.beginPath(); ctx.arc(-25, s * 11, 2.2, 0, TAU); ctx.fill(); }
+      if (b.id === 'butter') { ctx.fillStyle = b.d; ctx.beginPath(); ctx.arc(-24, s * 11, 2.4, 0, TAU); ctx.fill(); }
+    }
+  }
+  ctx.restore();
+}
+
+
+/** تصویرِ نمونه — تصویرِ «نگاه از بالا»؛ سر بالا و شکم پایین،
+    بال‌ها به راست و چپ، پاها از قفسهٔ سینه بیرون می‌آیند. عمداً هیچ
+    عضوی روی عضو دیگری نمی‌افتد تا بچّه بتواند بشمارد. */
+function drawSpecimen(k) {
+  const b = BUG[k];
+  ctx.save();
+
+  if (b.id === 'worm') {
+    /* کِرم — بدنِ حلقه‌حلقه، بدونِ پا و بال و شاخک.
+       بدن را با نقطه‌های روی یک منحنی می‌کشیم تا حلقه‌ها دقیقاً روی
+       خودِ بدن بنشینند و بیرون نزنند. */
+    const pts = [];
+    for (let i = 0; i <= 48; i++) {
+      const t = i / 48;
+      pts.push([16 * Math.sin(t * Math.PI * 1.55 + .45), -88 + t * 178]);
+    }
+    for (const [col, w] of [[b.d, 32], [b.c, 24]]) {
+      ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (const q of pts) ctx.lineTo(q[0], q[1]);
+      ctx.stroke();
+    }
+    /* حلقه‌ها — عمود بر خودِ بدن */
+    ctx.strokeStyle = b.d; ctx.lineWidth = 2;
+    for (let i = 1; i <= 9; i++) {
+      const j = Math.round(i * 48 / 10);
+      const [x, y] = pts[j];
+      const [px, py] = pts[j - 1], [nx, ny] = pts[j + 1];
+      const dx = nx - px, dy = ny - py, L = Math.hypot(dx, dy) || 1;
+      const ux = -dy / L * 11, uy = dx / L * 11;
+      ctx.beginPath(); ctx.moveTo(x - ux, y - uy); ctx.lineTo(x + ux, y + uy); ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
+
+  const spider = b.id === 'spider';
+
+  /* بال‌ها — پشتِ بدن، به چپ و راست، جفتِ بالا (forewing) و پایین (hindwing) جدا */
+  if (b.wings === 4) {
+    for (const s of [-1, 1]) {
+      /* forewing — بالا، بزرگ‌تر */
+      ctx.save();
+      ctx.globalAlpha = .82;
+      ctx.fillStyle = b.c;
+      ctx.beginPath(); ctx.ellipse(s * 44, -22, 34, 22, s * -.55, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = b.d; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.ellipse(s * 44, -22, 34, 22, s * -.55, 0, TAU); ctx.stroke();
+      /* رگ‌بندی */
+      ctx.strokeStyle = b.d; ctx.lineWidth = 1; ctx.globalAlpha = .55;
+      for (let i = -1; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(s * 12, -12);
+        ctx.lineTo(s * 60 + s * i * 4, -30 + i * 6);
+        ctx.stroke();
+      }
+      ctx.restore();
+      /* hindwing — پایین، کوچک‌تر، شکل جدا */
+      ctx.save();
+      ctx.globalAlpha = .82;
+      ctx.fillStyle = shade(b.c, .3);
+      ctx.beginPath(); ctx.ellipse(s * 40, 20, 24, 18, s * .55, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = b.d; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.ellipse(s * 40, 20, 24, 18, s * .55, 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
+  } else if (b.wings === 2) {
+    for (const s of [-1, 1]) {
+      ctx.save();
+      ctx.globalAlpha = .78;
+      ctx.fillStyle = 'rgba(226, 240, 246, .9)';
+      ctx.beginPath(); ctx.ellipse(s * 40, -8, 32, 14, s * -.4, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(70, 100, 115, 1)'; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.ellipse(s * 40, -8, 32, 14, s * -.4, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = 'rgba(70, 100, 115, .55)'; ctx.lineWidth = 1;
+      for (let i = -1; i < 3; i++) {
+        ctx.beginPath(); ctx.moveTo(s * 12, -6); ctx.lineTo(s * 60 + s * i * 4, -18 + i * 4); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  /* پاها — از قفسهٔ سینه به چپ و راست، هر پا مفصلِ زانو دارد.
+     در دیدِ از بالا، هر جفت پا یکی چپ و یکی راست است. */
+  if (b.legs > 0) {
+    const pairs = b.legs / 2;
+    const gap = spider ? 15 : 17;                       /* فاصلهٔ عمودیِ هر جفت از دیگری */
+    const rootX = spider ? 12 : 9;                      /* نقطهٔ بیرون‌زدن از بدن */
+    /* پاهای بالدارها کمی پایین‌تر می‌نشینند تا کمترْ روی بال بیفتند */
+    const y0 = spider ? -(pairs - 1) * gap / 2 : -8;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (let i = 0; i < pairs; i++) {
+      const y = y0 + i * gap;
+      for (const s of [-1, 1]) {
+        /* از بدن → زانو (بیرون و کمی جلو) → پنجه (بیرون‌تر و پایین‌تر) */
+        const kx = s * (rootX + (spider ? 22 : 19)), ky = y + (spider ? -6 : -3);
+        const fx = s * (rootX + (spider ? 44 : 33)), fy = y + (spider ? 14 : 17);
+        /* هالهٔ روشن زیرِ هر پا — تا روی بالِ رنگی هم شمردنی بماند */
+        for (const [col, w] of [['rgba(255, 252, 240, .96)', (spider ? 4.4 : 3.8) + 3.4], [b.d, spider ? 4.4 : 3.8]]) {
+          ctx.strokeStyle = col; ctx.lineWidth = w;
+          ctx.beginPath();
+          ctx.moveTo(s * rootX, y); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy);
+          ctx.stroke();
+        }
+        ctx.fillStyle = b.d;
+        ctx.beginPath(); ctx.arc(kx, ky, spider ? 2.8 : 2.4, 0, TAU); ctx.fill();
+      }
+    }
+  }
+
+  /* بدن — از بالا: سر (بالا)، سینه (وسط)، شکم (پایین). */
+  if (spider) {
+    /* عنکبوت: سرْسینه بالا، شکمِ درشت پایین */
+    ctx.fillStyle = b.d;
+    ctx.beginPath(); ctx.ellipse(0, 22, 26, 34, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = b.c;
+    ctx.beginPath(); ctx.ellipse(0, -18, 15, 18, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#efe8d6';
+    for (const dx of [-4, 4]) { ctx.beginPath(); ctx.arc(dx, -24, 2.6, 0, TAU); ctx.fill(); }
+  } else if (b.id === 'ant') {
+    /* مورچه: سه بندِ آشکار */
+    ctx.fillStyle = b.d;
+    ctx.beginPath(); ctx.ellipse(0, -22, 13, 15, 0, 0, TAU); ctx.fill();  /* سر */
+    ctx.fillStyle = b.c;
+    ctx.beginPath(); ctx.ellipse(0, 0, 10, 12, 0, 0, TAU); ctx.fill();    /* سینه */
+    ctx.fillStyle = b.d;
+    ctx.beginPath(); ctx.ellipse(0, 26, 15, 18, 0, 0, TAU); ctx.fill();   /* شکم */
+    ctx.fillStyle = '#efe8d6';
+    for (const dx of [-3, 3]) { ctx.beginPath(); ctx.arc(dx, -26, 2, 0, TAU); ctx.fill(); }
+  } else {
+    /* مگس/پروانه: بدنِ کشیدهٔ عمودی */
+    ctx.fillStyle = b.d;
+    ctx.beginPath(); ctx.ellipse(0, 4, 12, 30, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = b.c;
+    ctx.beginPath(); ctx.ellipse(0, -24, 12, 12, 0, 0, TAU); ctx.fill();  /* سر */
+    if (b.id === 'butter') {
+      /* بند بندِ شکم */
+      ctx.strokeStyle = b.d; ctx.lineWidth = 1.6;
+      for (let i = 0; i < 5; i++) {
+        const yy = -8 + i * 8;
+        ctx.beginPath(); ctx.moveTo(-11, yy); ctx.lineTo(11, yy); ctx.stroke();
+      }
+    }
+    if (b.id === 'fly') {
+      ctx.fillStyle = '#b03a2a';
+      for (const dx of [-4, 4]) { ctx.beginPath(); ctx.ellipse(dx, -28, 4, 5, 0, 0, TAU); ctx.fill(); }
+    }
+  }
+
+  /* شاخک‌ها — از سر به بالا، در دو طرفِ خطِ میانی، جدا از هم */
+  if (b.ant > 0) {
+    ctx.strokeStyle = b.d; ctx.lineWidth = 3.4; ctx.lineCap = 'round';
+    for (const s of [-1, 1]) {
+      const headY = spider ? -30 : -30;
+      ctx.beginPath();
+      ctx.moveTo(s * 5, headY);
+      ctx.quadraticCurveTo(s * 16, headY - 20, s * 22, headY - 40);
+      ctx.stroke();
+      ctx.fillStyle = b.d;
+      ctx.beginPath(); ctx.arc(s * 22, headY - 40, b.id === 'butter' ? 4.4 : 3, 0, TAU); ctx.fill();
     }
   }
   ctx.restore();
@@ -1354,7 +1545,8 @@ function draw() {
   if (S.card >= 0) drawCard();
   drawHUD();
   if (!(S.phase === 'play' && S.tut.on)) toast.draw(HUD_H + 8, { good: P.good, bad: P.bad, info: P.card, ink: P.ink });
-  if (S.phase === 'play' && S.tut.on) drawTutorial();
+  /* کارتِ راهنما نباید روی کارتِ ثبت بیفتد. */
+  if (S.phase === 'play' && S.tut.on && S.card < 0) drawTutorial();
   if (S.phase === 'intro') drawIntro();
   if (S.phase === 'won') drawWon();
   if (S.phase === 'lost') drawLost();
@@ -1519,20 +1711,26 @@ function drawCard() {
   ctx.fillRect(0, 0, SCENE_W, SCENE_H);
   const b = S.bugs[S.card];
   paper(CARD.x, CARD.y, CARD.w, CARD.h, P.card, 51, 16, .5);
-  text('چند تا می‌بینی؟', CARD.x + CARD.w / 2, CARD.y + 34, { size: 22, family: 'Lalezar', color: P.ink });
-  /* جانور، بزرگ */
+  text('چند تا می‌بینی؟', CARD.x + CARD.w / 2, CARD.y + 36, { size: 24, family: 'Lalezar', color: P.ink });
+
+  /* «صفحهٔ نمونه» — تصویرِ درشتِ ساکن؛ هر جفت پا و بال و هر شاخک جداست تا بچّه بشمارد */
+  ctx.fillStyle = 'rgba(38, 48, 31, .045)';
+  ctx.beginPath(); rrPath(PLATE.x, PLATE.y, PLATE.w, PLATE.h, 14); ctx.fill();
+  ctx.strokeStyle = 'rgba(38, 48, 31, .12)'; ctx.lineWidth = 1.4;
+  ctx.beginPath(); rrPath(PLATE.x, PLATE.y, PLATE.w, PLATE.h, 14); ctx.stroke();
+  const box = SPEC_BOX[BUG[b.k].id];
+  const sc = Math.min((PLATE.w - 40) / box.w, (PLATE.h - 34) / (box.y1 - box.y0));
   ctx.save();
-  ctx.translate(CARD.x + CARD.w / 2, CARD.y + 98);
-  drawBug(b.k, 3, S.t + b.wob);
+  ctx.translate(PLATE.x + PLATE.w / 2, PLATE.y + PLATE.h / 2 - (box.y0 + box.y1) / 2 * sc);
+  ctx.scale(sc, sc);
+  drawSpecimen(b.k);
   ctx.restore();
-  ctx.strokeStyle = 'rgba(38, 48, 31, .18)'; ctx.lineWidth = 1.6;
-  ctx.beginPath(); ctx.moveTo(CARD.x + 30, CARD.y + 132); ctx.lineTo(CARD.x + CARD.w - 30, CARD.y + 132); ctx.stroke();
 
   for (let i = 0; i < 3; i++) {
-    const y = CARD.y + 138 + i * 88;
-    featIcon(CARD.x + CARD.w / 2 - 78, y + 28, COL[i].icon, P.ink, 1.15);
-    text(COL[i].n, CARD.x + CARD.w / 2 - 78, y + 52, { size: 13, color: P.inkSoft });
-    numText(fa(S.draft[i]), CARD.x + CARD.w / 2 + 26, y + 30, { size: 40, color: P.ink });
+    const y = CARD.y + 76 + i * 96, cx = (COUNT_X0 + COUNT_X1) / 2;
+    featIcon(cx - 54, y + 28, COL[i].icon, P.ink, 1.2);
+    text(COL[i].n, cx - 54, y + 54, { size: 13, color: P.inkSoft });
+    numText(fa(S.draft[i]), cx + 34, y + 32, { size: 42, color: P.ink });
     for (const plus of [false, true]) {
       const bb = stepBtn(i, plus);
       const hot = S.hover && S.hover.k === (plus ? 'plus' : 'minus') && S.hover.i === i;
@@ -1547,7 +1745,7 @@ function drawCard() {
       ctx.stroke();
     }
   }
-  button(CARD_OK, 'ثبت در دفتر', { hot: S.hover && S.hover.k === 'ok', fill: '#4e7f4a', hotFill: '#63a05b', size: 24 });
+  button(CARD_OK, 'ثبت در دفتر', { hot: S.hover && S.hover.k === 'ok', fill: '#4e7f4a', hotFill: '#63a05b', size: 25 });
   if (S.wrong > 0) {
     ctx.save();
     ctx.globalAlpha = clamp(S.wrong, 0, 1);
@@ -1555,7 +1753,7 @@ function drawCard() {
     ctx.beginPath(); rrPath(CARD.x - 4, CARD.y - 4, CARD.w + 8, CARD.h + 8, 18); ctx.stroke();
     ctx.restore();
   }
-  text('برای بستن، بیرونِ کارت بزن', CARD.x + CARD.w / 2, CARD.y + CARD.h - 20,
+  text('برای بستن، بیرونِ کارت بزن', CARD.x + CARD.w / 2, CARD.y + CARD.h - 22,
     { size: 13, color: 'rgba(38, 48, 31, .4)' });
 }
 
@@ -1615,9 +1813,10 @@ function drawTutorial() {
       ['جانورهای مزرعه لای علف پنهان‌اند.', 'از دور فقط یک نقطه‌اند؛ ذرّه‌بین را رویشان بگردان.'], 'دفترِ مزرعه');
     tutMore(410, 200 + h + 8, S.t, P.ink);
   } else if (st === 1) {
-    spot([{ x: NOTE.x, y: NOTE.y, w: NOTE.w, h: NOTE.h }], .7);
-    tutCard(80, 220, 620, ['زیرِ ذرّه‌بین روی جانور بزن تا کارتِ ثبت باز شود.',
-      'پا و بال و شاخکش را خودت بشمار و بنویس.']);
+    /* اینجا باید خودِ مزرعه روشن بماند و کارت کنار برود،
+       وگرنه همان جانوری که باید بزند زیرِ کارت پنهان می‌شود. */
+    spot([{ x: FIELD.x + 8, y: FIELD.y + 8, w: FIELD.w - 16, h: FIELD.h - 16 }], .58);
+    tutCard(NOTE.x + 4, 250, NOTE.w - 8, ['ذرّه‌بین را روی جانور ببر', 'و رویش بزن تا کارتِ ثبت باز شود.', 'پا و بال و شاخکش را', 'خودت بشمار و بنویس.']);
   } else {
     spot([{ x: 280, y: 4, w: 340, h: HUD_H - 8 }, { x: NOTE.x, y: NOTE.y, w: NOTE.w, h: NOTE.h }], .72);
     const h = tutCard(150, 300, 540,
