@@ -751,16 +751,21 @@ function tutMore(cx, y, t, ink = '#3a2a18', bg = 'rgba(255, 250, 238, .94)') {
   ctx.restore();
 }
 
-/** فونت‌ها را می‌آورد و بعد بازی را شروع می‌کند. */
+/** فونت‌ها را می‌آورد و بعد بازی را شروع می‌کند.
+    مهم: هر دو راه (رسیدنِ فونت و مهلتِ پشتیبان) ممکن است برسند، ولی
+    شروع فقط باید یک بار انجام شود؛ وگرنه دو حلقهٔ فریم راه می‌افتد و
+    بازی دوبرابر سریع می‌شود. */
 function whenFontsReady(start) {
+  let done = false;
+  const go = () => { if (done) return; done = true; start(); };
   if (document.fonts && document.fonts.load) {
     Promise.all([
       document.fonts.load('400 40px Lalezar'),
       document.fonts.load('700 20px Vazirmatn'),
       document.fonts.load('900 20px Vazirmatn'),
-    ]).then(start, start);
-    setTimeout(start, 2600);
-  } else start();
+    ]).then(go, go);
+    setTimeout(go, 2600);
+  } else go();
 }
 
 /** حلقهٔ فریم با dtِ محدودشده. */
@@ -784,8 +789,12 @@ function _qualityTick(gap) {
   if (before !== QUALITY && (before === 0 || QUALITY === 0) && _refit) _refit();
 }
 
+/* یک حلقه، نه بیشتر — دو حلقه یعنی زمانِ بازی دوبرابر می‌گذرد. */
+let _looping = false;
 function runLoop(step) {
-  let last = performance.now(), started = false;
+  if (_looping) return;
+  _looping = true;
+  let last = performance.now();
   const frame = (now) => {
     const gap = now - last;
     const dt = Math.min(gap / 1000, 1/20);
@@ -794,7 +803,7 @@ function runLoop(step) {
     step(dt);
     requestAnimationFrame(frame);
   };
-  if (!started) { started = true; requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
 }
 
 /* ═════════════════ بازی ═════════════════ */

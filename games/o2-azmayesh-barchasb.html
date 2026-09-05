@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#efe2c6">
-<title>حجرهٔ حساب — محاسبهٔ ضرب</title>
+<meta name="theme-color" content="#1a2630">
+<title>آزمایشگاهِ برچسبِ خوراکی — خوراکی‌ها (آزمایش)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;700;900&display=swap">
 <style>
   /* صفحه نباید هیچ‌جا اسکرول یا زوم شود؛ بازی باید مثل یک برنامه رفتار کند. */
   html, body {
-    margin: 0; padding: 0; background: #efe2c6;
+    margin: 0; padding: 0; background: #1a2630;
     overflow: hidden; overscroll-behavior: none;
     -webkit-user-select: none; user-select: none;
     -webkit-tap-highlight-color: transparent;
@@ -36,7 +36,7 @@
       display: flex; position: fixed; inset: 0;
       z-index: 9;
       flex-direction: column; align-items: center; justify-content: center; gap: 26px;
-      background: #efe2c6; color: #f6ead2;
+      background: #1a2630; color: #f6ead2;
       font: 700 20px "Vazirmatn", Tahoma, sans-serif; text-align: center; padding: 32px;
     }
     #rotate svg { animation: tilt 2.4s ease-in-out infinite; }
@@ -808,308 +808,310 @@ function runLoop(step) {
 
 /* ═════════════════ بازی ═════════════════ */
 /* ═══════════════════════════════════════════════════════════════════════
-   حجرهٔ حساب — ریاضی سوم، فصل ۸، درس ۴ (محاسبهٔ ضرب)
-   ───────────────────────────────────────────────────────────────────────
-   صفحهٔ کتاب همین است: ضرب را می‌شکنند و هر تکّه را جدا می‌نویسند —
-   «ضربِ ۱۰تایی‌ها» و «ضربِ یکی» — و بعد جمعشان می‌کنند:
+   آزمایشگاهِ برچسبِ خوراکی — علومِ سوم، درس ۲ «خوراکی‌ها»  (آزمایش)
 
-        ۲۳                  ۲۳۴
-      ×  ۳                ×   ۳
-      ─────                ─────
-        ۶۰   ← ۳×۲۰           ۱۲   ← ۳×۴
-      +  ۹   ← ۳×۳            ۹۰   ← ۳×۳۰
-      ─────               + ۶۰۰   ← ۳×۲۰۰
-        ۶۹                 ─────
-                             ۷۰۲
+   کتاب می‌گوید: «به برچسبِ سیبِ سلامت که روی بسته‌بندی‌ها قرار دارد
+   توجّه کنید… اگر روی برچسبِ سیبِ سلامت، یک سطر قرمز یا دو سطر رنگِ زرد
+   باشد، یعنی باید در مصرفِ آن خوراکی احتیاط کرد.»
 
-   اینجا همان دفتر روی پیشخوانِ حجره باز است. هر سطر می‌گوید کدام تکّه
-   را می‌خواهد («۳ × ۳۰») و تو باید پلاکِ درست را از تختهٔ کنار برداری
-   و در همان سطر بگذاری.
+   این آزمایش همان کار را مرحله‌به‌مرحله و با عددهای واقعی انجام می‌دهد:
 
-   روی هر پلاک، هم عدد نوشته شده هم چینه‌هایش کشیده شده؛ پس اگر بینِ ۹
-   و ۹۰ شک کردی، شمردنِ چینه‌ها جواب می‌دهد — همان اشتباهِ همیشگیِ جای
-   صفر، این بار دیدنی.
+   ۱) خوراکی را روی ترازو بگذار تا دقیقاً ۱۰۰ گرم شود. (چرا ۱۰۰ گرم؟
+      چون برچسب همیشه «در هر ۱۰۰ گرم» را می‌گوید؛ وگرنه مقایسهٔ دو
+      خوراکی با هم بی‌معنی است — ترازو خودش این را یاد می‌دهد.)
+   ۲) سه لولهٔ نمک و قند و چربی به اندازهٔ همان ۱۰۰ گرم پر می‌شود.
+   ۳) هر لوله را روی خط‌کشِ رنگی بخوان: سبز، زرد یا قرمز.
+   ۴) سطرهای برچسب را خودت رنگ کن.
+   ۵) قانون: یک قرمز یا دو زرد ⟵ احتیاط.
 
-   جمعِ آخر را دفتر خودش می‌زند، چون جمع را فصلِ ششم یاد داده. جوابِ
-   ضرب هیچ‌جا از پیش نوشته نمی‌شود.
+   عددهای مرزِ رنگ‌ها ساختگی نیستند؛ همان مرزهای چراغِ راهنماییِ
+   تغذیه‌اند که سیبِ سلامت هم از آن‌ها استفاده می‌کند (در هر ۱۰۰ گرم):
+      چربی : تا ۳ سبز، تا ۱۷٫۵ زرد، بیشتر قرمز
+      قند  : تا ۵ سبز، تا ۲۲٫۵ زرد، بیشتر قرمز
+      نمک  : تا ۰٫۳ سبز، تا ۱٫۵ زرد، بیشتر قرمز
+   برای نوشیدنی‌ها مرزِ چربی و قند نصف می‌شود (در هر ۱۰۰ میلی‌لیتر)،
+   ولی مرزِ نمک نصف نمی‌شود — همان‌طور که در قانونِ واقعی است.
+
+   مقدارهای هر خوراکی هم از مقدارهای واقعیِ همان خوراکی گرفته شده‌اند.
    ═══════════════════════════════════════════════════════════════════════ */
 
 const SCENE_W = 1200, SCENE_H = 760;
-const HUD_H = 52;
 
 const P = {
-  wall:  '#efe2c6', wallLo: '#cdb894', wallHi: '#faf3e2',
-  wood:  '#a4713c', woodDk: '#6a441f', woodLt: '#cb9a5e',
-  brass: '#c39a3e', brassDk: '#8a6a1e', brassLt: '#eed9a6',
-  paper: '#fbf4e2', card: '#fffdf5', ink: '#2f2a24', inkSoft: '#8b8172',
-  red:   '#b5432f', redDk: '#7d2a1c',
-  good:  '#4e8f5c', bad: '#b5432f', gold: '#d9a026',
+  bench:  '#2a3a46', benchLo: '#1a2630', benchHi: '#3b4f5e',
+  steel:  '#8d99a3', steelDk: '#5c6870', steelLt: '#c3ced6',
+  glass:  'rgba(206, 232, 239, .5)',
+  paper:  '#fbfaf2', card: '#ffffff',
+  ink:    '#25302a', inkSoft: '#7d8a80',
+  green:  '#3f9a4e', greenD: '#256b30',
+  amber:  '#e0a422', amberD: '#a4740c',
+  red:    '#c8402c', redD:   '#8e2716',
+  gold:   '#c9962c', accent: '#4fa3b8',
+  good:   '#4e8f5c', bad: '#c04a34',
 };
 
-/* رنگِ چینه‌ها */
-const PL = [
-  { v: 1000, c: '#a45fa8', d: '#6d3a70', w: 34, h: 34 },
-  { v: 100,  c: '#4e8f5c', d: '#2f6038', w: 26, h: 26 },
-  { v: 10,   c: '#3f7fb0', d: '#255579', w: 9,  h: 26 },
-  { v: 1,    c: '#d9a026', c2: 1, d: '#9a6c0e', w: 9, h: 9 },
+/* ───────── قانونِ رنگِ برچسب ─────────
+   مرزها «در هر ۱۰۰ گرم»؛ برای نوشیدنی «در هر ۱۰۰ میلی‌لیتر»، و مرزِ
+   چربی و قند نصف می‌شود ولی مرزِ نمک نه.                             */
+
+const NUTS = [
+  /* half: آیا برای نوشیدنی مرز نصف می‌شود؟ چربی و قند بله، نمک نه. */
+  { id: 'charbi', n: 'چربی', unit: 'گرم', g: 3,  a: 17.5, max: 40, half: 1 },
+  { id: 'ghand',  n: 'قند',  unit: 'گرم', g: 5,  a: 22.5, max: 60, half: 1 },
+  { id: 'namak',  n: 'نمک',  unit: 'گرم', g: .3, a: 1.5,  max: 4,  half: 0 },
 ];
 
-const LEVELS = [
-  { name: 'دو سطر', dig: 2, amax: 4, dmax: 4, decoy: 2, quota: 3, time: 82,
-    hint: 'پلاکِ درست را بردار و در سطرش بگذار.' },
-  { name: 'ضربِ بزرگ‌تر', dig: 2, amax: 6, dmax: 6, decoy: 3, quota: 3, time: 86,
-    hint: 'چینه‌های روی پلاک را بشمار؛ ۹ با ۹۰ فرق دارد.' },
-  { name: 'سه سطر', dig: 3, amax: 4, dmax: 4, decoy: 3, quota: 3, time: 96,
-    hint: 'هر سطر یک تکّهٔ ضرب است.' },
-  { name: 'دفترِ شلوغ', dig: 3, amax: 6, dmax: 5, decoy: 4, quota: 4, time: 104,
-    hint: 'پلاکِ اضافه هم روی تخته هست.' },
-  { name: 'تا بازار باز است', dig: 3, amax: 6, dmax: 6, decoy: 4, time: 100, endless: true,
-    hint: 'تا بازار باز است، حساب هست.' },
+/** مرزهای سبز و زردِ یک ماده برای این خوراکی. */
+function limits(k, drink) {
+  const nu = NUTS[k];
+  const d = drink && nu.half ? 2 : 1;
+  return [nu.g / d, nu.a / d];
+}
+/** رنگِ یک سطر: ۰ سبز، ۱ زرد، ۲ قرمز. */
+function bandOf(k, val, drink) {
+  const lm = limits(k, drink);
+  if (val <= lm[0]) return 0;
+  if (val <= lm[1]) return 1;
+  return 2;
+}
+/** قانونِ کتاب: یک قرمز یا دو زرد ⟵ احتیاط. */
+function needCare(bands) {
+  const red = bands.filter((b) => b === 2).length;
+  const amber = bands.filter((b) => b === 1).length;
+  return red >= 1 || amber >= 2;
+}
+
+/* ───────── خوراکی‌ها ─────────
+   v = [چربی، قند، نمک] در هر ۱۰۰ گرم (یا ۱۰۰ میلی‌لیتر برای نوشیدنی). */
+
+const ITEMS = [
+  { id: 'shir',    n: 'شیرِ کم‌چرب',   v: [1.5, 4.8, .1],   drink: 1 , por: 240, porN: 'لیوان' },
+  { id: 'ab',      n: 'آبِ آشامیدنی',  v: [0, 0, 0],        drink: 1 , por: 240, porN: 'لیوان' },
+  { id: 'nushabe', n: 'نوشابه',        v: [0, 10.6, .01],   drink: 1 , por: 330, porN: 'قوطی' },
+  { id: 'abmive',  n: 'آبِ پرتقال',    v: [.2, 8.4, .01],   drink: 1 , por: 240, porN: 'لیوان' },
+  { id: 'doogh',   n: 'دوغ',           v: [1, 2.6, .8],     drink: 1 , por: 240, porN: 'لیوان' },
+  { id: 'mast',    n: 'ماست',          v: [3.3, 4.7, .1],   drink: 0 , por: 150, porN: 'کاسه' },
+  { id: 'panir',   n: 'پنیرِ سفید',    v: [22, .5, 2.1],    drink: 0 , por: 30, porN: 'تکّه' },
+  { id: 'nan',     n: 'نانِ سنگک',     v: [1.2, 2.2, 1.1],  drink: 0 , por: 120, porN: 'نان' },
+  { id: 'sib',     n: 'سیب',           v: [.2, 10.4, 0],    drink: 0 , por: 180, porN: 'سیب' },
+  { id: 'khiar',   n: 'خیار',          v: [.1, 1.7, 0],     drink: 0 , por: 130, porN: 'خیار' },
+  { id: 'morgh',   n: 'مرغِ پخته',     v: [7.4, 0, .2],     drink: 0 , por: 100, porN: 'تکّه' },
+  { id: 'adas',    n: 'عدسِ پخته',     v: [.4, 1.8, 0],     drink: 0 , por: 180, porN: 'کاسه' },
+  { id: 'chips',   n: 'چیپس',          v: [34, .3, 1.5],    drink: 0 , por: 60, porN: 'بسته' },
+  { id: 'pofak',   n: 'پفک',           v: [28, 2, 2.4],     drink: 0 , por: 60, porN: 'بسته' },
+  { id: 'shokolat',n: 'شکلاتِ شیری',   v: [30, 52, .2],     drink: 0 , por: 40, porN: 'تکّه' },
+  { id: 'biscuit', n: 'بیسکویت',       v: [17, 22, .8],     drink: 0 , por: 50, porN: 'بسته' },
+  { id: 'keik',    n: 'کیکِ خامه‌ای',  v: [20, 33, .5],     drink: 0 , por: 80, porN: 'برش' },
+  { id: 'sosis',   n: 'سوسیس',         v: [24, 1.2, 2.2],   drink: 0 , por: 60, porN: 'عدد' },
+  { id: 'khorma',  n: 'خرما',          v: [.4, 63, 0],      drink: 0 , por: 25, porN: 'سه عدد' },
+  { id: 'gerdu',   n: 'گردو',          v: [65, 2.6, 0],     drink: 0 , por: 30, porN: 'مشت' },
 ];
 
-const BOOK = { x: 54, y: 88, w: 656, h: 628 };
-const RACK = { x: 742, y: 88, w: 424, h: 628 };
-const BTN_GO = { x: 470, y: 566, w: 260, h: 76 };
+/* ───────── مرحله‌های آزمایش ───────── */
 
-/* ───────── وضعیت ───────── */
+const STEPS = [
+  { n: 'خوراکی', t: 'یک خوراکی از قفسه بردار.' },
+  { n: 'ترازو',  t: 'روی ترازو دقیقاً ۱۰۰ گرم بریز.' },
+  { n: 'لوله‌ها', t: 'ببین در این ۱۰۰ گرم چه‌قدر نمک و قند و چربی هست.' },
+  { n: 'برچسب',  t: 'هر سطر را از روی خط‌کشِ رنگی، خودت رنگ کن.' },
+  { n: 'قانون',  t: 'یک قرمز یا دو زرد ⟵ احتیاط. حکم را بزن.' },
+];
 
 const S = {
-  phase: 'intro',
-  level: 0,
-  a: 3, b: 234, dig: [], places: [],
-  parts: [],            /* مقدارِ درستِ هر سطر، از یکان به بالا */
-  rack: [],             /* { v, used } */
-  slot: [],             /* شناسهٔ پلاک در هر سطر، یا ‑۱ */
-  held: -1, hx: 0, hy: 0, px: 0, py: 0,
-  sum: 0, sumT: 0, bad: -1, badT: 0,
-  timeLeft: 0, seals: 3,
-  cleared: 0, quota: 0,
-  score: 0, best: 0, combo: 0,
-  done: 0, doneT: 0,
-  t: 0, phaseT: 0, hover: null, shake: 0,
-  tut: { on: true, step: 0, t: 0 },
+  stepI: 0,
+  item: -1,             /* شمارهٔ خوراکیِ انتخاب‌شده */
+  pour: 0,              /* گرمِ روی ترازو */
+  pouring: 0,           /* ۱ وقتی انگشت روی دکمهٔ ریختن است */
+  poured: false,        /* ۱۰۰ گرم دقیق شد */
+  tubes: 0,             /* جانِ پر شدنِ لوله‌ها */
+  mark: [-1, -1, -1],   /* رنگی که بچّه برای هر سطر انتخاب کرده */
+  markT: [0, 0, 0],
+  wrong: [0, 0, 0],
+  verdict: null,        /* {pick, ok} */
+  book: [],             /* خوراکی‌هایی که کارشان تمام شده */
+  t: 0, hover: null, tip: '', tipT: 0, flash: 0, shake: 0,
 };
 
 const bits = new Bits();
-const toast = new Toast();
-const L = () => LEVELS[S.level];
-const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-
-function loadBest() { try { return +localStorage.getItem('hojre-best') || 0; } catch { return 0; } }
-function saveBest(v) { try { localStorage.setItem('hojre-best', String(v)); } catch { /* حالتِ خصوصی */ } }
-
 const cv = document.getElementById('stage');
 initStage(cv, SCENE_W, SCENE_H);
-S.best = loadBest();
 
-/* ───────── حسابِ تازه ───────── */
+const IT = () => ITEMS[S.item];
+const vals = () => IT().v;
+const trueBands = () => vals().map((v, k) => bandOf(k, v, IT().drink));
 
-function newSum() {
-  const lv = L();
-  const a = R(2, lv.amax);
-  const d = [];
-  for (let i = 0; i < lv.dig; i++) d.push(R(1, lv.dmax));
-  /* d از پرارزش به کم‌ارزش؛ سطرها از یکان بالا می‌روند */
-  const b = d.reduce((x, y) => x * 10 + y, 0);
-  S.a = a; S.b = b; S.dig = d;
-  S.places = [];
-  S.parts = [];
-  for (let i = 0; i < lv.dig; i++) {
-    const k = lv.dig - 1 - i;                 /* ۰ = یکان */
-    S.places.push(k);
-    S.parts.push(a * d[i] * Math.pow(10, k));
-  }
-  /* سطرها را از یکان به بالا مرتّب می‌کنیم */
-  S.places.reverse(); S.parts.reverse();
+/* ───────── جای‌ها ───────── */
 
-  /* تختهٔ پلاک‌ها: درست‌ها به‌علاوهٔ چند پلاکِ فریب‌دهنده */
-  const set = new Set(S.parts);
-  const rack = S.parts.slice();
-  const cand = [];
-  S.parts.forEach((p, i) => {
-    const k = S.places[i];
-    if (k > 0) cand.push(p / 10);             /* اشتباهِ همیشگی: صفرِ کم */
-    cand.push(p * 10);                        /* صفرِ زیاد */
-    const base = p / Math.pow(10, k);
-    if (base > 1) cand.push((base - 1) * Math.pow(10, k));
-    cand.push((base + 1) * Math.pow(10, k));
-  });
-  for (let i = cand.length - 1; i > 0; i--) { const j = R(0, i); const t = cand[i]; cand[i] = cand[j]; cand[j] = t; }
-  for (const c of cand) {
-    if (rack.length >= S.parts.length + lv.decoy) break;
-    if (set.has(c) || c <= 0 || c > 9999) continue;   /* بالاتر از این، چینه‌ها دیگر کشیدنی نیست */
-    set.add(c); rack.push(c);
-  }
-  for (let i = rack.length - 1; i > 0; i--) { const j = R(0, i); const t = rack[i]; rack[i] = rack[j]; rack[j] = t; }
-  S.rack = rack.map((v) => ({ v, used: false }));
-  S.slot = new Array(S.parts.length).fill(-1);
-  S.held = -1; S.sum = 0; S.sumT = 0; S.bad = -1; S.badT = 0;
-  S.done = 0; S.doneT = 0;
+const SHELF = { x: 24, y: 96, w: 300, h: 640 };
+const BENCH = { x: 344, y: 96, w: 430, h: 640 };
+const LABEL = { x: 794, y: 96, w: 382, h: 640 };
+
+function shelfCard(i) {
+  const col = i % 2, row = Math.floor(i / 2);
+  return { x: SHELF.x + 12 + col * 140, y: SHELF.y + 44 + row * 60, w: 132, h: 52 };
+}
+const SCALE = { x: BENCH.x + 40, y: BENCH.y + 76, w: 350, h: 162 };
+const BTN_POUR = { x: BENCH.x + 34, y: BENCH.y + 250, w: 168, h: 54 };
+const BTN_ZERO = { x: BENCH.x + 218, y: BENCH.y + 250, w: 158, h: 54 };
+function tube(k) {
+  return { x: BENCH.x + 44 + k * 118, y: BENCH.y + 332, w: 68, h: 190 };
+}
+const PORTION = { x: BENCH.x + 20, y: BENCH.y + 562, w: BENCH.w - 40, h: 56 };
+function labRow(k) {
+  return { x: LABEL.x + 20, y: LABEL.y + 104 + k * 112, w: LABEL.w - 40, h: 98 };
+}
+function swatch(k, c) {
+  const r = labRow(k);
+  return { x: r.x + 14 + c * 62, y: r.y + 52, w: 54, h: 36 };
+}
+const BTN_OK = { x: LABEL.x + 24, y: LABEL.y + 476, w: 160, h: 58 };
+const BTN_CARE = { x: LABEL.x + 198, y: LABEL.y + 476, w: 160, h: 58 };
+const BTN_NEW = { x: LABEL.x + 24, y: LABEL.y + 570, w: LABEL.w - 48, h: 50 };
+
+/* ───────── کار با آزمایش ───────── */
+
+function tip(msg) { S.tip = msg; S.tipT = 3.6; }
+
+function chooseItem(i) {
+  S.item = i;
+  S.pour = 0; S.poured = false; S.pouring = 0; S.tubes = 0;
+  S.mark = [-1, -1, -1]; S.markT = [0, 0, 0]; S.wrong = [0, 0, 0];
+  S.verdict = null;
+  S.stepI = 1;
+  sfx.tap();
 }
 
-function startLevel(i, keep) {
-  const lv = LEVELS[i];
-  S.level = i;
-  S.cleared = 0;
-  S.quota = lv.endless ? Infinity : lv.quota;
-  S.combo = 0;
-  S.timeLeft = lv.time;
-  if (!keep) { S.score = 0; S.seals = 3; }
-  S.phase = 'play'; S.phaseT = 0;
-  S.tut.on = i === 0 && !keep; S.tut.step = 0; S.tut.t = 0;
-  newSum();
-  toast.say(lv.hint, 'info');
+function zero() {
+  S.pour = 0; S.poured = false; S.tubes = 0;
+  S.mark = [-1, -1, -1]; S.wrong = [0, 0, 0]; S.verdict = null;
+  S.stepI = Math.min(S.stepI, 1);
+  sfx.tap();
+}
+
+/* پنجرهٔ پذیرش و آستانهٔ سرریز — به‌اندازهٔ کافی باز، تا بازی «مسابقهٔ
+   انگشت» نشود؛ ولی به‌اندازهٔ کافی تنگ، که «دقیقاً ۱۰۰ گرم» معنی بدهد. */
+const OK_LO = 98.5, OK_HI = 101.5, OVER = 103.5, TOP = 115;
+
+/** سرعتِ ریختن — نزدیکِ ۱۰۰ کُند می‌شود، مثلِ ریختنِ با احتیاط. */
+function pourRate(g) {
+  if (g < 82) return 52;
+  return lerp(52, 7, clamp((g - 82) / 16, 0, 1));
+}
+
+/** ریختنِ خوراکی روی ترازو — از ۱۰۰ که خیلی رد شود باید صفر کند. */
+function pourStep(dt) {
+  if (!S.pouring || S.item < 0 || S.poured) return;
+  S.pour = Math.min(TOP, S.pour + dt * pourRate(S.pour));
+  if (S.pour > OVER) {
+    S.pouring = 0; S.flash = 1; sfx.nope();
+    tip('از ۱۰۰ گرم گذشت؛ ترازو را صفر کن.');
+  }
+}
+
+function settle() {
+  /* وقتی دست را برداشتی، اگر روی ۱۰۰ ایستاده باشی آزمایش جلو می‌رود */
+  if (S.item < 0 || S.poured) return;
+  if (S.pour >= OK_LO && S.pour <= OK_HI) {
+    S.pour = 100; S.poured = true; S.tubes = 0.0001;
+    S.stepI = Math.max(S.stepI, 2);
+    sfx.good();
+  } else if (S.pour > OK_HI) {
+    tip('بیشتر از ۱۰۰ گرم شد؛ صفر کن و دوباره.');
+  } else if (S.pour > 0) {
+    tip('هنوز به ۱۰۰ گرم نرسیده؛ باز هم بریز.');
+  }
+}
+
+function markRow(k, c) {
+  if (!S.poured) { tip('اوّل ۱۰۰ گرم را بریز.'); S.flash = 1; sfx.nope(); return; }
+  if (S.tubes < 1) { tip('صبر کن لوله‌ها پر شوند.'); return; }
+  const right = trueBands()[k];
+  if (c === right) {
+    S.mark[k] = c; S.markT[k] = 0; sfx.place();
+    const r = labRow(k);
+    bits.spark(r.x + r.w / 2, r.y + r.h / 2, 10, ['#fff', [P.green, P.amber, P.red][c]]);
+    if (S.mark.every((m) => m >= 0)) { S.stepI = Math.max(S.stepI, 4); sfx.good(); }
+  } else {
+    S.wrong[k] = 1; sfx.nope(); S.shake = .14;
+    tip('لوله را با خط‌کشِ کنارش بسنج.');
+  }
+}
+
+function judge(care) {
+  if (S.mark.some((m) => m < 0)) { tip('اوّل هر سه سطر را رنگ کن.'); S.flash = 1; sfx.nope(); return; }
+  const right = needCare(trueBands());
+  const ok = care === right;
+  S.verdict = { pick: care, ok };
+  if (ok) {
+    sfx.win();
+    if (S.book.indexOf(S.item) < 0) S.book.push(S.item);
+    bits.confetti(LABEL.x + LABEL.w / 2, LABEL.y + 300, 26, [P.green, P.amber, P.gold, '#fff']);
+  } else {
+    sfx.nope(); S.shake = .16;
+    tip('قانون را دوباره بخوان: یک قرمز، یا دو زرد.');
+  }
 }
 
 /* ───────── حلقه ───────── */
 
-newSum();
-whenFontsReady(() => runLoop(step));
-
-const ROW_H = 74;
-function rowBox(i) {
-  return { x: BOOK.x + 46, y: BOOK.y + 258 + i * ROW_H, w: BOOK.w - 92, h: ROW_H - 12 };
-}
-function rackSlot(i) {
-  const cols = 2, w = 186, h = 92, gx = 22, gy = 16;
-  const col = i % cols, row = Math.floor(i / cols);
-  return { x: RACK.x + 20 + (cols - 1 - col) * (w + gx), y: RACK.y + 74 + row * (h + gy), w, h };
-}
-const allSet = () => S.slot.every((v, i) => v >= 0 && S.rack[v].v === S.parts[i]);
-const allFilled = () => S.slot.every((v) => v >= 0);
-
 function step(dt) {
-  S.t += dt; S.phaseT += dt;
-  if (S.shake > 0) S.shake -= dt;
-  if (S.badT > 0) { S.badT -= dt; if (S.badT <= 0) S.bad = -1; }
-  if (S.sumT > 0) S.sumT = Math.min(1, S.sumT + dt * 1.4);
-
-  if (S.phase === 'play') {
-    const frozen = S.tut.on && S.tut.step < 2;
-    if (!frozen && !S.done) {
-      S.timeLeft -= dt;
-      if (S.timeLeft <= 0) { S.timeLeft = 0; loseSeal('حجره بسته شد!'); }
-    }
-    if (S.done) { S.doneT += dt; if (S.doneT > 2.4) { newSum(); S.timeLeft = L().time; } }
-    if (S.tut.on) S.tut.t += dt;
+  S.t += dt;
+  if (S.tipT > 0) S.tipT -= dt;
+  if (S.flash > 0) S.flash -= dt;
+  if (S.shake > 0) S.shake = Math.max(0, S.shake - dt);
+  for (let k = 0; k < 3; k++) {
+    if (S.wrong[k] > 0) S.wrong[k] = Math.max(0, S.wrong[k] - dt * 1.6);
+    if (S.mark[k] >= 0 && S.markT[k] < 1) S.markT[k] += dt * 3;
   }
+  pourStep(dt);
+  if (S.tubes > 0 && S.tubes < 1) S.tubes = Math.min(1, S.tubes + dt * .9);
   bits.step(dt);
-  toast.step(dt);
   draw();
 }
 
-function loseSeal(msg) {
-  if (S.done) return;
-  S.seals--;
-  S.combo = 0;
-  S.shake = .5;
-  S.held = -1;
-  sfx.nope();
-  toast.say(msg, 'bad');
-  if (S.seals <= 0) { S.phase = 'lost'; S.phaseT = 0; return; }
-  S.timeLeft = L().time;
-  newSum();
-}
-
-function putIn(row) {
-  if (S.held < 0 || S.done) return;
-  if (S.slot[row] >= 0) return;
-  const v = S.rack[S.held].v;
-  if (v !== S.parts[row]) {
-    S.bad = row; S.badT = 1; S.shake = .14;
-    sfx.nope();
-    toast.say('این پلاک به این سطر نمی‌خورَد.', 'bad');
-    return;
-  }
-  S.rack[S.held].used = true;
-  S.slot[row] = S.held;
-  S.held = -1;
-  sfx.place();
-  const b = rowBox(row);
-  bits.add(b.x + 120, b.y + b.h / 2, 10, 'dot', [P.brassLt, P.gold],
-    { speed: 140, lift: 40, size: 3, life: .5, grav: 280 });
-  if (S.tut.on && S.tut.step === 1) { S.tut.step = 2; S.tut.t = 0; }
-  if (allSet()) finish();
-}
-
-function takeOut(row) {
-  if (S.done) return;
-  const i = S.slot[row];
-  if (i < 0) return;
-  S.rack[i].used = false;
-  S.slot[row] = -1;
-  sfx.tap();
-}
-
-function finish() {
-  S.done = .001; S.doneT = 0;
-  S.sum = S.a * S.b;
-  S.sumT = .001;
-  S.combo++;
-  S.cleared++;
-  S.score += 340 + S.parts.length * 120 + Math.round(S.timeLeft * 4) + Math.min(S.combo, 6) * 70;
-  if (S.score > S.best) { S.best = S.score; saveBest(S.best); }
-  bits.confetti(BOOK.x + BOOK.w / 2, BOOK.y + 520, 46, [P.gold, P.brassLt, P.red, '#fff']);
-  sfx.win();
-  toast.say('دفتر بسته شد!', 'good');
-  if (S.tut.on) S.tut.on = false;
-  if (!L().endless && S.cleared >= S.quota) { S.score += 800; S.phase = 'won'; S.phaseT = 0; }
-}
+whenFontsReady(() => runLoop(step));
 
 /* ───────── ورودی ───────── */
 
-const TUT_TAP = [0, 2], TUT_LAST = 2;
-
 cv.addEventListener('pointermove', (e) => {
   const p = toStage(e);
-  if (S.phase !== 'play') { S.hover = inRect(p, BTN_GO) ? BTN_GO : null; cv.style.cursor = S.hover ? 'pointer' : 'default'; return; }
-  if (S.held >= 0) { S.hx = p.x; S.hy = p.y; return; }
   S.hover = null;
-  for (let i = 0; i < S.parts.length; i++) if (inRect(p, rowBox(i))) S.hover = { k: 'row', i };
-  for (let i = 0; i < S.rack.length; i++) if (!S.rack[i].used && inRect(p, rackSlot(i))) S.hover = { k: 'rack', i };
+  for (let i = 0; i < ITEMS.length; i++) if (inRect(p, shelfCard(i))) S.hover = { k: 'item', i };
+  if (inRect(p, BTN_POUR)) S.hover = { k: 'pour' };
+  if (inRect(p, BTN_ZERO)) S.hover = { k: 'zero' };
+  if (inRect(p, BTN_OK)) S.hover = { k: 'ok' };
+  if (inRect(p, BTN_CARE)) S.hover = { k: 'care' };
+  if (inRect(p, BTN_NEW)) S.hover = { k: 'new' };
+  for (let k = 0; k < 3; k++) for (let c = 0; c < 3; c++) if (inRect(p, swatch(k, c))) S.hover = { k: 'sw', r: k, c };
   cv.style.cursor = S.hover ? 'pointer' : 'default';
 });
 
 cv.addEventListener('pointerdown', (e) => {
   const p = toStage(e);
-  if (S.phase === 'intro') { startLevel(0); return; }
-  if (S.phase === 'won') {
-    if (!inRect(p, BTN_GO)) return;
-    if (L().endless) startLevel(S.level, true);
-    else if (S.level + 1 < LEVELS.length) startLevel(S.level + 1, true);
-    else startLevel(0);
-    return;
-  }
-  if (S.phase === 'lost') { if (inRect(p, BTN_GO)) startLevel(S.level); return; }
-  if (tutTap(S.tut, TUT_TAP, TUT_LAST)) return;
-  if (S.done) return;
-  if (S.held >= 0) {
-    for (let i = 0; i < S.parts.length; i++) if (inRect(p, rowBox(i))) { putIn(i); return; }
-    S.held = -1; sfx.tap();
-    return;
-  }
-  for (let i = 0; i < S.parts.length; i++) if (inRect(p, rowBox(i)) && S.slot[i] >= 0) { takeOut(i); return; }
-  for (let i = 0; i < S.rack.length; i++) if (!S.rack[i].used && inRect(p, rackSlot(i))) {
-    S.held = i; S.hx = p.x; S.hy = p.y; S.px = p.x; S.py = p.y; sfx.tap();
+  for (let i = 0; i < ITEMS.length; i++) if (inRect(p, shelfCard(i))) { chooseItem(i); return; }
+  if (inRect(p, BTN_ZERO)) { zero(); return; }
+  if (inRect(p, BTN_POUR)) {
+    if (S.item < 0) { tip('اوّل یک خوراکی بردار.'); S.flash = 1; sfx.nope(); return; }
+    if (S.poured) { tip('۱۰۰ گرم آماده است.'); return; }
+    S.pouring = 1;
     try { cv.setPointerCapture(e.pointerId); } catch { /* بعضی مرورگرها */ }
     return;
   }
+  for (let k = 0; k < 3; k++) for (let c = 0; c < 3; c++) if (inRect(p, swatch(k, c))) { markRow(k, c); return; }
+  if (inRect(p, BTN_OK)) { judge(false); return; }
+  if (inRect(p, BTN_CARE)) { judge(true); return; }
+  if (inRect(p, BTN_NEW)) { S.item = -1; S.stepI = 0; zero(); return; }
 });
 
-cv.addEventListener('pointerup', (e) => {
-  if (S.held < 0 || S.phase !== 'play') return;
-  const p = toStage(e);
-  if (Math.hypot(p.x - S.px, p.y - S.py) < 14) return;    /* ضربهٔ ساده: پلاک در دست می‌ماند */
-  for (let i = 0; i < S.parts.length; i++) if (inRect(p, rowBox(i))) { putIn(i); return; }
-  S.held = -1;
-});
-
-cv.addEventListener('pointercancel', () => { S.held = -1; });
+function endPour() { if (S.pouring) { S.pouring = 0; settle(); } }
+cv.addEventListener('pointerup', endPour);
+cv.addEventListener('pointercancel', () => { S.pouring = 0; });
+cv.addEventListener('pointerleave', () => { S.pouring = 0; });
+addEventListener('blur', () => { S.pouring = 0; });
 
 /* ───────── ابزارِ نقاشی ───────── */
 
 function rrPath(x, y, w, h, r) {
-  r = Math.min(r, w / 2, h / 2);
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
   ctx.arcTo(x + w, y + h, x, y + h, r);
@@ -1120,345 +1122,423 @@ function rrPath(x, y, w, h, r) {
 
 function numText(str, x, y, o = {}) {
   ctx.save();
-  ctx.font = `${o.family === 'Vazirmatn' ? (o.weight || 700) : '400'} ${o.size || 20}px "${o.family || 'Lalezar'}", Tahoma, sans-serif`;
+  ctx.direction = 'ltr';
   ctx.textAlign = o.align || 'center';
   ctx.textBaseline = 'middle';
-  ctx.direction = 'ltr';
-  ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
   ctx.fillStyle = o.color || P.ink;
+  ctx.font = `${o.weight || 700} ${o.size || 18}px "${o.family || 'Vazirmatn'}", Tahoma, sans-serif`;
   ctx.fillText(str, x, y);
   ctx.restore();
 }
 
-function spot(rects, alpha) {
+/** عددِ اعشاری با ممیزِ فارسی. */
+function faNum(v, d) {
+  const s = d === 0 ? String(Math.round(v)) : v.toFixed(d).replace(/\.?0+$/, '');
+  return fa(s).replace('.', '٫');
+}
+
+const BAND_C = [P.green, P.amber, P.red];
+const BAND_D = [P.greenD, P.amberD, P.redD];
+const BAND_N = ['سبز', 'زرد', 'قرمز'];
+
+/* ───────── شکلِ خوراکی‌ها ───────── */
+
+function itemIcon(id, s) {
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(0, 0, SCENE_W, SCENE_H);
-  for (const r of rects) rrPath(r.x - 12, r.y - 12, r.w + 24, r.h + 24, 22);
-  ctx.fillStyle = `rgba(40, 28, 12, ${alpha})`;
-  ctx.fill('evenodd');
+  ctx.scale(s, s);
+  const ell = (x, y, rx, ry, rot, col) => {
+    ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, rot || 0, 0, TAU); ctx.fill();
+  };
+  const bottle = (body, cap) => {
+    ctx.fillStyle = body;
+    ctx.beginPath(); rrPath(-8, -8, 16, 22, 4); ctx.fill();
+    ctx.fillStyle = cap; ctx.fillRect(-4, -16, 8, 9);
+  };
+  switch (id) {
+    case 'shir': bottle('#eef4f8', '#4a86c4'); break;
+    case 'ab': bottle('rgba(180,220,235,.85)', '#5aa8c4'); break;
+    case 'nushabe': bottle('#4a2b18', '#c0392b'); break;
+    case 'abmive': bottle('#e8912c', '#7a4a18'); break;
+    case 'doogh': bottle('#f3f6f2', '#7fa356'); break;
+    case 'mast': ctx.fillStyle = '#4a86c4';
+      ctx.beginPath(); ctx.moveTo(-12, -6); ctx.lineTo(12, -6); ctx.lineTo(9, 12); ctx.lineTo(-9, 12); ctx.closePath(); ctx.fill();
+      ell(0, -6, 12, 3.6, 0, '#fbfdff'); break;
+    case 'panir': ctx.fillStyle = '#f7f2df';
+      ctx.beginPath(); ctx.moveTo(-13, 8); ctx.lineTo(-4, -9); ctx.lineTo(13, -9); ctx.lineTo(13, 8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e2d8b8';
+      ctx.beginPath(); ctx.moveTo(-13, 8); ctx.lineTo(-4, -9); ctx.lineTo(-4, 3); ctx.closePath(); ctx.fill(); break;
+    case 'nan': ell(0, 0, 15, 8, -.2, '#d9a441'); ell(-3, -2, 10, 4.4, -.2, '#eec27a'); break;
+    case 'sib': ell(0, 2, 10, 11, 0, '#cf4436'); ell(-3, -2, 4, 4, 0, '#e8837a');
+      ctx.strokeStyle = '#6b4a2c'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(1, -14); ctx.stroke(); break;
+    case 'khiar': ell(0, 0, 5.5, 13, .35, '#5da24e'); ell(-1.4, -2, 2.6, 8, .35, '#8fc97a'); break;
+    case 'morgh': ell(1, 1, 11, 8, -.15, '#c98a5e'); ell(1, 3, 9.4, 4.6, -.15, '#a86a3e'); break;
+    case 'adas': for (const [x, y] of [[-6, -4], [1, -6], [6, -3], [-4, 2], [3, 1], [-1, 7]]) ell(x, y, 3.6, 2.8, .3, '#9b7f3f'); break;
+    case 'chips': ctx.fillStyle = '#e8b25a';
+      for (const [x, y, r] of [[-5, 2, .3], [4, -2, -.4], [0, 6, .1]]) {
+        ctx.save(); ctx.translate(x, y); ctx.rotate(r);
+        ctx.beginPath(); ctx.ellipse(0, 0, 8, 5, 0, 0, TAU); ctx.fill(); ctx.restore(); } break;
+    case 'pofak': ctx.fillStyle = '#e8a13a';
+      for (const [x, y] of [[-6, 2], [2, -3], [6, 4]]) {
+        ctx.beginPath(); ctx.ellipse(x, y, 7, 3.4, .5, 0, TAU); ctx.fill(); } break;
+    case 'shokolat': ctx.fillStyle = '#5b3a22';
+      ctx.beginPath(); rrPath(-13, -8, 26, 17, 3); ctx.fill();
+      ctx.strokeStyle = '#3d2513'; ctx.lineWidth = 1.6;
+      for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(i * 8.6, -8); ctx.lineTo(i * 8.6, 9); ctx.stroke(); }
+      ctx.beginPath(); ctx.moveTo(-13, .5); ctx.lineTo(13, .5); ctx.stroke(); break;
+    case 'biscuit': ell(0, 0, 12, 12, 0, '#d9a962');
+      ctx.fillStyle = '#a87b3c';
+      for (const [x, y] of [[-4, -3], [4, -1], [0, 5], [-5, 4]]) { ctx.beginPath(); ctx.arc(x, y, 1.6, 0, TAU); ctx.fill(); } break;
+    case 'keik': ctx.fillStyle = '#c98a5e';
+      ctx.beginPath(); ctx.moveTo(-12, 10); ctx.lineTo(-9, -4); ctx.lineTo(9, -4); ctx.lineTo(12, 10); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fbf3e6'; ell(0, -5, 11, 5, 0, '#fbf3e6');
+      ell(0, -11, 4, 4, 0, '#cf4436'); break;
+    case 'sosis': ctx.fillStyle = '#c4645c';
+      ctx.beginPath(); rrPath(-14, -5, 28, 11, 5.5); ctx.fill();
+      ctx.fillStyle = '#d98d84';
+      ctx.beginPath(); rrPath(-11, -3.4, 20, 4, 2); ctx.fill(); break;
+    case 'khorma': for (const [x, y] of [[-5, 0], [4, -2], [1, 6]]) ell(x, y, 6.4, 4.4, .4, '#6b3b1e'); break;
+    case 'gerdu': ell(0, 0, 11, 10.6, 0, '#b98a56'); ell(0, 0, 8.4, 8.4, 0, '#d9b183');
+      ctx.strokeStyle = '#9c6d3c'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, 8); ctx.stroke();
+      for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0, -5); ctx.quadraticCurveTo(s * 6, -1, 0, 3); ctx.stroke(); } break;
+    default: ell(0, 0, 10, 10, 0, '#999');
+  }
   ctx.restore();
 }
 
-function tutCard(x, y, w, lines, title) {
-  const h = 26 + (title ? 44 : 0) + lines.length * 30;
-  withShadow(24, 10, .4, () => {
-    ctx.fillStyle = 'rgba(255, 253, 245, .98)';
-    wobbleRect(x, y, w, h + 20, 16, 101, 2.2); ctx.fill();
-  }, '80, 55, 20');
-  ctx.fillStyle = P.red;
-  wobbleRect(x, y, w, 9, 4, 103, 1); ctx.fill();
-  let yy = y + 34;
-  if (title) { text(title, x + w / 2, yy + 6, { size: 25, family: 'Lalezar', color: P.ink }); yy += 44; }
-  for (const l of lines) { text(l, x + w / 2, yy, { size: 18, color: '#7a7164' }); yy += 30; }
-  return h + 20;
-}
+/* ───────── نقاشیِ صحنه ───────── */
 
-/** چینه‌های یک عدد، فشرده — تا ۹ با ۹۰ اشتباه نشود. */
-function chipsOf(cx, cy, v, sc = 1, maxW = 150) {
-  const d = [Math.floor(v / 1000) % 10, Math.floor(v / 100) % 10, Math.floor(v / 10) % 10, v % 10];
-  const items = [];
-  for (let k = 0; k < 4; k++) for (let n = 0; n < d[k]; n++) items.push(k);
-  if (v >= 10000 || items.length > 26) { numText('…', cx, cy, { size: 16, color: P.inkSoft }); return; }
-  let w = 0;
-  for (const k of items) w += PL[k].w * sc + 3 * sc;
-  const s2 = w > maxW ? sc * maxW / w : sc;
-  w = 0;
-  for (const k of items) w += PL[k].w * s2 + 3 * s2;
-  w -= 3 * s2;
-  let x = cx - w / 2;
-  for (const k of items) {
-    const pw = PL[k].w * s2, ph = PL[k].h * s2;
-    x += pw / 2;
-    ctx.fillStyle = PL[k].d;
-    ctx.beginPath(); rrPath(x - pw / 2, cy - ph / 2 + 1.5 * s2, pw, ph, 2 * s2); ctx.fill();
-    ctx.fillStyle = PL[k].c;
-    ctx.beginPath(); rrPath(x - pw / 2, cy - ph / 2, pw, ph, 2 * s2); ctx.fill();
-    x += pw / 2 + 3 * s2;
-  }
-}
-
-/** پلاکِ برنجیِ یک عدد. */
-function plaque(x, y, w, h, v, o = {}) {
-  withShadow(12, 5, .3, () => {
-    ctx.fillStyle = P.brassDk;
-    ctx.beginPath(); rrPath(x, y, w, h, 10); ctx.fill();
-  }, '80, 55, 20');
-  const g = ctx.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, P.brassLt); g.addColorStop(.5, P.brass); g.addColorStop(1, P.brassDk);
-  ctx.fillStyle = g;
-  ctx.beginPath(); rrPath(x + 3, y + 3, w - 6, h - 6, 8); ctx.fill();
-  /* بالا عدد، پایین چینه‌ها — نسبت‌ها با بلندیِ پلاک جور می‌شوند */
-  const band = Math.max(20, h * .34);
-  ctx.fillStyle = 'rgba(47, 42, 36, .12)';
-  ctx.beginPath(); rrPath(x + 10, y + h - band - 6, w - 20, band, 6); ctx.fill();
-  numText(fa(v), x + w / 2, y + (h - band) * .5 + 6, { size: Math.min(30, (h - band) * .62), color: '#3a2c0a' });
-  chipsOf(x + w / 2, y + h - band / 2 - 6, v, Math.min(.9, band / 34), w - 26);
-  for (const dx of [14, w - 14]) {
-    ctx.fillStyle = 'rgba(0,0,0,.28)';
-    ctx.beginPath(); ctx.arc(x + dx, y + 13, 3.4, 0, TAU); ctx.fill();
-  }
-  if (o.ring) {
-    ctx.strokeStyle = o.ring; ctx.lineWidth = 3;
-    ctx.beginPath(); rrPath(x - 3, y - 3, w + 6, h + 6, 12); ctx.stroke();
-  }
-}
-
-/* ───────── پس‌زمینهٔ ثابت ───────── */
-
-function paintShopStatic() {
+function paintBenchStatic() {
   const g = ctx.createLinearGradient(0, 0, 0, SCENE_H);
-  g.addColorStop(0, P.wallHi); g.addColorStop(.5, P.wall); g.addColorStop(1, P.wallLo);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, SCENE_W, SCENE_H);
-  ctx.save();
-  ctx.globalAlpha = .5;
-  ctx.fillStyle = texPaper(P.wall);
-  ctx.fillRect(0, 0, SCENE_W, SCENE_H);
-  ctx.restore();
-  /* طاقچه‌های گچیِ حجره */
-  ctx.save();
-  ctx.globalAlpha = .1;
-  ctx.strokeStyle = P.woodDk; ctx.lineWidth = 3;
-  for (let x = -30; x < SCENE_W + 30; x += 120) {
-    ctx.beginPath();
-    ctx.moveTo(x, SCENE_H); ctx.lineTo(x, 240);
-    ctx.arc(x + 60, 240, 60, Math.PI, 0);
-    ctx.lineTo(x + 120, SCENE_H);
-    ctx.stroke();
+  g.addColorStop(0, P.benchHi); g.addColorStop(1, P.benchLo);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, SCENE_W, SCENE_H);
+  /* کاشیِ آزمایشگاه */
+  ctx.strokeStyle = 'rgba(255,255,255,.045)'; ctx.lineWidth = 2;
+  for (let x = 0; x < SCENE_W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, SCENE_H); ctx.stroke(); }
+  for (let y = 0; y < SCENE_H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(SCENE_W, y); ctx.stroke(); }
+  for (const b of [SHELF, BENCH, LABEL]) {
+    ctx.fillStyle = 'rgba(255, 253, 244, .95)';
+    ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 16); ctx.fill();
+    ctx.strokeStyle = 'rgba(20, 34, 42, .18)'; ctx.lineWidth = 2;
+    ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 16); ctx.stroke();
   }
-  ctx.restore();
-  /* نورِ روز از چپ */
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  const lg = ctx.createRadialGradient(120, 80, 30, 120, 80, 800);
-  lg.addColorStop(0, 'rgba(255, 244, 210, .4)');
-  lg.addColorStop(1, 'rgba(255, 244, 210, 0)');
-  ctx.fillStyle = lg;
-  ctx.fillRect(0, 0, SCENE_W, SCENE_H);
-  ctx.restore();
-  /* پیشخوانِ چوبی */
-  ctx.fillStyle = P.woodDk;
-  ctx.beginPath(); rrPath(BOOK.x - 24, BOOK.y - 20, BOOK.w + 48, BOOK.h + 44, 16); ctx.fill();
-  ctx.fillStyle = texWood(P.wood, P.woodDk);
-  ctx.beginPath(); rrPath(BOOK.x - 18, BOOK.y - 14, BOOK.w + 36, BOOK.h + 32, 12); ctx.fill();
-  /* تختهٔ پلاک‌ها */
-  ctx.fillStyle = P.woodDk;
-  ctx.beginPath(); rrPath(RACK.x - 16, RACK.y - 14, RACK.w + 32, RACK.h + 32, 14); ctx.fill();
-  ctx.fillStyle = texWood('#8c5c2c', '#553618');
-  ctx.beginPath(); rrPath(RACK.x - 10, RACK.y - 8, RACK.w + 20, RACK.h + 20, 10); ctx.fill();
-  ctx.fillStyle = 'rgba(0,0,0,.3)';
-  ctx.fillRect(RACK.x - 10, RACK.y + RACK.h + 12, RACK.w + 20, 8);
 }
 
-/* ───────── صحنه ───────── */
+function drawSteps() {
+  for (let i = 0; i < STEPS.length; i++) {
+    const w = 146, x = SCENE_W - 24 - (i + 1) * (w + 8) + 8, y = 16, h = 44;
+    const on = i === S.stepI, done = i < S.stepI;
+    ctx.fillStyle = on ? P.accent : (done ? 'rgba(79, 163, 184, .28)' : 'rgba(255,255,255,.1)');
+    ctx.beginPath(); rrPath(x, y, w, h, 12); ctx.fill();
+    numText(fa(i + 1), x + w - 20, y + h / 2, { size: 15, color: on ? '#fff' : 'rgba(255,255,255,.6)' });
+    text(STEPS[i].n, x + w / 2 + 6, y + h / 2,
+      { size: 16, family: 'Lalezar', color: on ? '#fff' : 'rgba(255,255,255,.62)' });
+  }
+  /* راهنمای مرحله سمتِ چپ می‌ماند و به نوارِ مرحله‌ها نمی‌خورد */
+  ctx.save();
+  ctx.beginPath(); ctx.rect(16, 12, 350, 52); ctx.clip();
+  text(STEPS[S.stepI].t, 366, 39, { size: 16, color: 'rgba(255,255,255,.82)', align: 'right' });
+  ctx.restore();
+}
+
+function drawShelf() {
+  text('قفسه', SHELF.x + SHELF.w - 16, SHELF.y + 26, { size: 20, family: 'Lalezar', color: P.ink, align: 'right' });
+  for (let i = 0; i < ITEMS.length; i++) {
+    const c = shelfCard(i), it = ITEMS[i];
+    const on = S.item === i, hot = S.hover && S.hover.k === 'item' && S.hover.i === i;
+    const done = S.book.indexOf(i) >= 0;
+    ctx.fillStyle = on ? 'rgba(79, 163, 184, .2)' : (hot ? 'rgba(37,48,42,.07)' : 'rgba(37, 48, 42, .035)');
+    ctx.beginPath(); rrPath(c.x, c.y, c.w, c.h, 10); ctx.fill();
+    ctx.strokeStyle = on ? P.accent : 'rgba(37, 48, 42, .14)'; ctx.lineWidth = on ? 2.6 : 1.2;
+    ctx.beginPath(); rrPath(c.x, c.y, c.w, c.h, 10); ctx.stroke();
+    ctx.save();
+    ctx.translate(c.x + c.w - 26, c.y + c.h / 2);
+    itemIcon(it.id, .92);
+    ctx.restore();
+    text(it.n, c.x + c.w - 48, c.y + c.h / 2, { size: 14, color: P.ink, align: 'right' });
+    if (done) {
+      ctx.strokeStyle = P.good; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(c.x + 10, c.y + c.h / 2); ctx.lineTo(c.x + 15, c.y + c.h / 2 + 5); ctx.lineTo(c.x + 24, c.y + c.h / 2 - 6);
+      ctx.stroke();
+    }
+    if (it.drink) {
+      ctx.fillStyle = 'rgba(79, 163, 184, .22)';
+      ctx.beginPath(); rrPath(c.x + 8, c.y + 6, 34, 16, 8); ctx.fill();
+      text('نوشیدنی', c.x + 25, c.y + 14, { size: 10, color: '#2c6070' });
+    }
+  }
+}
+
+function drawScale() {
+  const b = SCALE;
+  /* کفهٔ ترازو */
+  ctx.fillStyle = P.steelLt;
+  ctx.beginPath(); rrPath(b.x + 40, b.y + 54, b.w - 80, 16, 8); ctx.fill();
+  ctx.fillStyle = P.steel;
+  ctx.beginPath(); rrPath(b.x + 20, b.y + 70, b.w - 40, b.h - 70, 14); ctx.fill();
+  ctx.fillStyle = P.steelDk;
+  ctx.beginPath(); rrPath(b.x + 20, b.y + b.h - 18, b.w - 40, 18, 9); ctx.fill();
+  /* خوراکیِ روی کفه */
+  if (S.item >= 0 && S.pour > 0) {
+    const n = Math.min(14, Math.ceil(S.pour / 8.5));
+    for (let i = 0; i < n; i++) {
+      const a = i * 2.4;
+      ctx.save();
+      ctx.translate(b.x + b.w / 2 + Math.cos(a) * (10 + i * 2.6), b.y + 46 - Math.sin(a) * 6 - i * .6);
+      itemIcon(IT().id, .62);
+      ctx.restore();
+    }
+  }
+  /* صفحهٔ عدد */
+  const dw = 176, dx = b.x + b.w / 2 - dw / 2, dy = b.y + 84;
+  ctx.fillStyle = '#16242b';
+  ctx.beginPath(); rrPath(dx, dy, dw, 46, 8); ctx.fill();
+  const over = S.pour > OK_HI;
+  const exact = S.poured;
+  numText(faNum(S.pour, 1) + ' گرم', dx + dw / 2, dy + 24,
+    { size: 25, family: 'Lalezar', color: exact ? '#7fe08a' : (over ? '#ff9a86' : '#cfe8ef') });
+  /* نوارِ رسیدن به ۱۰۰ — نوارِ سبزِ هدف روی آن دیده می‌شود */
+  const fx = (g2) => dx + dw * clamp(g2 / TOP, 0, 1);
+  ctx.fillStyle = 'rgba(255,255,255,.14)';
+  ctx.beginPath(); rrPath(dx, dy + 52, dw, 10, 5); ctx.fill();
+  ctx.fillStyle = 'rgba(63, 154, 78, .55)';
+  ctx.fillRect(fx(OK_LO), dy + 52, fx(OK_HI) - fx(OK_LO), 10);
+  ctx.fillStyle = 'rgba(200, 64, 44, .4)';
+  ctx.fillRect(fx(OVER), dy + 52, dx + dw - fx(OVER), 10);
+  ctx.save();
+  ctx.beginPath(); rrPath(dx, dy + 52, dw, 10, 5); ctx.clip();
+  ctx.fillStyle = exact ? P.green : (over ? P.red : P.accent);
+  ctx.fillRect(dx, dy + 52, fx(S.pour) - dx, 10);
+  ctx.restore();
+  /* نشانهٔ ۱۰۰ گرم */
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(fx(100), dy + 46); ctx.lineTo(fx(100), dy + 66); ctx.stroke();
+  numText('۱۰۰', fx(100), dy + 70, { size: 12, color: 'rgba(255,255,255,.7)' });
+  if (S.flash > 0) {
+    ctx.save(); ctx.globalAlpha = clamp(S.flash, 0, 1);
+    ctx.strokeStyle = P.bad; ctx.lineWidth = 3;
+    ctx.beginPath(); rrPath(dx - 6, dy - 6, dw + 12, 78, 10); ctx.stroke();
+    ctx.restore();
+  }
+  /* دکمه‌ها */
+  button(BTN_POUR, S.pouring ? 'می‌ریزد…' : 'بریز', {
+    hot: S.hover && S.hover.k === 'pour', fill: '#3c7f8f', hotFill: '#4fa3b8', size: 22 });
+  button(BTN_ZERO, 'صفر کن', {
+    hot: S.hover && S.hover.k === 'zero', fill: '#7a7060', hotFill: '#948a78', size: 22 });
+}
+
+function drawTubes() {
+  for (let k = 0; k < 3; k++) {
+    const b = tube(k), nu = NUTS[k];
+    const drink = S.item >= 0 && IT().drink;
+    const lm = limits(k, drink), g = lm[0], a = lm[1];
+    /* خط‌کشِ رنگی پشتِ لوله — همان مرزهای واقعی */
+    const H = b.h;
+    const yOf = (v) => b.y + H - (clamp(v, 0, nu.max) / nu.max) * H;
+    const segs = [[0, g, 0], [g, a, 1], [a, nu.max, 2]];
+    for (const [v0, v1, c] of segs) {
+      ctx.fillStyle = BAND_C[c];
+      ctx.save(); ctx.globalAlpha = .22;
+      ctx.beginPath(); rrPath(b.x + b.w + 6, yOf(v1), 16, yOf(v0) - yOf(v1), 3); ctx.fill();
+      ctx.restore();
+      ctx.strokeStyle = BAND_D[c]; ctx.lineWidth = 1.2;
+      ctx.beginPath(); rrPath(b.x + b.w + 6, yOf(v1), 16, yOf(v0) - yOf(v1), 3); ctx.stroke();
+    }
+    /* عددِ مرزها */
+    for (const v of [g, a]) {
+      ctx.strokeStyle = 'rgba(37,48,42,.5)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(b.x + b.w + 2, yOf(v)); ctx.lineTo(b.x + b.w + 26, yOf(v)); ctx.stroke();
+      numText(faNum(v, 1), b.x + b.w + 40, yOf(v), { size: 12, color: P.inkSoft });
+    }
+    /* خودِ لوله */
+    ctx.fillStyle = 'rgba(206, 232, 239, .35)';
+    ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 10); ctx.fill();
+    /* پرشدگی */
+    if (S.item >= 0 && S.poured) {
+      const v = vals()[k] * clamp(S.tubes, 0, 1);
+      const hh = (clamp(v, 0, nu.max) / nu.max) * H;
+      const band = bandOf(k, vals()[k], IT().drink);
+      ctx.save();
+      ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 10); ctx.clip();
+      ctx.fillStyle = ['#e8e4d8', '#f0e2c0', '#d8c9a8'][k];
+      ctx.fillRect(b.x, b.y + H - hh, b.w, hh + 4);
+      ctx.fillStyle = 'rgba(0,0,0,.08)';
+      for (let y = b.y + H - hh; y < b.y + H; y += 7) ctx.fillRect(b.x, y, b.w, 2);
+      ctx.restore();
+      /* سطحِ مایع */
+      ctx.strokeStyle = BAND_D[band]; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(b.x - 4, b.y + H - hh); ctx.lineTo(b.x + b.w + 4, b.y + H - hh); ctx.stroke();
+      if (S.tubes >= 1) {
+        const high = hh > H - 34;      /* اگر تا بالا پر شده، عدد را داخلِ لوله بنویس */
+        numText(faNum(vals()[k], 1), b.x + b.w / 2, b.y + H - hh + (high ? 18 : -16),
+          { size: 16, family: 'Lalezar', color: high ? '#5a4a2a' : P.ink });
+      }
+    }
+    ctx.strokeStyle = 'rgba(90, 120, 130, .6)'; ctx.lineWidth = 2.4;
+    ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 10); ctx.stroke();
+    text(nu.n, b.x + b.w / 2, b.y + b.h + 22, { size: 17, family: 'Lalezar', color: P.ink });
+  }
+  const capY = BENCH.y + 316;
+  if (S.item >= 0 && IT().drink) {
+    text('در هر ۱۰۰ میلی‌لیتر', BENCH.x + BENCH.w / 2, capY, { size: 13, color: '#2c6070' });
+  } else {
+    text('در هر ۱۰۰ گرم', BENCH.x + BENCH.w / 2, capY, { size: 13, color: P.inkSoft });
+  }
+  drawPortion();
+}
+
+/* ───────── یک وعدهٔ واقعی ─────────
+   برچسب همیشه «در هر ۱۰۰ گرم» را می‌گوید، ولی کسی ۱۰۰ میلی‌لیتر نوشابه
+   نمی‌خورد؛ یک قوطیِ کامل می‌خورد. این تکّه همان را نشان می‌دهد و
+   حبّه‌های قند را می‌شمارد — یک حبّهٔ قند حدودِ ۴ گرم است.            */
+
+const CUBE_G = 4;
+
+function drawPortion() {
+  const b = PORTION;
+  ctx.fillStyle = 'rgba(201, 150, 44, .1)';
+  ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 10); ctx.fill();
+  if (S.item < 0 || !S.poured || S.tubes < 1) {
+    text('یک وعدهٔ واقعی، بعد از پر شدنِ لوله‌ها', b.x + b.w / 2, b.y + b.h / 2,
+      { size: 13, color: 'rgba(37,48,42,.35)' });
+    return;
+  }
+  const it = IT();
+  const sug = it.v[1] * it.por / 100;
+  const unit = it.drink ? 'میلی‌لیتر' : 'گرم';
+  text('یک ' + it.porN + ' = ' + fa(it.por) + ' ' + unit, b.x + b.w - 14, b.y + 19,
+    { size: 14, color: P.ink, align: 'right' });
+  numText('قند: ' + faNum(sug, 1) + ' گرم', b.x + b.w - 156, b.y + 19,
+    { size: 14, color: sug >= 20 ? P.redD : P.inkSoft, align: 'right' });
+  /* حبّه‌های قند */
+  const n = Math.min(14, Math.round(sug / CUBE_G));
+  for (let i = 0; i < n; i++) {
+    const x = b.x + 14 + i * 20, y = b.y + 32;
+    ctx.fillStyle = '#fbfaf2';
+    ctx.beginPath(); rrPath(x, y, 16, 14, 3); ctx.fill();
+    ctx.strokeStyle = '#b8ae94'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); rrPath(x, y, 16, 14, 3); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x + 2, y + 4); ctx.lineTo(x + 13, y + 4); ctx.stroke();
+  }
+  if (n === 0) {
+    text('تقریباً بدونِ قند', b.x + 14, b.y + 39, { size: 13, color: P.green, align: 'left' });
+  } else {
+    numText('≈ ' + fa(n) + ' حبّه قند', b.x + 30 + n * 20, b.y + 39,
+      { size: 13, color: P.inkSoft, align: 'left' });
+  }
+}
+
+function drawLabel() {
+  text('برچسبِ سیبِ سلامت', LABEL.x + LABEL.w - 18, LABEL.y + 30,
+    { size: 21, family: 'Lalezar', color: P.ink, align: 'right' });
+  /* سیب */
+  ctx.save();
+  ctx.translate(LABEL.x + 44, LABEL.y + 30);
+  ctx.fillStyle = '#cf4436';
+  ctx.beginPath(); ctx.arc(0, 2, 13, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#6b4a2c'; ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(1, -18); ctx.stroke();
+  ctx.fillStyle = '#5da24e';
+  ctx.beginPath(); ctx.ellipse(8, -15, 7, 3.6, -.5, 0, TAU); ctx.fill();
+  ctx.restore();
+
+  if (S.item < 0) {
+    text('اوّل یک خوراکی از قفسه بردار.', LABEL.x + LABEL.w / 2, LABEL.y + 200,
+      { size: 16, color: 'rgba(37,48,42,.4)' });
+    return;
+  }
+  text(IT().n, LABEL.x + LABEL.w / 2, LABEL.y + 74, { size: 22, family: 'Lalezar', color: P.accent });
+
+  for (let k = 0; k < 3; k++) {
+    const r = labRow(k), got = S.mark[k];
+    ctx.fillStyle = got >= 0 ? BAND_C[got] : 'rgba(37, 48, 42, .05)';
+    ctx.save();
+    if (got >= 0) ctx.globalAlpha = .2 + .8 * clamp(S.markT[k], 0, 1) * .35;
+    ctx.beginPath(); rrPath(r.x, r.y, r.w, r.h, 12); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = got >= 0 ? BAND_D[got] : 'rgba(37, 48, 42, .16)';
+    ctx.lineWidth = got >= 0 ? 3 : 1.4;
+    ctx.beginPath(); rrPath(r.x, r.y, r.w, r.h, 12); ctx.stroke();
+    text(NUTS[k].n, r.x + r.w - 16, r.y + 26, { size: 19, family: 'Lalezar', color: P.ink, align: 'right' });
+    if (S.poured && S.tubes >= 1) {
+      numText(faNum(vals()[k], 1) + ' گرم', r.x + r.w - 84, r.y + 26, { size: 15, color: P.inkSoft, align: 'right' });
+    }
+    /* سه رنگ برای انتخاب */
+    for (let c = 0; c < 3; c++) {
+      const sb = swatch(k, c);
+      const on = got === c;
+      const hot = S.hover && S.hover.k === 'sw' && S.hover.r === k && S.hover.c === c;
+      ctx.fillStyle = on ? BAND_C[c] : (hot ? BAND_C[c] : 'rgba(255,255,255,.9)');
+      ctx.save();
+      if (!on && !hot) ctx.globalAlpha = .55;
+      ctx.beginPath(); rrPath(sb.x, sb.y, sb.w, sb.h, 8); ctx.fill();
+      ctx.restore();
+      ctx.strokeStyle = BAND_D[c]; ctx.lineWidth = on ? 3 : 1.6;
+      ctx.beginPath(); rrPath(sb.x, sb.y, sb.w, sb.h, 8); ctx.stroke();
+      text(BAND_N[c], sb.x + sb.w / 2, sb.y + sb.h / 2, { size: 13, color: on ? '#fff' : BAND_D[c] });
+    }
+    if (S.wrong[k] > 0) {
+      ctx.save(); ctx.globalAlpha = clamp(S.wrong[k], 0, 1);
+      ctx.strokeStyle = P.bad; ctx.lineWidth = 3;
+      ctx.beginPath(); rrPath(r.x - 4, r.y - 4, r.w + 8, r.h + 8, 14); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  /* قانون */
+  const ry = LABEL.y + 450;
+  ctx.fillStyle = 'rgba(201, 150, 44, .14)';
+  ctx.beginPath(); rrPath(LABEL.x + 20, ry - 16, LABEL.w - 40, 32, 8); ctx.fill();
+  text('یک قرمز، یا دو زرد ⟵ احتیاط', LABEL.x + LABEL.w / 2, ry, { size: 15, color: '#8a6a12' });
+
+  const ready = S.mark.every((m) => m >= 0);
+  const v = S.verdict;
+  /* بعد از حکم، فقط دکمهٔ انتخاب‌شده رنگ می‌گیرد */
+  const btnFill = (mine) => {
+    if (v) return v.pick === mine ? (v.ok ? P.good : P.bad) : '#9aa39c';
+    if (!ready) return '#8a9285';
+    return mine ? '#b07a2a' : '#4e7f4a';
+  };
+  button(BTN_OK, 'سالم است', {
+    hot: S.hover && S.hover.k === 'ok', fill: btnFill(false), hotFill: '#63a05b', size: 20 });
+  button(BTN_CARE, 'احتیاط', {
+    hot: S.hover && S.hover.k === 'care', fill: btnFill(true), hotFill: '#cf9438', size: 20 });
+  if (v && v.ok) {
+    text(v.pick ? 'درست — برچسبش می‌گوید احتیاط.' : 'درست — برچسبش قرمز یا دو زرد ندارد.',
+      LABEL.x + LABEL.w / 2, LABEL.y + 548, { size: 15, color: P.good });
+  }
+  button(BTN_NEW, 'خوراکیِ تازه', {
+    hot: S.hover && S.hover.k === 'new', fill: '#5c6870', hotFill: '#77848d', size: 19 });
+}
 
 function draw() {
-  beginScene(P.wall);
+  beginScene(P.benchLo);
   ctx.save();
   if (S.shake > 0) {
     const k = S.shake * 10;
     ctx.translate(Math.sin(S.t * 55) * k, Math.cos(S.t * 43) * k * .4);
   }
-  ctx.drawImage(staticLayer('shop', SCENE_W, SCENE_H, paintShopStatic), 0, 0, SCENE_W, SCENE_H);
-  drawBook();
-  drawRack();
+  const layer = staticLayer('bench', SCENE_W, SCENE_H, paintBenchStatic);
+  ctx.drawImage(layer, 0, 0, SCENE_W, SCENE_H);
+  drawSteps();
+  drawShelf();
+  drawScale();
+  drawTubes();
+  drawLabel();
   bits.draw();
-  if (S.held >= 0) plaque(S.hx - 93, S.hy - 46, 186, 92, S.rack[S.held].v);
   ctx.restore();
-
-  drawHUD();
-  if (!(S.phase === 'play' && S.tut.on)) toast.draw(HUD_H + 8, { good: P.good, bad: P.bad, info: P.card, ink: P.ink });
-  if (S.phase === 'play' && S.tut.on) drawTutorial();
-  if (S.phase === 'intro') drawIntro();
-  if (S.phase === 'won') drawWon();
-  if (S.phase === 'lost') drawLost();
-  endScene(.13, 'rgba(80, 52, 16, .3)', .28, .1);
-}
-
-function drawBook() {
-  paper(BOOK.x, BOOK.y, BOOK.w, BOOK.h, P.card, 21, 12, .3);
-  ctx.strokeStyle = 'rgba(181, 67, 47, .3)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(BOOK.x + 30, BOOK.y + 18); ctx.lineTo(BOOK.x + 30, BOOK.y + BOOK.h - 18); ctx.stroke();
-  text('دفترِ حجره', BOOK.x + BOOK.w - 30, BOOK.y + 36, { size: 21, family: 'Lalezar', color: P.ink, align: 'right' });
-
-  const right = BOOK.x + BOOK.w - 90;      /* ستونِ راست‌چینِ عددها */
-  /* عددِ بالا و ضرب‌کننده */
-  numText(fa(S.b), right, BOOK.y + 108, { size: 52, color: P.ink, align: 'right' });
-  numText('×', right - 170, BOOK.y + 176, { size: 34, color: P.red, align: 'right' });
-  numText(fa(S.a), right, BOOK.y + 178, { size: 52, color: P.ink, align: 'right' });
-  ctx.strokeStyle = P.ink; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(BOOK.x + 46, BOOK.y + 214); ctx.lineTo(right + 14, BOOK.y + 214); ctx.stroke();
-
-  for (let i = 0; i < S.parts.length; i++) {
-    const b = rowBox(i);
-    const k = S.places[i];
-    const dIdx = S.dig.length - 1 - k;
-    const hot = S.hover && S.hover.k === 'row' && S.hover.i === i;
-    const filledOK = S.slot[i] >= 0;
-    /* برچسبِ سطر: کدام تکّهٔ ضرب */
-    ctx.fillStyle = 'rgba(47, 42, 36, .05)';
-    ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 10); ctx.fill();
-    if (!filledOK) {
-      ctx.strokeStyle = hot || S.held >= 0 ? P.red : 'rgba(47, 42, 36, .2)';
-      ctx.lineWidth = 2; ctx.setLineDash([8, 7]);
-      ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 10); ctx.stroke();
-      ctx.setLineDash([]);
-    }
-    numText(fa(S.a) + ' × ' + fa(S.dig[dIdx] * Math.pow(10, k)), b.x + 96, b.y + b.h / 2,
-      { size: 24, color: filledOK ? P.inkSoft : P.red });
-    if (filledOK) {
-      plaque(b.x + b.w - 208, b.y + 2, 186, b.h - 4, S.rack[S.slot[i]].v,
-        { ring: hot ? P.red : null });
-    } else {
-      text('پلاکِ این سطر', b.x + b.w - 116, b.y + b.h / 2, { size: 16, color: 'rgba(47, 42, 36, .35)' });
-    }
-    if (S.bad === i && S.badT > 0) {
-      ctx.save();
-      ctx.globalAlpha = clamp(S.badT, 0, 1);
-      ctx.strokeStyle = P.bad; ctx.lineWidth = 4;
-      ctx.beginPath(); rrPath(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 12); ctx.stroke();
-      ctx.restore();
-    }
-  }
-  /* خطِ جمع و جوابِ نهایی */
-  const ly = BOOK.y + 258 + S.parts.length * ROW_H + 4;
-  ctx.strokeStyle = P.ink; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(BOOK.x + 46, ly); ctx.lineTo(right + 14, ly); ctx.stroke();
-  numText('+', BOOK.x + 60, ly - 34, { size: 30, color: P.red, align: 'left' });
-  if (S.done) {
+  if (S.tipT > 0) {
     ctx.save();
-    ctx.globalAlpha = clamp(S.sumT, 0, 1);
-    numText(fa(S.sum), right, ly + 52, { size: 56, color: P.red, align: 'right' });
-    ctx.restore();
-  } else {
-    text('جمعِ سطرها', right - 40, ly + 52, { size: 17, color: 'rgba(47, 42, 36, .3)', align: 'right' });
-  }
-}
-
-function drawRack() {
-  text('تختهٔ پلاک', RACK.x + RACK.w - 18, RACK.y + 34,
-    { size: 21, family: 'Lalezar', color: P.card, align: 'right' });
-  for (let i = 0; i < S.rack.length; i++) {
-    const b = rackSlot(i);
-    if (S.rack[i].used || S.held === i) {
-      ctx.strokeStyle = 'rgba(255, 253, 245, .25)'; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
-      ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 10); ctx.stroke();
-      ctx.setLineDash([]);
-      continue;
-    }
-    const hot = S.hover && S.hover.k === 'rack' && S.hover.i === i;
-    plaque(b.x, b.y - (hot ? 5 : 0), b.w, b.h, S.rack[i].v, { ring: hot ? P.card : null });
-  }
-}
-
-function drawHUD() {
-  ctx.fillStyle = 'rgba(47, 42, 36, .94)';
-  ctx.fillRect(0, 0, SCENE_W, HUD_H);
-  ctx.fillStyle = P.red;
-  ctx.fillRect(0, HUD_H - 3, SCENE_W, 3);
-  text(L().name, SCENE_W - 24, HUD_H / 2, { size: 23, family: 'Lalezar', color: P.card, align: 'right' });
-  for (let i = 0; i < 3; i++) {
-    const x = SCENE_W - 246 - i * 30;
-    ctx.save();
-    ctx.globalAlpha = i < S.seals ? 1 : .22;
-    ctx.fillStyle = i < S.seals ? P.red : '#7d766c';
-    ctx.beginPath(); ctx.arc(x, HUD_H / 2, 11, 0, TAU); ctx.fill();
-    ctx.fillStyle = i < S.seals ? '#f6d9cf' : '#a09a90';
-    ctx.beginPath(); ctx.arc(x, HUD_H / 2, 5, 0, TAU); ctx.fill();
+    ctx.globalAlpha = clamp(S.tipT, 0, 1);
+    const w = 520;
+    paper(SCENE_W / 2 - w / 2, SCENE_H - 62, w, 44, P.paper, 51, 12, .3);
+    text(S.tip, SCENE_W / 2, SCENE_H - 40, { size: 16, color: P.ink });
     ctx.restore();
   }
-  if (!L().endless) {
-    numText(fa(Math.min(S.cleared, L().quota)) + ' / ' + fa(L().quota), SCENE_W / 2, HUD_H / 2, { size: 22, color: P.gold });
-  } else {
-    text('بی‌پایان', SCENE_W / 2, HUD_H / 2, { size: 22, family: 'Lalezar', color: P.gold });
-  }
-  numText(fa(S.score), 24, HUD_H / 2, { size: 25, color: P.gold, align: 'left' });
-  numText('بیشترین ' + fa(S.best), 140, HUD_H / 2 + 1,
-    { size: 14, color: 'rgba(255, 253, 245, .5)', align: 'left', family: 'Vazirmatn', weight: 700 });
-  if (S.combo > 1) numText('×' + fa(S.combo), 248, HUD_H / 2, { size: 22, color: P.gold, align: 'left' });
-  const k = clamp(S.timeLeft / L().time, 0, 1);
-  ctx.fillStyle = 'rgba(0,0,0,.4)';
-  ctx.beginPath(); rrPath(SCENE_W / 2 - 150, HUD_H - 10, 300, 5, 3); ctx.fill();
-  ctx.fillStyle = k > .3 ? P.gold : P.red;
-  ctx.beginPath(); rrPath(SCENE_W / 2 - 150, HUD_H - 10, 300 * k, 5, 3); ctx.fill();
-}
-
-function drawTutorial() {
-  const st = S.tut.step;
-  if (st === 0) {
-    spot([{ x: BOOK.x + 30, y: BOOK.y + 70, w: BOOK.w - 60, h: 160 }], .74);
-    const h = tutCard(700, 300, 480,
-      ['دفتر ضرب را می‌شکند:', 'هر سطر یک تکّه از آن است.'], 'حجرهٔ حساب');
-    tutMore(940, 300 + h + 8, S.t, P.ink);
-  } else if (st === 1) {
-    spot([{ x: RACK.x, y: RACK.y, w: RACK.w, h: RACK.h },
-          { x: rowBox(0).x, y: rowBox(0).y - 6, w: rowBox(0).w, h: S.parts.length * ROW_H }], .72);
-    tutCard(60, 84, 620, ['سطر می‌گوید کدام تکّه را می‌خواهد؛',
-      'پلاکِ درست را از تخته بردار و همان‌جا بگذار.']);
-  } else {
-    spot([{ x: RACK.x, y: RACK.y, w: RACK.w, h: RACK.h }], .74);
-    const h = tutCard(60, 200, 620,
-      ['روی هر پلاک، هم عدد هست هم چینه‌هایش.',
-       'اگر بینِ ۹ و ۹۰ شک کردی، چینه‌ها را بشمار.',
-       'جمعِ آخر را خودِ دفتر می‌زند.'], 'چینه‌ها را بشمار');
-    tutMore(370, 200 + h + 8, S.t, P.ink);
-  }
-}
-
-/* ───────── پرده‌ها ───────── */
-
-function bookIcon(x, y) {
-  ctx.fillStyle = P.card;
-  ctx.beginPath(); rrPath(x - 52, y - 30, 104, 60, 6); ctx.fill();
-  ctx.strokeStyle = P.ink; ctx.lineWidth = 2.4;
-  ctx.beginPath(); rrPath(x - 52, y - 30, 104, 60, 6); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x - 40, y - 4); ctx.lineTo(x + 40, y - 4); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x - 40, y + 16); ctx.lineTo(x + 40, y + 16); ctx.stroke();
-  numText('۲۳۴', x + 30, y - 17, { size: 17, color: P.ink, align: 'right' });
-  numText('۹۰', x + 30, y + 6, { size: 15, color: P.red, align: 'right' });
-  numText('۷۰۲', x + 30, y + 26, { size: 17, color: P.red, align: 'right' });
-}
-
-function drawIntro() {
-  overlay({
-    t: S.phaseT, w: 800, h: 300, y: 128,
-    paper: P.paper, band: P.red, ink: P.ink, inkSoft: '#7a7164',
-    icon: bookIcon,
-    title: 'حجرهٔ حساب',
-    body: 'دفتر ضرب را می‌شکند: هر سطر یک تکّه است — ۳×۴، ۳×۳۰، ۳×۲۰۰.\nپلاکِ درستِ هر سطر را از تختهٔ کنار بردار و همان‌جا بگذار.\nروی پلاک هم عدد هست هم چینه‌ها؛ ۹ با ۹۰ فرق دارد.',
-    btn: BTN_GO, btnLabel: 'دفتر را باز کن', btnHot: S.hover === BTN_GO,
-    btnFill: '#b5432f', btnHotFill: '#cb5540',
-  });
-}
-
-function drawWon() {
-  const last = S.level + 1 >= LEVELS.length;
-  overlay({
-    t: S.phaseT, w: 720, h: 250, y: 160,
-    paper: P.paper, band: P.gold, ink: P.ink, inkSoft: '#7a7164',
-    icon: bookIcon,
-    title: L().endless ? 'بازار بسته شد' : 'همهٔ حساب‌ها بسته شد!',
-    body: 'امتیاز: ' + fa(S.score) + (last ? '\nهمهٔ حجره‌ها را گرداندی. از اوّل؟' : ''),
-    btn: BTN_GO, btnLabel: last ? 'دوباره' : 'حسابِ بعد', btnHot: S.hover === BTN_GO,
-    btnFill: '#b5432f', btnHotFill: '#cb5540',
-  });
-}
-
-function drawLost() {
-  overlay({
-    t: S.phaseT, w: 720, h: 250, y: 160,
-    paper: P.paper, band: P.bad, ink: P.ink, inkSoft: '#7a7164',
-    icon: (x, y) => {
-      ctx.fillStyle = '#8a8378';
-      ctx.beginPath(); ctx.arc(x - 54, y, 15, 0, TAU); ctx.fill();
-      bookIcon(x + 16, y);
-    },
-    title: 'مهرها تمام شد',
-    body: 'امتیاز: ' + fa(S.score) + '\nچینه‌های روی پلاک را بشمار تا جای صفر گم نشود.',
-    btn: BTN_GO, btnLabel: 'دوباره', btnHot: S.hover === BTN_GO,
-    btnFill: '#b5432f', btnHotFill: '#cb5540',
-  });
+  endScene(.09, 'rgba(10, 22, 30, .42)', .3, .12);
 }
 
 </script>
