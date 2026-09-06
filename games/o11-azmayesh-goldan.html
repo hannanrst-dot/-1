@@ -1,0 +1,1754 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a2418">
+<title>گلدانِ شیشه‌ای — بکارید و ببینید (آزمایش)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;700;900&display=swap">
+<style>
+  /* صفحه نباید هیچ‌جا اسکرول یا زوم شود؛ بازی باید مثل یک برنامه رفتار کند. */
+  html, body {
+    margin: 0; padding: 0; background: #1a2418;
+    overflow: hidden; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    position: fixed; inset: 0;          /* جلوی کشیده‌شدنِ صفحه در سافاریِ گوشی */
+    width: 100%; height: 100vh; height: 100dvh;
+  }
+  canvas {
+    display: block; width: 100%; height: 100%;
+    touch-action: none; -webkit-touch-callout: none;
+  }
+
+  /* گوشیِ عمودی صحنه را ریز می‌کند؛ بچه باید گوشی را بچرخاند. */
+  #rotate { display: none; }
+  @media (orientation: portrait) and (max-width: 860px) {
+    #stage { display: none; }
+    #rotate {
+      display: flex; position: fixed; inset: 0;
+      z-index: 9;
+      flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+      background: #1a2418; color: #f6ead2;
+      font: 700 20px "Vazirmatn", Tahoma, sans-serif; text-align: center; padding: 32px;
+    }
+    #rotate svg { animation: tilt 2.4s ease-in-out infinite; }
+    @keyframes tilt { 0%, 45% { transform: rotate(0deg); } 65%, 100% { transform: rotate(-90deg); } }
+  }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="rotate">
+  <svg width="86" height="126" viewBox="0 0 86 126" fill="none" aria-hidden="true">
+    <rect x="3" y="3" width="80" height="120" rx="12" stroke="#e8b448" stroke-width="5"/>
+    <rect x="15" y="19" width="56" height="88" rx="5" fill="#e8b448" opacity=".28"/>
+    <circle cx="43" cy="115" r="4" fill="#e8b448"/>
+  </svg>
+  <div>گوشی را بچرخان</div>
+  <div style="font-weight:400;opacity:.7;font-size:16px">این بازی خوابیده بازی می‌شود</div>
+</div>
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════════════
+   هستهٔ مشترکِ بازی‌ها — سبک «کاغذبُری»
+   ───────────────────────────────────────────────────────────────────────
+   این فایل جعبه‌ابزار است، نه چارچوب: هر بازی حلقه و وضعیت خودش را دارد
+   و فقط از این توابع برای کشیدن استفاده می‌کند. دلیلش این است که هر بازی
+   باید حس‌وحال خودش را داشته باشد، نه اینکه همه شبیه هم دربیایند.
+
+   قاعده‌های ثابتِ تصویری:
+   • نور همیشه از بالا-چپ می‌تابد، پس سایه‌ها به پایین-راست می‌افتند.
+   • هیچ لبه‌ای کاملاً صاف نیست؛ همه کمی موج دارند (انگار با قیچی بریده).
+   • هیچ خاکستریِ خالصی نداریم؛ همه‌ی خنثی‌ها به گرمیِ صحنه می‌زنند.
+   • یک لایه‌ی دانه‌دانه‌ی کاغذ روی کلِ تصویر ضرب می‌شود.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const FA_D = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+const fa = (n) => String(n).replace(/\d/g, (d) => FA_D[+d]);
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+const easeIn = (t) => t * t * t;
+const easeInOut = (t) => (t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2);
+const easeBack = (t) => 1 + 2.7 * Math.pow(t-1, 3) + 1.7 * Math.pow(t-1, 2);
+const easeElastic = (t) => t === 0 || t === 1 ? t : Math.pow(2, -9*t) * Math.sin((t*10 - .75) * 2.094) + 1;
+
+/** تصادفِ تکرارپذیر: با یک بذر همیشه همان عدد. برای اینکه تزئین‌ها هر فریم نپرند. */
+function noise1(x) {
+  const s = Math.sin(x * 127.1) * 43758.5453;
+  return s - Math.floor(s);
+}
+const pick = (arr, seed) => arr[Math.floor(noise1(seed) * arr.length) % arr.length];
+
+/* ───────── بوم و صحنهٔ ثابت ───────── */
+
+let ctx, SW, SH, CV, _refit = null;
+let view = { scale: 1, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
+let _grain = null, _grainDark = null;
+
+function initStage(canvas, w, h) {
+  CV = canvas; SW = w; SH = h;
+  ctx = canvas.getContext('2d');
+
+  /* اندازه را از خودِ بوم می‌گیریم نه از innerHeight؛ چون در سافاریِ گوشی
+     نوارِ آدرس باز و بسته می‌شود و innerHeight دروغ می‌گوید. */
+  const fit = () => {
+    const r = canvas.getBoundingClientRect();
+    const vw = Math.round(r.width), vh = Math.round(r.height);
+    if (vw < 20 || vh < 20) return;
+    const dpr = Math.min(devicePixelRatio || 1, QUALITY > 0 ? 2 : 1);
+    canvas.width = Math.round(vw * dpr);
+    canvas.height = Math.round(vh * dpr);
+    const scale = Math.min(vw / SW, vh / SH);
+    view = { scale, ox: (vw - SW*scale)/2, oy: (vh - SH*scale)/2, w: vw, h: vh, dpr };
+    _grain = buildGrain();
+  };
+  _refit = fit;
+  addEventListener('resize', fit);
+  /* چرخاندنِ گوشی: اندازهٔ درست چند لحظه بعد می‌رسد، پس چندبار اندازه می‌گیریم. */
+  addEventListener('orientationchange', () => {
+    fit(); setTimeout(fit, 140); setTimeout(fit, 460);
+  });
+  if (window.visualViewport) visualViewport.addEventListener('resize', fit);
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(canvas);
+
+  /* صدا در گوشی فقط بعد از اوّلین لمس اجازهٔ پخش دارد. */
+  const unlock = () => { sfx._c(); removeEventListener('pointerdown', unlock); removeEventListener('touchstart', unlock); };
+  addEventListener('pointerdown', unlock, { passive: true });
+  addEventListener('touchstart', unlock, { passive: true });
+  /* نگه‌داشتنِ انگشت نباید منوی مرورگر را باز کند. */
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  fit();
+  return ctx;
+}
+
+/** قابِ صحنه را باز می‌کند: بعد از این، مختصات همیشه در فضای SW×SH است. */
+function beginScene(bg) {
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, view.w, view.h);
+  ctx.save();
+  ctx.translate(view.ox, view.oy);
+  ctx.scale(view.scale, view.scale);
+  ctx.beginPath();
+  ctx.rect(0, 0, SW, SH);
+  ctx.clip();
+}
+
+/* ───────── پوششِ پایانِ قاب ─────────
+   دانه‌های کاغذ و تیرگیِ گوشه‌ها هر دو ثابت‌اند و تغییر نمی‌کنند، ولی
+   قبلاً هر فریم از نو کشیده می‌شدند: یکی با «multiply» روی کلِّ صفحه و
+   یکی با یک گرادیانِ شعاعیِ تازه. اندازه‌گیری نشان داد همین دو تا
+   ۱۱ تا ۱۶ میلی‌ثانیه از هر فریم را می‌خوردند — بیشتر از کشیدنِ خودِ
+   صحنه. حالا یک بار در یک بومِ جدا پخته می‌شوند و هر فریم فقط یک
+   drawImage است.                                                       */
+
+let _ovl = null, _ovlKey = '';
+
+function overlayLayer(grainAlpha, vignette) {
+  const q = Math.min(2, (view.scale || 1) * (view.dpr || 1));
+  const w = Math.max(2, Math.round(SW * q)), h = Math.max(2, Math.round(SH * q));
+  const key = w + 'x' + h + '|' + grainAlpha + '|' + vignette;
+  if (_ovl && _ovlKey === key) return _ovl;
+  let c;
+  try {
+    c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g2 = c.getContext('2d');
+    if (!g2) return null;
+    if (_grainDark && grainAlpha > 0) {
+      /* همان دانه‌ها، ولی به‌جای multiply به شکلِ سیاهِ کم‌رنگ */
+      g2.globalAlpha = clamp(grainAlpha * 1.15, 0, 1);
+      g2.fillStyle = g2.createPattern(_grainDark, 'repeat');
+      g2.fillRect(0, 0, w, h);
+      g2.globalAlpha = 1;
+    }
+    if (vignette) {
+      const g = g2.createRadialGradient(w / 2, h / 2, h * .42, w / 2, h / 2, h * 1.05);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, vignette);
+      g2.fillStyle = g;
+      g2.fillRect(0, 0, w, h);
+    }
+  } catch (e) { return null; }
+  _ovl = c; _ovlKey = key;
+  return c;
+}
+
+/** بافتِ کاغذ، تیرگیِ گوشه‌ها، رنگ‌بندی و درخششِ نور را می‌گذارد و قاب را می‌بندد. */
+function endScene(grainAlpha = .15, vignette = 'rgba(48,28,14,.30)', bloom = .34, grade = .14) {
+  /* درخششِ نور خاموش است. اندازه‌گیری نشان داد هر فریم ۲۱ میلی‌ثانیه
+     می‌گیرد — بیشتر از تمامِ کارهای دیگرِ یک فریم روی هم — چون برای
+     ساختنش باید کلِّ بوم دوباره خوانده شود. از آن بدتر: متنِ فارسی را
+     مه‌آلود می‌کرد و خواندنش را سخت‌تر. بی‌آن، صحنه تمیزتر است. */
+  bloom = 0;
+  if (QUALITY < 1) { grade = 0; grainAlpha *= .5; }
+  if (QUALITY < 2) grade = 0;
+  if (grade > 0) {
+    /* رنگ‌بندیِ نرم: بالای صحنه گرم‌تر، پایین سردتر — عمق می‌دهد */
+    const g = ctx.createLinearGradient(0, 0, 0, SH);
+    g.addColorStop(0, `rgba(255, 214, 150, ${grade})`);
+    g.addColorStop(.55, 'rgba(255, 255, 255, 0)');
+    g.addColorStop(1, `rgba(40, 60, 110, ${grade * .9})`);
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, SW, SH);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  const ov = (grainAlpha > 0 || vignette) ? overlayLayer(grainAlpha, vignette) : null;
+  if (ov) ctx.drawImage(ov, 0, 0, SW, SH);
+  ctx.restore();
+  bloomPass(bloom);
+}
+
+/* ───────── درخششِ نور (bloom) ─────────
+   قابِ رسم‌شده را کوچک می‌کنیم، دو بار در خودش ضرب می‌کنیم تا فقط
+   روشن‌ها بمانند، محوش می‌کنیم و با حالتِ «lighter» رویش می‌گذاریم.
+   نتیجه: چراغ‌ها، شعله‌ها و رنگ‌های روشن نور پخش می‌کنند. */
+let _bl, _blc, _bl2, _bl2c, _blNo = false, _blTick = 0;
+
+function bloomPass(amount) {
+  if (!amount || _blNo || !CV.width) return;
+  /* کوچک‌کردن و بزرگ‌کردنِ دوباره، خودش محو می‌کند — از filter خیلی ارزان‌تر است */
+  const W = Math.max(4, Math.round(CV.width * .2)), H = Math.max(4, Math.round(CV.height * .2));
+  const W2 = Math.max(2, Math.round(W * .28)), H2 = Math.max(2, Math.round(H * .28));
+  try {
+    if (!_bl) {
+      _bl = document.createElement('canvas'); _blc = _bl.getContext('2d');
+      _bl2 = document.createElement('canvas'); _bl2c = _bl2.getContext('2d');
+      if (!_blc || !_bl2c) { _blNo = true; return; }
+    }
+    if (_bl.width !== W || _bl.height !== H) { _bl.width = W; _bl.height = H; }
+    if (_bl2.width !== W2 || _bl2.height !== H2) { _bl2.width = W2; _bl2.height = H2; }
+    /* ساختنِ نور یک قاب در میان کافی است؛ گذاشتنش هر قاب. */
+    _blTick = (_blTick + 1) & 1;
+    if (!_blTick) {
+      _blc.globalCompositeOperation = 'source-over';
+      _blc.clearRect(0, 0, W, H);
+      _blc.drawImage(CV, 0, 0, W, H);
+      _blc.globalCompositeOperation = 'multiply';
+      _blc.drawImage(_bl, 0, 0);
+      _blc.drawImage(_bl, 0, 0);
+      _blc.globalCompositeOperation = 'source-over';
+      _bl2c.clearRect(0, 0, W2, H2);
+      _bl2c.drawImage(_bl, 0, 0, W2, H2);
+    }
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = amount;
+    ctx.drawImage(_bl2, 0, 0, CV.width, CV.height);
+    ctx.restore();
+  } catch (e) { _blNo = true; }
+}
+
+/* ───────── لایهٔ ثابت ─────────
+   هرچه در صحنه تکان نمی‌خورد را یک‌بار می‌کشیم و بعد فقط کپی می‌کنیم. */
+const _layers = {};
+function staticLayer(key, w, h, paint) {
+  const q = Math.min(2, (view.scale || 1) * (view.dpr || 1));
+  const L = _layers[key];
+  if (L && L.q === q && L.w === w && L.h === h) return L.cv;
+  const off = document.createElement('canvas');
+  off.width = Math.max(1, Math.round(w * q));
+  off.height = Math.max(1, Math.round(h * q));
+  const c = off.getContext('2d');
+  c.setTransform(q, 0, 0, q, 0, 0);
+  const prev = ctx;
+  ctx = c;
+  try { paint(); } finally { ctx = prev; }
+  _layers[key] = { cv: off, q, w, h };
+  return off;
+}
+
+/* ───────── نورپردازی و بافت ─────────
+   کارِ این‌ها این است که هیچ سطحی «تختِ یک‌رنگ» نماند. */
+
+/** شیبِ عمودی: بالا روشن، پایین تیره. */
+function vgrad(y0, y1, top, bot) {
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, top); g.addColorStop(1, bot);
+  return g;
+}
+
+/** حجمِ کروی: نور از بالا-چپ، سایه در پایین-راست. */
+function ball(cx, cy, r, lit, base, dark) {
+  const g = ctx.createRadialGradient(cx - r * .38, cy - r * .42, r * .06, cx, cy, r * 1.06);
+  g.addColorStop(0, lit); g.addColorStop(.45, base); g.addColorStop(1, dark);
+  return g;
+}
+
+/** لبهٔ روشنِ بالا-چپِ یک مسیر — همان «rim light». */
+function rim(pathFn, col, w = 2.2) {
+  ctx.save();
+  ctx.beginPath(); pathFn();
+  ctx.clip();
+  ctx.beginPath(); pathFn();
+  ctx.strokeStyle = col; ctx.lineWidth = w * 2; ctx.lineJoin = 'round';
+  ctx.translate(-w * .5, -w * .6);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** سایهٔ چسبیده به زمین — چیزها را روی سطح می‌نشاند. */
+function contact(cx, cy, rx, ry, alpha = .26) {
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(rx, ry));
+  g.addColorStop(0, `rgba(20, 12, 6, ${alpha})`);
+  g.addColorStop(1, 'rgba(20, 12, 6, 0)');
+  ctx.save();
+  ctx.fillStyle = g;
+  ctx.translate(cx, cy); ctx.scale(1, ry / Math.max(rx, ry));
+  ctx.beginPath(); ctx.arc(0, 0, Math.max(rx, ry), 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
+const _tex = {};
+/** بافتِ تکرارشونده؛ یک‌بار ساخته و بعد از حافظه خوانده می‌شود. */
+function texture(key, w, h, paint) {
+  if (_tex[key]) return _tex[key];
+  const off = document.createElement('canvas');
+  off.width = w; off.height = h;
+  const c = off.getContext('2d');
+  paint(c, w, h);
+  _tex[key] = ctx.createPattern(off, 'repeat');
+  return _tex[key];
+}
+
+/** رگهٔ چوب. */
+function texWood(base, grain) {
+  return texture('w' + base + grain, 120, 120, (c, w, h) => {
+    c.fillStyle = base; c.fillRect(0, 0, w, h);
+    c.strokeStyle = grain; c.lineWidth = 1.4;
+    for (let i = 0; i < 9; i++) {
+      c.globalAlpha = .18 + noise1(i * 3.1) * .3;
+      c.beginPath();
+      const y0 = i * 14 + noise1(i) * 6;
+      c.moveTo(0, y0);
+      for (let x = 0; x <= w; x += 10) c.lineTo(x, y0 + Math.sin(x * .09 + i) * 2.6);
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+  });
+}
+
+/** تارِ پارچه. */
+function texCloth(base, thread) {
+  return texture('c' + base + thread, 16, 16, (c, w, h) => {
+    c.fillStyle = base; c.fillRect(0, 0, w, h);
+    c.strokeStyle = thread; c.lineWidth = 1; c.globalAlpha = .5;
+    for (let i = 0; i < w; i += 4) {
+      c.beginPath(); c.moveTo(i, 0); c.lineTo(i, h); c.stroke();
+      c.beginPath(); c.moveTo(0, i); c.lineTo(w, i); c.stroke();
+    }
+    c.globalAlpha = 1;
+  });
+}
+
+/** دانه‌های سنگ. */
+function texStone(base, spec) {
+  return texture('s' + base + spec, 90, 90, (c, w, h) => {
+    c.fillStyle = base; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 260; i++) {
+      c.globalAlpha = .05 + noise1(i * 1.7) * .16;
+      c.fillStyle = spec;
+      const r = .6 + noise1(i * 5.3) * 1.9;
+      c.beginPath();
+      c.arc(noise1(i * 2.1) * w, noise1(i * 3.7 + 1) * h, r, 0, TAU);
+      c.fill();
+    }
+    c.globalAlpha = 1;
+  });
+}
+
+/** الیافِ کاغذ. */
+function texPaper(base) {
+  return texture('p' + base, 100, 100, (c, w, h) => {
+    c.fillStyle = base; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 130; i++) {
+      c.globalAlpha = .04 + noise1(i * 2.3) * .07;
+      c.strokeStyle = i % 2 ? '#ffffff' : '#5a4326';
+      c.lineWidth = .9;
+      const x = noise1(i * 1.3) * w, y = noise1(i * 4.1 + 2) * h;
+      const a = noise1(i * 7.7) * TAU, l = 4 + noise1(i * 9.1) * 12;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); c.stroke();
+    }
+    c.globalAlpha = 1;
+  });
+}
+
+function buildGrain() {
+  const s = 260;
+  const off = document.createElement('canvas');
+  off.width = off.height = s;
+  const c = off.getContext('2d');
+  const img = c.createImageData(s, s);
+  for (let i = 0; i < s*s; i++) {
+    const v = 214 + Math.random() * 41;
+    img.data[i*4] = v; img.data[i*4+1] = v; img.data[i*4+2] = v; img.data[i*4+3] = 255;
+  }
+  c.putImageData(img, 0, 0);
+  /* همان دانه‌ها به شکلِ سیاهِ کم‌رنگ، تا بشود بدونِ multiply گذاشتشان */
+  const d = document.createElement('canvas');
+  d.width = d.height = s;
+  const dc = d.getContext('2d');
+  const dimg = dc.createImageData(s, s);
+  for (let i = 0; i < s*s; i++) {
+    dimg.data[i*4] = 0; dimg.data[i*4+1] = 0; dimg.data[i*4+2] = 0;
+    dimg.data[i*4+3] = 255 - img.data[i*4];
+  }
+  dc.putImageData(dimg, 0, 0);
+  _grainDark = d;
+  _ovl = null; _ovlKey = '';
+  return ctx.createPattern(off, 'repeat');
+}
+
+function toStage(e) {
+  const r = CV.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left - view.ox) / view.scale,
+    y: (e.clientY - r.top - view.oy) / view.scale,
+  };
+}
+
+const inRect = (p, b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+const inCircle = (p, b, pad = 0) => Math.hypot(p.x - b.x, p.y - b.y) <= b.r + pad;
+
+/* ───────── قلم‌های کاغذبُری ───────── */
+
+/** دایره‌ای که انگار با قیچی بریده شده. */
+function wobbleCircle(cx, cy, r, seed = 0, amp = 2.2, steps = 60) {
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * TAU;
+    const rr = r + Math.sin(a*3 + seed) * amp + Math.sin(a*7 + seed*2.3) * amp * .45;
+    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/** بیضیِ ناصاف — برای چیزهایی که گرد نیستند ولی نرم‌اند. */
+function wobbleEllipse(cx, cy, rx, ry, rot = 0, seed = 0, amp = 2, steps = 60) {
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * TAU;
+    const w = 1 + (Math.sin(a*3 + seed) * amp + Math.sin(a*7 + seed*2.3) * amp*.45) / Math.max(rx, ry);
+    const px = Math.cos(a) * rx * w, py = Math.sin(a) * ry * w;
+    const x = cx + px*Math.cos(rot) - py*Math.sin(rot);
+    const y = cy + px*Math.sin(rot) + py*Math.cos(rot);
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/** مستطیلِ گِرد با گوشه‌های کمی کج. */
+function wobbleRect(x, y, w, h, r = 12, seed = 0, amp = 1.6) {
+  const j = (k) => (noise1(seed*9.7 + k) - .5) * amp * 2;
+  ctx.beginPath();
+  ctx.moveTo(x + r + j(1), y + j(2));
+  ctx.lineTo(x + w - r + j(3), y + j(4));
+  ctx.quadraticCurveTo(x + w + j(5), y + j(6), x + w + j(7), y + r + j(8));
+  ctx.lineTo(x + w + j(9), y + h - r + j(10));
+  ctx.quadraticCurveTo(x + w + j(11), y + h + j(12), x + w - r + j(13), y + h + j(14));
+  ctx.lineTo(x + r + j(15), y + h + j(16));
+  ctx.quadraticCurveTo(x + j(17), y + h + j(18), x + j(19), y + h - r + j(20));
+  ctx.lineTo(x + j(21), y + r + j(22));
+  ctx.quadraticCurveTo(x + j(23), y + j(24), x + r + j(1), y + j(2));
+  ctx.closePath();
+}
+
+/** سایهٔ نرم؛ نور از بالا-چپ. */
+function withShadow(blur, dy, alpha, fn, hue = '78, 46, 24') {
+  ctx.save();
+  ctx.shadowColor = `rgba(${hue}, ${alpha})`;
+  ctx.shadowBlur = blur;
+  ctx.shadowOffsetY = dy;
+  ctx.shadowOffsetX = dy * .35;
+  fn();
+  ctx.restore();
+}
+
+/** یک برگه‌ی کاغذ با سایه — پایه‌ی همه‌ی کارت‌ها و تابلوها. */
+function paper(x, y, w, h, fill, seed = 1, r = 12, shadow = .26) {
+  withShadow(16, 7, shadow, () => {
+    ctx.fillStyle = fill;
+    wobbleRect(x, y, w, h, r, seed, 2);
+    ctx.fill();
+  });
+  /* الیافِ کاغذ و لبهٔ روشن، تا سطح تخت نماند */
+  ctx.save();
+  ctx.beginPath(); wobbleRect(x, y, w, h, r, seed, 2); ctx.clip();
+  ctx.globalAlpha = .5;
+  ctx.fillStyle = texPaper(fill);
+  ctx.fillRect(x, y, w, h);
+  ctx.globalAlpha = 1;
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, 'rgba(255,255,255,.3)');
+  g.addColorStop(.4, 'rgba(255,255,255,0)');
+  g.addColorStop(1, 'rgba(90,60,20,.1)');
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, w, h);
+  ctx.restore();
+}
+
+function text(str, x, y, o = {}) {
+  const size = o.size || 20;
+  const fam = o.family || 'Vazirmatn';
+  ctx.save();
+  ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+  ctx.font = `${fam === 'Lalezar' ? '400' : (o.weight || 700)} ${size}px "${fam}", Tahoma, sans-serif`;
+  ctx.textAlign = o.align || 'center';
+  ctx.textBaseline = o.baseline || 'middle';
+  ctx.fillStyle = o.color || '#43291b';
+  ctx.direction = 'rtl';
+  if (o.stroke) {
+    ctx.lineWidth = o.strokeWidth || 5;
+    ctx.strokeStyle = o.stroke;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(str, x, y, o.maxWidth);
+  }
+  ctx.fillText(str, x, y, o.maxWidth);
+  ctx.restore();
+}
+
+/** متنِ چندخطی که خودش می‌شکند. ارتفاعِ اشغال‌شده را برمی‌گرداند. */
+function textWrap(str, x, y, maxW, o = {}) {
+  const size = o.size || 19, lh = o.lineHeight || size * 1.7;
+  ctx.font = `${o.weight || 700} ${size}px "${o.family || 'Vazirmatn'}", Tahoma, sans-serif`;
+  const lines = [];
+  for (const para of str.split('\n')) {
+    let line = '';
+    for (const wd of para.split(' ')) {
+      const t = line ? line + ' ' + wd : wd;
+      if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = wd; }
+      else line = t;
+    }
+    lines.push(line);
+  }
+  lines.forEach((l, i) => text(l, x, y + i * lh, o));
+  return lines.length * lh;
+}
+
+/* ───────── ذره‌ها ───────── */
+
+class Bits {
+  constructor() { this.list = []; }
+  add(x, y, n, kind, colors, opts = {}) {
+    for (let i = 0; i < n; i++) {
+      const a = opts.dir !== undefined ? opts.dir + (Math.random()-.5) * (opts.spread || 1) : Math.random() * TAU;
+      const sp = (opts.speed || 200) * (.4 + Math.random());
+      this.list.push({
+        kind, x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - (opts.lift || 0),
+        r: (opts.size || 4) * (.5 + Math.random()),
+        rot: Math.random() * TAU, vr: (Math.random()-.5) * 10,
+        col: colors[(Math.random() * colors.length) | 0],
+        grav: opts.grav === undefined ? 620 : opts.grav,
+        drag: opts.drag || .995,
+        life: (opts.life || .9) * (.6 + Math.random() * .8), age: 0,
+      });
+    }
+  }
+  confetti(x, y, n, colors) {
+    this.add(x, y, n, 'flake', colors, { speed: 420, lift: 190, size: 5, life: 1.6, grav: 780 });
+  }
+  spark(x, y, n, colors) {
+    this.add(x, y, n, 'dot', colors, { speed: 180, lift: 30, size: 3.4, life: .7, grav: 260, drag: .93 });
+  }
+  step(dt) {
+    for (const p of this.list) {
+      p.age += dt;
+      p.vy += p.grav * dt;
+      p.vx *= p.drag; p.vy *= p.drag;
+      p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+    }
+    this.list = this.list.filter((p) => p.age < p.life);
+  }
+  draw() {
+    for (const p of this.list) {
+      const k = clamp(1 - p.age / p.life, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = k;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.col;
+      if (p.kind === 'flake') ctx.fillRect(-p.r, -p.r*1.5, p.r*2, p.r*3);
+      else if (p.kind === 'leaf') { wobbleEllipse(0, 0, p.r*1.8, p.r*.8, 0, p.r, .6); ctx.fill(); }
+      else { ctx.beginPath(); ctx.arc(0, 0, p.r * k, 0, TAU); ctx.fill(); }
+      ctx.restore();
+    }
+  }
+  clear() { this.list.length = 0; }
+}
+
+/* ───────── صدا (بدون فایل صوتی) ───────── */
+
+const sfx = {
+  ac: null, on: true,
+  _c() {
+    if (!this.on) return null;
+    if (!this.ac) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; this.ac = new A(); }
+    if (this.ac.state === 'suspended') this.ac.resume();
+    return this.ac;
+  },
+  tone(f, dur = .16, type = 'sine', gain = .13, delay = 0) {
+    const c = this._c(); if (!c) return;
+    const t0 = c.currentTime + delay;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t0);
+    g.gain.setValueAtTime(.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + .012);
+    g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+    o.connect(g).connect(c.destination);
+    o.start(t0); o.stop(t0 + dur + .04);
+  },
+  tap()  { this.tone(430, .07, 'triangle', .09); },
+  place(){ this.tone(620, .11, 'sine', .12); },
+  pop()  { this.tone(760, .09, 'sine', .11); },
+  slide(){ this.tone(240, .22, 'sine', .07); },
+  good() { [523, 659, 784].forEach((f,i) => this.tone(f, .22, 'sine', .13, i*.07)); },
+  win()  { [523, 659, 784, 1047].forEach((f,i) => this.tone(f, .34, 'triangle', .13, i*.10)); },
+  nope() { this.tone(180, .2, 'sawtooth', .07); },
+  tick() { this.tone(1100, .04, 'square', .05); },
+};
+
+/* ───────── قطعه‌های آماده ───────── */
+
+function star(x, y, r, col, rot = 0) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(rot);
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI/2 + i * Math.PI/5;
+    const rr = i % 2 ? r * .45 : r;
+    const px = Math.cos(a)*rr, py = Math.sin(a)*rr;
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/** دکمهٔ کاغذی. hovered را خودِ بازی می‌دهد؛ اینجا فقط کشیده می‌شود. */
+/** رنگ را روشن‌تر (k>0) یا تیره‌تر (k<0) می‌کند. */
+function shade(col, k) {
+  const c = String(col).trim();
+  let r, g2, b2;
+  if (c[0] === '#') {
+    const h = c.length === 4 ? c[1]+c[1]+c[2]+c[2]+c[3]+c[3] : c.slice(1, 7);
+    r = parseInt(h.slice(0,2), 16); g2 = parseInt(h.slice(2,4), 16); b2 = parseInt(h.slice(4,6), 16);
+  } else {
+    const m = c.match(/[\d.]+/g);
+    if (!m || m.length < 3) return col;
+    r = +m[0]; g2 = +m[1]; b2 = +m[2];
+  }
+  const f = (v) => Math.round(clamp(k < 0 ? v * (1 + k) : v + (255 - v) * k, 0, 255));
+  return 'rgb(' + f(r) + ',' + f(g2) + ',' + f(b2) + ')';
+}
+
+function button(b, label, o = {}) {
+  const hot = o.hot && !o.disabled;
+  const dy = hot ? 3 : 0;
+  const fill = o.disabled ? (o.off || '#bcaa92') : (hot ? (o.hotFill || o.fill) : o.fill);
+  const r = o.r === undefined ? 14 : o.r;
+  /* لبهٔ زیرینِ تیره — دکمه از صفحه بیرون می‌زند */
+  ctx.fillStyle = shade(fill, -.36);
+  wobbleRect(b.x, b.y + dy + 7, b.w, b.h, r, b.x + b.y, 2);
+  ctx.fill();
+  withShadow(hot ? 22 : 14, hot ? 5 : 8, .32, () => {
+    ctx.fillStyle = fill;
+    wobbleRect(b.x, b.y + dy, b.w, b.h, r, b.x + b.y, 2);
+    ctx.fill();
+  });
+  /* حجم: روشن از بالا، تیره به پایین */
+  ctx.save();
+  ctx.beginPath(); wobbleRect(b.x, b.y + dy, b.w, b.h, r, b.x + b.y, 2); ctx.clip();
+  const g = ctx.createLinearGradient(0, b.y + dy, 0, b.y + dy + b.h);
+  g.addColorStop(0, 'rgba(255,255,255,.3)');
+  g.addColorStop(.45, 'rgba(255,255,255,.04)');
+  g.addColorStop(1, 'rgba(0,0,0,.22)');
+  ctx.fillStyle = g;
+  ctx.fillRect(b.x, b.y + dy, b.w, b.h);
+  /* برقِ باریکِ لبهٔ بالا */
+  ctx.fillStyle = 'rgba(255,255,255,.4)';
+  ctx.fillRect(b.x + r, b.y + dy + 2, b.w - r * 2, 2);
+  ctx.restore();
+  text(label, b.x + b.w/2, b.y + b.h/2 + dy - (o.sub ? 9 : 0), {
+    size: o.size || 26, color: o.color || '#fdf6e8', family: o.family || 'Lalezar',
+  });
+  if (o.sub) text(o.sub, b.x + b.w/2, b.y + b.h/2 + dy + 17,
+    { size: 14, color: o.subColor || 'rgba(255,255,255,.88)' });
+}
+
+/** دکمهٔ گرد کوچک (مثل + و −). */
+function roundButton(b, label, o = {}) {
+  const hot = o.hot && !o.disabled;
+  const dy = hot ? 2 : 0;
+  withShadow(10, hot ? 3 : 5, .3, () => {
+    ctx.fillStyle = o.disabled ? '#cbbba3' : (hot ? (o.hotFill || o.fill) : o.fill);
+    wobbleCircle(b.x, b.y + dy, b.r, b.x, 1.4);
+    ctx.fill();
+  });
+  text(label, b.x, b.y + dy - 1,
+    { size: o.size || 32, color: o.disabled ? '#a8988a' : (o.color || '#fdf6e8'), family: 'Lalezar' });
+}
+
+/** پرده‌ی تمام‌صفحه: برای شروعِ پرده و برای جشنِ پایان. */
+function overlay(o) {
+  const k = easeOut(clamp(o.t / .5, 0, 1));
+  ctx.fillStyle = `rgba(30, 22, 16, ${.66 * k})`;
+  ctx.fillRect(0, 0, SW, SH);
+
+  const w = o.w || 700, h = o.h || 290;
+  const x = (SW - w) / 2, y = o.y || (SH * .22);
+  const s = lerp(.9, 1, easeBack(clamp(o.t / .65, 0, 1)));
+  ctx.save();
+  ctx.translate(SW/2, y + h/2);
+  ctx.scale(s, s);
+  ctx.translate(-SW/2, -(y + h/2));
+
+  withShadow(30, 14, .42, () => {
+    ctx.fillStyle = o.paper || '#fbf3e2';
+    wobbleRect(x, y, w, h, 18, 121, 2.4);
+    ctx.fill();
+  });
+  ctx.fillStyle = o.band || '#c8434f';
+  wobbleRect(x, y, w, 12, 6, 123, 1);
+  ctx.fill();
+
+  if (o.icon) o.icon(SW/2, y + 56);
+  text(o.title, SW/2, y + (o.icon ? 108 : 62),
+    { size: o.titleSize || 36, color: o.ink || '#43291b', family: 'Lalezar', alpha: k });
+  textWrap(o.body, SW/2, y + (o.icon ? 158 : 116), w - 90,
+    { size: 19, color: o.inkSoft || '#8a6a52', alpha: k });
+  ctx.restore();
+
+  button(o.btn, o.btnLabel, { hot: o.btnHot, fill: o.btnFill || '#7fa356', hotFill: o.btnHotFill || '#8fb45f', size: 28 });
+}
+
+/** پیامِ کوتاهِ بالای صحنه. */
+class Toast {
+  constructor() { this.msg = null; this.t = 0; this.kind = 'info'; }
+  say(msg, kind = 'info') { this.msg = msg; this.kind = kind; this.t = 2.6; }
+  step(dt) { if (this.t > 0) { this.t -= dt; if (this.t <= 0) this.msg = null; } }
+  draw(y = 24, colors = {}) {
+    if (!this.msg) return;
+    const k = clamp(this.t, 0, 1) * clamp((2.6 - this.t) * 5, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = k;
+    ctx.font = `700 19px "Vazirmatn", Tahoma, sans-serif`;
+    const w = ctx.measureText(this.msg).width + 76;
+    const fill = this.kind === 'good' ? (colors.good || '#7fa356')
+               : this.kind === 'bad' ? (colors.bad || '#c8434f')
+               : (colors.info || '#fbf3e2');
+    paper(SW/2 - w/2, y, w, 48, fill, 151, 12, .3);
+    text(this.msg, SW/2, y + 25,
+      { size: 19, color: this.kind === 'info' ? (colors.ink || '#43291b') : '#fff8ec' });
+    ctx.restore();
+  }
+}
+
+/* ───────── آموزشِ پرده‌ای ─────────
+   پرده‌هایی که منتظرِ کارِ بچه نیستند با یک ضربه جلو می‌روند. تایمر فقط
+   پشتیبان است؛ بچهٔ کلاس سومی باید فرصتِ خواندن داشته باشد، نه اینکه
+   متن قبل از تمام شدنِ خواندنش برود.                                    */
+
+/** اگر پردهٔ فعلی خواندنی است، ضربه را می‌خورد و می‌رود پردهٔ بعد. */
+function tutTap(tut, tapSteps, lastStep) {
+  if (!tut.on || tapSteps.indexOf(tut.step) < 0) return false;
+  if (tut.step >= lastStep) tut.on = false;
+  else { tut.step++; tut.t = 0; }
+  sfx.tap();
+  return true;
+}
+
+/** نشانهٔ «برای ادامه بزن» — زیرِ کارتِ آموزش. */
+function tutMore(cx, y, t, ink = '#3a2a18', bg = 'rgba(255, 250, 238, .94)') {
+  ctx.save();
+  ctx.globalAlpha = .62 + .38 * Math.sin(t * 3.2);
+  ctx.font = '700 15px "Vazirmatn", Tahoma, sans-serif';
+  const label = 'برای ادامه، هرجا را بزن';
+  const w = ctx.measureText(label).width + 40, h = 32, x = cx - w / 2, r = 16;
+  withShadow(10, 4, .3, () => {
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath(); ctx.fill();
+  });
+  text(label, cx, y + h / 2, { size: 15, color: ink });
+  ctx.restore();
+}
+
+/** فونت‌ها را می‌آورد و بعد بازی را شروع می‌کند.
+    مهم: هر دو راه (رسیدنِ فونت و مهلتِ پشتیبان) ممکن است برسند، ولی
+    شروع فقط باید یک بار انجام شود؛ وگرنه دو حلقهٔ فریم راه می‌افتد و
+    بازی دوبرابر سریع می‌شود. */
+function whenFontsReady(start) {
+  let done = false;
+  const go = () => { if (done) return; done = true; start(); };
+  if (document.fonts && document.fonts.load) {
+    Promise.all([
+      document.fonts.load('400 40px Lalezar'),
+      document.fonts.load('700 20px Vazirmatn'),
+      document.fonts.load('900 20px Vazirmatn'),
+    ]).then(go, go);
+    setTimeout(go, 2600);
+  } else go();
+}
+
+/** حلقهٔ فریم با dtِ محدودشده. */
+/* ───────── کیفیتِ خودکار ─────────
+   اگر دستگاه کُند بود، اوّل درخشش و بعد رنگ‌بندی خاموش می‌شود تا بازی
+   روان بماند. روی دستگاهِ قوی همه‌چیز روشن است. */
+let QUALITY = 2;
+let _fAcc = 0, _fN = 0, _qHold = 0;
+
+function _qualityTick(gap) {
+  if (gap <= 0 || gap > 200) return;
+  _fAcc += gap; _fN++;
+  if (_fN < 45) return;
+  const avg = _fAcc / _fN;
+  _fAcc = 0; _fN = 0;
+  if (_qHold > 0) { _qHold--; return; }
+  /* فاصلهٔ بالا و پایین باید باز باشد، وگرنه کیفیت بین دو پله بالا و
+     پایین می‌پرد و بازی مدام تغییرِ ظاهر می‌دهد. */
+  const before = QUALITY;
+  if (avg > 21 && QUALITY > 0) { QUALITY--; _qHold = 4; }
+  else if (avg < 13.5 && QUALITY < 2) { QUALITY++; _qHold = 10; }
+  /* در پایین‌ترین کیفیت، صحنه را با نقطه‌های کمتر می‌کشیم */
+  if (before !== QUALITY && (before === 0 || QUALITY === 0) && _refit) _refit();
+}
+
+/* یک حلقه، نه بیشتر — دو حلقه یعنی زمانِ بازی دوبرابر می‌گذرد.
+
+   MOTION: تا پیش از این، به‌خاطرِ باگِ دو حلقه، همهٔ بازی‌ها عملاً با
+   سرعتِ دو برابر اجرا می‌شدند و زمان‌بندی‌ها هم با همان حس تنظیم شده
+   بودند. حالا که باگ رفع شده، سرعتِ درست (یک برابر) کُند به نظر
+   می‌رسد. این ضریب جانِ حرکت‌ها را برمی‌گرداند، ولی نه تا آن دو برابرِ
+   تصادفی. فقط روی جانِ حرکت اثر دارد، نه روی هیچ قانونِ علمی. */
+const MOTION = 1.45;
+let _looping = false;
+function runLoop(step) {
+  if (_looping) return;
+  _looping = true;
+  let last = performance.now();
+  const frame = (now) => {
+    const gap = now - last;
+    /* بریدنِ بعد از ضرب، تا یک فریمِ کُند پرشِ بزرگ نسازد */
+    const dt = Math.min(gap / 1000 * MOTION, 1/15);
+    last = now;
+    _qualityTick(gap);
+    step(dt);
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
+/* ═════════════════ بازی ═════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   گلدانِ شیشه‌ای — علومِ سوم، درس ۱۱ «بکارید و ببینید»
+
+   فعّالیتِ کتاب: «مریم و زهرا چند دانه لوبیا و گندم را در ظرفِ شفاف
+   کاشتند… برای مشاهدهٔ بهترِ ریشه‌ها یکی از لوبیاها و گندم‌ها را از
+   خاک خارج کردند… جدولِ طبقه‌بندیِ ریشه‌ها، برگ‌ها و دانه‌ها را پر
+   کنید… و بعد الگو را کشف کنید: با دیدنِ برگ می‌توان نوعِ ریشه و
+   دانه را پیش‌بینی کرد.»
+
+   اینجا همان سه کار است: می‌کاری و روزها را جلو می‌بری، بعد از خاک
+   درشان می‌آوری و جدول را خودت پر می‌کنی، و آخر با دیدنِ برگِ چهار
+   گیاهِ تازه، ریشه و دانه‌شان را پیش‌بینی می‌کنی و بعد بررسی می‌کنی.
+   دفترچه هیچ‌وقت جواب را نمی‌نویسد؛ فقط می‌گوید درست بود یا نه.
+
+   ── درستیِ زیستی ───────────────────────────────────────────────
+   شکلِ جوانه زدن، ریشه و برگ همان چیزی است که واقعاً اتّفاق می‌افتد:
+
+   ▸ لوبیا (دولپه): اوّل ریشهٔ اصلی پایین می‌رود، بعد ساقه مثلِ قلّاب
+     خم می‌شود و دو لپه را از خاک بیرون می‌کشد، بعد برگ‌های پهن با
+     رگبرگ‌های شبکه‌ای می‌آیند. ریشه‌اش راست است: یک ریشهٔ کلفت با
+     ریشه‌های نازکِ کناری.
+   ▸ گندم (تک‌لپه): چند ریشهٔ هم‌اندازه با هم بیرون می‌زنند و ریشهٔ
+     افشان می‌سازند؛ برگِ اوّل از غلافی راست بالا می‌آید و دراز و
+     باریک است با رگبرگ‌های موازی.
+
+   و همین الگو برای ذرّت و برنج (تک‌لپه) و نخود و آفتاب‌گردان (دولپه)
+   هم برقرار است — همان‌طور که در کتاب آمده.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const SCENE_W = 1200, SCENE_H = 760;
+const HUD_H = 56;
+
+const P = {
+  bg:   '#1a2418', bgLo: '#111a10', bgHi: '#27351f',
+  soil: '#6b4c33', soilDk: '#40301f', soilWet: '#4e3722',
+  glass: 'rgba(206, 232, 239, .22)', glassLt: 'rgba(255,255,255,.5)',
+  leaf: '#4f9f5e', leafDk: '#2f6b3a', leafLt: '#8fcf7a', stem: '#4a8f42',
+  root: '#e2d3ad', rootDk: '#b09a70',
+  seedA: '#e8d9a8', seedADk: '#b8a06a',
+  seedB: '#d9a06a', seedBDk: '#a06a3a',
+  paper: '#fbf7e8', card: '#ffffff',
+  ink:  '#22301f', inkSoft: '#7d8b78',
+  good: '#4e9f6c', bad: '#c04a34', gold: '#e0a63f', accent: '#5aa87a',
+  water: '#5fb0d8',
+};
+
+/* ───────── گیاهانِ درس ───────── */
+
+const PLANTS = {
+  lubia:  { n: 'لوبیا',        k: 'di',   days: [0, 2, 4, 6, 9] },
+  gandom: { n: 'گندم',         k: 'mono', days: [0, 2, 3, 5, 8] },
+  zorrat: { n: 'ذرّت',          k: 'mono' },
+  berenj: { n: 'برنج',         k: 'mono' },
+  nokhod: { n: 'نخود',         k: 'di' },
+  aftab:  { n: 'آفتاب‌گردان',  k: 'di' },
+};
+
+/* ویژگی‌های هر گروه — همان جدولِ کتاب، ولی نوشته نمی‌شود؛ داوری با آن است. */
+const TRAITS = {
+  mono: { root: 'افشان', leaf: 'دراز و باریک', seed: 'یک قسمتی' },
+  di:   { root: 'راست',  leaf: 'پهن',          seed: 'دو قسمتی' },
+};
+const ROOT_OPT = ['راست', 'افشان'];
+const LEAF_OPT = ['پهن', 'دراز و باریک'];
+const SEED_OPT = ['یک قسمتی', 'دو قسمتی'];
+
+const QUIZ = ['zorrat', 'nokhod', 'berenj', 'aftab'];
+
+const S = {
+  phase: 'intro', phaseT: 0,
+  cups: [null, null],        /* دانهٔ داخلِ هر لیوان */
+  watered: false,
+  day: 0, playing: false, playT: 0,
+  pulled: false,
+  split: [false, false],
+  tbl: [[-1, -1, -1], [-1, -1, -1]],   /* [لیوان][ریشه, برگ, دانه] */
+  mark: null, markT: 0,
+  qi: 0, qa: [-1, -1], qmark: null, qshow: 0, qdone: [0, 0, 0, 0],
+  drag: null,
+  t: 0, hover: null, tip: '', tipT: 0, shake: 0,
+};
+
+const bits = new Bits();
+const toast = new Toast();
+const cv = document.getElementById('stage');
+initStage(cv, SCENE_W, SCENE_H);
+function tip(msg) { S.tip = msg; S.tipT = 3.6; }
+
+const cupPlant = (i) => (S.cups[i] ? PLANTS[S.cups[i]] : null);
+const bothPlanted = () => S.cups.every((c) => c);
+const grown = () => S.day >= 9;
+
+/* ───────── جای‌ها ───────── */
+
+const PAN = { x: 24, y: 96, w: 330, h: 640 };
+const STAGE = { x: 370, y: 96, w: 806, h: 640 };
+const CUP_Y = STAGE.y + 300;          /* لبهٔ بالای لیوان */
+const CUP_W = 210, CUP_H = 230;
+const cupX = (i) => STAGE.x + 150 + i * 380;
+const SOIL_TOP = CUP_Y + 40;
+
+const BTN_WATER = { x: STAGE.x + 60, y: STAGE.y + 570, w: 210, h: 52 };
+const BTN_DAY = { x: STAGE.x + 290, y: STAGE.y + 570, w: 210, h: 52 };
+const BTN_PULL = { x: STAGE.x + 520, y: STAGE.y + 570, w: 210, h: 52 };
+const BTN_REC = { x: PAN.x + 16, y: PAN.y + 556, w: PAN.w - 32, h: 56 };
+const BTN_CHECK = { x: PAN.x + 16, y: PAN.y + 556, w: PAN.w - 32, h: 56 };
+const BTN_NEXT = { x: PAN.x + 16, y: PAN.y + 556, w: PAN.w - 32, h: 56 };
+const BTN_GO = { x: SCENE_W / 2 - 150, y: 486, w: 300, h: 68 };
+const BTN_AGAIN = { x: SCENE_W / 2 - 150, y: 492, w: 300, h: 68 };
+
+function seedSlot(i) { return { x: STAGE.x + 60 + i * 150, y: STAGE.y + 24, w: 130, h: 92 }; }
+function chipRect(row, i, opts) {
+  const y = PAN.y + 150 + row * 128;
+  const w = (PAN.w - 32 - 10) / 2;
+  return { x: PAN.x + 16 + i * (w + 10), y: y + 34, w, h: 46 };
+}
+function qChip(row, i) {
+  const y = PAN.y + 240 + row * 130;
+  const w = (PAN.w - 32 - 10) / 2;
+  return { x: PAN.x + 16 + i * (w + 10), y: y + 34, w, h: 46 };
+}
+
+/* ───────── ورودی ───────── */
+
+cv.addEventListener('pointermove', (e) => {
+  const p = toStage(e);
+  if (S.drag) { S.drag.x = p.x; S.drag.y = p.y; return; }
+  S.hover = null;
+  if (S.phase === 'intro') { if (inRect(p, BTN_GO)) S.hover = BTN_GO; }
+  else if (S.phase === 'won') { if (inRect(p, BTN_AGAIN)) S.hover = BTN_AGAIN; }
+  else if (S.phase === 'grow') {
+    if (inRect(p, BTN_WATER)) S.hover = { k: 'water' };
+    if (inRect(p, BTN_DAY)) S.hover = { k: 'day' };
+    if (inRect(p, BTN_PULL)) S.hover = { k: 'pull' };
+    for (let i = 0; i < 2; i++) if (inRect(p, seedSlot(i))) S.hover = { k: 'seed', i };
+  } else if (S.phase === 'table') {
+    if (inRect(p, BTN_REC)) S.hover = { k: 'rec' };
+    for (let r = 0; r < 3; r++) for (let i = 0; i < 2; i++)
+      if (inRect(p, chipRect(r, i))) S.hover = { k: 'chip', r, i };
+    for (let i = 0; i < 2; i++) {
+      const x = cupX(i);
+      if (Math.abs(p.x - x) < 90 && p.y > SCENE_H - 210 && p.y < SCENE_H - 90) S.hover = { k: 'split', i };
+    }
+  } else if (S.phase === 'pattern') {
+    if (inRect(p, S.qshow ? BTN_NEXT : BTN_CHECK)) S.hover = { k: 'check' };
+    for (let r = 0; r < 2; r++) for (let i = 0; i < 2; i++)
+      if (inRect(p, qChip(r, i))) S.hover = { k: 'q', r, i };
+  }
+  cv.style.cursor = S.hover ? 'pointer' : 'default';
+});
+
+cv.addEventListener('pointerdown', (e) => {
+  const p = toStage(e);
+  const cap = () => { try { cv.setPointerCapture(e.pointerId); } catch { /* ok */ } };
+  if (S.phase === 'intro') { if (inRect(p, BTN_GO)) { S.phase = 'grow'; S.phaseT = 0; sfx.good(); } return; }
+  if (S.phase === 'won') {
+    if (inRect(p, BTN_AGAIN)) {
+      S.phase = 'intro'; S.phaseT = 0;
+      S.cups = [null, null]; S.watered = false; S.day = 0; S.pulled = false;
+      S.split = [false, false]; S.tbl = [[-1, -1, -1], [-1, -1, -1]]; S.mark = null;
+      S.qi = 0; S.qa = [-1, -1]; S.qmark = null; S.qshow = 0; S.qdone = [0, 0, 0, 0];
+      sfx.tap();
+    }
+    return;
+  }
+  if (S.phase === 'grow') {
+    if (inRect(p, BTN_WATER)) { water(); return; }
+    if (inRect(p, BTN_DAY)) { oneDay(); return; }
+    if (inRect(p, BTN_PULL)) { pullOut(); return; }
+    for (let i = 0; i < 2; i++) {
+      if (!inRect(p, seedSlot(i))) continue;
+      const id = i ? 'gandom' : 'lubia';
+      if (S.cups.indexOf(id) >= 0) return;
+      S.drag = { id, x: p.x, y: p.y };
+      cap(); sfx.tap();
+      return;
+    }
+    return;
+  }
+  if (S.phase === 'table') {
+    if (inRect(p, BTN_REC)) { checkTable(); return; }
+    for (let r = 0; r < 3; r++) for (let i = 0; i < 2; i++) {
+      if (!inRect(p, chipRect(r, i))) continue;
+      const c = S.tblCol || 0;
+      S.tbl[c][r] = S.tbl[c][r] === i ? -1 : i;
+      S.mark = null; sfx.tap();
+      return;
+    }
+    for (let i = 0; i < 2; i++) {
+      const x = cupX(i);
+      if (Math.abs(p.x - x) < 90 && p.y > SCENE_H - 210 && p.y < SCENE_H - 90) {
+        S.split[i] = !S.split[i]; sfx.place();
+        return;
+      }
+    }
+    return;
+  }
+  if (S.phase === 'pattern') {
+    if (inRect(p, S.qshow ? BTN_NEXT : BTN_CHECK)) { S.qshow ? nextQ() : checkQ(); return; }
+    if (S.qshow) return;
+    for (let r = 0; r < 2; r++) for (let i = 0; i < 2; i++) {
+      if (!inRect(p, qChip(r, i))) continue;
+      S.qa[r] = S.qa[r] === i ? -1 : i; S.qmark = null; sfx.tap();
+      return;
+    }
+  }
+});
+
+function release() {
+  const d = S.drag;
+  if (!d) return;
+  S.drag = null;
+  for (let i = 0; i < 2; i++) {
+    if (Math.abs(d.x - cupX(i)) > CUP_W / 2 + 30 || d.y < CUP_Y - 40 || d.y > CUP_Y + CUP_H + 40) continue;
+    if (S.cups[i]) { tip('این لیوان پر است.'); sfx.nope(); return; }
+    S.cups[i] = d.id;
+    sfx.place();
+    return;
+  }
+  sfx.pop();
+}
+cv.addEventListener('pointerup', release);
+cv.addEventListener('pointercancel', release);
+addEventListener('blur', release);
+
+function water() {
+  if (!bothPlanted()) { tip('اوّل هر دو دانه را بکار.'); S.shake = .1; sfx.nope(); return; }
+  if (S.watered) { tip('آب داده‌ای؛ حالا روزها را جلو ببر.'); return; }
+  S.watered = true;
+  sfx.slide();
+  bits.add(cupX(0), SOIL_TOP - 40, 10, 'dot', [P.water, '#9fd8ea'], { speed: 40, lift: -60, size: 4, life: .7, grav: 400 });
+  bits.add(cupX(1), SOIL_TOP - 40, 10, 'dot', [P.water, '#9fd8ea'], { speed: 40, lift: -60, size: 4, life: .7, grav: 400 });
+  toast.say('حالا هر روز نگاهش کن', 'good');
+}
+
+function oneDay() {
+  if (!S.watered) { tip('اوّل آب بده.'); S.shake = .1; sfx.nope(); return; }
+  if (S.day >= 12) { tip('دوازده روز بس است.'); return; }
+  S.day++;
+  sfx.tick();
+}
+
+function pullOut() {
+  if (!grown()) { tip('هنوز خوب بزرگ نشده‌اند.'); S.shake = .1; sfx.nope(); return; }
+  S.pulled = true;
+  S.phase = 'table'; S.phaseT = 0;
+  S.tblCol = 0;
+  sfx.good();
+  toast.say('حالا جدول را پر کن', 'good');
+}
+
+function checkTable() {
+  const c = S.tblCol;
+  if (S.tbl[c].some((v) => v < 0)) { tip('هر سه سطر را پر کن.'); S.shake = .1; sfx.nope(); return; }
+  const pl = cupPlant(c), tr = TRAITS[pl.k];
+  const want = [ROOT_OPT.indexOf(tr.root), LEAF_OPT.indexOf(tr.leaf), SEED_OPT.indexOf(tr.seed)];
+  S.mark = S.tbl[c].map((v, i) => v === want[i]);
+  S.markT = 2.6;
+  if (!S.mark.every(Boolean)) { sfx.nope(); S.shake = .14; return; }
+  sfx.good();
+  bits.confetti(PAN.x + PAN.w / 2, PAN.y + 300, 18, [P.good, P.gold, P.card]);
+  if (c === 0) { S.tblCol = 1; S.mark = null; toast.say('حالا آن‌یکی', 'good'); }
+  else { S.phase = 'pattern'; S.phaseT = 0; toast.say('حالا پیش‌بینی', 'good'); }
+}
+
+function checkQ() {
+  if (S.qa.some((v) => v < 0)) { tip('هر دو را جواب بده.'); S.shake = .1; sfx.nope(); return; }
+  const pl = PLANTS[QUIZ[S.qi]], tr = TRAITS[pl.k];
+  const want = [ROOT_OPT.indexOf(tr.root), SEED_OPT.indexOf(tr.seed)];
+  S.qmark = S.qa.map((v, i) => v === want[i]);
+  if (S.qmark.every(Boolean)) {
+    S.qshow = 1; S.qdone[S.qi] = 1;
+    sfx.good();
+    bits.confetti(STAGE.x + STAGE.w / 2, 360, 18, [P.good, P.leafLt, P.gold]);
+  } else { sfx.nope(); S.shake = .14; }
+}
+
+function nextQ() {
+  S.qshow = 0; S.qa = [-1, -1]; S.qmark = null;
+  if (S.qi >= QUIZ.length - 1) { S.phase = 'won'; S.phaseT = 0; sfx.win(); return; }
+  S.qi++;
+  sfx.tap();
+}
+
+/* ───────── حلقه ───────── */
+
+function step(dt) {
+  S.t += dt;
+  if (S.phaseT < 9) S.phaseT += dt;
+  if (S.tipT > 0) S.tipT -= dt;
+  if (S.markT > 0) S.markT -= dt;
+  if (S.shake > 0) S.shake = Math.max(0, S.shake - dt);
+  bits.step(dt);
+  toast.step(dt);
+  draw();
+}
+
+whenFontsReady(() => runLoop(step));
+
+/* ───────── ابزارِ نقاشی ───────── */
+
+function rrPath(x, y, w, h, r) {
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function numText(str, x, y, o = {}) {
+  ctx.save();
+  ctx.direction = 'ltr';
+  ctx.textAlign = o.align || 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = o.color || P.ink;
+  ctx.font = `${o.weight || 700} ${o.size || 18}px "${o.family || 'Vazirmatn'}", Tahoma, sans-serif`;
+  ctx.fillText(str, x, y);
+  ctx.restore();
+}
+
+/* ───────── دانه ───────── */
+
+function drawSeed(kind, x, y, k, split) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(k, k);
+  if (kind === 'mono') {
+    ctx.fillStyle = P.seedADk;
+    wobbleEllipse(0, 1, 20, 13, -.2, 3, 1.2); ctx.fill();
+    ctx.fillStyle = P.seedA;
+    wobbleEllipse(0, 0, 19, 12, -.2, 5, 1.2); ctx.fill();
+    ctx.strokeStyle = P.seedADk; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-12, 3); ctx.lineTo(12, -3); ctx.stroke();
+    if (split) {
+      ctx.strokeStyle = '#7a6a3a'; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.ellipse(-7, 2, 5, 7, -.2, 0, TAU); ctx.stroke();
+    }
+  } else {
+    const gap = split ? 10 : 0;
+    for (const s of [-1, 1]) {
+      ctx.save();
+      ctx.translate(s * gap, 0);
+      ctx.fillStyle = P.seedBDk;
+      ctx.beginPath(); ctx.ellipse(s * 5, 1, 12, 15, s * .18, 0, TAU); ctx.fill();
+      ctx.fillStyle = P.seedB;
+      ctx.beginPath(); ctx.ellipse(s * 5, 0, 11, 14, s * .18, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+    if (!split) {
+      ctx.strokeStyle = P.seedBDk; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(0, 13); ctx.stroke();
+    } else {
+      ctx.fillStyle = '#8fbf6a';
+      ctx.beginPath(); ctx.ellipse(0, 2, 4, 8, 0, 0, TAU); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/* ───────── برگ‌ها ───────── */
+
+function drawBladeLeaf(x, y, len, s, col, colDk) {
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 11; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.quadraticCurveTo(x + s * len * .55, y - len * .55, x + s * len * .95, y - len * .2);
+  ctx.stroke();
+  ctx.strokeStyle = colDk; ctx.lineWidth = 1.2;
+  for (const o of [-3, 0, 3]) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + o * .4);
+    ctx.quadraticCurveTo(x + s * len * .55, y - len * .55 + o, x + s * len * .95, y - len * .2 + o);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawBroadLeaf(x, y, w, s, col, colDk) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(s * .45);
+  ctx.fillStyle = colDk;
+  wobbleEllipse(s * w * .9, 3, w, w * .74, 0, 3, 1.8); ctx.fill();
+  ctx.fillStyle = col;
+  wobbleEllipse(s * w * .9, 0, w * .95, w * .7, 0, 7, 1.8); ctx.fill();
+  ctx.strokeStyle = colDk; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(s * w * 1.8, 0); ctx.stroke();
+  for (let v = 1; v <= 3; v++) {
+    const t = v / 4;
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(s * w * 1.8 * t, 0);
+    ctx.quadraticCurveTo(s * w * 1.8 * t + s * 12, -w * .3, s * w * 1.8 * t + s * 18, -w * .5);
+    ctx.moveTo(s * w * 1.8 * t, 0);
+    ctx.quadraticCurveTo(s * w * 1.8 * t + s * 12, w * .3, s * w * 1.8 * t + s * 18, w * .5);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ───────── رشدِ واقعی در لیوان ───────── */
+
+function drawSprout(kind, cx, soilY, day, pulled) {
+  const mono = kind === 'mono';
+  const d = clamp(day, 0, 12);
+  const rootLen = mono ? Math.max(0, d - 1) * 15 : Math.max(0, d - 1) * 19;
+  const shoot = mono ? Math.max(0, d - 2) * 17 : Math.max(0, d - 3) * 16;
+
+  /* ریشه */
+  ctx.save();
+  ctx.strokeStyle = P.root; ctx.lineCap = 'round';
+  if (mono) {
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 6 - .5) * 1.9;
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      ctx.moveTo(cx, soilY + 6);
+      ctx.quadraticCurveTo(cx + Math.sin(a) * rootLen * .6, soilY + rootLen * .6,
+        cx + Math.sin(a) * rootLen * 1.05, soilY + Math.cos(a * .7) * rootLen);
+      ctx.stroke();
+    }
+  } else {
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(cx, soilY + 6);
+    ctx.quadraticCurveTo(cx + 5, soilY + rootLen * .6, cx + 2, soilY + rootLen);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    for (let j = 1; j <= 5; j++) {
+      const t = j / 6, by = soilY + rootLen * t, s = j % 2 ? 1 : -1;
+      ctx.beginPath();
+      ctx.moveTo(cx + 3, by);
+      ctx.quadraticCurveTo(cx + s * 16, by + 5, cx + s * 26, by + 14);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  /* دانه، تا وقتی هنوز پیداست */
+  if (d < 6 || mono) drawSeed(kind, cx, soilY + 8, .9, false);
+
+  if (shoot <= 0) return;
+  /* ساقه */
+  ctx.strokeStyle = P.stem; ctx.lineWidth = mono ? 5 : 6; ctx.lineCap = 'round';
+  if (!mono && d < 6) {
+    /* قلّابِ لوبیا: ساقه خمیده بیرون می‌آید */
+    ctx.beginPath();
+    ctx.moveTo(cx, soilY);
+    ctx.quadraticCurveTo(cx - 4, soilY - shoot, cx + 16, soilY - shoot + 8);
+    ctx.stroke();
+    return;
+  }
+  ctx.beginPath();
+  ctx.moveTo(cx, soilY);
+  ctx.lineTo(cx, soilY - shoot);
+  ctx.stroke();
+
+  if (mono) {
+    const n = d < 5 ? 1 : d < 8 ? 2 : 3;
+    for (let i = 0; i < n; i++) {
+      const s = i % 2 ? 1 : -1;
+      drawBladeLeaf(cx, soilY - shoot * (.35 + i * .26), shoot * (.7 - i * .1), s, P.leaf, P.leafDk);
+    }
+  } else {
+    /* دو لپه، بعد برگ‌های پهن */
+    ctx.fillStyle = '#a8cf7a';
+    for (const s of [-1, 1]) {
+      wobbleEllipse(cx + s * 15, soilY - shoot + 6, 15, 10, 0, 3 + s, 1.4); ctx.fill();
+    }
+    if (d >= 7) {
+      const w = Math.min(30, (d - 6) * 11);
+      for (const s of [-1, 1]) drawBroadLeaf(cx, soilY - shoot - 10, w, s, P.leaf, P.leafDk);
+    }
+  }
+}
+
+function drawCup(i) {
+  const x = cupX(i), y = CUP_Y;
+  const id = S.cups[i];
+  ctx.save();
+  /* شیشه */
+  ctx.fillStyle = P.glass;
+  ctx.beginPath();
+  ctx.moveTo(x - CUP_W / 2, y);
+  ctx.lineTo(x + CUP_W / 2, y);
+  ctx.lineTo(x + CUP_W / 2 - 18, y + CUP_H);
+  ctx.lineTo(x - CUP_W / 2 + 18, y + CUP_H);
+  ctx.closePath(); ctx.fill();
+  /* خاک */
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x - CUP_W / 2 + 4, SOIL_TOP);
+  ctx.lineTo(x + CUP_W / 2 - 4, SOIL_TOP);
+  ctx.lineTo(x + CUP_W / 2 - 20, y + CUP_H - 4);
+  ctx.lineTo(x - CUP_W / 2 + 20, y + CUP_H - 4);
+  ctx.closePath();
+  ctx.clip();
+  ctx.fillStyle = texStone(S.watered ? P.soilWet : P.soil, P.soilDk);
+  ctx.fillRect(x - CUP_W, SOIL_TOP, CUP_W * 2, CUP_H);
+  if (id) drawSprout(PLANTS[id].k, x, SOIL_TOP + 26, S.day, false);
+  ctx.restore();
+  /* بخشِ بالای خاک */
+  if (id && S.day > 0) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x - CUP_W, STAGE.y + 40, CUP_W * 2, SOIL_TOP + 26 - (STAGE.y + 40));
+    ctx.clip();
+    drawSprout(PLANTS[id].k, x, SOIL_TOP + 26, S.day, false);
+    ctx.restore();
+  }
+  /* لبه و برقِ شیشه */
+  ctx.strokeStyle = 'rgba(206,232,239,.5)'; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x - CUP_W / 2, y);
+  ctx.lineTo(x + CUP_W / 2, y);
+  ctx.lineTo(x + CUP_W / 2 - 18, y + CUP_H);
+  ctx.lineTo(x - CUP_W / 2 + 18, y + CUP_H);
+  ctx.closePath(); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.16)';
+  ctx.beginPath();
+  ctx.moveTo(x - CUP_W / 2 + 16, y + 10);
+  ctx.lineTo(x - CUP_W / 2 + 34, y + 10);
+  ctx.lineTo(x - CUP_W / 2 + 40, y + CUP_H - 14);
+  ctx.lineTo(x - CUP_W / 2 + 26, y + CUP_H - 14);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  /* نام */
+  if (id) text(PLANTS[id].n, x, y + CUP_H + 26, { size: 18, color: P.paper });
+  else text(i ? 'لیوانِ دوم' : 'لیوانِ اوّل', x, y + CUP_H + 26,
+    { size: 16, color: 'rgba(251,247,232,.5)' });
+}
+
+/* ───────── گیاهِ درآمده از خاک ───────── */
+
+function drawSpecimen(i) {
+  const x = cupX(i), id = S.cups[i];
+  if (!id) return;
+  const pl = PLANTS[id];
+  text(pl.n, x, 178, { size: 22, family: 'Lalezar', color: P.paper });
+  ctx.save();
+  ctx.translate(x, 420);
+  ctx.scale(.9, .9);
+  drawSprout(pl.k, 0, 0, 12, true);
+  ctx.restore();
+  /* دانهٔ خیس‌خورده، با یک ضربه باز می‌شود */
+  const sy = SCENE_H - 150;
+  ctx.fillStyle = 'rgba(255,255,255,.07)';
+  ctx.beginPath(); rrPath(x - 86, sy - 56, 172, 108, 14); ctx.fill();
+  ctx.strokeStyle = S.split[i] ? P.good : 'rgba(224,236,224,.3)'; ctx.lineWidth = 2;
+  ctx.setLineDash(S.split[i] ? [] : [7, 6]);
+  ctx.beginPath(); rrPath(x - 86, sy - 56, 172, 108, 14); ctx.stroke();
+  ctx.setLineDash([]);
+  drawSeed(pl.k, x, sy - 12, 1.7, S.split[i]);
+  text(S.split[i] ? 'باز شد' : 'برای باز کردن بزن', x, sy + 34,
+    { size: 13, color: 'rgba(223,240,224,.6)' });
+}
+
+/* ───────── برگِ گیاهِ معمّا ───────── */
+
+function drawQuizLeaf(id, cx, cy) {
+  const pl = PLANTS[id];
+  ctx.save();
+  if (id === 'zorrat') {
+    ctx.strokeStyle = P.stem; ctx.lineWidth = 8; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx, cy + 120); ctx.lineTo(cx, cy - 40); ctx.stroke();
+    for (let i = 0; i < 4; i++) {
+      const s = i % 2 ? 1 : -1;
+      drawBladeLeaf(cx, cy + 60 - i * 46, 150, s, P.leaf, P.leafDk);
+    }
+  } else if (id === 'berenj') {
+    ctx.strokeStyle = P.stem; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath(); ctx.moveTo(cx + i * 16, cy + 120); ctx.lineTo(cx + i * 26, cy - 10); ctx.stroke();
+      drawBladeLeaf(cx + i * 16, cy + 60, 130, i >= 0 ? 1 : -1, P.leaf, P.leafDk);
+    }
+  } else if (id === 'nokhod') {
+    /* برگِ مرکّب با برگچه‌های پهن و رگبرگِ شبکه‌ای */
+    ctx.strokeStyle = P.stem; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx, cy + 120); ctx.lineTo(cx, cy - 30); ctx.stroke();
+    for (let i = 0; i < 3; i++) {
+      const y = cy + 70 - i * 50;
+      for (const s of [-1, 1]) drawBroadLeaf(cx, y, 26, s, P.leaf, P.leafDk);
+    }
+  } else {
+    /* آفتاب‌گردان: برگِ پهنِ بزرگِ قلبی */
+    ctx.strokeStyle = P.stem; ctx.lineWidth = 9; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx, cy + 120); ctx.lineTo(cx, cy - 40); ctx.stroke();
+    for (let i = 0; i < 2; i++) {
+      const y = cy + 60 - i * 70;
+      for (const s of [-1, 1]) drawBroadLeaf(cx, y, 44 - i * 6, s, P.leaf, P.leafDk);
+    }
+  }
+  ctx.restore();
+  text(pl.n, cx, cy + 172, { size: 24, family: 'Lalezar', color: P.paper });
+}
+
+/* ───────── پرده‌ها ───────── */
+
+function drawStageGrow() {
+  /* دانه‌های آماده */
+  for (let i = 0; i < 2; i++) {
+    const b = seedSlot(i);
+    const id = i ? 'gandom' : 'lubia';
+    const used = S.cups.indexOf(id) >= 0;
+    ctx.fillStyle = used ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.08)';
+    ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 12); ctx.fill();
+    ctx.strokeStyle = used ? 'rgba(255,255,255,.1)' : 'rgba(224,236,224,.3)'; ctx.lineWidth = 2;
+    ctx.setLineDash(used ? [6, 6] : []);
+    ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 12); ctx.stroke();
+    ctx.setLineDash([]);
+    if (!used && !(S.drag && S.drag.id === id)) {
+      drawSeed(PLANTS[id].k, b.x + b.w / 2, b.y + 36, 1, false);
+      text(PLANTS[id].n, b.x + b.w / 2, b.y + b.h - 18, { size: 14, color: '#dff0e0' });
+    }
+  }
+  text('دانه را بکش توی لیوان', STAGE.x + 460, STAGE.y + 66,
+    { size: 16, color: 'rgba(223,240,224,.55)' });
+  drawCup(0); drawCup(1);
+  button(BTN_WATER, 'آب بده', {
+    hot: S.hover && S.hover.k === 'water', fill: '#3f7f9f', hotFill: '#55a0c0',
+    size: 21, disabled: S.watered });
+  button(BTN_DAY, 'یک روز جلو', {
+    hot: S.hover && S.hover.k === 'day', fill: '#3f8f4a', hotFill: '#55a860', size: 21 });
+  button(BTN_PULL, 'از خاک درآور', {
+    hot: S.hover && S.hover.k === 'pull', fill: grown() ? '#a5682a' : '#4a5c4a',
+    hotFill: '#c9863b', size: 20 });
+}
+
+function drawStageTable() {
+  drawSpecimen(0); drawSpecimen(1);
+  const c = S.tblCol || 0;
+  const x = cupX(c);
+  ctx.save();
+  ctx.globalAlpha = .4 + .25 * Math.sin(S.t * 2.6);
+  ctx.strokeStyle = P.gold; ctx.lineWidth = 4;
+  ctx.setLineDash([10, 8]);
+  ctx.beginPath(); rrPath(x - 150, 150, 300, 500, 18); ctx.stroke();
+  ctx.restore();
+}
+
+function drawStagePattern() {
+  const id = QUIZ[S.qi];
+  drawQuizLeaf(id, STAGE.x + STAGE.w / 2, 250);
+  if (S.qshow) {
+    const pl = PLANTS[id];
+    const bx = STAGE.x + 50, by = 462, bw = STAGE.w - 100, bh = 258;
+    ctx.fillStyle = 'rgba(255,255,255,.08)';
+    ctx.beginPath(); rrPath(bx, by, bw, bh, 16); ctx.fill();
+    ctx.strokeStyle = 'rgba(90,168,122,.45)'; ctx.lineWidth = 2;
+    ctx.beginPath(); rrPath(bx, by, bw, bh, 16); ctx.stroke();
+    text('از خاک درآوردیم و دانه‌اش را باز کردیم', bx + bw / 2, by + 24,
+      { size: 16, color: 'rgba(223,240,224,.75)' });
+    text('ریشه‌اش', bx + bw * .3, by + 56, { size: 15, color: P.gold });
+    text('دانه‌اش', bx + bw * .72, by + 56, { size: 15, color: P.gold });
+    ctx.save();
+    ctx.translate(bx + bw * .3, by + 156);
+    ctx.scale(.45, .45);
+    drawSprout(pl.k, 0, 0, 12, true);
+    ctx.restore();
+    drawSeed(pl.k, bx + bw * .72, by + 150, 2.4, true);
+  }
+  /* دانه‌های پیشرفت */
+  for (let i = 0; i < QUIZ.length; i++) {
+    ctx.fillStyle = S.qdone[i] ? P.good : (i === S.qi ? P.gold : 'rgba(255,255,255,.2)');
+    ctx.beginPath(); ctx.arc(STAGE.x + STAGE.w / 2 - 30 + i * 20, 140, 7, 0, TAU); ctx.fill();
+  }
+}
+
+/* ───────── دفترچه ───────── */
+
+function drawPanel() {
+  paper(PAN.x, PAN.y, PAN.w, PAN.h, P.paper, 31, 16, .4);
+  ctx.fillStyle = P.accent;
+  ctx.beginPath(); rrPath(PAN.x, PAN.y, PAN.w, 10, 5); ctx.fill();
+
+  if (S.phase === 'grow' || S.phase === 'intro') {
+    text('دفترچه', PAN.x + PAN.w / 2, PAN.y + 44, { size: 26, family: 'Lalezar', color: P.ink });
+    text('اوّل بکار، آب بده و روزها را جلو ببر', PAN.x + PAN.w / 2, PAN.y + 78,
+      { size: 15, color: P.inkSoft });
+    /* روزشمار */
+    ctx.fillStyle = '#eceadd';
+    ctx.beginPath(); rrPath(PAN.x + 16, PAN.y + 410, PAN.w - 32, 76, 14); ctx.fill();
+    ctx.strokeStyle = '#d8d8cd'; ctx.lineWidth = 2;
+    ctx.beginPath(); rrPath(PAN.x + 16, PAN.y + 410, PAN.w - 32, 76, 14); ctx.stroke();
+    text('روزِ', PAN.x + PAN.w - 44, PAN.y + 448, { size: 18, color: P.inkSoft, align: 'right' });
+    numText(fa(S.day), PAN.x + PAN.w / 2 - 10, PAN.y + 450, { size: 34, color: P.accent });
+    for (let d = 1; d <= 12; d++) {
+      ctx.fillStyle = d <= S.day ? P.accent : '#d8d8cd';
+      ctx.beginPath(); ctx.arc(PAN.x + 40 + (d - 1) * 20, PAN.y + 470, 5, 0, TAU); ctx.fill();
+    }
+    const steps = ['دو دانه را در لیوان بکار', 'آب بده', 'تا روزِ ۹ صبر کن', 'از خاک درشان بیاور'];
+    const done = [bothPlanted(), S.watered, grown(), S.pulled];
+    for (let i = 0; i < 4; i++) {
+      const y = PAN.y + 110 + i * 72;
+      ctx.fillStyle = done[i] ? '#eef6f0' : '#f0f0e8';
+      ctx.beginPath(); rrPath(PAN.x + 16, y, PAN.w - 32, 54, 12); ctx.fill();
+      ctx.strokeStyle = done[i] ? P.good : '#d8d8cd'; ctx.lineWidth = done[i] ? 3 : 2;
+      ctx.beginPath(); rrPath(PAN.x + 16, y, PAN.w - 32, 54, 12); ctx.stroke();
+      text(steps[i], PAN.x + PAN.w - 32, y + 27, { size: 15, color: P.ink, align: 'right' });
+      ctx.fillStyle = done[i] ? P.good : '#d8d8cd';
+      ctx.beginPath(); ctx.arc(PAN.x + 40, y + 27, 12, 0, TAU); ctx.fill();
+      if (done[i]) {
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.8; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(PAN.x + 34, y + 27); ctx.lineTo(PAN.x + 38, y + 32); ctx.lineTo(PAN.x + 46, y + 21);
+        ctx.stroke();
+      }
+    }
+    return;
+  }
+
+  if (S.phase === 'table') {
+    const c = S.tblCol || 0;
+    const pl = cupPlant(c);
+    text('جدولِ من', PAN.x + PAN.w / 2, PAN.y + 44, { size: 26, family: 'Lalezar', color: P.ink });
+    text(pl ? pl.n + ' را نگاه کن و بنویس' : '', PAN.x + PAN.w / 2, PAN.y + 78,
+      { size: 15, color: P.accent });
+    const rows = [['ریشه', ROOT_OPT], ['برگ', LEAF_OPT], ['دانه', SEED_OPT]];
+    rows.forEach(([label, opts], r) => {
+      const y = PAN.y + 150 + r * 128;
+      text(label, PAN.x + PAN.w - 22, y + 10, { size: 17, color: P.ink, align: 'right' });
+      if (S.mark && S.markT > 0) {
+        const ok = S.mark[r];
+        ctx.fillStyle = ok ? P.good : P.bad;
+        ctx.beginPath(); ctx.arc(PAN.x + 30, y + 10, 11, 0, TAU); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+        ctx.save(); ctx.translate(PAN.x + 30, y + 10);
+        ctx.beginPath();
+        if (ok) { ctx.moveTo(-5, 0); ctx.lineTo(-1, 5); ctx.lineTo(6, -5); }
+        else { ctx.moveTo(-5, -5); ctx.lineTo(5, 5); ctx.moveTo(5, -5); ctx.lineTo(-5, 5); }
+        ctx.stroke(); ctx.restore();
+      }
+      for (let i = 0; i < 2; i++) {
+        const b = chipRect(r, i);
+        const on = S.tbl[c][r] === i;
+        const hot = S.hover && S.hover.k === 'chip' && S.hover.r === r && S.hover.i === i;
+        ctx.fillStyle = on ? P.accent : (hot ? '#e7f0e7' : '#f0f0e8');
+        ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 10); ctx.fill();
+        ctx.strokeStyle = on ? '#2f7f5a' : '#d6d6cb'; ctx.lineWidth = 2;
+        ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 10); ctx.stroke();
+        text(opts[i], b.x + b.w / 2, b.y + b.h / 2,
+          { size: opts[i].length > 8 ? 13 : 16, color: on ? '#fff' : P.ink });
+      }
+    });
+    button(BTN_REC, 'ثبت کن', {
+      hot: S.hover && S.hover.k === 'rec', fill: '#3f8f6a', hotFill: '#55a880', size: 24 });
+    return;
+  }
+
+  /* پردهٔ الگو */
+  const id = QUIZ[S.qi];
+  text('پیش‌بینی کن', PAN.x + PAN.w / 2, PAN.y + 44, { size: 26, family: 'Lalezar', color: P.ink });
+  text('فقط با نگاه به برگش', PAN.x + PAN.w / 2, PAN.y + 78, { size: 15, color: P.inkSoft });
+  text(PLANTS[id].n, PAN.x + PAN.w / 2, PAN.y + 112, { size: 20, color: P.accent });
+  const rows = [['ریشه‌اش', ROOT_OPT], ['دانه‌اش', SEED_OPT]];
+  rows.forEach(([label, opts], r) => {
+    const y = PAN.y + 240 + r * 130;
+    text(label, PAN.x + PAN.w - 22, y + 10, { size: 17, color: P.ink, align: 'right' });
+    if (S.qmark) {
+      const ok = S.qmark[r];
+      ctx.fillStyle = ok ? P.good : P.bad;
+      ctx.beginPath(); ctx.arc(PAN.x + 30, y + 10, 11, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+      ctx.save(); ctx.translate(PAN.x + 30, y + 10);
+      ctx.beginPath();
+      if (ok) { ctx.moveTo(-5, 0); ctx.lineTo(-1, 5); ctx.lineTo(6, -5); }
+      else { ctx.moveTo(-5, -5); ctx.lineTo(5, 5); ctx.moveTo(5, -5); ctx.lineTo(-5, 5); }
+      ctx.stroke(); ctx.restore();
+    }
+    for (let i = 0; i < 2; i++) {
+      const b = qChip(r, i);
+      const on = S.qa[r] === i;
+      const hot = S.hover && S.hover.k === 'q' && S.hover.r === r && S.hover.i === i;
+      ctx.fillStyle = on ? P.accent : (hot ? '#e7f0e7' : '#f0f0e8');
+      ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 10); ctx.fill();
+      ctx.strokeStyle = on ? '#2f7f5a' : '#d6d6cb'; ctx.lineWidth = 2;
+      ctx.beginPath(); rrPath(b.x, b.y, b.w, b.h, 10); ctx.stroke();
+      text(opts[i], b.x + b.w / 2, b.y + b.h / 2,
+        { size: opts[i].length > 8 ? 13 : 16, color: on ? '#fff' : P.ink });
+    }
+  });
+  button(S.qshow ? BTN_NEXT : BTN_CHECK, S.qshow ? 'بعدی' : 'بررسی کن', {
+    hot: S.hover && S.hover.k === 'check',
+    fill: S.qshow ? '#a5682a' : '#3f8f6a', hotFill: S.qshow ? '#c9863b' : '#55a880', size: 24 });
+}
+
+/* ───────── نوار و پرده‌ها ───────── */
+
+function drawHUD() {
+  ctx.fillStyle = '#0d150c';
+  ctx.fillRect(0, 0, SCENE_W, HUD_H);
+  ctx.fillStyle = 'rgba(224,166,63,.22)';
+  ctx.fillRect(0, HUD_H - 2, SCENE_W, 2);
+  text('گلدانِ شیشه‌ای', SCENE_W - 150, HUD_H / 2, { size: 25, family: 'Lalezar', color: P.paper });
+  const n = (S.phase === 'grow' || S.phase === 'intro') ? 0
+    : S.phase === 'table' ? 1 + (S.tblCol || 0)
+    : 3 + S.qdone.reduce((a, b) => a + b, 0);
+  numText(fa(n) + ' / ' + fa(7), 300, HUD_H / 2, { size: 20, color: P.gold });
+  ctx.fillStyle = 'rgba(255,255,255,.14)';
+  ctx.beginPath(); rrPath(24, HUD_H - 9, 240, 5, 3); ctx.fill();
+  ctx.fillStyle = P.gold;
+  ctx.beginPath(); rrPath(24, HUD_H - 9, 240 * (n / 7), 5, 3); ctx.fill();
+}
+
+function cupIcon(x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = 'rgba(206,232,239,.3)';
+  ctx.beginPath();
+  ctx.moveTo(-26, -22); ctx.lineTo(26, -22); ctx.lineTo(20, 26); ctx.lineTo(-20, 26);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = P.soil;
+  ctx.beginPath();
+  ctx.moveTo(-24, -4); ctx.lineTo(24, -4); ctx.lineTo(20, 24); ctx.lineTo(-20, 24);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = P.stem; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(0, -30); ctx.stroke();
+  ctx.fillStyle = P.leaf;
+  wobbleEllipse(-12, -32, 12, 8, -.4, 3, 1); ctx.fill();
+  wobbleEllipse(12, -32, 12, 8, .4, 5, 1); ctx.fill();
+  ctx.restore();
+}
+
+function drawIntro() {
+  overlay({
+    t: S.phaseT, w: 880, h: 310, y: 130,
+    paper: P.paper, band: P.accent, ink: P.ink, inkSoft: P.inkSoft,
+    icon: cupIcon,
+    title: 'لوبیا و گندم بکاریم',
+    body: 'دو دانه را در لیوانِ شفاف می‌کاریم و هر روز نگاهشان می‌کنیم.\nبعد از خاک درشان می‌آوریم و جدولِ ریشه و برگ و دانه را پر می‌کنیم.\nآخرش هم با دیدنِ برگِ چهار گیاهِ تازه، بقیه‌اش را پیش‌بینی می‌کنی.',
+    btn: BTN_GO, btnLabel: 'شروع', btnHot: S.hover === BTN_GO,
+    btnFill: '#3f8f6a', btnHotFill: '#55a880',
+  });
+}
+
+function drawWon() {
+  overlay({
+    t: S.phaseT, w: 860, h: 300, y: 140,
+    paper: P.paper, band: P.gold, ink: P.ink, inkSoft: P.inkSoft,
+    icon: cupIcon,
+    title: 'الگو را پیدا کردی',
+    body: 'دانهٔ دو قسمتی با ریشهٔ راست و برگِ پهن می‌آید،\nدانهٔ یک قسمتی با ریشهٔ افشان و برگِ دراز و باریک.\nحالا فقط با دیدنِ برگِ یک گیاه، بقیه‌اش را می‌دانی.',
+    btn: BTN_AGAIN, btnLabel: 'از نو', btnHot: S.hover === BTN_AGAIN,
+    btnFill: '#3f8f6a', btnHotFill: '#55a880',
+  });
+}
+
+function draw() {
+  beginScene(P.bgLo);
+  const g = ctx.createLinearGradient(0, 0, 0, SCENE_H);
+  g.addColorStop(0, P.bgHi); g.addColorStop(1, P.bgLo);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, SCENE_W, SCENE_H);
+  ctx.save();
+  if (S.shake > 0) {
+    const k = S.shake * 10;
+    ctx.translate(Math.sin(S.t * 55) * k, 0);
+  }
+  ctx.fillStyle = '#16200f';
+  ctx.beginPath(); rrPath(STAGE.x, STAGE.y, STAGE.w, STAGE.h, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(90,168,122,.2)'; ctx.lineWidth = 2;
+  ctx.beginPath(); rrPath(STAGE.x, STAGE.y, STAGE.w, STAGE.h, 16); ctx.stroke();
+  ctx.save();
+  ctx.beginPath(); rrPath(STAGE.x, STAGE.y, STAGE.w, STAGE.h, 16); ctx.clip();
+  if (S.phase === 'grow' || S.phase === 'intro') drawStageGrow();
+  else if (S.phase === 'table') drawStageTable();
+  else drawStagePattern();
+  ctx.restore();
+  drawPanel();
+  if (S.drag) drawSeed(PLANTS[S.drag.id].k, S.drag.x, S.drag.y, 1.2, false);
+  bits.draw();
+  ctx.restore();
+  drawHUD();
+  toast.draw(HUD_H + 8, { good: P.good, bad: P.bad, info: P.card, ink: P.ink });
+  if (S.phase === 'intro') drawIntro();
+  if (S.phase === 'won') drawWon();
+  if (S.tipT > 0) {
+    ctx.save();
+    ctx.globalAlpha = clamp(S.tipT, 0, 1);
+    const w = 480;
+    paper(STAGE.x + STAGE.w / 2 - w / 2, SCENE_H - 52, w, 42, P.paper, 51, 12, .3);
+    text(S.tip, STAGE.x + STAGE.w / 2, SCENE_H - 31, { size: 16, color: P.ink });
+    ctx.restore();
+  }
+  endScene(.08, 'rgba(8, 16, 8, .42)', 0, .1);
+}
+
+</script>
+</body>
+</html>
