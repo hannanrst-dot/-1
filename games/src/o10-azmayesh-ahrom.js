@@ -50,6 +50,8 @@ const PLANK_L = 1.2;             /* درازای تخته، متر */
 const PXM = 430;                 /* پیکسل بر متر */
 const DL_MIN = .05, DL_MAX = .55;
 const DH_MIN = .05, DH_MAX = .55;
+const STEP = .05;             /* فاصله‌ها پنج‌سانتی‌متری، تا بشود دقیقاً سرِ جای قبلی برگشت */
+const snap = (v, lo, hi) => clamp(Math.round(v / STEP) * STEP, lo, hi);
 
 /** نیرویی که دست باید وارد کند تا تخته در تعادل بماند. */
 function needForce(lever, dl, dh) {
@@ -76,7 +78,7 @@ const QS = [
 const S = {
   phase: 'intro', phaseT: 0,
   lever: true,
-  dl: .40, dh: .50,
+  dl: .40, dh: .50,   /* هر دو روی پلّهٔ ۵ سانتی‌متری */
   rec: [null, null, null, null],   /* نیروی ثبت‌شده در هر خانه */
   recAt: [null, null, null, null], /* {dl, dh} */
   ans: [-1, -1], mark: null, markT: 0,
@@ -119,11 +121,11 @@ function qOpt(qi, i) {
 cv.addEventListener('pointermove', (e) => {
   const p = toStage(e);
   if (S.drag === 'w') {
-    S.dl = clamp((FUL_X - p.x) / PXM, DL_MIN, DL_MAX);
+    S.dl = snap((FUL_X - p.x) / PXM, DL_MIN, DL_MAX);
     return;
   }
   if (S.drag === 'h') {
-    S.dh = clamp((p.x - FUL_X) / PXM, DH_MIN, DH_MAX);
+    S.dh = snap((p.x - FUL_X) / PXM, DH_MIN, DH_MAX);
     return;
   }
   S.hover = null;
@@ -177,27 +179,30 @@ cv.addEventListener('pointerup', release);
 cv.addEventListener('pointercancel', release);
 addEventListener('blur', release);
 
-/** این حالت به کدام خانهٔ دفترچه می‌خورد؟ */
+/** این حالت به کدام خانهٔ دفترچه می‌خورد؟
+    خانهٔ سوم و چهارم شرط دارند: باید فقط یک چیز عوض شده باشد و آن‌یکی
+    سرِ همان جای خانهٔ دوم مانده باشد — همان روشِ آزمایشِ کتاب.       */
+const SAME = .026;            /* یعنی دقیقاً همان پلّه */
 function slotFor() {
   if (!S.lever) return 0;
   const base = S.recAt[1];
-  if (S.dh >= .45 && S.dl >= .20 && (!base || Math.abs(S.dl - base.dl) < .04 || S.rec[1] === null)) {
-    if (S.rec[1] === null) return 1;
-  }
-  if (base) {
-    if (S.dh <= .22 && Math.abs(S.dl - base.dl) <= .04) return 2;
-    if (S.dl <= .13 && Math.abs(S.dh - base.dh) <= .04) return 3;
-  }
+  if (S.rec[1] === null) return (S.dh >= .45 && S.dl >= .20) ? 1 : -1;
+  if (S.dh <= .22 && Math.abs(S.dl - base.dl) <= SAME) return 2;
+  if (S.dl <= .13 && Math.abs(S.dh - base.dh) <= SAME) return 3;
   return -1;
 }
 
 function record() {
   const si = slotFor();
   if (si < 0) {
-    if (S.rec[1] === null) tip('برای خانهٔ دوم: وزنه دور از تکیه‌گاه و دستت هم دور.');
-    else if (S.rec[2] === null && S.rec[3] === null) tip('یکی را عوض کن و آن‌یکی را سرِ جایش نگه دار.');
-    else if (S.rec[2] === null) tip('دستت را نزدیکِ تکیه‌گاه ببر و وزنه را سرِ جایش نگه دار.');
-    else tip('وزنه را نزدیکِ تکیه‌گاه ببر و دستت را سرِ جایش نگه دار.');
+    const b = S.recAt[1];
+    const cm = (v) => fa(Math.round(v * 100));
+    if (S.rec[1] === null) tip('برای خانهٔ دوم: وزنه دست‌کم ۲۰ و دستِ تو دست‌کم ۴۵.');
+    else if (S.rec[2] === null && S.dh > .22) tip('برای خانهٔ سوم دستت را ببر روی ۲۰ یا کمتر.');
+    else if (S.rec[2] === null && Math.abs(S.dl - b.dl) > SAME) tip('وزنه را برگردان سرِ ' + cm(b.dl) + '.');
+    else if (S.rec[3] === null && S.dl > .13) tip('برای خانهٔ چهارم وزنه را ببر روی ۱۰ یا کمتر.');
+    else if (S.rec[3] === null) tip('دستت را برگردان سرِ ' + cm(b.dh) + '.');
+    else tip('این خانه‌ها پر شده‌اند.');
     S.shake = .12; sfx.nope();
     return;
   }
@@ -414,6 +419,28 @@ function drawBench() {
     if (!c) continue;
     const x = FUL_X + c * .1 * PXM;
     line2(x, PLANK_Y - 10, x, PLANK_Y - 3, 'rgba(70,44,18,.5)', c % 5 ? 1.4 : 2.4);
+  }
+
+  /* نشانهٔ جای‌های خانهٔ دوم */
+  const base = S.recAt[1];
+  if (base && S.phase === 'lab') {
+    const pin = (px, col, val, ok) => {
+      ctx.save();
+      ctx.strokeStyle = ok ? P.good : col; ctx.lineWidth = 2.4;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath(); ctx.moveTo(px, PLANK_Y + 12); ctx.lineTo(px, PLANK_Y + 44); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = ok ? P.good : col;
+      ctx.beginPath();
+      ctx.moveTo(px, PLANK_Y + 12); ctx.lineTo(px - 7, PLANK_Y + 24); ctx.lineTo(px + 7, PLANK_Y + 24);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(20,26,38,.85)';
+      ctx.beginPath(); rrPath(px - 22, PLANK_Y + 44, 44, 22, 7); ctx.fill();
+      numText(fa(Math.round(val * 100)), px, PLANK_Y + 55, { size: 13, color: ok ? P.good : col });
+      ctx.restore();
+    };
+    pin(FUL_X - base.dl * PXM, '#e9a35a', base.dl, Math.abs(S.dl - base.dl) <= SAME);
+    pin(FUL_X + base.dh * PXM, '#7fb0e8', base.dh, Math.abs(S.dh - base.dh) <= SAME);
   }
 
   /* وزنه */

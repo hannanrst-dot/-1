@@ -971,12 +971,14 @@ function startLevel(i, keep) {
 
 const fulX = () => LOAD_X + dLoad() * PXM;
 const fulTopY = () => GROUND_Y - HF * PXM;
-/** نقطه‌ای روی تخته، به فاصلهٔ s متر از سرِ بار. */
+/** نقطه‌ای روی تخته، به فاصلهٔ s متر از سرِ بار.
+    زاویهٔ مثبت یعنی سمتِ بار پایین است؛ چون روی صحنه y به پایین
+    زیاد می‌شود، بلندیِ هر نقطه (HF + u·sinθ) با منها به y تبدیل می‌شود. */
 function plankPt(s) {
   const u = s - dLoad();                 /* از تکیه‌گاه، مثبت یعنی سمتِ دست */
   return {
     x: fulX() + u * PXM * Math.cos(S.th),
-    y: fulTopY() + u * PXM * Math.sin(S.th),
+    y: fulTopY() - u * PXM * Math.sin(S.th),
   };
 }
 
