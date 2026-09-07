@@ -34,13 +34,15 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'forest_clear', title: 'نگهبان جنگل', hint: 'همهٔ مرحله‌های جنگل کلمات را بگذران',
-    icon: '🌲', progress: (p) => (realmDone(p, 'r1') ? 1 : ratio(GAME_REALMS[0].levels.filter((l) => p.completedLevels[l.id]).length, 4)),
-    label: (p) => `${GAME_REALMS[0].levels.filter((l) => p.completedLevels[l.id]).length} از ۴`,
+    icon: '🌲',
+    progress: (p) => (realmDone(p, 'r1') ? 1 : ratio(GAME_REALMS[0].levels.filter((l) => p.completedLevels[l.id]).length, GAME_REALMS[0].levels.length)),
+    label: (p) => `${GAME_REALMS[0].levels.filter((l) => p.completedLevels[l.id]).length} از ${GAME_REALMS[0].levels.length}`,
   },
   {
     id: 'crystal_clear', title: 'بلورشناس', hint: 'همهٔ مرحله‌های غار بلورین را بگذران',
-    icon: '💎', progress: (p) => ratio(GAME_REALMS[1].levels.filter((l) => p.completedLevels[l.id]).length, 4),
-    label: (p) => `${GAME_REALMS[1].levels.filter((l) => p.completedLevels[l.id]).length} از ۴`,
+    icon: '💎',
+    progress: (p) => ratio(GAME_REALMS[1].levels.filter((l) => p.completedLevels[l.id]).length, GAME_REALMS[1].levels.length),
+    label: (p) => `${GAME_REALMS[1].levels.filter((l) => p.completedLevels[l.id]).length} از ${GAME_REALMS[1].levels.length}`,
   },
   {
     id: 'ten_levels', title: 'کماندار کارکشته', hint: '۱۰ مرحله را کامل کن',
@@ -73,15 +75,19 @@ export const ACHIEVEMENTS: Achievement[] = [
     icon: '🎁', progress: (p) => ratio(p.unlockedBows.length, 4), label: (p) => `${p.unlockedBows.length} از ۴`,
   },
   {
+    id: 'twin_master', title: 'دوقلوشناس', hint: 'هر دو مرحلهٔ دوقلوهای هم‌آوا را بگذران',
+    icon: '👯', progress: (p) => ratio([p.completedLevels['r3_l5'], p.completedLevels['r6_l4']].filter(Boolean).length, 2),
+  },
+  {
     id: 'boss_slayer', title: 'دیوکُش', hint: 'دیوسالار قلعه را شکست بده',
-    icon: '⚔️', progress: (p) => (p.completedLevels['r4_l4'] ? 1 : 0),
+    icon: '⚔️', progress: (p) => (p.completedLevels['r4_l5'] ? 1 : 0),
   },
   {
     id: 'grand_master', title: 'استاد املای پارسی', hint: 'غول غلط‌نویس اعظم را شکست بده',
-    icon: '👑', progress: (p) => (p.completedLevels['r6_l4'] ? 1 : 0),
+    icon: '👑', progress: (p) => (p.completedLevels['r6_l5'] ? 1 : 0),
   },
   {
-    id: 'completionist', title: 'فاتح شش سرزمین', hint: 'هر ۲۴ مرحله را کامل کن',
+    id: 'completionist', title: 'فاتح شش سرزمین', hint: 'همهٔ مرحله‌ها را کامل کن',
     icon: '🗺️', progress: (p) => ratio(done(p), ALL_LEVELS.length),
     label: (p) => `${done(p)} از ${ALL_LEVELS.length}`,
   },

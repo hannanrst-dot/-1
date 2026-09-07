@@ -6,6 +6,9 @@ export type GameMode =
   | 'word_rescue'     // ۳. نجات کلمه — شکستن قفل‌های غلط و آزادسازی واژه
   | 'monster_combat'  // ۴. شکار غلط املایی — پاکسازی هیولای غلط‌نویس
   | 'sentence_hunt'   // ۵. شکار در جمله — جای خالی جمله را با املای درست پر کن
+  | 'twin_words'      // ۸. دوقلوهای هم‌آوا — کدام واژه با این معنی می‌خوانَد؟
+  | 'shield_defense'  // ۹. دفاع از دروازه — غلط‌ها را بزن، درست‌ها را رد کن
+  | 'word_forge'      // ۱۰. کورهٔ واژه‌سازی — حرف‌ها را به ترتیب شلیک کن
   | 'speed_rush'      // ۶. حمله زمان‌دار — شکار سریع در پرتال‌ها
   | 'boss_battle';    // ۷. نبرد با غول غلط‌نویس
 
@@ -21,6 +24,7 @@ export type SpellingCategory =
   | 'tanvin'     // تنوین نصب: اً
   | 'gozar'      // گزار / گذار
   | 'peyvaste'   // نیم‌فاصله و پیوسته‌نویسی
+  | 'twins'      // دوقلوهای هم‌آوا: دو واژهٔ درست با معنی متفاوت
   | 'all';
 
 export type ArrowType = 'standard' | 'fire' | 'slow_mo' | 'piercing' | 'multi_shot';
@@ -45,6 +49,11 @@ export interface SpellingItem {
   grade: GradeLevel;
   difficulty: 1 | 2 | 3;
   isCustom?: boolean;             // واژهٔ افزودهٔ معلم
+  /**
+   * دوقلوی هم‌آوا: «نادرست»ِ این واژه در واقع یک واژهٔ کاملاً درست است و
+   * فقط معنی دیگری دارد. پیام‌های بازی برای این‌ها باید متفاوت باشد.
+   */
+  isTwin?: boolean;
 }
 
 export interface Vector2D {
@@ -97,7 +106,7 @@ export interface Target {
   bobSpeed: number;
   spin: number;
   spinSpeed: number;
-  pattern: 'horizontal' | 'vertical' | 'orbit' | 'drift' | 'portal' | 'patrol' | 'static' | 'ballistic';
+  pattern: 'horizontal' | 'vertical' | 'orbit' | 'drift' | 'portal' | 'patrol' | 'static' | 'ballistic' | 'march';
   p: {
     minX?: number; maxX?: number; minY?: number; maxY?: number;
     cx?: number; cy?: number; r?: number; angle?: number; speed?: number;

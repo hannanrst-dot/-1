@@ -21,6 +21,7 @@ import { LevelEndModal } from './components/LevelEndModal';
 import { ClassSessionModal } from './components/ClassSessionModal';
 import { ClassReportModal } from './components/ClassReportModal';
 import { AchievementsModal } from './components/AchievementsModal';
+import { TitleScreen } from './components/TitleScreen';
 import { RotateHint } from './components/RotateHint';
 import { MissionRunner } from './components/MissionRunner';
 import { MissionConfig } from './types/game';
@@ -55,6 +56,16 @@ export function App() {
   }, []);
 
   /* ─────────── ناوبری ─────────── */
+  // صفحهٔ خوش‌آمد فقط بار نخست دیده می‌شود
+  const [showTitle, setShowTitle] = useState(() => {
+    try { return localStorage.getItem('wh_intro_seen') !== '1'; } catch { return false; }
+  });
+  const dismissTitle = useCallback(() => {
+    try { localStorage.setItem('wh_intro_seen', '1'); } catch { /* حافظه در دسترس نیست */ }
+    audioService.unlock();
+    setShowTitle(false);
+  }, []);
+
   const [view, setView] = useState<View>('map');
   const [level, setLevel] = useState<LevelConfig | null>(null);
   const [runKey, setRunKey] = useState(0);           // برای شروع دوبارهٔ مرحله
@@ -289,6 +300,19 @@ export function App() {
               ? () => emit({ type: 'wordhunter:exit', sessionId: mission.sessionId })
               : () => setMission(null)
           }
+        />
+      </div>
+    );
+  }
+
+  if (showTitle) {
+    return (
+      <div className="relative w-screen h-[100dvh] overflow-hidden bg-slate-950 text-slate-100">
+        <TitleScreen
+          levelCount={ALL_LEVELS.length}
+          wordCount={spellingContentAdapter.getBuiltInItems().length}
+          onStart={dismissTitle}
+          onTeacher={() => { dismissTitle(); setModal('session'); }}
         />
       </div>
     );

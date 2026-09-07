@@ -55,10 +55,12 @@ const DEFAULTS: MissionConfig = {
 
 const VALID_MODES: GameMode[] = [
   'word_hunt', 'letter_snipe', 'word_rescue', 'monster_combat',
-  'sentence_hunt', 'speed_rush', 'boss_battle',
+  'sentence_hunt', 'twin_words', 'shield_defense', 'word_forge',
+  'speed_rush', 'boss_battle',
 ];
 const VALID_CATS: SpellingCategory[] = [
-  's_s_th', 'z_z_z_z', 't_t', 'gh_gh', 'h_h', 'khva', 'tanvin', 'gozar', 'peyvaste', 'all',
+  's_s_th', 'z_z_z_z', 't_t', 'gh_gh', 'h_h', 'khva',
+  'tanvin', 'gozar', 'peyvaste', 'twins', 'all',
 ];
 const VALID_GRADES: GradeLevel[] = ['all', 'grade_1_2', 'grade_3_4', 'grade_5_6', 'middle_school'];
 

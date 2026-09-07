@@ -101,6 +101,22 @@ export function drawWordTablet(
   ctx.fill();
   ctx.restore();
 
+  // برقِ نور که هر چند ثانیه از روی لوح می‌گذرد
+  const sweep = ((time * 0.42 + t.bob * 0.13) % 3) / 3;
+  if (sweep < 0.34) {
+    const sx = -t.halfW - 40 + sweep * 3 * (w + 80);
+    ctx.save();
+    roundRect(ctx, -t.halfW, -t.halfH, w, h, 20);
+    ctx.clip();
+    const sg = ctx.createLinearGradient(sx - 34, -h / 2, sx + 34, h / 2);
+    sg.addColorStop(0, 'rgba(255,255,255,0)');
+    sg.addColorStop(0.5, 'rgba(255,255,255,0.13)');
+    sg.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sg;
+    ctx.fillRect(-t.halfW, -t.halfH, w, h);
+    ctx.restore();
+  }
+
   // زینت گوشه‌ها
   ctx.strokeStyle = glow;
   ctx.globalAlpha = fade * 0.85;
@@ -356,6 +372,169 @@ export function drawSentencePlaque(
   ctx.fillStyle = '#7dd3fc';
   const m = meaning.length > 60 ? meaning.slice(0, 58) + '…' : meaning;
   ctx.fillText(m, cx, y + boxH / 2 - 15);
+  ctx.restore();
+}
+
+/* ═══════════ لوح معنی (حالت دوقلوهای هم‌آوا) ═══════════ */
+
+export function drawMeaningPlaque(
+  ctx: CanvasRenderingContext2D,
+  meaning: string,
+  projector: boolean,
+  time: number
+) {
+  const size = projector ? 30 : 25;
+  const label = 'کدام واژه یعنی:';
+  const footer = 'هر دو واژه درست‌اند — معنی را بخوان';
+  const wLabel = measure(ctx, label, projector ? 17 : 15, 600);
+  const wFooter = measure(ctx, footer, projector ? 14 : 12, 600);
+  const wMean = measure(ctx, meaning, size, 800);
+  const boxW = Math.min(VW - 160, Math.max(wMean, wLabel, wFooter) + 72);
+  const boxH = size + 78;
+  const cx = VW / 2;
+  const y = 152;
+
+  ctx.save();
+  blit(ctx, rectGlow(boxW, boxH, 18, 24, '#f472b6', 2), cx, y);
+  const g = ctx.createLinearGradient(0, y - boxH / 2, 0, y + boxH / 2);
+  g.addColorStop(0, 'rgba(40,12,30,0.96)');
+  g.addColorStop(1, 'rgba(20,6,16,0.97)');
+  ctx.fillStyle = g;
+  roundRect(ctx, cx - boxW / 2, y - boxH / 2, boxW, boxH, 18);
+  ctx.fill();
+  ctx.strokeStyle = '#f472b6';
+  ctx.lineWidth = 2.4;
+  ctx.stroke();
+
+  rtlText(ctx);
+  font(ctx, projector ? 17 : 15, 600);
+  ctx.fillStyle = '#f9a8d4';
+  ctx.fillText(label, cx, y - boxH / 2 + 22);
+
+  font(ctx, size, 800);
+  ctx.fillStyle = '#fce7f3';
+  const m = meaning.length > 48 ? meaning.slice(0, 46) + '…' : meaning;
+  outlinedText(ctx, m, cx, y + 8, 4);
+
+  font(ctx, projector ? 14 : 12, 600);
+  ctx.fillStyle = `rgba(244,114,182,${0.5 + 0.35 * Math.sin(time * 3)})`;
+  ctx.fillText(footer, cx, y + boxH / 2 - 14);
+  ctx.restore();
+}
+
+/* ═══════════ لوح کوره (حالت واژه‌سازی) ═══════════ */
+
+export function drawForgePlaque(
+  ctx: CanvasRenderingContext2D,
+  letters: string[],
+  placed: number,
+  projector: boolean,
+  flash: number
+) {
+  const size = projector ? 34 : 29;
+  const cell = size * 1.5;
+  const gap = 8;
+  const caption = 'حرف‌ها را به ترتیب، از راست به چپ بزن';
+  const inner = letters.length * cell + (letters.length - 1) * gap;
+  const wCaption = measure(ctx, caption, projector ? 15 : 13, 600);
+  const boxW = Math.min(VW - 140, Math.max(inner, wCaption) + 64);
+  const boxH = cell + 74;
+  const cx = VW / 2;
+  const y = 152;
+
+  ctx.save();
+  blit(ctx, rectGlow(boxW, boxH, 18, 24, '#fb923c', 2), cx, y);
+  const g = ctx.createLinearGradient(0, y - boxH / 2, 0, y + boxH / 2);
+  g.addColorStop(0, 'rgba(42,20,8,0.96)');
+  g.addColorStop(1, 'rgba(22,10,4,0.97)');
+  ctx.fillStyle = g;
+  roundRect(ctx, cx - boxW / 2, y - boxH / 2, boxW, boxH, 18);
+  ctx.fill();
+  ctx.strokeStyle = '#fb923c';
+  ctx.lineWidth = 2.4;
+  ctx.stroke();
+
+  rtlText(ctx);
+  // خانه‌ها از راست به چپ، به ترتیب حرف‌های واژه
+  const right = cx + inner / 2;
+  const rowY = y - 12;
+  letters.forEach((ch, i) => {
+    const slotCx = right - cell / 2 - i * (cell + gap);
+    const on = i < placed;
+    const isNext = i === placed;
+    if (on) {
+      blit(ctx, rectGlow(cell, cell, 8, 16, '#fbbf24'), slotCx, rowY, 0.9);
+      ctx.fillStyle = 'rgba(251,191,36,0.18)';
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    }
+    roundRect(ctx, slotCx - cell / 2, rowY - cell / 2, cell, cell, 8);
+    ctx.fill();
+    ctx.strokeStyle = on ? '#fbbf24' : isNext ? 'rgba(251,146,60,0.85)' : 'rgba(120,113,108,0.55)';
+    ctx.lineWidth = isNext ? 2.6 : 1.8;
+    ctx.setLineDash(on ? [] : [5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (on) {
+      font(ctx, size, 900);
+      ctx.fillStyle = '#fef3c7';
+      ctx.fillText(ch, slotCx, rowY + 1);
+    } else if (isNext) {
+      font(ctx, size * 0.7, 900);
+      ctx.fillStyle = 'rgba(251,146,60,0.8)';
+      ctx.fillText('؟', slotCx, rowY + 2);
+    }
+  });
+
+  font(ctx, projector ? 15 : 13, 600);
+  ctx.fillStyle = flash > 0.1 ? '#fbbf24' : '#a8a29e';
+  ctx.fillText(caption, cx, y + boxH / 2 - 15);
+  ctx.restore();
+}
+
+/* ═══════════ دروازه (حالت دفاع) ═══════════ */
+
+export function drawGate(ctx: CanvasRenderingContext2D, x: number, time: number, pulse: number) {
+  ctx.save();
+  const top = 120;
+  const bottom = GROUND_Y + 4;
+  const shimmer = 0.32 + 0.14 * Math.sin(time * 2.2) + pulse * 0.45;
+
+  // پردهٔ نور دروازه
+  const g = ctx.createLinearGradient(x - 26, 0, x + 26, 0);
+  g.addColorStop(0, 'rgba(56,189,248,0)');
+  g.addColorStop(0.5, `rgba(56,189,248,${0.16 + pulse * 0.3})`);
+  g.addColorStop(1, 'rgba(56,189,248,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(x - 26, top, 52, bottom - top);
+
+  ctx.strokeStyle = `rgba(125,211,252,${shimmer})`;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x, top);
+  ctx.lineTo(x, bottom);
+  ctx.stroke();
+
+  // رون‌های روی ستون دروازه
+  ctx.fillStyle = `rgba(186,230,253,${shimmer})`;
+  for (let yy = top + 22; yy < bottom - 10; yy += 44) {
+    ctx.beginPath();
+    ctx.arc(x, yy, 3.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // سرستون
+  ctx.fillStyle = 'rgba(12,42,64,0.95)';
+  roundRect(ctx, x - 22, top - 26, 44, 30, 8);
+  ctx.fill();
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  rtlText(ctx);
+  font(ctx, 13, 800);
+  ctx.fillStyle = '#7dd3fc';
+  ctx.fillText('دروازه', x, top - 11);
   ctx.restore();
 }
 
@@ -962,6 +1141,75 @@ export function drawShockwave(ctx: CanvasRenderingContext2D, x: number, y: numbe
   ctx.globalAlpha = alpha;
   ctx.lineWidth = Math.max(1, 7 * alpha);
   ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * هالهٔ گرمِ لبهٔ صفحه وقتی زنجیرهٔ پاسخ‌های درست بالا می‌رود.
+ * با شیب ساخته می‌شود، نه محوسازی، پس هزینه‌اش ناچیز است.
+ */
+export function drawComboAura(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  combo: number,
+  time: number
+) {
+  if (combo < 4) return;
+  const t = Math.min(1, (combo - 3) / 9);
+  const pulse = 0.55 + 0.45 * Math.sin(time * 3.4);
+  const alpha = (0.1 + t * 0.3) * pulse;
+  const color = combo >= 10 ? '250,204,21' : combo >= 7 ? '251,146,60' : '244,114,182';
+  const band = 60 + t * 90;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const sides: [number, number, number, number, number, number][] = [
+    [0, 0, 0, band, 0, 0],
+    [0, h, 0, h - band, 0, 0],
+    [0, 0, band, 0, 1, 0],
+    [w, 0, w - band, 0, 1, 0],
+  ];
+  sides.forEach(([x0, y0, x1, y1, vertical]) => {
+    const g = ctx.createLinearGradient(x0, y0, x1, y1);
+    g.addColorStop(0, `rgba(${color},${alpha})`);
+    g.addColorStop(1, `rgba(${color},0)`);
+    ctx.fillStyle = g;
+    if (vertical) {
+      ctx.fillRect(Math.min(x0, x1), 0, band, h);
+    } else {
+      ctx.fillRect(0, Math.min(y0, y1), w, band);
+    }
+  });
+  ctx.restore();
+}
+
+/** پرتوهای طلایی جشن پیروزی */
+export function drawVictoryRays(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  progress: number
+) {
+  if (progress <= 0 || progress >= 1) return;
+  const fade = Math.sin(progress * Math.PI);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.translate(w / 2, h * 0.45);
+  ctx.rotate(progress * 0.5);
+  for (let i = 0; i < 14; i++) {
+    ctx.rotate((Math.PI * 2) / 14);
+    const g = ctx.createLinearGradient(0, 0, w * 0.75, 0);
+    g.addColorStop(0, `rgba(253,224,71,${0.16 * fade})`);
+    g.addColorStop(1, 'rgba(253,224,71,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(w * 0.75, -26);
+    ctx.lineTo(w * 0.75, 26);
+    ctx.closePath();
+    ctx.fill();
+  }
   ctx.restore();
 }
 

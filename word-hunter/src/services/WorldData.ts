@@ -47,6 +47,7 @@ export const GAME_REALMS: Realm[] = [
       { n: 2, t: 'تیر بر حرف گم‌شده', d: 'جای خالی واژه را با حرف درست پر کن', mode: 'letter_snipe', rounds: 5, lives: 3, cat: 's_s_th', g: 'grade_1_2', diff: 1 },
       { n: 3, t: 'نجات واژه از کمینگاه', d: 'قفل‌های املای غلط را بشکن و واژه را آزاد کن', mode: 'word_rescue', rounds: 3, lives: 3, cat: 's_s_th', g: 'grade_3_4', diff: 2 },
       { n: 4, t: 'پاکسازی بچه‌هیولا', d: 'هیولای غلط‌نویس را با نوشتار درست پاک کن', mode: 'monster_combat', rounds: 4, lives: 3, cat: 's_s_th', g: 'grade_3_4', diff: 2 },
+      { n: 5, t: 'دروازهٔ بیشه', d: 'غلط‌ها را بزن و واژه‌های درست را رد کن', mode: 'shield_defense', rounds: 4, lives: 4, cat: 's_s_th', g: 'grade_3_4', diff: 2 },
     ]
   ),
   realm(
@@ -60,6 +61,7 @@ export const GAME_REALMS: Realm[] = [
       { n: 2, t: 'شکار در تاریکی', d: 'حرف درست را روی بلورهای چرخان بزن', mode: 'letter_snipe', rounds: 5, lives: 3, cat: 'z_z_z_z', g: 'grade_3_4', diff: 2 },
       { n: 3, t: 'واژه در دل جمله', d: 'جای خالی جمله را با املای درست پر کن', mode: 'sentence_hunt', rounds: 5, lives: 3, cat: 'z_z_z_z', g: 'grade_3_4', diff: 2 },
       { n: 4, t: 'شکستن طلسم بلور', d: 'واژهٔ طلایی را از قفس بیرون بکش', mode: 'word_rescue', rounds: 3, lives: 3, cat: 'z_z_z_z', g: 'grade_5_6', diff: 2 },
+      { n: 5, t: 'کورهٔ بلورین', d: 'حرف‌های واژه را به ترتیب درست بزن', mode: 'word_forge', rounds: 3, lives: 4, cat: 'z_z_z_z', g: 'grade_3_4', diff: 2 },
     ]
   ),
   realm(
@@ -73,6 +75,7 @@ export const GAME_REALMS: Realm[] = [
       { n: 2, t: 'برج غین و قاف', d: 'املای درست واژه‌های «غ / ق» را شکار کن', mode: 'word_hunt', rounds: 5, lives: 3, cat: 'gh_gh', g: 'grade_3_4', diff: 2 },
       { n: 3, t: 'توفان بر فراز شهر', d: 'در زمان محدود، بیشترین املای درست را بزن', mode: 'speed_rush', rounds: 8, lives: 3, time: 60, cat: 't_t', g: 'grade_3_4', diff: 2 },
       { n: 4, t: 'نگهبان سایه‌ها', d: 'هیولای «غ / ق» را با نوشتار درست پاک کن', mode: 'monster_combat', rounds: 4, lives: 3, cat: 'gh_gh', g: 'grade_5_6', diff: 3 },
+      { n: 5, t: 'برج دوقلوها', d: 'دو واژهٔ هم‌آوا؛ کدام با این معنی می‌خوانَد؟', mode: 'twin_words', rounds: 5, lives: 3, cat: 'twins', g: 'grade_3_4', diff: 2 },
     ]
   ),
   realm(
@@ -85,8 +88,9 @@ export const GAME_REALMS: Realm[] = [
       { n: 1, t: 'پلکان آتش', d: 'واژه‌های «ه / ح» را درست بشناس', mode: 'word_hunt', rounds: 5, lives: 3, cat: 'h_h', g: 'grade_3_4', diff: 2 },
       { n: 2, t: 'راز واو خاموش', d: 'در واژه‌های خوا/خا، جای درست را پیدا کن', mode: 'letter_snipe', rounds: 5, lives: 3, cat: 'khva', g: 'grade_3_4', diff: 2 },
       { n: 3, t: 'زندان واژه‌های کهن', d: 'واژه‌های واو معدوله را از بند آزاد کن', mode: 'word_rescue', rounds: 3, lives: 3, cat: 'khva', g: 'grade_5_6', diff: 3 },
+      { n: 4, t: 'کورهٔ آتشین', d: 'واژه‌های واو معدوله را حرف‌به‌حرف بساز', mode: 'word_forge', rounds: 3, lives: 4, cat: 'h_h', g: 'grade_3_4', diff: 2 },
       {
-        n: 4, t: '⚔️ دیوسالار قلعه', d: 'نخستین نبرد بزرگ با نگهبان دژ',
+        n: 5, t: '⚔️ دیوسالار قلعه', d: 'نخستین نبرد بزرگ با نگهبان دژ',
         mode: 'boss_battle', rounds: 6, lives: 4, cat: 'h_h', g: 'grade_5_6', diff: 3,
         boss: 'دیوسالار حرف‌دزد', bossHp: 6,
       },
@@ -103,6 +107,7 @@ export const GAME_REALMS: Realm[] = [
       { n: 2, t: 'دیو فاصله‌خوار', d: 'هیولایی که نیم‌فاصله‌ها را می‌بلعد', mode: 'monster_combat', rounds: 4, lives: 3, cat: 'peyvaste', g: 'grade_5_6', diff: 3 },
       { n: 3, t: 'طومار جمله‌های گمشده', d: 'واژهٔ درست را در جای خالی جمله بنشان', mode: 'sentence_hunt', rounds: 5, lives: 3, cat: 'gozar', g: 'middle_school', diff: 3 },
       { n: 4, t: 'توفان شن', d: 'در توفان، نیم‌فاصله‌ها را نجات بده', mode: 'speed_rush', rounds: 8, lives: 3, time: 60, cat: 'peyvaste', g: 'grade_5_6', diff: 3 },
+      { n: 5, t: 'دروازهٔ کاروان', d: 'کاروان واژه‌ها می‌رسد؛ فقط غلط‌ها را بزن', mode: 'shield_defense', rounds: 5, lives: 4, cat: 'gozar', g: 'middle_school', diff: 3 },
     ]
   ),
   realm(
@@ -115,8 +120,9 @@ export const GAME_REALMS: Realm[] = [
       { n: 1, t: 'ستارگان تنوین', d: 'تنوین نصب «اً» را درست بنویس', mode: 'word_hunt', rounds: 5, lives: 3, cat: 'tanvin', g: 'grade_5_6', diff: 3 },
       { n: 2, t: 'آزمون شهاب‌ها', d: 'همهٔ دسته‌ها، در زمان محدود', mode: 'speed_rush', rounds: 10, lives: 3, time: 70, cat: 'all', g: 'all', diff: 3 },
       { n: 3, t: 'واپسین طومار', d: 'واژه‌های ناب را از زنجیر طلسم آزاد کن', mode: 'word_rescue', rounds: 4, lives: 3, cat: 'all', g: 'all', diff: 3 },
+      { n: 4, t: 'آزمون دوقلوها', d: 'دشوارترین جفت‌های هم‌آوای فارسی', mode: 'twin_words', rounds: 6, lives: 3, cat: 'twins', g: 'middle_school', diff: 3 },
       {
-        n: 4, t: '👑 نبرد نهایی', d: 'رویارویی با غول غلط‌نویس اعظم',
+        n: 5, t: '👑 نبرد نهایی', d: 'رویارویی با غول غلط‌نویس اعظم',
         mode: 'boss_battle', rounds: 10, lives: 4, cat: 'all', g: 'all', diff: 3,
         boss: 'غول غلط‌نویس اعظم', bossHp: 10,
       },

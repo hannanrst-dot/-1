@@ -117,6 +117,7 @@ const TOPICS = [
   { id:'h_khva',   label:'ه/ح و خوا/خا',    hint:'',                cats:['h_h','khva'] },
   { id:'gozar',    label:'گزار / گذار',     hint:'',                cats:['gozar'] },
   { id:'peyvaste', label:'نیم‌فاصله و تنوین', hint:'',              cats:['peyvaste','tanvin'] },
+  { id:'twins',    label:'دوقلوهای هم‌آوا',   hint:'حیاط / حیات',    cats:['twins'] },
 ];
 const LENGTHS = [
   { id:'short',  label:'کوتاه',  hint:'۵ پرسش · ۳ دقیقه',  q:5,  m:3 },
@@ -125,7 +126,8 @@ const LENGTHS = [
   { id:'free',   label:'بدون زمان', hint:'۱۰ پرسش',        q:10, m:0 },
 ];
 const MODES = [['word_hunt','شکار کلمه'],['letter_snipe','جای خالی'],['sentence_hunt','در جمله'],
-               ['word_rescue','نجات کلمه'],['monster_combat','هیولا']];
+               ['word_rescue','نجات کلمه'],['monster_combat','هیولا'],
+               ['twin_words','دوقلوها'],['word_forge','کورهٔ واژه']];
 
 let topic = 'all', length = 'normal';
 const pickedModes = new Set(['word_hunt','letter_snipe','sentence_hunt']);

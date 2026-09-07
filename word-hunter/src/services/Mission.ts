@@ -4,12 +4,15 @@ import { spellingContentAdapter } from './SpellingContentAdapter';
 /**
  * حالت‌هایی که در یک «مأموریت» پیوسته معنی می‌دهند.
  *
- * «نبرد با غول» و «حملهٔ زمان‌دار» عمداً کنار گذاشته شده‌اند: اولی یک صحنهٔ
- * پایانیِ مرحله‌محور است و دومی تایمر مستقل خودش را دارد که با تایمر کلی
- * آزمون تداخل پیدا می‌کند.
+ * سه حالت عمداً کنار گذاشته شده‌اند:
+ *  · «نبرد با غول» یک صحنهٔ پایانیِ مرحله‌محور است.
+ *  · «حملهٔ زمان‌دار» تایمر مستقل خودش را دارد و با ساعت آزمون تداخل می‌کند.
+ *  · «دفاع از دروازه» در هر دور یک موج چندواژه‌ای دارد، پس با شمارشِ
+ *    «هر دور، یک پرسش» جور درنمی‌آید و تعداد پرسش‌های آزمون را به هم می‌ریزد.
  */
 export const MISSION_MODES: GameMode[] = [
-  'word_hunt', 'letter_snipe', 'word_rescue', 'monster_combat', 'sentence_hunt',
+  'word_hunt', 'letter_snipe', 'word_rescue', 'monster_combat',
+  'sentence_hunt', 'twin_words', 'word_forge',
 ];
 
 const MODE_TITLE: Record<string, string> = {
@@ -18,6 +21,8 @@ const MODE_TITLE: Record<string, string> = {
   word_rescue: 'نجات واژه',
   monster_combat: 'پاکسازی غلط املایی',
   sentence_hunt: 'شکار واژه در جمله',
+  twin_words: 'دوقلوهای هم‌آوا',
+  word_forge: 'ساختن واژه با حرف‌ها',
 };
 
 /**
@@ -35,14 +40,22 @@ export function buildMissionChunks(cfg: MissionConfig): LevelConfig[] {
   if (modes.length === 0) modes = ['word_hunt'];
 
   const cats: SpellingCategory[] = cfg.categories.length ? cfg.categories : ['all'];
+  // «دوقلوهای هم‌آوا» فقط با دستهٔ twins معنی دارد؛ اگر معلم آن دسته را
+  // نخواسته باشد، این حالت از برنامه کنار می‌رود
+  const wantsTwins = cats.includes('twins');
+  if (!wantsTwins) modes = modes.filter((m) => m !== 'twin_words');
+  if (wantsTwins && cats.length === 1) modes = modes.filter((m) => m === 'twin_words' || m === 'word_hunt');
+  if (modes.length === 0) modes = wantsTwins ? ['twin_words'] : ['word_hunt'];
 
   // چرخش بین حالت‌ها و دسته‌ها تا پرسش‌ها یکنواخت نشوند
   const plan: { mode: GameMode; cat: SpellingCategory }[] = [];
   for (let i = 0; i < cfg.questionCount; i++) {
-    plan.push({
-      mode: modes[i % modes.length],
-      cat: cats[Math.floor(i / modes.length) % cats.length],
-    });
+    let mode = modes[i % modes.length];
+    let cat = cats[Math.floor(i / modes.length) % cats.length];
+    // دستهٔ دوقلوها و حالت دوقلوها همیشه باید با هم بیایند
+    if (cat === 'twins' && mode !== 'twin_words') mode = 'twin_words';
+    if (mode === 'twin_words' && cat !== 'twins') cat = 'twins';
+    plan.push({ mode, cat });
   }
 
   // پرسش‌های پشت‌سرهمِ هم‌شکل در یک تکه جمع می‌شوند

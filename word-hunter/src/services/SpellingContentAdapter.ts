@@ -1,11 +1,11 @@
 import { SpellingItem, SpellingCategory, GradeLevel, GameMode } from '../types/game';
-import { RAW_WORDS, RawWord, CATEGORY_LETTERS, CATEGORY_INFO } from '../data/wordBank';
+import { RAW_WORDS, RawWord, TWIN_PAIRS, CATEGORY_LETTERS, CATEGORY_INFO } from '../data/wordBank';
 
 const CUSTOM_KEY = 'wh_custom_words_v2';
 const LEGACY_KEY = 'word_hunter_custom_words';
 
 /** دسته‌هایی که برای حالت «جای خالی» مناسب نیستند (حرف کلیدی، حرف مستقل نیست) */
-const NON_SNIPE_CATEGORIES: SpellingCategory[] = ['tanvin', 'peyvaste', 'gozar'];
+const NON_SNIPE_CATEGORIES: SpellingCategory[] = ['tanvin', 'peyvaste', 'gozar', 'twins'];
 
 let seq = 0;
 
@@ -69,6 +69,31 @@ function nthIndexOf(text: string, ch: string, n: number): number {
 }
 
 const BUILT_IN: SpellingItem[] = RAW_WORDS.map((r) => expandRawWord(r, 'core'));
+
+/**
+ * هر جفت دوقلو به دو پرسش تبدیل می‌شود: یک‌بار معنیِ اولی پرسیده می‌شود و
+ * یک‌بار معنیِ دومی، تا دانش‌آموز هر دو سو را یاد بگیرد.
+ */
+const TWINS: SpellingItem[] = TWIN_PAIRS.flatMap((pair, i) =>
+  [[pair.a, pair.b], [pair.b, pair.a]].map(([ask, other], side) => ({
+    id: `twin_${i}_${side}`,
+    word: ask.w,
+    correctSpelling: ask.w,
+    incorrectVariants: [other.w],
+    missingLetter: undefined,
+    missingIndex: undefined,
+    isSnipeable: false,
+    decoyLetters: [],
+    meaning: ask.mean,
+    ruleExplanation: pair.note,
+    sentence: ask.sent,
+    hint: ask.mean,
+    category: 'twins' as SpellingCategory,
+    grade: pair.g,
+    difficulty: pair.d,
+    isTwin: true,
+  }))
+);
 
 export class SpellingContentAdapter {
   private customItems: SpellingItem[] = [];
@@ -160,7 +185,7 @@ export class SpellingContentAdapter {
   // ─────────── خواندن واژه‌ها ───────────
 
   public getBuiltInItems(): SpellingItem[] {
-    return BUILT_IN;
+    return [...BUILT_IN, ...TWINS];
   }
 
   public getCustomItems(): SpellingItem[] {
@@ -170,7 +195,7 @@ export class SpellingContentAdapter {
   public getAllItems(): SpellingItem[] {
     if (this.sessionItems && this.sessionItems.length > 0) return this.sessionItems;
     if (this.customOnly && this.customItems.length > 0) return this.customItems;
-    return [...BUILT_IN, ...this.customItems];
+    return [...BUILT_IN, ...TWINS, ...this.customItems];
   }
 
   /** واژه‌های این جلسه را از بیرون تعیین می‌کند (null یعنی برگرد به بانک کامل) */
@@ -207,7 +232,11 @@ export class SpellingContentAdapter {
     opts: { needSnipeable?: boolean; needVariants?: number } = {}
   ): SpellingItem[] {
     const all = this.getAllItems();
+    // دوقلوها فقط وقتی می‌آیند که صریحاً خواسته شوند: در حالت‌های دیگر
+    // بازی یکی از دو شکل را «غلط» اعلام می‌کند و آن حرف نادرستی است
+    const wantsTwins = category === 'twins';
     const passes = (item: SpellingItem, strict: boolean) => {
+      if (!!item.isTwin !== wantsTwins) return false;
       if (opts.needSnipeable && !item.isSnipeable) return false;
       if (opts.needVariants && item.incorrectVariants.length < opts.needVariants) return false;
       if (!strict) return true;
@@ -229,7 +258,8 @@ export class SpellingContentAdapter {
 
     // ۳) هر واژه‌ای که شرایط فنی حالت بازی را داشته باشد
     pool = all.filter((i) => passes(i, false));
-    return pool.length > 0 ? pool : all;
+    if (pool.length > 0) return pool;
+    return wantsTwins ? TWINS : all.filter((i) => !i.isTwin);
   }
 
   /**
@@ -368,6 +398,24 @@ export class SpellingContentAdapter {
           fa: 'شکار غلط املایی', icon: '👾',
           desc: 'هیولا واژه را غلط نوشته؛ نوشتهٔ درست را به او بزن',
           how: 'رون درست را بزن تا هیولا پاک شود؛ زدن خود هیولا کارساز نیست.',
+        };
+      case 'twin_words':
+        return {
+          fa: 'دوقلوهای هم‌آوا', icon: '👯',
+          desc: 'کدام واژه با این معنی می‌خوانَد؟',
+          how: 'هر دو واژه درست‌اند! آن را بزن که معنی نوشته‌شده را می‌دهد.',
+        };
+      case 'shield_defense':
+        return {
+          fa: 'دفاع از دروازه', icon: '🛡️',
+          desc: 'غلط‌ها را بزن، درست‌ها را رد کن',
+          how: 'فقط به واژه‌های غلط شلیک کن؛ واژه‌های درست باید سالم به دروازه برسند.',
+        };
+      case 'word_forge':
+        return {
+          fa: 'کورهٔ واژه‌سازی', icon: '🔨',
+          desc: 'حرف‌ها را به ترتیب شلیک کن',
+          how: 'حرف‌های واژه را از اول تا آخر، به ترتیب درست بزن.',
         };
       case 'sentence_hunt':
         return {

@@ -15,6 +15,9 @@ import { outlinedText, clearGlowCache } from '../engine/glow';
 import confetti from 'canvas-confetti';
 import { Heart } from 'lucide-react';
 
+/** خط دروازه در حالت «دفاع از دروازه» */
+const GATE_X = FIELD.minX - 40;
+
 /* ─────────── اندازه‌گیری متن خارج از حلقهٔ رسم ─────────── */
 const measureCanvas = document.createElement('canvas');
 const measureCtx = measureCanvas.getContext('2d')!;
@@ -106,6 +109,15 @@ export const GameCanvas: React.FC<Props> = (props) => {
     slotFilled: null as string | null,
     sentBefore: '',
     sentAfter: '',
+    // کورهٔ واژه‌سازی
+    forgeLetters: [] as string[],
+    forgeIndex: 0,
+    forgeFlash: 0,
+    // دفاع از دروازه
+    waveLeft: 0,
+    waveMistake: null as SpellingItem | null,
+    gatePulse: 0,
+    victoryT: 0,
     slotFlash: 0,
     bossHp: 0,
     bossMax: 0,
@@ -367,6 +379,85 @@ export const GameCanvas: React.FC<Props> = (props) => {
           })
         );
       });
+    } else if (effectiveMode === 'twin_words') {
+      // هر دو واژه درست‌اند؛ معنی تعیین می‌کند کدام را باید زد
+      const pool = shuffle([
+        { text: item.correctSpelling, ok: true },
+        ...item.incorrectVariants.slice(0, 1).map((v) => ({ text: v, ok: false })),
+      ]);
+      const fs = proj ? 30 : 25;
+      const spots = layout(pool.length, pool.map(() => fs * 0.78 + 12)).map((sp) => ({
+        x: sp.x, y: clamp(sp.y, FIELD.minY + 90, FIELD.maxY - 40),
+      }));
+      pool.forEach((pw, i) => {
+        s.targets.push(
+          makeTarget({
+            id: `tw${s.roundSeq}_${i}`, kind: 'word', text: pw.text, isCorrect: pw.ok,
+            x: spots[i].x, y: spots[i].y,
+            vx: (0.3 + Math.random() * 0.35) * (i % 2 ? 1 : -1),
+            vy: 0.16 * (i % 2 ? -1 : 1),
+            hue: HUES[i % HUES.length], pattern: 'drift',
+            halfW: D.measure(measureCtx, pw.text, fs, 800) / 2 + 26,
+            halfH: fs * 0.78 + 12,
+            item,
+          })
+        );
+      });
+    } else if (effectiveMode === 'word_forge') {
+      // حرف‌های واژه باید به ترتیب زده شوند
+      const letters = [...item.correctSpelling].filter((c) => c.trim() && c !== '\u200c');
+      s.forgeLetters = letters;
+      s.forgeIndex = 0;
+      s.forgeFlash = 0;
+      const r = proj ? 42 : 36;
+      const spots = layout(letters.length, letters.map(() => r));
+      shuffle(letters.map((ch, i) => ({ ch, i }))).forEach((L, slot) => {
+        const sp = spots[slot];
+        s.targets.push(
+          makeTarget({
+            id: `fg${s.roundSeq}_${L.i}`, kind: 'letter', text: L.ch, isCorrect: L.i === 0,
+            x: sp.x, y: sp.y, radius: r, halfW: r, halfH: r,
+            hue: HUES[slot % HUES.length],
+            pattern: 'drift',
+            vx: (0.25 + Math.random() * 0.3) * (slot % 2 ? 1 : -1) * (0.7 + lvl.difficulty * 0.3),
+            vy: (0.15 + Math.random() * 0.2) * (slot % 2 ? -1 : 1) * (0.7 + lvl.difficulty * 0.3),
+            item,
+          })
+        );
+      });
+    } else if (effectiveMode === 'shield_defense') {
+      // یک موج از واژه‌ها به سوی دروازه راه می‌افتد؛ فقط غلط‌ها باید زده شوند
+      const extras = [
+        item,
+        spellingContentAdapter.getRandomItem(lvl.category, lvl.grade, lvl.difficulty, {
+          needVariants: 1, recentIds: [item.id, ...s.recent],
+        }),
+      ];
+      const marchers: { text: string; ok: boolean; src: SpellingItem }[] = [];
+      extras.forEach((it) => {
+        marchers.push({ text: it.correctSpelling, ok: true, src: it });
+        const bad = shuffle(it.incorrectVariants)[0];
+        if (bad) marchers.push({ text: bad, ok: false, src: it });
+      });
+      const wave = shuffle(marchers).slice(0, 4);
+      s.waveLeft = wave.length;
+      s.waveMistake = null;
+      const fs = proj ? 25 : 21;
+      const lanes = wave.length;
+      wave.forEach((m, i) => {
+        const laneY = FIELD.minY + 60 + ((FIELD.maxY - FIELD.minY - 120) / Math.max(1, lanes - 1)) * i;
+        s.targets.push(
+          makeTarget({
+            id: `sd${s.roundSeq}_${i}`, kind: 'word', text: m.text, isCorrect: !m.ok,
+            x: FIELD.maxX + 40 + i * 150, y: laneY,
+            vx: -(1.15 + Math.random() * 0.35) * (0.8 + lvl.difficulty * 0.25) * ramp,
+            hue: HUES[i % HUES.length], pattern: 'march',
+            halfW: D.measure(measureCtx, m.text, fs, 800) / 2 + 22,
+            halfH: fs * 0.78 + 10,
+            item: m.src,
+          })
+        );
+      });
     } else if (lvl.mode === 'boss_battle') {
       // غول سمت راست می‌ایستد و رون‌ها در کمانی سمت چپ او می‌چرخند
       // تا نوار سلامت و نام غول با هیچ رونی هم‌پوشانی نداشته باشد
@@ -424,6 +515,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
     s.bossHp = level.bossMaxHealth || 8;
     s.bossMax = level.bossMaxHealth || 8;
     s.enraged = false;
+    s.victoryT = 0;
     s.finished = false;
     s.aim = -0.5;
     setUi((u) => ({
@@ -646,6 +738,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
     const accuracy = answered > 0 ? s.correct / answered : 0;
     const stars = !victory ? 0 : accuracy >= 0.9 ? 3 : accuracy >= 0.7 ? 2 : 1;
     if (victory) {
+      s.victoryT = 0.001;
       confetti({ particleCount: 140, spread: 90, origin: { y: 0.55 }, ticks: 220 });
       audioService.playVictory();
     } else {
@@ -744,6 +837,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
       const k = dt * 60; // ضریب تبدیل به «فریم ۶۰ هرتزی»
 
       s.time += paused ? raw * 0.35 : raw;
+      if (s.victoryT > 0 && s.victoryT < 1) s.victoryT = Math.min(1, s.victoryT + raw * 0.55);
       s.scene?.update(paused ? raw * 0.35 : raw);
 
       if (dt > 0) {
@@ -754,6 +848,7 @@ export const GameCanvas: React.FC<Props> = (props) => {
         s.flash = Math.max(0, s.flash - dt * 2.2);
         s.slotFlash = Math.max(0, s.slotFlash - dt * 1.6);
         s.hintCd = Math.max(0, s.hintCd - raw);
+        s.forgeFlash = Math.max(0, s.forgeFlash - dt * 1.8);
 
         // ── تایمر حالت زمان‌دار ──
         if (lvl.mode === 'speed_rush' && s.timeLeft > 0) {
@@ -806,6 +901,10 @@ export const GameCanvas: React.FC<Props> = (props) => {
               t.y = clamp(cy + Math.sin(t.p.angle) * rr * 0.72, FIELD.minY + t.halfH, FIELD.maxY - t.halfH);
               break;
             }
+            case 'march': {
+              t.x += t.vx * k;
+              break;
+            }
             case 'patrol': {
               t.x += t.vx * k;
               if (t.x < (t.p.minX ?? FIELD.minX)) t.vx = Math.abs(t.vx);
@@ -823,6 +922,19 @@ export const GameCanvas: React.FC<Props> = (props) => {
               t.vy += 0.055 * k;
               break;
             }
+          }
+        }
+
+        // ── دفاع از دروازه: هرچه از خط دروازه رد شود داوری می‌شود ──
+        if (s.roundMode === 'shield_defense') {
+          s.gatePulse = Math.max(0, s.gatePulse - dt * 2);
+          for (const t of s.targets) {
+            if (t.kind !== 'word' || t.isDead || t.dying > 0) continue;
+            if (t.x - t.halfW > GATE_X) continue;
+            t.dying = 0.01;
+            s.gatePulse = 1;
+            // isCorrect در این حالت یعنی «این واژه غلط است و باید زده می‌شد»
+            judgeShield(t, !t.isCorrect, t.isCorrect ? 'گذشت' : 'passed');
           }
         }
 
@@ -996,6 +1108,21 @@ export const GameCanvas: React.FC<Props> = (props) => {
 
       s.scene?.drawBack(ctx);
 
+      // دروازه — پشت هدف‌ها کشیده می‌شود
+      if (s.roundMode === 'shield_defense') {
+        D.drawGate(ctx, GATE_X, s.time, s.gatePulse);
+      }
+
+      // لوح معنی
+      if (s.roundMode === 'twin_words' && s.item) {
+        D.drawMeaningPlaque(ctx, s.item.meaning, proj, s.time);
+      }
+
+      // لوح کوره
+      if (s.roundMode === 'word_forge' && s.forgeLetters.length) {
+        D.drawForgePlaque(ctx, s.forgeLetters, s.forgeIndex, proj, s.forgeFlash);
+      }
+
       // لوح جمله
       if (s.roundMode === 'sentence_hunt' && s.item) {
         D.drawSentencePlaque(ctx, s.sentBefore, s.sentAfter, s.item.meaning, s.time, proj);
@@ -1122,6 +1249,10 @@ export const GameCanvas: React.FC<Props> = (props) => {
 
       s.scene?.drawFront(ctx);
 
+      // هالهٔ زنجیرهٔ پاسخ درست و پرتوهای پیروزی
+      D.drawComboAura(ctx, VW, VH, s.combo, s.time);
+      D.drawVictoryRays(ctx, VW, VH, s.victoryT);
+
       // فلاش تمام‌صفحه
       if (s.flash > 0.01) {
         ctx.save();
@@ -1134,6 +1265,69 @@ export const GameCanvas: React.FC<Props> = (props) => {
       ctx.restore();
       // نوارهای سیاه بالا/پایین بیرون از دنیای مجازی قبلاً پر شده‌اند
     };
+
+    /**
+     * داوری یک واژه در حالت «دفاع از دروازه».
+     * playerWasRight یعنی بازیکن تصمیم درستی گرفت (غلط را زد، یا درست را رد کرد).
+     */
+    function judgeShield(t: Target, playerWasRight: boolean, how: string) {
+      const s = S.current;
+      const pr = P.current;
+      const item = t.item;
+      if (item) pr.onWordResult(item, playerWasRight, {
+        chosen: t.text,
+        ms: Math.round(performance.now() - s.roundStartedAt),
+        mode: 'shield_defense',
+      });
+
+      if (playerWasRight) {
+        s.correct++;
+        s.combo++;
+        s.bestCombo = Math.max(s.bestCombo, s.combo);
+        const gained = 60 + s.combo * 15;
+        s.points += gained;
+        s.coins += 5 + s.combo;
+        pr.onScoreDelta(gained, 5 + s.combo);
+        pr.onComboChange(s.combo);
+        burst(t.x, t.y, '#34d399', 16, how === 'passed' ? ['✓'] : undefined);
+        float(t.x, t.y - t.halfH - 12, `+${fa(gained)}`, '#6ee7b7', 20);
+        audioService.playCorrect(s.combo);
+      } else {
+        s.wrong++;
+        s.combo = 0;
+        pr.onComboChange(0);
+        s.lives = Math.max(0, s.lives - 1);
+        s.shake = 14;
+        s.flash = 0.28; s.flashColor = '#f87171';
+        if (item && !s.missedItems.some((m) => m.id === item.id)) s.missedItems.push(item);
+        s.waveMistake = item ?? s.waveMistake;
+        burst(t.x, t.y, '#f87171', 18);
+        float(
+          t.x, t.y - t.halfH - 12,
+          how === 'passed' ? 'غلط از دروازه رد شد!' : 'این واژه درست بود!',
+          '#fca5a5', 19
+        );
+        audioService.playWrong();
+      }
+
+      setUi((u) => ({ ...u, lives: s.lives, combo: s.combo }));
+
+      s.waveLeft = Math.max(0, s.waveLeft - 1);
+      if (s.waveLeft === 0 && s.phase === 'active') {
+        s.phase = 'resolved';
+        s.verdict = s.waveMistake ? 'wrong' : 'right';
+        s.verdictTargetId = null;
+        s.resolveTimer = s.waveMistake ? 2.4 : 0.9;
+        s.roundsDone++;
+        setUi((u) => ({
+          ...u,
+          rounds: s.roundsDone,
+          banner: s.waveMistake
+            ? { kind: 'wrong', item: s.waveMistake }
+            : s.item ? { kind: 'right', item: s.item } : u.banner,
+        }));
+      }
+    }
 
     /** آیا پارهٔ خط حرکت تیر با هدف تلاقی دارد؟ */
     function sweptHit(x0: number, y0: number, x1: number, y1: number, t: Target): boolean {
@@ -1283,6 +1477,44 @@ export const GameCanvas: React.FC<Props> = (props) => {
         return;
       }
 
+      // ── دفاع از دروازه ──
+      if (s.roundMode === 'shield_defense' && t.kind === 'word') {
+        t.dying = 0.01;
+        // isCorrect یعنی «غلط املایی است»، پس زدنش کار درستی بوده
+        judgeShield(t, t.isCorrect, 'shot');
+        return;
+      }
+
+      // ── کورهٔ واژه‌سازی ──
+      if (s.roundMode === 'word_forge' && t.kind === 'letter') {
+        const expectedId = `fg${s.roundSeq}_${s.forgeIndex}`;
+        if (t.id === expectedId) {
+          t.dying = 0.01;
+          s.forgeIndex++;
+          s.forgeFlash = 1;
+          s.hitStop = 0.05;
+          burst(t.x, t.y, '#34d399', 18, [t.text]);
+          audioService.playLetterSnap();
+          if (s.forgeIndex >= s.forgeLetters.length) {
+            s.hitStop = 0.09;
+            wave(VW / 2, 170, '#fbbf24', 200);
+            resolveRound(true, t);
+          }
+        } else {
+          t.shudder = 12;
+          s.shake = 12;
+          s.flash = 0.22; s.flashColor = '#f87171';
+          s.combo = 0;
+          P.current.onComboChange(0);
+          s.lives = Math.max(0, s.lives - 1);
+          setUi((u) => ({ ...u, lives: s.lives, combo: 0 }));
+          float(t.x, t.y - t.radius - 14, 'ترتیب حرف‌ها!', '#fca5a5', 19);
+          audioService.playWrong();
+          if (s.lives <= 0) resolveRound(false, t);
+        }
+        return;
+      }
+
       // ── حالت‌های واژه/حرف ساده ──
       if (t.kind === 'word' || t.kind === 'letter') {
         if (t.isCorrect) {
@@ -1401,7 +1633,11 @@ export const GameCanvas: React.FC<Props> = (props) => {
               <div className="flex-1 text-right">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <span className={`font-black ${proj ? 'text-2xl' : 'text-xl'} ${ui.banner.kind === 'right' ? 'text-emerald-300' : 'text-rose-200'}`}>
-                    {ui.banner.kind === 'right' ? 'آفرین! درست بود' : `املای درست: «${ui.banner.item.correctSpelling}»`}
+                    {ui.banner.kind === 'right'
+                      ? 'آفرین! درست بود'
+                      : ui.banner.item.isTwin
+                      ? `واژهٔ درست برای این معنی: «${ui.banner.item.correctSpelling}»`
+                      : `املای درست: «${ui.banner.item.correctSpelling}»`}
                   </span>
                   <span className={`text-slate-300 ${proj ? 'text-base' : 'text-sm'}`}>
                     {ui.banner.item.meaning}
