@@ -18,6 +18,13 @@
 | `who-rajab.webp` | چهرهٔ مشد رجب |
 | `who-gohar.webp` | چهرهٔ بی‌بی گوهر |
 | `who-amoo.webp` | چهرهٔ عمویِ نگار |
+| `village.webp` | دِه کوهستانی زیرِ باران، غروب |
+| `river.webp` | گدارِ رود، از نزدیک |
+| `path.webp` | راهِ گِلیِ باغ‌ها |
+| `house.webp` | داخلِ آغل |
+| `dusk.webp` | شبِ بارانی |
+| `who-heydar.webp` | چهرهٔ مشدی حیدر |
+| `who-sakineh.webp` | چهرهٔ ننه‌سکینه |
 
 `.png` و `.jpg` هم کار می‌کنند (به همین ترتیب امتحان می‌شوند)، ولی `.webp` سبک‌تر است.
 
@@ -103,6 +110,71 @@
 - **`who-rajab.webp`** — An elderly Iranian village watchman, white beard, weathered kind face, a felt hat and a simple long coat. He looks tired and anxious, holding a lantern.
 - **`who-gohar.webp`** — An elderly Iranian grandmother in a floral headscarf, calm and warm, deep laugh lines, looking gently off to one side.
 - **`who-amoo.webp`** — An Iranian village man in his forties, thin, unshaven, a worn patched coat. Ashamed and exhausted, eyes lowered.
+
+---
+
+---
+
+# داستانِ دوم · پلِ چوبی
+
+هوای این داستان کاملاً فرقِ داستانِ اول است: **روز است نه شب، بارانی است، سرد و سبز-خاکستری.**
+سرآغازِ این پنج صحنه با سرآغازِ بالا فرق دارد:
+
+> Wide cinematic 16:9 illustrated background for a children storybook game.
+> Hand-painted flat illustration with soft gradients and gentle grain, NOT 3D, NOT photorealistic.
+> A rainy late afternoon in an Iranian mountain village in the north. Heavy rain, low cloud,
+> everything wet. Palette: cold slate blue, wet grey-green, dark wet earth, one small warm amber light.
+> Tense and cold. No text, no letters, no numbers, no logos, no watermark, no frame or border.
+> Keep the subject in the upper half; leave the bottom third simple and dark for text overlay.
+
+## ۶ · `village.webp`
+
+> A mountain village on a rainy late afternoon, seen from the near bank of a swollen river.
+> Layered misty mountain ridges at the back. Across the water, a row of dark flat-roofed mud-brick
+> village houses — **and exactly one of them has a lit warm-amber window, at about 74% from the left
+> edge and 34% down the frame; every other house is dark.** A narrow old wooden footbridge crosses
+> the brown swollen river in the middle of the frame. Rain streaks everywhere.
+
+> ⚠️ بازیکن باید همان خانهٔ روشن را پیدا کند. عدد در `index.html`: `at:[.735, .335, .075]`.
+
+## ۷ · `river.webp`
+
+> Close view of a swollen brown mountain river in heavy rain, seen from its bank. On the left, a
+> patch of water that is **smooth, dark and glassy** — deep water. On the right, at about 63% from
+> the left edge and 65% down the frame, the water breaks over hidden rocks into **bright white foam**
+> — the shallow crossing. A few wet dark boulders. Grey cliff and pine trees on the far bank.
+
+> ⚠️ بازیکن باید همان کفِ سفید را پیدا کند. عدد: `at:[.63, .655, .085]`.
+
+## ۸ · `path.webp`
+
+> A narrow muddy lane between old walnut trees and low mud-brick orchard walls, in heavy rain, late
+> afternoon. Deep puddles and cart ruts in the churned mud. **A single old wooden walking stick with
+> a curved handle lying abandoned in the mud at about 37% from the left edge and 70% down the frame**,
+> catching a faint highlight. Wet bare branches overhead.
+
+> ⚠️ بازیکن باید همان عصا را پیدا کند. عدد: `at:[.37, .705, .085]`.
+
+## ۹ · `house.webp`
+
+> Inside a small dark village animal shed at dusk during a flood. Ankle-deep water covering the earth
+> floor and reflecting a tiny oil lamp on the left. A frightened goat standing on the right.
+> **A thick wooden roof post slightly right of centre with a rope wound and knotted tightly around it
+> at about 58% from the left edge and 46% down the frame.** A half-open plank door on the left with
+> grey rain visible through the gap.
+
+> ⚠️ بازیکن باید همان گره را پیدا کند. عدد: `at:[.585, .455, .08]`.
+
+## ۱۰ · `dusk.webp`
+
+> The same mountain valley after dark, in pouring rain. Almost no light: black ridges against a
+> slightly less black sky, one thin cold band of last light on the horizon, and the pale line of the
+> flooded river far below. Empty, cold and lonely.
+
+## چهره‌های داستانِ دوم
+
+- **`who-heydar.webp`** — An elderly Iranian village miller, broad shoulders, grey stubble, a soaked wool hat and a heavy wet coat. Weathered and calm, certain of what he is saying. Grey rainy daylight, not lamplight.
+- **`who-sakineh.webp`** — An elderly Iranian village woman in a soaked floral headscarf, small and stubborn, water running down her face, refusing to leave. Grey rainy daylight.
 
 ---
 
