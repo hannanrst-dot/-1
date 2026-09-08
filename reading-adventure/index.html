@@ -36,9 +36,18 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 #art{position:absolute;inset:0;width:100%;height:100%;z-index:0}
 .vig{position:absolute;inset:0;z-index:1;pointer-events:none;
   background:radial-gradient(ellipse 120% 85% at 50% 38%,transparent 30%,rgba(6,5,12,.72) 100%)}
+.danger-vig{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0;transition:opacity .8s;
+  background:radial-gradient(ellipse 110% 80% at 50% 45%,transparent 45%,rgba(150,26,26,.34) 100%)}
+.game.danger .danger-vig{opacity:1;animation:breathe 2.2s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.55}50%{opacity:1}}
 .flash{position:absolute;inset:0;z-index:6;pointer-events:none;background:#fff;opacity:0}
 .flash.go{animation:fl .5s ease-out}
 @keyframes fl{0%{opacity:.32}100%{opacity:0}}
+.game.shake{animation:shk .45s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shk{
+  10%,90%{transform:translate(-2px,1px)} 20%,80%{transform:translate(4px,-2px)}
+  30%,50%,70%{transform:translate(-6px,2px)} 40%,60%{transform:translate(6px,-1px)}
+  100%{transform:none}}
 
 /* ---------------- نوارِ وضعیت ---------------- */
 .hud{position:relative;z-index:4;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
@@ -50,6 +59,7 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .pip{width:9px;height:9px;border-radius:50%;background:var(--lamp);box-shadow:0 0 8px var(--lampGlow);
   transition:background .45s,box-shadow .45s,transform .45s}
 .pip.out{background:rgba(255,255,255,.14);box-shadow:none;transform:scale(.72)}
+.pips.low{border-color:rgba(232,121,90,.55)}
 .pips.low .pip:not(.out){animation:pulse 1.5s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
 .chip{display:inline-flex;align-items:center;gap:7px;background:var(--glass);border:1px solid var(--edge);
@@ -64,6 +74,7 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .icobtn{width:38px;height:38px;border-radius:50%;background:var(--glass);border:1px solid var(--edge);
   display:grid;place-items:center;backdrop-filter:blur(10px);transition:border-color .2s}
 .icobtn:hover{border-color:var(--edge2)}
+.game.sheeted .hud{opacity:0;pointer-events:none;transition:opacity .3s}
 
 /* ---------------- توستِ تغییرِ وضعیت ---------------- */
 .toasts{position:absolute;top:64px;inset-inline:0;z-index:7;display:flex;flex-direction:column;
@@ -75,12 +86,37 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .toast.good{border-color:rgba(123,199,154,.5);color:var(--sage)}
 @keyframes tin{0%{opacity:0;transform:translateY(-12px)}10%,84%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-8px)}}
 
+/* ---------------- حالتِ «پیدا کن» ---------------- */
+.hunt{position:absolute;inset:0;z-index:5;display:none;cursor:crosshair}
+.hunt.on{display:block}
+.hunt .banner{position:absolute;top:78px;inset-inline:0;margin:0 auto;width:fit-content;max-width:88vw;
+  background:var(--glass);border:1px solid var(--edge2);border-radius:14px;padding:13px 22px;
+  backdrop-filter:blur(12px);text-align:center;line-height:1.8;font-size:1.02rem;
+  box-shadow:0 14px 40px -16px #000;animation:tin2 .5s ease both}
+@keyframes tin2{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+.hunt .banner b{display:block;font-family:Lalezar,Vazirmatn,sans-serif;color:var(--lamp2);
+  font-size:1.16rem;margin-bottom:2px}
+.hunt .give{margin-top:9px;font-size:.82rem;color:var(--dim);border:1px solid var(--edge);
+  border-radius:999px;padding:6px 16px}
+.hunt .give:hover{border-color:var(--edge2);color:var(--text)}
+.ring{position:absolute;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;
+  border:2.5px solid var(--lamp2);pointer-events:none;opacity:0}
+.ring.on{animation:ping 1.4s ease-out 3}
+@keyframes ping{0%{opacity:.95;transform:scale(.45)}70%{opacity:.25;transform:scale(1)}100%{opacity:0;transform:scale(1.15)}}
+.miss{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.5);pointer-events:none;animation:mo .7s ease-out forwards}
+@keyframes mo{from{opacity:.8;transform:scale(.4)}to{opacity:0;transform:scale(1.5)}}
+
 /* ---------------- سنِ بازی ---------------- */
 .stage{position:relative;z-index:3;flex:1;display:flex;flex-direction:column;justify-content:flex-end;
   padding:0 14px calc(18px + env(safe-area-inset-bottom));gap:14px;min-height:0}
 
-/* حباب گفت‌وگو */
 .say{width:min(54ch,100%);margin:0 auto;position:relative}
+.pot{position:absolute;inset-inline-start:-104px;bottom:0;width:96px;height:126px;object-fit:cover;
+  border-radius:14px;border:1px solid var(--edge);background:var(--ink1);
+  box-shadow:0 18px 40px -18px #000;animation:bin .4s both}
+.pot[hidden]{display:none}
+@media (max-width:1000px){ .pot{display:none} }
 .who{display:inline-block;font-family:Lalezar,Vazirmatn,sans-serif;font-size:1.02rem;
   padding:4px 16px 6px;border-radius:12px 12px 0 0;background:var(--glass);
   border:1px solid var(--edge);border-bottom:0;color:var(--who,var(--lamp2))}
@@ -98,7 +134,6 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 @keyframes bob{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(4px);opacity:1}}
 .tap{text-align:center;font-size:.76rem;color:var(--dim);height:1em}
 
-/* گزینه‌ها */
 .choices{width:min(54ch,100%);margin:0 auto;display:flex;flex-direction:column;gap:9px}
 .choices[hidden]{display:none}
 .ask{font-family:Lalezar,Vazirmatn,sans-serif;font-size:1.24rem;text-align:center;
@@ -116,16 +151,14 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 /* ---------------- پرده‌ها ---------------- */
 .sheet{position:absolute;inset:0;z-index:9;display:none;overflow:auto;
   background:linear-gradient(180deg,#0A0813,#08070F 55%,#0B0814)}
-.game.sheeted .hud{opacity:0;pointer-events:none;transition:opacity .3s}
 .sheet.on{display:block;animation:bin .5s both}
-.wrap{max-width:min(60ch,92vw);margin:0 auto;padding:clamp(28px,6vh,64px) 0 60px;
-  display:flex;flex-direction:column;gap:22px;text-align:center}
+.wrap{max-width:min(60ch,92vw);margin:0 auto;padding:clamp(24px,5vh,56px) 0 60px;
+  display:flex;flex-direction:column;gap:20px;text-align:center}
 
-/* جلد */
 .cover h1{font-size:clamp(2.8rem,11vw,4.6rem);color:var(--lamp2);text-shadow:0 0 44px var(--lampGlow)}
 .cover .kick{font-size:.82rem;color:var(--dim)}
 .cover .tag{color:var(--text);opacity:.86;line-height:2;font-size:1.05rem;max-width:32ch;margin:0 auto}
-.rules{display:flex;flex-direction:column;gap:10px;text-align:start;margin:4px auto;max-width:34ch}
+.rules{display:flex;flex-direction:column;gap:10px;text-align:start;margin:0 auto;max-width:34ch}
 .rule{display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.035);
   border:1px solid var(--edge);border-radius:12px;padding:13px 15px;font-size:.94rem;line-height:1.8}
 .rule b{color:var(--lamp2);font-weight:600}
@@ -135,12 +168,22 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
   padding:14px 54px 17px;border-radius:999px;box-shadow:0 16px 40px -14px var(--lamp);
   transition:transform .2s,box-shadow .2s;align-self:center}
 .go:hover{transform:translateY(-2px);box-shadow:0 22px 46px -14px var(--lamp)}
-.gh{border:1.5px solid var(--edge);border-radius:999px;padding:11px 24px;font-size:.92rem;
-  transition:border-color .2s;align-self:center}
-.gh:hover{border-color:var(--edge2)}
 .row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 
-/* پایان */
+/* گنجینهٔ پایان‌ها */
+.vault{border:1px solid var(--edge);border-radius:var(--r);overflow:hidden;text-align:start}
+.vault h3{padding:13px 17px;font-size:1.08rem;background:rgba(255,255,255,.05);
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.vault h3 span{font-family:Vazirmatn,sans-serif;font-size:.82rem;color:var(--dim);font-variant-numeric:tabular-nums}
+.slots{display:flex;flex-direction:column}
+.slot{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;padding:11px 17px;
+  border-top:1px solid rgba(255,255,255,.06);font-size:.92rem}
+.slot .n{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:.78rem;
+  font-weight:700;border:1px solid var(--edge);color:var(--lamp)}
+.slot.locked{color:var(--dim)}
+.slot.locked .n{border-color:rgba(255,255,255,.12);color:var(--dim)}
+.slot.found .n{background:var(--lamp);border-color:var(--lamp);color:#160F06}
+
 .rank{display:flex;gap:10px;justify-content:center;margin:2px 0 4px}
 .rank svg{width:34px;height:44px;opacity:.22;transition:opacity .5s}
 .rank svg.lit{opacity:1;filter:drop-shadow(0 0 12px var(--lampGlow));animation:lite .6s ease both;
@@ -148,6 +191,8 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 @keyframes lite{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
 .endtitle{font-size:clamp(2.1rem,8vw,3.2rem);color:var(--lamp2)}
 .endno{font-size:.84rem;color:var(--dim)}
+.newmark{display:inline-block;font-size:.72rem;font-weight:600;color:#160F06;background:var(--lamp2);
+  border-radius:999px;padding:3px 11px;margin-inline-start:8px;vertical-align:middle}
 .endbody{text-align:start;line-height:2.05;font-size:1.08rem;display:flex;flex-direction:column;gap:.9em;
   background:rgba(255,255,255,.03);border:1px solid var(--edge);border-radius:var(--r);padding:22px 24px}
 .recap{text-align:start;border:1px solid var(--edge);border-radius:var(--r);overflow:hidden}
@@ -163,9 +208,10 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 
 @media (max-width:560px){
   .game{font-size:16px}
-  .bubble{font-size:1.12rem;padding:17px 18px 19px;min-height:6em}
+  .bubble{font-size:1.12rem;padding:17px 18px 19px;min-height:5em}
   .hud{gap:7px;padding-inline:10px}
   .chip{padding:6px 11px;font-size:.78rem}
+  .hunt .banner{top:66px;font-size:.95rem;padding:11px 16px}
 }
 @media (min-width:900px){ .game{font-size:18px} }
 </style>
@@ -174,6 +220,7 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 <div class="game" id="game">
   <canvas id="art"></canvas>
   <div class="vig"></div>
+  <div class="danger-vig"></div>
   <div class="flash" id="flash"></div>
 
   <header class="hud" id="hud">
@@ -197,9 +244,20 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 
   <div class="toasts" id="toasts"></div>
 
+  <!-- ---------------- پیدا کن ---------------- -->
+  <div class="hunt" id="hunt">
+    <div class="banner">
+      <b id="huntTitle"></b>
+      <span id="huntHint"></span>
+      <div><button class="give" id="huntGive">نمی‌بینمش، نشانم بده</button></div>
+    </div>
+    <div class="ring" id="ring"></div>
+  </div>
+
   <main class="stage" id="stage">
     <div class="choices" id="choices" hidden></div>
     <div class="say" id="say">
+      <img class="pot" id="pot" alt="" hidden>
       <span class="who" id="who" hidden></span>
       <div class="bubble"><div class="txt" id="txt"></div></div>
       <span class="more" id="more">▾</span>
@@ -217,7 +275,11 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
         <div class="rule"><span class="ic">🕯️</span><span>تا سحر فقط <b>شش نوبت</b> وقت داری. هر کاری یک نوبت می‌برد.</span></div>
         <div class="rule"><span class="ic">🧭</span><span>هیچ انتخابی <b>غلط</b> نیست. ولی انتخابی که از روی حواس‌پرتی باشد، وقتِ بیشتری می‌خورد.</span></div>
         <div class="rule"><span class="ic">📖</span><span>جوابِ همه‌چیز <b>توی حرف‌های آدم‌ها</b>ست. حواست به چیزی که می‌گویند باشد.</span></div>
-        <div class="rule"><span class="ic">🌅</span><span>اگر وقت تمام شود، داستان <b>همان‌جا</b> تمام می‌شود. پنج پایان دارد.</span></div>
+        <div class="rule"><span class="ic">🌅</span><span>اگر وقت تمام شود، داستان <b>همان‌جا</b> تمام می‌شود.</span></div>
+      </div>
+      <div class="vault">
+        <h3>گنجینهٔ پایان‌ها <span id="vaultCount"></span></h3>
+        <div class="slots" id="vaultSlots"></div>
       </div>
       <button class="go" id="btnGo">شروع</button>
       <p class="kick">حدود ۸ دقیقه</p>
@@ -232,14 +294,17 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
       <h2 class="endtitle" id="endTitle"></h2>
       <div class="endbody" id="endBody"></div>
       <div class="recap" id="recap"></div>
+      <div class="vault">
+        <h3>گنجینهٔ پایان‌ها <span id="vaultCount2"></span></h3>
+        <div class="slots" id="vaultSlots2"></div>
+      </div>
       <div class="row">
         <button class="go" id="btnAgain">دوباره بازی کن</button>
       </div>
-      <p class="kick">هر بار که بازی می‌کنی، با دقتِ بیشتر بخوان. پایانِ بهتری هست.</p>
+      <p class="kick" id="againHint"></p>
     </div>
   </section>
 </div>
-
 <script>
 /* ============================================================
    داستان — دادهٔ خالص. موتور هیچ چیزی دربارهٔ این داستان نمی‌داند.
@@ -251,10 +316,10 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
    ============================================================ */
 
 const CAST = {
-  "بی‌بی گوهر":"#C9A8E8",
-  "مشد رجب"  :"#8FB8E8",
-  "نگار"     :"#F5B14A",
-  "عمویِ نگار":"#E8956A"
+  "بی‌بی گوهر":{ c:"#C9A8E8", pic:"gohar" },
+  "مشد رجب"  :{ c:"#8FB8E8", pic:"rajab" },
+  "نگار"     :{ c:"#F5B14A", pic:"negar" },
+  "عمویِ نگار":{ c:"#E8956A", pic:"amoo"  }
 };
 
 const STORY = {
@@ -333,8 +398,14 @@ const STORY = {
   yard:{ art:"yard", amb:"wind", beats:[
     {t:"ماه بالا آمده بود و حیاط را نقره‌ای کرده بود."},
     {t:"روی خاکِ نرم، ردِ چرخِ یک گاری مانده بود. تازه بود."},
-    {t:"کنارِ رد، چند قطرهٔ براق. انگشتت را زدی و بو کردی."},
-    {t:"روغنِ چراغ.", fx:"chime"},
+    {t:"کنارِ رد، چیزی زیرِ نورِ ماه برق می‌زد."},
+    {find:{ title:"پیدایش کن",
+            hint:"روی خاکِ حیاط، کنارِ ردِ چرخ. رویش ضربه بزن.",
+            at:[.40, .745, .085],
+            ok:"انگشتت را زدی و بو کردی. روغنِ چراغ بود.",
+            miss:"آنجا فقط خاک است.",
+            recap:{ k:"b", c:"۱ نوبت", label:"قطره‌های روغن را پیدا نکردی",
+                    note:"متن گفته بود کنارِ ردِ چرخ چیزی برق می‌زند." } }},
     {t:"ردها از ده بیرون نمی‌رفتند. دورِ ده می‌چرخیدند."},
     {t:"نگار ایستاده بود و به خانهٔ گوشهٔ ده نگاه می‌کرد."},
     {t:"تا نگاهت را دید، دستش را تندی برد پشتش."},
@@ -382,7 +453,14 @@ const STORY = {
     {t:"درِ چوبیِ انبار نیمه‌باز بود."},
     {t:"از لای در، نورِ لرزانِ یک چراغِ کوچک بیرون می‌زد."},
     {t:"رفتی تو.", fx:"door"},
-    {t:"پشتِ گونی‌های جو، حلبِ روغنِ کاروانسرا بود."},
+    {t:"پشتِ گونی‌های جو، فلزی زیرِ نورِ چراغ برق می‌زد."},
+    {find:{ title:"آن چیست؟",
+            hint:"پشتِ گونی‌ها را نگاه کن و رویش ضربه بزن.",
+            at:[.565, .60, .085],
+            ok:"حلبِ روغنِ کاروانسرا. خودش بود.",
+            miss:"اینجا چیزی نیست.",
+            recap:{ k:"b", c:"۱ نوبت", label:"حلبِ روغن را پیدا نکردی",
+                    note:"متن گفته بود پشتِ گونی‌ها فلزی برق می‌زند." } }},
     {t:"کنارش مردی نشسته بود. عمویِ نگار."},
     {t:"روی تشک، مادرِ پیرش خوابیده بود و چراغِ کوچکی بالای سرش می‌سوخت."},
     {who:"عمویِ نگار", t:"مادرم توی تاریکی نفسش می‌گیرد. می‌ترسد."},
@@ -454,11 +532,11 @@ const STORY = {
   }
 };
 </script>
-
 <script>
 /* ============================================================
-   موتور — پخشِ ضربه‌ها، پس‌زمینهٔ نقاشی‌شده، صدا، و شمارشِ نوبت.
-   هیچ فایلِ بیرونی لازم ندارد: تصویرها با Canvas و صداها با WebAudio ساخته می‌شوند.
+   موتور — پخشِ ضربه‌ها، پس‌زمینه، صدا، جست‌وجوی تصویری و شمارشِ نوبت.
+   بدونِ هیچ فایلِ بیرونی کار می‌کند؛ ولی اگر تصویرهای واقعی را در پوشهٔ
+   art/ بگذاری، خودش برشان می‌دارد و جای نقاشی‌های کد می‌نشاند.
    ============================================================ */
 (function(){
 "use strict";
@@ -466,10 +544,38 @@ var $ = function(s){ return document.querySelector(s); };
 function fa(n){ return String(n).replace(/[0-9]/g, function(d){ return "۰۱۲۳۴۵۶۷۸۹"[d]; }); }
 var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/* ══════════════ تصویرهای اختیاری ══════════════
+   اگر art/gate.webp (یا .png / .jpg) وجود داشته باشد، جای نقاشیِ کد را می‌گیرد.
+   اگر نباشد، هیچ اتفاقی نمی‌افتد و بازی با نقاشیِ خودش اجرا می‌شود.        */
+var IMG = {}, POT = {};
+function tryLoad(url, exts, i, done){
+  if(i >= exts.length) return;
+  var im = new Image();
+  im.onload = function(){ if(im.naturalWidth) done(im); };
+  im.onerror = function(){ tryLoad(url, exts, i + 1, done); };
+  im.src = url + exts[i];
+}
+["gate","tower","yard","store","dawn"].forEach(function(k){
+  tryLoad("art/" + k, [".webp",".png",".jpg"], 0, function(im){ IMG[k] = im; });
+});
+["negar","rajab","gohar","amoo"].forEach(function(k){
+  tryLoad("art/who-" + k, [".webp",".png",".jpg"], 0, function(im){ POT[k] = im; });
+});
+
 /* ══════════════ پس‌زمینه ══════════════ */
 var cv = $("#art"), cx = cv.getContext("2d");
-var W = 0, H = 0, seeds = [], px = 0, py = 0, curArt = "gate";
+var W = 0, H = 0, seeds = [], px = 0, py = 0, curArt = "gate", grain = null;
 
+function makeGrain(){
+  var g = document.createElement("canvas"); g.width = g.height = 140;
+  var c = g.getContext("2d"), d = c.createImageData(140, 140);
+  for(var i = 0; i < d.data.length; i += 4){
+    var v = 118 + Math.random() * 74;
+    d.data[i] = d.data[i+1] = d.data[i+2] = v; d.data[i+3] = 255;
+  }
+  c.putImageData(d, 0, 0);
+  grain = cx.createPattern(g, "repeat");
+}
 function resize(){
   var d = Math.min(window.devicePixelRatio || 1, 2);
   W = innerWidth; H = innerHeight;
@@ -477,6 +583,7 @@ function resize(){
   cx.setTransform(d, 0, 0, d, 0, 0);
   seeds = [];
   for(var i = 0; i < 150; i++) seeds.push([Math.random(), Math.random(), Math.random(), Math.random()]);
+  makeGrain();
 }
 addEventListener("resize", resize);
 
@@ -496,6 +603,11 @@ function glow(x, y, r, c1){
   var g = cx.createRadialGradient(x * W, y * H, 0, x * W, y * H, r * Math.max(W, H));
   g.addColorStop(0, c1); g.addColorStop(1, "rgba(0,0,0,0)");
   cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+}
+function haze(y0, y1, col){
+  var g = cx.createLinearGradient(0, y0 * H, 0, y1 * H);
+  g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(.5, col); g.addColorStop(1, "rgba(0,0,0,0)");
+  cx.fillStyle = g; cx.fillRect(0, y0 * H, W, (y1 - y0) * H);
 }
 function stars(t, n, topFrac, col){
   for(var i = 0; i < n; i++){
@@ -526,17 +638,17 @@ function battlements(x0, x1, y, step, hgt, fill){
 }
 function caravanserai(ox, lit){
   var o = ox * 0.010;
-  box(.20 + o, .36, .60, .28, "#0A0716");                        // بدنه
+  box(.20 + o, .36, .60, .28, "#0A0716");
   battlements(.20 + o, .80 + o, .36, .044, .026, "#0A0716");
-  box(.575 + o, .15, .145, .21, "#07040F");                      // برج
+  box(.575 + o, .15, .145, .21, "#07040F");
   battlements(.575 + o, .72 + o, .15, .036, .022, "#07040F");
   poly([[.41 + o, .64], [.41 + o, .495], [.47 + o, .435],
-        [.53 + o, .495], [.53 + o, .64]], "#02010A");            // سردر
-  cx.fillStyle = "rgba(245,177,74,.60)";                         // پنجره‌ها
+        [.53 + o, .495], [.53 + o, .64]], "#02010A");
+  cx.fillStyle = "rgba(245,177,74,.60)";
   [.25, .305, .66, .715].forEach(function(x){
     cx.fillRect((x + o) * W, .465 * H, .019 * W, .032 * H);
   });
-  cx.fillStyle = lit ? "#FFD98A" : "#150F22";                    // فانوسِ برج
+  cx.fillStyle = lit ? "#FFD98A" : "#150F22";
   cx.fillRect((.617 + o) * W, .188 * H, .038 * W, .046 * H);
   if(lit) glow(.636 + o, .211, .18, "rgba(255,217,138,.58)");
 }
@@ -548,8 +660,10 @@ var SCENES = {
     glow(.19, .12, .14, "rgba(210,220,255,.17)");
     cx.fillStyle = "#E8E4F6"; cx.beginPath();
     cx.arc(.19 * W, .12 * H, Math.min(W, H) * .034, 0, 6.284); cx.fill();
+    haze(.44, .68, "rgba(120,110,180,.10)");
     poly([[0, .62], [.2, .575], [.45, .625], [.7, .565], [1, .61], [1, 1], [0, 1]], "#181234");
     caravanserai(px, lit);
+    haze(.60, .78, "rgba(90,80,150,.09)");
     poly([[0, .70], [.28, .662], [.62, .715], [1, .678], [1, 1], [0, 1]], "#060410");
   },
 
@@ -559,55 +673,88 @@ var SCENES = {
     for(var y = .12; y < .8; y += .052){
       cx.beginPath(); cx.moveTo(0, y * H); cx.lineTo(W, y * H); cx.stroke();
     }
-    box(.09 + px * .004, .10, .19, .27, "#070917");                  // پنجره
+    box(.09 + px * .004, .10, .19, .27, "#070917");
     cx.save(); cx.beginPath();
     cx.rect((.09 + px * .004) * W, .10 * H, .19 * W, .27 * H); cx.clip();
     stars(t, 26, .38); cx.restore();
     cx.strokeStyle = "rgba(245,177,74,.20)"; cx.lineWidth = 2;
     cx.strokeRect((.09 + px * .004) * W, .10 * H, .19 * W, .27 * H);
-    glow(.5, .72, .48, "rgba(245,177,74,.24)");                       // نورِ فانوسِ دست
+    glow(.5, .72, .48, "rgba(245,177,74,.24)");
     var o = px * .008;
-    box(.43 + o, .50, .14, .07, "#08050F");                           // پایهٔ چراغِ مسی
+    box(.43 + o, .50, .14, .07, "#08050F");
     poly([[.447 + o, .50], [.465 + o, .19], [.535 + o, .19], [.553 + o, .50]], "#0A0714");
     cx.strokeStyle = "rgba(245,177,74,.34)"; cx.lineWidth = 2.5;
     cx.beginPath();
     cx.moveTo((.447 + o) * W, .50 * H); cx.lineTo((.465 + o) * W, .19 * H);
     cx.moveTo((.553 + o) * W, .50 * H); cx.lineTo((.535 + o) * W, .19 * H);
     cx.stroke();
-    box(0, .57, 1, .43, "#08050F");                                   // کف
+    box(0, .57, 1, .43, "#08050F");
     motes(t, 40, "#F5D9A8");
   },
 
   yard: function(t){
     grad([[0, "#070B1C"], [.44, "#121A34"], [1, "#1A1E38"]]);
     stars(t, 90, .42);
-    glow(.80, .09, .19, "rgba(190,210,255,.20)");
+    glow(.865, .195, .19, "rgba(190,210,255,.20)");
     cx.fillStyle = "#E4EAFB"; cx.beginPath();
-    cx.arc(.80 * W, .09 * H, Math.min(W, H) * .028, 0, 6.284); cx.fill();
-    box(0, .17 + px * .004, .31, .50, "#080B18");                     // دیوارِ راست
-    battlements(0, .31, .17, .044, .026, "#080B18");
-    box(.65, .21 - px * .004, .35, .46, "#070A15");                   // دیوارِ چپ
-    battlements(.65, 1, .21, .044, .026, "#070A15");
-    cx.fillStyle = "rgba(245,177,74,.68)"; cx.fillRect(.755 * W, .32 * H, .05 * W, .07 * H);
-    glow(.78, .355, .12, "rgba(245,177,74,.22)");                     // پنجرهٔ روشن
+    cx.arc(.865 * W, .195 * H, Math.min(W, H) * .028, 0, 6.284); cx.fill();
+    haze(.36, .58, "rgba(140,165,225,.09)");
+
+    /* دیوارِ انتهاییِ حیاط — تا وسطِ کادر خالی نماند */
+    box(.24, .40, .50, .27, "#0B0F20");
+    battlements(.24, .74, .40, .040, .022, "#0B0F20");
+    poly([[.44, .67], [.44, .545], [.49, .50], [.54, .545], [.54, .67]], "#05070F");
+
+    /* دیوارهای کناری، جلوتر و تیره‌تر */
+    box(0, .17 + px * .004, .27, .50, "#070A14");
+    battlements(0, .27, .17, .044, .026, "#070A14");
+    box(.71, .21 - px * .004, .29, .46, "#06080F");
+    battlements(.71, 1, .21, .044, .026, "#06080F");
+
+    /* پنجرهٔ روشنِ خانهٔ نگار */
+    var wx = .775, wy = .305, ww = .034, wh = .050;
+    glow(wx + ww / 2, wy + wh / 2, .13, "rgba(245,177,74,.26)");
+    box(wx - .005, wy - .006, ww + .010, wh + .012, "#120C10");
+    cx.fillStyle = "rgba(250,196,110,.82)";
+    cx.fillRect(wx * W, wy * H, ww * W, wh * H);
+    cx.fillStyle = "#120C10";
+    cx.fillRect((wx + ww / 2 - .002) * W, wy * H, .004 * W, wh * H);
+    cx.fillRect(wx * W, (wy + wh / 2 - .002) * H, ww * W, .004 * H);
+
     box(0, .655, 1, .345, "#0A0816");
-    cx.strokeStyle = "rgba(200,215,255,.15)"; cx.lineWidth = 2;       // ردِ چرخِ گاری
+    cx.strokeStyle = "rgba(200,215,255,.15)"; cx.lineWidth = 2;
     [.72, .77].forEach(function(y){
       cx.beginPath(); cx.moveTo(W, y * H);
       cx.bezierCurveTo(.6 * W, (y - .02) * H, .35 * W, (y + .02) * H, 0, (y - .01) * H);
       cx.stroke();
     });
+    /* قطره‌های روغن — همان چیزی که بازیکن باید پیدایش کند */
+    var tw = reduced ? .55 : .38 + .34 * (0.5 + 0.5 * Math.sin(t / 420));
+    [[.385, .740, 3.1], [.406, .753, 2.3], [.421, .737, 1.9], [.394, .762, 1.6]]
+      .forEach(function(d, i){
+        cx.globalAlpha = tw * (i === 0 ? 1 : .78);
+        cx.fillStyle = "#FFE3AE";
+        cx.beginPath(); cx.ellipse(d[0] * W, d[1] * H, d[2], d[2] * .72, 0, 0, 6.284); cx.fill();
+      });
+    cx.globalAlpha = 1;
   },
 
   store: function(t){
     grad([[0, "#08060E"], [.6, "#100B14"], [1, "#0A0710"]]);
-    box(.87 + px * .004, 0, .05, 1, "#2A1B14");                       // لایِ در
+    box(.87 + px * .004, 0, .05, 1, "#2A1B14");
     glow(.895, .38, .24, "rgba(150,120,90,.18)");
-    glow(.31, .42, .34, "rgba(245,177,74,.26)");                      // چراغِ کوچک
+    glow(.31, .42, .34, "rgba(245,177,74,.26)");
     cx.fillStyle = "#FFD98A";
     cx.beginPath(); cx.arc(.31 * W, .42 * H, Math.min(W, H) * .013, 0, 6.284); cx.fill();
     var o = px * .008;
-    [[.17, .60, .15], [.31, .635, .115], [.44, .615, .13]].forEach(function(s){  // گونی‌ها
+    /* حلبِ روغن — همان چیزی که بازیکن باید پیدایش کند */
+    var hx = .565 + o, hy = .60;
+    box(hx - .023, hy - .046, .046, .092, "#241B14");
+    box(hx - .009, hy - .062, .018, .016, "#1A140F");
+    cx.globalAlpha = reduced ? .5 : .34 + .26 * (0.5 + 0.5 * Math.sin(t / 460));
+    box(hx - .017, hy - .038, .010, .074, "#FFD6A0");
+    cx.globalAlpha = 1;
+    [[.17, .60, .15], [.31, .635, .115], [.44, .615, .13]].forEach(function(s){
       cx.fillStyle = "#0B0810";
       cx.beginPath();
       cx.ellipse((s[0] + o) * W, s[1] * H, s[2] * W * .5, .135 * H, 0, 0, 6.284);
@@ -622,15 +769,27 @@ var SCENES = {
     glow(.5, .60, .30, "rgba(255,210,140,.44)");
     cx.fillStyle = "#FFE7B0";
     cx.beginPath(); cx.arc(.5 * W, .60 * H, Math.min(W, H) * .048, 0, 6.284); cx.fill();
+    haze(.44, .64, "rgba(255,200,150,.16)");
     poly([[0, .625], [.24, .585], [.52, .63], [.78, .575], [1, .615], [1, 1], [0, 1]], "#5A3352");
     caravanserai(px * .5, lit);
     poly([[0, .715], [.3, .682], [.66, .73], [1, .695], [1, 1], [0, 1]], "#2A1730");
   }
 };
 
+function drawCover(im){
+  var r = Math.max(W / im.naturalWidth, H / im.naturalHeight);
+  var w2 = im.naturalWidth * r, h2 = im.naturalHeight * r;
+  cx.drawImage(im, (W - w2) / 2, (H - h2) / 2, w2, h2);
+}
 function frame(t){
   cx.clearRect(0, 0, W, H);
-  (SCENES[curArt] || SCENES.gate)(t, S.lampLit);
+  if(IMG[curArt]) drawCover(IMG[curArt]);
+  else (SCENES[curArt] || SCENES.gate)(t, S.lampLit);
+  if(grain){                                  // دانه‌دانگیِ نرم، تا تخت و پلاستیکی نباشد
+    cx.globalAlpha = .045; cx.globalCompositeOperation = "overlay";
+    cx.fillStyle = grain; cx.fillRect(0, 0, W, H);
+    cx.globalCompositeOperation = "source-over"; cx.globalAlpha = 1;
+  }
   requestAnimationFrame(frame);
 }
 function setArt(name){
@@ -653,7 +812,7 @@ function noiseBuf(){
 A.init = function(){
   if(A.c) return;
   var C = window.AudioContext || window.webkitAudioContext;
-  if(!C) { A.on = false; return; }
+  if(!C){ A.on = false; return; }
   A.c = new C();
   A.out = A.c.createGain(); A.out.gain.value = A.on ? .9 : 0; A.out.connect(A.c.destination);
   A.nb = noiseBuf();
@@ -692,6 +851,8 @@ A.sfx = function(n){
   else if(n === "heart"){ A.tone("sine", 58, 44, .20, .28); A.tone("sine", 55, 40, .14, .26, .34); }
   else if(n === "pip"){ A.tone("triangle", 620, 480, .06, .16); }
   else if(n === "gain"){ A.tone("sine", 660, 990, .09, .35); }
+  else if(n === "found"){ A.tone("sine", 740, 1110, .10, .5); A.tone("sine", 1480, 1480, .04, .4, .07); }
+  else if(n === "tick"){ A.noise(1700, 6, .012, .03); }
   else if(n === "dawn"){ A.tone("sine", 330, 495, .09, 1.8); A.tone("sine", 247, 330, .06, 1.8, .1); }
 };
 A.setAmb = function(kind){
@@ -707,22 +868,32 @@ A.setAmb = function(kind){
   var lg = A.c.createGain(); lg.gain.value = kind === "wind" ? 230 : 60;
   lfo.connect(lg); lg.connect(f.frequency); lfo.start();
   s.connect(f); f.connect(g); g.connect(A.out); s.start();
-  A.amb = s; A.ambKind = kind;
+  A.amb = s;
 };
 
 /* ══════════════ وضعیت ══════════════ */
-var S, Q = [], qi = 0, onDone = null, waiting = false;
+var S, Q = [], qi = 0, onDone = null, waiting = false, heart = 0;
 function fresh(){
   return { time: STORY.time, negar:false, moral:null, timeout:false,
            lampLit:false, node:null, recap:[] };
 }
+function sheetOpen(){
+  return $("#cover").classList.contains("on") || $("#over").classList.contains("on");
+}
 
 /* ══════════════ نوار وضعیت ══════════════ */
 function drawPips(){
-  var box2 = $("#pips"), html = "";
+  var b = $("#pips"), html = "";
   for(var i = 0; i < STORY.time; i++) html += '<span class="pip' + (i < S.time ? "" : " out") + '"></span>';
-  box2.innerHTML = html;
+  b.innerHTML = html;
   $("#pipsBox").classList.toggle("low", S.time <= 2 && S.time > 0);
+  danger();
+}
+function danger(){
+  var on = S.time <= 2 && S.time > 0 && !sheetOpen();
+  $("#game").classList.toggle("danger", on);
+  if(on && !heart) heart = setInterval(function(){ A.sfx("heart"); }, 2500);
+  if(!on && heart){ clearInterval(heart); heart = 0; }
 }
 function drawChips(){
   $("#chNegar").className = "chip " + (S.negar ? "hot" : "off");
@@ -740,54 +911,159 @@ function toast(text, kind){
 function spend(n){
   for(var i = 0; i < n; i++){
     if(S.time <= 0) break;
-    S.time--;
-    A.sfx("pip");
+    S.time--; A.sfx("pip");
   }
   if(S.time <= 0){ S.time = 0; S.timeout = true; }
   drawPips();
 }
 function gainTime(n){
   S.time = Math.min(STORY.time, S.time + n);
-  A.sfx("gain");
-  drawPips();
+  A.sfx("gain"); drawPips();
+}
+function shake(){
+  var g = $("#game");
+  g.classList.remove("shake"); void g.offsetWidth; g.classList.add("shake");
+  setTimeout(function(){ g.classList.remove("shake"); }, 500);
+}
+
+/* ══════════════ حروف‌چینِ تدریجی ══════════════ */
+var typer = 0, typeDone = true, typeEl = null, typeToks = [], typeI = 0, typeStack = [];
+function tokenize(html){
+  var out = [], i = 0;
+  while(i < html.length){
+    if(html.charAt(i) === "<"){
+      var j = html.indexOf(">", i);
+      if(j < 0){ out.push({c:html.charAt(i)}); i++; continue; }
+      out.push({g:html.slice(i, j + 1)}); i = j + 1;
+    } else { out.push({c:html.charAt(i)}); i++; }
+  }
+  return out;
+}
+function renderTyped(){
+  var buf = "", stack = [];
+  for(var i = 0; i < typeI; i++){
+    var tk = typeToks[i];
+    if(tk.g){
+      buf += tk.g;
+      if(tk.g.charAt(1) === "/") stack.pop();
+      else if(tk.g.charAt(tk.g.length - 2) !== "/") stack.push(tk.g.replace(/^<(\w+).*$/, "$1"));
+    } else buf += tk.c;
+  }
+  for(var k = stack.length - 1; k >= 0; k--) buf += "</" + stack[k] + ">";
+  typeEl.innerHTML = buf;
+}
+function typeHTML(el, html){
+  clearInterval(typer);
+  typeEl = el; typeToks = tokenize(html); typeI = 0; typeDone = false;
+  if(reduced){ finishType(); return; }
+  var tick = 0;
+  typer = setInterval(function(){
+    typeI++;
+    if(typeI % 5 === 0) A.sfx("tick");
+    renderTyped();
+    if(typeI >= typeToks.length) finishType();
+  }, 17);
+}
+function finishType(){
+  clearInterval(typer); typer = 0;
+  typeI = typeToks.length;
+  if(typeEl) renderTyped();
+  typeDone = true;
+  $("#more").hidden = false;
 }
 
 /* ══════════════ پخشِ ضربه‌ها ══════════════ */
 function playBeats(list, done){
-  Q = list || []; qi = 0; onDone = done;
+  Q = (list || []).slice();          // کپی، چون حالتِ «پیدا کن» داخلش ضربه اضافه می‌کند
+  qi = 0; onDone = done;
   step();
 }
 function step(){
   if(qi >= Q.length){ waiting = false; var d = onDone; onDone = null; if(d) d(); return; }
-  var b = Q[qi];
-  if(b.set) for(var k in b.set) S[k] = b.set[k];
-  if(b.set){ drawChips(); }
+  var b = Q[qi]; qi++;
+
+  if(b.find){ startHunt(b.find); return; }
+  if(b.set){ for(var k in b.set) S[k] = b.set[k]; drawChips(); }
   if(b.art) setArt(b.art);
   if(b.fx) A.sfx(b.fx);
-  if(b.fx === "sting"){ var f = $("#flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
+  if(b.fx === "sting"){
+    var f = $("#flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
+    shake();
+  }
 
-  var who = $("#who");
+  var who = $("#who"), pot = $("#pot");
   if(b.who){
+    var role = CAST[b.who] || {};
     who.hidden = false; who.textContent = b.who;
-    who.style.setProperty("--who", CAST[b.who] || "var(--lamp2)");
-  } else who.hidden = true;
+    who.style.setProperty("--who", role.c || "var(--lamp2)");
+    if(role.pic && POT[role.pic]){ pot.src = POT[role.pic].src; pot.hidden = false; }
+    else pot.hidden = true;
+  } else { who.hidden = true; pot.hidden = true; }
 
-  var txt = $("#txt");
-  txt.innerHTML = "";
-  var span = document.createElement("div");
-  span.className = "txt";
-  span.innerHTML = b.t;
-  txt.replaceWith(span); span.id = "txt";
-
-  $("#more").hidden = false;
+  var old = $("#txt"), span = document.createElement("div");
+  span.className = "txt"; span.id = "txt";
+  old.replaceWith(span);
+  $("#more").hidden = true;
+  typeHTML(span, b.t);
   waiting = true;
-  qi++;
 }
 function advance(){
   if(!waiting) return;
-  if(qi < Q.length){ step(); }
-  else { waiting = false; var d = onDone; onDone = null; $("#more").hidden = true; if(d) d(); }
+  if(!typeDone){ finishType(); return; }   // ضربهٔ اول: متن را کامل کن
+  if(qi < Q.length){ step(); return; }
+  waiting = false; $("#more").hidden = true;
+  var d = onDone; onDone = null; if(d) d();
 }
+
+/* ══════════════ پیدا کن ══════════════ */
+var hunt = null, huntMiss = 0;
+function startHunt(f){
+  hunt = f; huntMiss = 0;
+  $("#huntTitle").textContent = f.title;
+  $("#huntHint").textContent = f.hint;
+  $("#hunt").classList.add("on");
+  $("#more").hidden = true;
+  $("#tapHint").textContent = "روی تصویر بگرد";
+  waiting = false;
+}
+function huntEnd(){
+  var ok = hunt.ok;
+  $("#hunt").classList.remove("on");
+  $("#tapHint").textContent = "برای ادامه، هرجای صفحه را بزن";
+  hunt = null;
+  Q.splice(qi, 0, { t: ok });
+  step();
+}
+function huntReveal(){
+  if(!hunt) return;
+  spend(1);
+  if(hunt.recap) S.recap.push(hunt.recap);
+  var r = $("#ring");
+  r.style.left = (hunt.at[0] * innerWidth) + "px";
+  r.style.top = (hunt.at[1] * innerHeight) + "px";
+  r.classList.remove("on"); void r.offsetWidth; r.classList.add("on");
+  A.sfx("sting");
+  setTimeout(function(){ r.classList.remove("on"); if(hunt) huntEnd(); }, 1500);
+}
+$("#hunt").addEventListener("click", function(e){
+  if(!hunt) return;
+  if(e.target.closest(".banner")) return;
+  var m = Math.min(innerWidth, innerHeight);
+  var dx = e.clientX - hunt.at[0] * innerWidth;
+  var dy = e.clientY - hunt.at[1] * innerHeight;
+  if(Math.sqrt(dx * dx + dy * dy) <= hunt.at[2] * m){
+    A.sfx("found"); huntEnd(); return;
+  }
+  var d = document.createElement("div");
+  d.className = "miss";
+  d.style.left = e.clientX + "px"; d.style.top = e.clientY + "px";
+  $("#hunt").appendChild(d);
+  setTimeout(function(){ d.remove(); }, 750);
+  A.sfx("tick");
+  huntMiss++;
+  if(huntMiss >= 5) huntReveal();
+});
+$("#huntGive").addEventListener("click", function(e){ e.stopPropagation(); huntReveal(); });
 
 /* ══════════════ گره‌ها ══════════════ */
 function enter(id){
@@ -800,26 +1076,23 @@ function enter(id){
   if(n.recap) S.recap.push(n.recap);
   playBeats(n.beats, function(){
     if(S.timeout) return toDawn();
-    if(n.ask) showChoices(n);
-    else enter(n.goto);
+    if(n.ask) showChoices(n); else enter(n.goto);
   });
 }
-
 function showChoices(n){
-  var box2 = $("#choices");
-  box2.innerHTML = '<p class="ask">' + n.ask + "</p>";
+  var b = $("#choices");
+  b.innerHTML = '<p class="ask">' + n.ask + "</p>";
   n.opts.forEach(function(o, i){
-    var b = document.createElement("button");
-    b.className = "ch"; b.type = "button"; b.style.setProperty("--d", (i * .07 + .05) + "s");
-    b.innerHTML = '<span class="k">' + fa(i + 1) + "</span><span>" + o.t + "</span>";
-    b.addEventListener("click", function(e){ e.stopPropagation(); choose(n, i); });
-    box2.appendChild(b);
+    var el = document.createElement("button");
+    el.className = "ch"; el.type = "button"; el.style.setProperty("--d", (i * .07 + .05) + "s");
+    el.innerHTML = '<span class="k">' + fa(i + 1) + "</span><span>" + o.t + "</span>";
+    el.addEventListener("click", function(e){ e.stopPropagation(); choose(n, i); });
+    b.appendChild(el);
   });
-  box2.hidden = false;
+  b.hidden = false;
   $("#more").hidden = true;
   $("#tapHint").textContent = "یکی را انتخاب کن";
 }
-
 function choose(n, i){
   var o = n.opts[i];
   $("#choices").hidden = true;
@@ -835,13 +1108,38 @@ function choose(n, i){
     enter(o.goto);
   });
 }
-
 function toDawn(){
   setArt("dawn"); A.setAmb("wind");
   playBeats([
     {t:"آسمان پشتِ کوه کم‌کم روشن شد."},
     {t:"سحر شد و تو هنوز وسطِ راه بودی.", fx:"dawn"}
-  ], function(){ finish(); });
+  ], finish);
+}
+
+/* ══════════════ گنجینهٔ پایان‌ها ══════════════ */
+var VKEY = "shab-e-cheragh/vault";
+function vaultGet(){
+  try { return JSON.parse(localStorage.getItem(VKEY)) || []; } catch(e){ return []; }
+}
+function vaultAdd(id){
+  var v = vaultGet();
+  if(v.indexOf(id) < 0){ v.push(id); try{ localStorage.setItem(VKEY, JSON.stringify(v)); }catch(e){} return true; }
+  return false;
+}
+function endingsByRank(){
+  return Object.keys(STORY.endings)
+    .map(function(k){ return { id:k, e:STORY.endings[k] }; })
+    .sort(function(a, b){ return a.e.rank - b.e.rank; });
+}
+function drawVault(slotsId, countId){
+  var v = vaultGet(), list = endingsByRank();
+  $(countId).textContent = fa(v.length) + " از " + fa(list.length);
+  $(slotsId).innerHTML = list.map(function(x){
+    var got = v.indexOf(x.id) >= 0;
+    return '<div class="slot ' + (got ? "found" : "locked") + '">' +
+      '<span class="n">' + fa(x.e.rank) + "</span>" +
+      "<span>" + (got ? x.e.title : "؟؟؟ — هنوز پیدایش نکرده‌ای") + "</span></div>";
+  }).join("");
 }
 
 /* ══════════════ پایان ══════════════ */
@@ -852,9 +1150,9 @@ function pickEnding(){
     if(w.moral && S.moral !== w.moral) continue;
     if(w.negar != null && S.negar !== w.negar) continue;
     if(w.minTime != null && S.time < w.minTime) continue;
-    return STORY.endings[STORY.endingRules[i].id];
+    return STORY.endingRules[i].id;
   }
-  return STORY.endings.dawn;
+  return "dawn";
 }
 function lampSvg(){
   return '<svg viewBox="0 0 30 42" aria-hidden="true">' +
@@ -864,7 +1162,8 @@ function lampSvg(){
     '<path d="M6 33h18l-2 5h-14z" fill="#F5B14A"/></svg>';
 }
 function finish(){
-  var e = pickEnding();
+  var id = pickEnding(), e = STORY.endings[id];
+  var isNew = vaultAdd(id);
   S.lampLit = !!e.lamp; drawChips();
   setArt(e.art); A.setAmb(e.rank >= 4 ? null : "wind");
   A.sfx(e.rank >= 4 ? "chime" : "sting");
@@ -877,13 +1176,14 @@ function finish(){
     if(i < e.rank){ svg.classList.add("lit"); svg.style.setProperty("--d", (i * .16 + .2) + "s"); }
     r.appendChild(svg);
   }
-  $("#endNo").textContent = "پایانِ " + fa(e.rank) + " از ۵";
+  $("#endNo").innerHTML = "پایانِ " + fa(e.rank) + " از ۵" +
+    (isNew ? '<span class="newmark">تازه!</span>' : "");
   $("#endTitle").textContent = e.title;
   $("#endBody").innerHTML = e.text.map(function(p){ return "<p style='margin:0'>" + p + "</p>"; }).join("");
 
-  $("#recap").innerHTML = "<h3>چه چیزی مسیرت را ساخت</h3>" + S.recap.map(function(r2){
-    return '<div class="rw"><span class="c ' + r2.k + '">' + r2.c + "</span>" +
-      "<span>" + r2.label + "<small>" + r2.note + "</small></span></div>";
+  $("#recap").innerHTML = "<h3>چه چیزی مسیرت را ساخت</h3>" + S.recap.map(function(x){
+    return '<div class="rw"><span class="c ' + x.k + '">' + x.c + "</span>" +
+      "<span>" + x.label + "<small>" + x.note + "</small></span></div>";
   }).join("") +
   '<div class="rw"><span class="c ' + (S.time > 0 ? "g" : "b") + '">' +
     (S.time > 0 ? fa(S.time) + " نوبت" : "تمام") + "</span>" +
@@ -891,24 +1191,33 @@ function finish(){
     (S.time > 0 ? "هرچه بیشتر بماند، پایانِ بهتری در انتظارت است." : "وقت تمام شد و داستان همان‌جا ایستاد.") +
     "</small></span></div>";
 
+  drawVault("#vaultSlots2", "#vaultCount2");
+  var left = endingsByRank().length - vaultGet().length;
+  $("#againHint").textContent = left > 0
+    ? ("هنوز " + fa(left) + " پایانِ دیگر هست. راهِ دیگری را امتحان کن.")
+    : "همهٔ پایان‌ها را پیدا کردی. حالا سراغِ بهترینشان برو.";
+
   $("#over").classList.add("on");
   $("#game").classList.add("sheeted");
+  danger();
 }
 
 /* ══════════════ ورودی‌ها ══════════════ */
-$("#stage").addEventListener("click", function(){ if($("#choices").hidden) advance(); });
+$("#stage").addEventListener("click", function(){
+  if($("#choices").hidden && !hunt) advance();
+});
 addEventListener("keydown", function(e){
-  if(!$("#cover").classList.contains("on") && !$("#over").classList.contains("on")){
-    var box2 = $("#choices");
-    if(!box2.hidden){
-      var fi = "۱۲۳".indexOf(e.key);
-      var idx = fi >= 0 ? fi : (/^[1-3]$/.test(e.key) ? +e.key - 1 : -1);
-      var bs = box2.querySelectorAll(".ch");
-      if(idx >= 0 && bs[idx]){ e.preventDefault(); bs[idx].click(); }
-      return;
-    }
-    if(e.key === " " || e.key === "Enter"){ e.preventDefault(); advance(); }
+  if(sheetOpen()) return;
+  var b = $("#choices");
+  if(!b.hidden){
+    var fi = "۱۲۳".indexOf(e.key);
+    var idx = fi >= 0 ? fi : (/^[1-3]$/.test(e.key) ? +e.key - 1 : -1);
+    var bs = b.querySelectorAll(".ch");
+    if(idx >= 0 && bs[idx]){ e.preventDefault(); bs[idx].click(); }
+    return;
   }
+  if(hunt){ if(e.key === "Enter" || e.key === " "){ e.preventDefault(); huntReveal(); } return; }
+  if(e.key === " " || e.key === "Enter"){ e.preventDefault(); advance(); }
 });
 $("#btnSound").addEventListener("click", function(){
   A.on = !A.on;
@@ -920,11 +1229,14 @@ $("#btnSound").addEventListener("click", function(){
 function begin(){
   A.init();
   if(A.c && A.c.state === "suspended") A.c.resume();
+  clearInterval(typer); typer = 0;
+  hunt = null; $("#hunt").classList.remove("on");
   S = fresh();
   drawPips(); drawChips();
   $("#cover").classList.remove("on");
   $("#over").classList.remove("on");
   $("#game").classList.remove("sheeted");
+  $("#choices").hidden = true;
   $("#tapHint").textContent = "برای ادامه، هرجای صفحه را بزن";
   enter(STORY.start);
 }
@@ -936,6 +1248,7 @@ S = fresh();
 resize();
 drawPips();
 drawChips();
+drawVault("#vaultSlots", "#vaultCount");
 requestAnimationFrame(frame);
 })();
 </script>
