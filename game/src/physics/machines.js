@@ -18,13 +18,31 @@
 //   insightFa        جمله‌ای که نتیجهٔ علمی آزمایش را توضیح می‌دهد
 
 import {
-  G, SURFACES, ROLLERS, PULLEYS, PULLERS, DEFAULT_PULLER,
+  G, SURFACES, ROLLERS, PULLEYS,
   SHEAVE_EFFICIENCY, LEVER_EFFICIENCY, WHEEL_AXLE_EFFICIENCY,
   WEDGE_EFFICIENCY, SCREW_EFFICIENCY, GEAR_EFFICIENCY
 } from './constants.js';
 import { round, clamp } from '../core/format.js';
 
-export { G, SURFACES, ROLLERS, PULLEYS, PULLERS };
+export { G, SURFACES, ROLLERS, PULLEYS };
+
+/**
+ * تنظیم‌های سراسری آزمایشگاه که آموزگار انتخاب می‌کند.
+ *   g     شتاب گرانش (۱۰ برای محاسبهٔ کلاسی، ۹٫۸۱ برای مقدار واقعی)
+ *   ideal اگر روشن باشد، همهٔ اصطکاک‌ها صفر فرض می‌شوند (ماشین آرمانی)
+ */
+export const LAB = { g: G, ideal: false };
+
+export function setLab({ g, ideal }) {
+  if (typeof g === 'number' && g > 0) LAB.g = g;
+  if (typeof ideal === 'boolean') LAB.ideal = ideal;
+  return LAB;
+}
+
+/** ضریب اصطکاک مؤثر با توجه به حالت آرمانی */
+const mu = (surface) => (LAB.ideal ? 0 : surface.mu);
+/** بازدهٔ مؤثر با توجه به حالت آرمانی */
+const eff = (value) => (LAB.ideal ? 1 : value);
 
 /** فهرست ماشین‌های ساده‌ای که آزمایشگاه پشتیبانی می‌کند */
 export const MACHINE_IDS = [
@@ -47,17 +65,14 @@ export const MACHINES = {
 // کمکی‌ها
 // ————————————————————————————————————————————————————————
 
-function finish(result, pullerId = DEFAULT_PULLER) {
-  const puller = PULLERS[pullerId] || PULLERS[DEFAULT_PULLER];
-  const effortN = result.effortN;
+function finish(result) {
   const out = {
     ...result,
-    puller,
-    humanLimitN: puller.limitN,
-    feasible: effortN <= puller.limitN,
+    g: LAB.g,
+    ideal: LAB.ideal,
     // کار مفید و کار ورودی (پایستگی انرژی: کار ورودی همیشه ≥ کار مفید)
     workOutJ: result.workOutJ ?? (result.loadN * result.loadDistanceM),
-    workInJ: result.workInJ ?? (effortN * result.effortDistanceM)
+    workInJ: result.workInJ ?? (result.effortN * result.effortDistanceM)
   };
   out.energyLostJ = Math.max(0, out.workInJ - out.workOutJ);
   return roundResult(out);
@@ -87,13 +102,12 @@ export function friction({
   massKg = 50,
   surfaceId = 'ROUGH_STONE',
   useRollers = false,
-  distanceM = 6,
-  pullerId = DEFAULT_PULLER
+  distanceM = 6
 } = {}) {
   const surface = surfaceOf(surfaceId, useRollers);
-  const loadN = massKg * G;
+  const loadN = massKg * LAB.g;
   // روی سطح افقی، تمام نیروی لازم صرف غلبه بر اصطکاک می‌شود
-  const effortN = loadN * surface.mu;
+  const effortN = loadN * mu(surface);
 
   const baseline = loadN * SURFACES.ROUGH_STONE.mu; // مقایسه با سنگ ناهموار
   const savedPercent = clamp(Math.round(((baseline - effortN) / baseline) * 100), 0, 100);
@@ -116,13 +130,15 @@ export function friction({
     workInJ: effortN * distanceM,
     forceRatioPercent: Math.round((effortN / loadN) * 100),
     savedPercent,
-    geom: { distanceM, mu: surface.mu },
-    insightFa: useRollers
+    geom: { distanceM, mu: mu(surface) },
+    insightFa: LAB.ideal
+      ? 'در حالت آرمانی اصطکاکی وجود ندارد، پس برای ادامهٔ حرکتِ بار هیچ نیرویی لازم نیست (قانون اول نیوتون).'
+      : useRollers
       ? 'غلتک‌ها اصطکاکِ مالشی را به اصطکاکِ غلتشی تبدیل کردند؛ نیروی لازم به کمترین مقدار رسید.'
       : surface.mu >= 0.5
         ? 'سطحِ زبر، اصطکاکِ زیادی می‌سازد؛ نیروی لازم نزدیک به وزن بار است.'
         : 'صاف‌تر شدن سطح، اصطکاک را کم کرد؛ اما غلتک از این هم بهتر عمل می‌کند.'
-  }, pullerId);
+  });
 }
 
 // ————————————————————————————————————————————————————————
@@ -134,11 +150,10 @@ export function inclinedPlane({
   heightM = 2,
   lengthM = 4,
   surfaceId = 'WOOD_PLANKS',
-  useRollers = false,
-  pullerId = DEFAULT_PULLER
+  useRollers = false
 } = {}) {
   const surface = surfaceOf(surfaceId, useRollers);
-  const loadN = massKg * G;
+  const loadN = massKg * LAB.g;
 
   // طول رمپ هرگز نمی‌تواند از ارتفاع کمتر باشد
   const L = Math.max(heightM * 1.02, lengthM);
@@ -147,7 +162,7 @@ export function inclinedPlane({
   const angleDeg = round((Math.asin(clamp(sin, 0, 1)) * 180) / Math.PI, 0);
 
   const effortIdealN = loadN * sin;               // مؤلفهٔ وزن در راستای شیب
-  const frictionN = loadN * cos * surface.mu;     // اصطکاک در راستای شیب
+  const frictionN = loadN * cos * mu(surface);   // اصطکاک در راستای شیب
   const effortN = effortIdealN + frictionN;
 
   const maIdeal = L / heightM;
@@ -172,13 +187,13 @@ export function inclinedPlane({
     lengthM: L,
     directLiftN: loadN,
     savedPercent: clamp(Math.round(((loadN - effortN) / loadN) * 100), 0, 100),
-    geom: { heightM, lengthM: L, angleDeg, sin, cos, mu: surface.mu },
+    geom: { heightM, lengthM: L, angleDeg, sin, cos, mu: mu(surface) },
     insightFa: angleDeg <= 20
       ? 'شیب ملایم شد: نیروی لازم کم است، اما مسیر درازتری را باید طی کنیم.'
       : angleDeg >= 45
         ? 'شیب خیلی تند است؛ نیروی لازم تقریباً به اندازهٔ بلند کردن مستقیم بار شد.'
         : 'با درازتر کردن رمپ، نیرو کمتر و مسافت بیشتر می‌شود؛ کار انجام‌شده تقریباً ثابت می‌ماند.'
-  }, pullerId);
+  });
 }
 
 // ————————————————————————————————————————————————————————
@@ -203,17 +218,16 @@ export function lever({
   fulcrumM = 1,
   loadM = 0.3,
   effortM = 3,
-  liftHeightM = 0.3,
-  pullerId = DEFAULT_PULLER
+  liftHeightM = 0.3
 } = {}) {
-  const loadN = massKg * G;
+  const loadN = massKg * LAB.g;
 
   const loadArmM = Math.max(0.05, Math.abs(fulcrumM - loadM));
   const effortArmM = Math.max(0.05, Math.abs(effortM - fulcrumM));
 
   // تعادل گشتاور:  W × d_بار = F × d_نیرو
   const effortIdealN = (loadN * loadArmM) / effortArmM;
-  const effortN = effortIdealN / LEVER_EFFICIENCY;
+  const effortN = effortIdealN / eff(LEVER_EFFICIENCY);
   const frictionN = effortN - effortIdealN;
 
   const maIdeal = effortArmM / loadArmM;
@@ -243,7 +257,7 @@ export function lever({
       : maIdeal >= 1
         ? 'اهرم کمی به ما کمک می‌کند؛ تکیه‌گاه را به بار نزدیک‌تر کن تا مزیت مکانیکی بیشتر شود.'
         : 'بازوی نیرو از بازوی بار کوتاه‌تر است؛ این اهرم نیرو را زیاد نمی‌کند، فقط بار را تندتر و بیشتر جابه‌جا می‌کند.'
-  }, pullerId);
+  });
 }
 
 // ————————————————————————————————————————————————————————
@@ -253,14 +267,13 @@ export function lever({
 export function pulley({
   massKg = 60,
   systemId = 'FIXED',
-  liftHeightM = 4,
-  pullerId = DEFAULT_PULLER
+  liftHeightM = 4
 } = {}) {
   const system = PULLEYS[systemId] || PULLEYS.FIXED;
-  const loadN = massKg * G;
+  const loadN = massKg * LAB.g;
 
   const effortIdealN = loadN / system.strands;
-  const efficiency = SHEAVE_EFFICIENCY ** system.sheaves;
+  const efficiency = eff(SHEAVE_EFFICIENCY ** system.sheaves);
   const effortN = effortIdealN / efficiency;
   const frictionN = effortN - effortIdealN;
 
@@ -291,7 +304,7 @@ export function pulley({
           ? 'قرقرهٔ ثابت فقط جهت نیرو را عوض کرد؛ عدد نیروسنج همان وزن بار ماند.'
           : 'بدون قرقره، تمام وزن بار روی دست ماست و باید رو به بالا زور بزنیم.')
       : `وزن بار بین ${system.strands} رشته طناب تقسیم شد؛ نیرو حدود یک‌${system.strands === 2 ? 'دوم' : system.strands === 3 ? 'سوم' : 'چهارم'} شد ولی باید ${system.strands} برابر طناب بکشیم.`
-  }, pullerId);
+  });
 }
 
 // ————————————————————————————————————————————————————————
@@ -302,15 +315,14 @@ export function wheelAxle({
   massKg = 40,
   wheelRadiusM = 0.5,
   axleRadiusM = 0.1,
-  liftHeightM = 3,
-  pullerId = DEFAULT_PULLER
+  liftHeightM = 3
 } = {}) {
-  const loadN = massKg * G;
+  const loadN = massKg * LAB.g;
   const R = Math.max(axleRadiusM * 1.05, wheelRadiusM);
   const r = Math.max(0.02, axleRadiusM);
 
   const effortIdealN = (loadN * r) / R;
-  const effortN = effortIdealN / WHEEL_AXLE_EFFICIENCY;
+  const effortN = effortIdealN / eff(WHEEL_AXLE_EFFICIENCY);
   const frictionN = effortN - effortIdealN;
 
   const maIdeal = R / r;
@@ -335,7 +347,7 @@ export function wheelAxle({
     turns: round(turns, 1),
     geom: { wheelRadiusM: R, axleRadiusM: r, liftHeightM, turns },
     insightFa: 'چرخ و محور یک اهرمِ چرخان است: شعاع چرخ نقشِ بازوی نیرو و شعاع محور نقشِ بازوی بار را دارد.'
-  }, pullerId);
+  });
 }
 
 // ————————————————————————————————————————————————————————
@@ -345,14 +357,13 @@ export function wheelAxle({
 export function wedge({
   resistanceN = 900,
   lengthM = 0.24,
-  thicknessM = 0.06,
-  pullerId = DEFAULT_PULLER
+  thicknessM = 0.06
 } = {}) {
   const L = Math.max(thicknessM * 1.05, lengthM);
   const t = Math.max(0.005, thicknessM);
 
   const effortIdealN = (resistanceN * t) / L;
-  const effortN = effortIdealN / WEDGE_EFFICIENCY;
+  const effortN = effortIdealN / eff(WEDGE_EFFICIENCY);
   const frictionN = effortN - effortIdealN;
 
   const maIdeal = L / t;
@@ -373,7 +384,7 @@ export function wedge({
     thicknessM: t,
     geom: { lengthM: L, thicknessM: t },
     insightFa: 'گوه در واقع یک سطح شیب‌دارِ متحرک است: هرچه باریک‌تر و بلندتر باشد، با ضربهٔ کم‌تری چوب را می‌شکافد.'
-  }, pullerId);
+  });
 }
 
 // ————————————————————————————————————————————————————————
@@ -384,16 +395,15 @@ export function screw({
   massKg = 300,
   pitchM = 0.01,
   handleRadiusM = 0.35,
-  liftHeightM = 0.2,
-  pullerId = DEFAULT_PULLER
+  liftHeightM = 0.2
 } = {}) {
-  const loadN = massKg * G;
+  const loadN = massKg * LAB.g;
   const p = Math.max(0.002, pitchM);
   const R = Math.max(0.05, handleRadiusM);
 
   const circumference = 2 * Math.PI * R;
   const effortIdealN = (loadN * p) / circumference;
-  const effortN = effortIdealN / SCREW_EFFICIENCY;
+  const effortN = effortIdealN / eff(SCREW_EFFICIENCY);
   const frictionN = effortN - effortIdealN;
 
   const maIdeal = circumference / p;
@@ -417,7 +427,7 @@ export function screw({
     turns: round(turns, 0),
     geom: { pitchM: p, handleRadiusM: R, liftHeightM, turns },
     insightFa: 'پیچ یک سطح شیب‌دار است که دور یک استوانه پیچیده شده؛ گام کوچک‌تر یعنی شیب ملایم‌تر و نیروی کمتر، اما تعداد چرخش بیشتر.'
-  }, pullerId);
+  });
 }
 
 // ————————————————————————————————————————————————————————
@@ -434,7 +444,7 @@ export function gears({
   const z2 = Math.max(6, Math.round(drivenTeeth));
   const ratio = z2 / z1;
 
-  const outputTorqueNm = inputTorqueNm * ratio * GEAR_EFFICIENCY;
+  const outputTorqueNm = inputTorqueNm * ratio * eff(GEAR_EFFICIENCY);
   const outputRpm = inputRpm / ratio;
 
   return roundResult({
@@ -446,9 +456,8 @@ export function gears({
     outputTorqueNm: round(outputTorqueNm, 1),
     inputRpm,
     outputRpm: round(outputRpm, 1),
-    efficiency: GEAR_EFFICIENCY,
+    efficiency: eff(GEAR_EFFICIENCY),
     reversesDirection: true,
-    feasible: true,
     geom: { z1, z2, ratio },
     insightFa: ratio > 1
       ? 'چرخ‌دندهٔ بزرگ‌تر کندتر می‌چرخد ولی گشتاور (قدرتِ چرخاندن) بیشتری دارد — درست مثل دنده‌سنگین دوچرخه در سربالایی.'

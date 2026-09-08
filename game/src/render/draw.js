@@ -4,11 +4,10 @@ import { fa, num, clamp, lerp } from '../core/format.js';
 /** پالت رنگ صحنه (در تم تیره کمی کدرتر می‌شود) */
 export const PALETTE = {
   light: {
-    skyTop: '#8fd0f2', skyMid: '#bfe6fa', skyLow: '#e6f5fd',
-    sun: '#fff3c4', sunGlow: 'rgba(255,236,150,.55)',
-    farRock: '#93a9c4', midRock: '#6f88ab', nearRock: '#55708f',
-    snow: '#f4f9ff', grassTop: '#7cbf6a', grassLow: '#5aa356',
-    soil: '#8a6a4a', soilDark: '#6f5238',
+    skyTop: '#eaf4fa', skyMid: '#eff6fb', skyLow: '#f7fbfd',
+    gridLine: 'rgba(28, 70, 105, .07)', gridStrong: 'rgba(28, 70, 105, .30)',
+    ground: '#cfd9e2', groundDeep: '#b6c3d0', groundLine: '#8fa1b2',
+    structure: '#c3ccd6', structureDeep: '#a3aeba', structureLine: '#7f8c9a',
     wood: '#c08b4f', woodDark: '#8d6134', woodLight: '#dcae74',
     rope: '#b98a55', ropeDark: '#8a6136',
     metal: '#8fa2b5', metalDark: '#5d7186', metalLight: '#c3d1de',
@@ -19,11 +18,10 @@ export const PALETTE = {
     friction: '#b5477f', normal: '#0f9b8e'
   },
   dark: {
-    skyTop: '#16324a', skyMid: '#1d4260', skyLow: '#255074',
-    sun: '#f6e6a8', sunGlow: 'rgba(246,230,168,.20)',
-    farRock: '#2c4258', midRock: '#243849', nearRock: '#1c2c3b',
-    snow: '#cfe3f2', grassTop: '#2f5f43', grassLow: '#244a35',
-    soil: '#3f3226', soilDark: '#2e251c',
+    skyTop: '#101d29', skyMid: '#13212e', skyLow: '#162836',
+    gridLine: 'rgba(160, 200, 230, .07)', gridStrong: 'rgba(160, 200, 230, .28)',
+    ground: '#1c2a37', groundDeep: '#16212c', groundLine: '#3a5062',
+    structure: '#2a3a49', structureDeep: '#202d39', structureLine: '#45596b',
     wood: '#9b6f3f', woodDark: '#6d4b28', woodLight: '#b98a56',
     rope: '#9a7549', ropeDark: '#6f5334',
     metal: '#647689', metalDark: '#3d4c5b', metalLight: '#8ea0b1',
@@ -319,105 +317,179 @@ export function gear(ctx, x, y, r, teeth, angle, color, P) {
 }
 
 /**
- * شخصیت بازی.
- * pose: 'pull' | 'push' | 'crank' | 'hammer' | 'idle' | 'cheer'
+ * پیکرهٔ آزمایشگر.
+ * همهٔ اندام‌ها حول «لگن» می‌چرخند تا تنه و پاها هیچ‌وقت از هم جدا نیفتند.
+ * pose: 'pull' | 'push' | 'crank' | 'hammer' | 'idle'
  * dir: ۱ رو به راست، ۱- رو به چپ
- * effortLevel: ۰ تا ۱ — هرچه بیشتر، خمیدگی بدن بیشتر
+ * effort: ۰ تا ۱ — هرچه بیشتر، خمیدگی بدن بیشتر
  */
 export function person(ctx, x, y, height, opts = {}) {
   const {
-    P, pose = 'idle', dir = -1, t = 0, effort = 0.4, skin = '#f2c396',
-    shirt = '#f07f24', pants = '#31527a', hat = '#1f9d63'
+    P, pose = 'idle', dir = -1, t = 0, effort = 0.4,
+    skin = '#efbf95', shirt = '#e07a2c', pants = '#33506f'
   } = opts;
   const s = height / 100;
-  const lean = pose === 'pull' ? -0.18 - effort * 0.22 : pose === 'push' ? 0.12 + effort * 0.16 : 0;
-  const bob = pose === 'idle' ? Math.sin(t * 2) * 1.2 : Math.sin(t * 7) * (1.5 + effort * 2);
+  const HIP = -36;                       // ارتفاع لگن بر حسب واحد پیکره
+  const lean = pose === 'pull' ? -0.16 - effort * 0.20
+    : pose === 'push' ? 0.12 + effort * 0.14 : 0;
+  const bob = pose === 'idle' ? Math.sin(t * 2) * 0.8 : Math.sin(t * 6) * (1 + effort * 1.6);
+  const stride = pose === 'pull' ? 17 : pose === 'push' ? 14 : 8;
 
   ctx.save();
   ctx.translate(x, y + bob * s);
   ctx.scale(dir, 1);
 
   // سایه
-  ctx.fillStyle = 'rgba(0,0,0,.15)';
-  ctx.beginPath(); ctx.ellipse(0, 2 * s, 20 * s, 4.5 * s, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,.14)';
+  ctx.beginPath(); ctx.ellipse(0, 1.5 * s, 19 * s, 4 * s, 0, 0, Math.PI * 2); ctx.fill();
 
-  const stride = pose === 'pull' ? 16 : pose === 'push' ? 13 : 7;
-  // پاها
-  ctx.strokeStyle = pants; ctx.lineWidth = 7 * s; ctx.lineCap = 'round';
+  // پاها — از لگن تا کف
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = pants; ctx.lineWidth = 8 * s;
   ctx.beginPath();
-  ctx.moveTo(0, -34 * s); ctx.lineTo(-stride * s, 0);
-  ctx.moveTo(0, -34 * s); ctx.lineTo(stride * 0.55 * s, 0);
+  ctx.moveTo(0, HIP * s); ctx.lineTo(-stride * s, -2 * s);
+  ctx.moveTo(0, HIP * s); ctx.lineTo(stride * 0.5 * s, -2 * s);
   ctx.stroke();
   // کفش
-  ctx.strokeStyle = '#3b2a1d'; ctx.lineWidth = 5 * s;
+  ctx.strokeStyle = '#3a2b1e'; ctx.lineWidth = 5.5 * s;
   ctx.beginPath();
   ctx.moveTo(-stride * s, 0); ctx.lineTo((-stride - 5) * s, 0);
-  ctx.moveTo(stride * 0.55 * s, 0); ctx.lineTo((stride * 0.55 + 5) * s, 0);
+  ctx.moveTo(stride * 0.5 * s, 0); ctx.lineTo((stride * 0.5 + 5) * s, 0);
   ctx.stroke();
 
+  // ── از اینجا به بعد همه‌چیز حول لگن می‌چرخد ──
+  ctx.translate(0, HIP * s);
   ctx.rotate(lean);
 
-  // تنه
+  // تنه (کمی پایین‌تر از لگن کشیده می‌شود تا درز دیده نشود)
   ctx.fillStyle = shirt;
-  rr(ctx, -8 * s, -70 * s, 16 * s, 38 * s, 6 * s);
+  rr(ctx, -8.5 * s, -34 * s, 17 * s, 38 * s, 7 * s);
   ctx.fill();
-  ctx.fillStyle = 'rgba(0,0,0,.12)';
-  rr(ctx, -8 * s, -44 * s, 16 * s, 12 * s, 4 * s);
+  // کمربند
+  ctx.fillStyle = 'rgba(0,0,0,.16)';
+  rr(ctx, -8.5 * s, -3 * s, 17 * s, 6 * s, 3 * s);
   ctx.fill();
+  // مفصل لگن
+  ctx.fillStyle = pants;
+  ctx.beginPath(); ctx.arc(0, 0, 8 * s, 0, Math.PI * 2); ctx.fill();
 
-  // سر
+  // گردن و سر
+  ctx.strokeStyle = skin; ctx.lineWidth = 6 * s;
+  ctx.beginPath(); ctx.moveTo(0, -33 * s); ctx.lineTo(0, -38 * s); ctx.stroke();
   ctx.fillStyle = skin;
-  ctx.beginPath(); ctx.arc(0, -80 * s, 11 * s, 0, Math.PI * 2); ctx.fill();
-  // کلاه
-  ctx.fillStyle = hat;
+  ctx.beginPath(); ctx.arc(0, -47 * s, 11 * s, 0, Math.PI * 2); ctx.fill();
+  // مو
+  ctx.fillStyle = '#43301f';
   ctx.beginPath();
-  ctx.arc(0, -82 * s, 11.5 * s, Math.PI, 0);
-  ctx.lineTo(14 * s, -82 * s); ctx.lineTo(-12 * s, -82 * s);
+  ctx.arc(0, -48 * s, 11.2 * s, Math.PI * 1.05, Math.PI * 2.05);
   ctx.closePath(); ctx.fill();
-  // چشم
-  ctx.fillStyle = '#243244';
-  ctx.beginPath(); ctx.arc(6 * s, -80 * s, 1.7 * s, 0, Math.PI * 2); ctx.fill();
-  // دهان (تلاش)
-  ctx.strokeStyle = '#243244'; ctx.lineWidth = 1.4 * s;
+  // چشم و دهان
+  ctx.fillStyle = '#22303f';
+  ctx.beginPath(); ctx.arc(6 * s, -47 * s, 1.6 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#22303f'; ctx.lineWidth = 1.3 * s;
   ctx.beginPath();
-  if (effort > 0.7) ctx.arc(5 * s, -75 * s, 2.4 * s, 0, Math.PI);
-  else ctx.arc(5 * s, -76 * s, 2.6 * s, 0.15, Math.PI - 0.15);
+  if (effort > 0.7) ctx.arc(5 * s, -41.5 * s, 2.2 * s, 0, Math.PI);
+  else ctx.arc(5 * s, -43 * s, 2.4 * s, 0.2, Math.PI - 0.2);
   ctx.stroke();
 
-  // بازوها
-  ctx.strokeStyle = skin; ctx.lineWidth = 6 * s; ctx.lineCap = 'round';
-  let hand = [18 * s, -58 * s];
-  ctx.beginPath();
+  // بازوها — شانه در ارتفاع ۳۰- نسبت به لگن
+  const shoulder = [0, -30 * s];
+  let hand = [14 * s, -14 * s];
+  let elbow = [9 * s, -22 * s];
   if (pose === 'pull') {
-    hand = [24 * s, -52 * s - Math.sin(t * 7) * 2 * s];
-    ctx.moveTo(-2 * s, -64 * s); ctx.lineTo(12 * s, -58 * s); ctx.lineTo(hand[0], hand[1]);
+    hand = [24 * s, (-17 + Math.sin(t * 6) * 1.2) * s];
+    elbow = [13 * s, -24 * s];
   } else if (pose === 'push') {
-    hand = [22 * s, -62 * s];
-    ctx.moveTo(-2 * s, -64 * s); ctx.lineTo(12 * s, -63 * s); ctx.lineTo(hand[0], hand[1]);
+    hand = [22 * s, -27 * s];
+    elbow = [12 * s, -29 * s];
   } else if (pose === 'crank') {
     const a = t * 3;
-    hand = [(16 + Math.cos(a) * 8) * s, (-58 + Math.sin(a) * 8) * s];
-    ctx.moveTo(-2 * s, -64 * s); ctx.lineTo(10 * s, -60 * s); ctx.lineTo(hand[0], hand[1]);
+    hand = [(15 + Math.cos(a) * 8) * s, (-23 + Math.sin(a) * 8) * s];
+    elbow = [10 * s, -26 * s];
+  } else if (pose === 'up') {
+    hand = [9 * s, (-48 + Math.sin(t * 5) * 1.5) * s];
+    elbow = [12 * s, -38 * s];
   } else if (pose === 'hammer') {
-    const a = Math.sin(t * 6) * 0.9;
-    hand = [(16 + Math.cos(a - 1) * 12) * s, (-62 + Math.sin(a - 1) * 12) * s];
-    ctx.moveTo(-2 * s, -64 * s); ctx.lineTo(8 * s, -64 * s); ctx.lineTo(hand[0], hand[1]);
-  } else if (pose === 'cheer') {
-    hand = [10 * s, -96 * s];
-    ctx.moveTo(-2 * s, -64 * s); ctx.lineTo(10 * s, -80 * s); ctx.lineTo(hand[0], hand[1]);
-    ctx.moveTo(-2 * s, -64 * s); ctx.lineTo(-12 * s, -80 * s); ctx.lineTo(-12 * s, -96 * s);
-  } else {
-    ctx.moveTo(-2 * s, -64 * s); ctx.lineTo(10 * s, -50 * s);
+    const a = Math.sin(t * 5) * 0.9 - 1;
+    hand = [(15 + Math.cos(a) * 12) * s, (-27 + Math.sin(a) * 12) * s];
+    elbow = [8 * s, -29 * s];
   }
+  ctx.strokeStyle = skin; ctx.lineWidth = 6.5 * s;
+  ctx.beginPath();
+  ctx.moveTo(shoulder[0], shoulder[1]);
+  ctx.lineTo(elbow[0], elbow[1]);
+  ctx.lineTo(hand[0], hand[1]);
+  ctx.stroke();
+  // بازوی دور (کمی تیره‌تر برای حس عمق)
+  ctx.strokeStyle = 'rgba(0,0,0,.16)'; ctx.lineWidth = 6.5 * s;
+  ctx.beginPath();
+  ctx.moveTo(shoulder[0] - 2 * s, shoulder[1] + 1 * s);
+  ctx.lineTo(elbow[0] - 3 * s, elbow[1] + 3 * s);
+  ctx.lineTo(hand[0] - 3 * s, hand[1] + 3 * s);
   ctx.stroke();
   ctx.restore();
 
-  // مختصات دستِ کاری در فضای صفحه (برای وصل کردن طناب)
-  const cos = Math.cos(lean), sin = Math.sin(lean);
+  // مختصات دستِ کاری در فضای صفحه (برای وصل کردن طناب یا دسته)
+  const c = Math.cos(lean), sn = Math.sin(lean);
   return {
-    x: x + dir * (hand[0] * cos - hand[1] * sin),
-    y: y + bob * s + (hand[0] * sin + hand[1] * cos)
+    x: x + dir * (hand[0] * c - hand[1] * sn),
+    y: y + bob * s + HIP * s + (hand[0] * sn + hand[1] * c)
   };
+}
+
+/**
+ * نیروسنج (دینامومتر) — ابزار اندازه‌گیریِ روی طناب.
+ * عدد را هم روی عقربه و هم به شکل رقمی نشان می‌دهد.
+ */
+export function gauge(ctx, x, y, valueN, maxN, P, opts = {}) {
+  const { title = 'نیروسنج', angle = 0 } = opts;
+  const w = 86, h = 44;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+
+  ctx.fillStyle = ACTIVE.paper;
+  rr(ctx, -w / 2, -h / 2, w, h, 8);
+  ctx.fill();
+  ctx.strokeStyle = ACTIVE === PALETTE.dark ? 'rgba(255,255,255,.22)' : 'rgba(20,40,60,.28)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // کمان مدرج
+  const cx = 0, cy = h / 2 - 9, r = 22;
+  ctx.strokeStyle = ACTIVE.inkSoft;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0); ctx.stroke();
+  for (let i = 0; i <= 4; i++) {
+    const a = Math.PI + (Math.PI * i) / 4;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    ctx.lineTo(cx + Math.cos(a) * (r - 4), cy + Math.sin(a) * (r - 4));
+    ctx.stroke();
+  }
+  // عقربه
+  const k = clamp(valueN / (maxN || 1), 0, 1);
+  const a = Math.PI + Math.PI * k;
+  ctx.strokeStyle = k > 0.85 ? '#d33b4a' : '#0b7fc4';
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(a) * (r - 3), cy + Math.sin(a) * (r - 3));
+  ctx.stroke();
+  ctx.fillStyle = ACTIVE.ink;
+  ctx.beginPath(); ctx.arc(cx, cy, 2.6, 0, Math.PI * 2); ctx.fill();
+
+  // عدد
+  ctx.font = `800 13px Vazirmatn, Tahoma, sans-serif`;
+  ctx.direction = 'rtl';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = ACTIVE.ink;
+  ctx.fillText(`${fa(Math.round(valueN))} N`, 0, -h / 2 + 12);
+  ctx.font = `600 8.5px Vazirmatn, Tahoma, sans-serif`;
+  ctx.fillStyle = ACTIVE.inkSoft;
+  ctx.fillText(title, 0, -h / 2 + 24);
+  ctx.restore();
 }
 
 /** ذرات (گرد و خاک، جرقه) */

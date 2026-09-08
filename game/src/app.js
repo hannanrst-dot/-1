@@ -1,659 +1,354 @@
-// ═══ کارگاه ماشین‌های ساده — هماهنگ‌کنندهٔ اصلی برنامه ═══
+// ═══ آزمایشگاه ماشین‌های ساده — هماهنگ‌کنندهٔ برنامه ═══
 import { fa, num, clamp, easeInOut } from './core/format.js';
-import { solve, MACHINES, MACHINE_IDS, PULLERS } from './physics/machines.js';
-import { capstone } from './physics/capstone.js';
-import { MISSIONS, missionById } from './content/missions.js';
-import { DEFAULT_PARAMS, MACHINE_CONTROLS, resolveParams, describeSetup, pullerOptions } from './content/controls.js';
-import { CURRICULUM, CLASSROOM_TIPS, notebookHTML } from './content/curriculum.js';
+import { solve, setLab, LAB, MACHINES, MACHINE_IDS } from './physics/machines.js';
+import { explain } from './physics/explain.js';
+import { DEFAULT_PARAMS, MACHINE_CONTROLS, resolveParams, describeSetup } from './content/controls.js';
+import { CURRICULUM, CLASSROOM_TIPS, reportHTML } from './content/curriculum.js';
 import { Stage } from './render/stage.js';
-import { el, card, buildControls, renderHud, measurementTable, drawChart, CHART_SPEC } from './ui/components.js';
-import { sound } from './audio.js';
+import { el, card, buildControls, quantityTable, stepsList, logTable, drawChart, CHART_SPEC } from './ui/components.js';
 
-const SAVE_KEY = 'kargah_mashinhaye_sadeh_v2';
-const RUN_SECONDS = 3.2;
+const SAVE_KEY = 'azmayeshgah_mashinhaye_sadeh_v1';
+const RUN_SECONDS = 3.4;
 
-/** تمِ آغازین را از انتخاب میزبان یا تنظیم سیستم کاربر برمی‌دارد */
-function detectPreferredTheme() {
+function preferredTheme() {
   const stamped = document.documentElement.dataset.theme;
   if (stamped === 'dark' || stamped === 'light') return stamped;
-  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
 class App {
   constructor() {
     this.state = {
-      mode: 'MISSIONS',
-      missionId: 'M1',
-      labMachine: 'INCLINED_PLANE',
-      missionParams: {},
-      labParams: {},
-      progress: { completed: [], discoveries: [], badges: [], predictions: {} },
+      machine: 'INCLINED_PLANE',
+      params: {},
       log: [],
-      settings: {
-        theme: 'light', contrast: 'normal', reducedMotion: false,
-        captions: true, vectors: false, pullerId: 'ADULT',
-        volumes: { master: 0.75, sfx: 0.8, ambient: 0.35 }
-      }
+      view: { vectors: false, dims: true, steps: true, chart: false, records: false },
+      lab: { g: 10, ideal: false },
+      theme: null
     };
-
     this.t = 0;
     this.running = false;
-    this.slowmo = false;
-    this.hintStep = 0;
-    this.lastResult = null;
+    this.slow = false;
 
     this.load();
-    if (!this.hadSavedTheme) this.state.settings.theme = detectPreferredTheme();
-    for (const m of MISSIONS) {
-      if (!this.state.missionParams[m.id]) this.state.missionParams[m.id] = { ...m.params };
-    }
     for (const id of MACHINE_IDS) {
-      if (!this.state.labParams[id]) this.state.labParams[id] = { ...DEFAULT_PARAMS[id] };
+      if (!this.state.params[id]) this.state.params[id] = { ...DEFAULT_PARAMS[id] };
     }
+    if (!this.state.theme) this.state.theme = preferredTheme();
+    setLab(this.state.lab);
   }
 
-  // ─────────── ذخیره‌سازی ───────────
   load() {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return;
       const saved = JSON.parse(raw);
-      this.hadSavedTheme = !!(saved.settings && saved.settings.theme);
       this.state = {
         ...this.state, ...saved,
-        progress: { ...this.state.progress, ...(saved.progress || {}) },
-        settings: { ...this.state.settings, ...(saved.settings || {}) }
+        view: { ...this.state.view, ...(saved.view || {}) },
+        lab: { ...this.state.lab, ...(saved.lab || {}) }
       };
     } catch { /* ذخیرهٔ خراب را نادیده بگیر */ }
   }
 
   save() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.state)); } catch { /* حافظه پر است */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.state)); } catch { /* حافظه پر */ }
   }
 
-  // ─────────── وضعیت جاری ───────────
-  get mission() { return missionById(this.state.missionId) || MISSIONS[0]; }
-
-  get machine() {
-    return this.state.mode === 'LAB' ? this.state.labMachine : this.mission.machine;
-  }
-
-  get params() {
-    return this.state.mode === 'LAB'
-      ? this.state.labParams[this.state.labMachine]
-      : this.state.missionParams[this.state.missionId];
-  }
-
-  setParam(key, value) {
-    const target = this.params;
-    target[key] = value;
-    if (this.state.mode === 'MISSIONS' && key === 'beamLengthM') {
-      target.fulcrumM = Math.min(target.fulcrumM, value - 0.2);
-    }
-    this.reset(false);
-    this.refreshControls();
-    this.save();
-  }
+  get machine() { return this.state.machine; }
+  get params() { return this.state.params[this.state.machine]; }
 
   compute() {
-    const machine = this.machine;
-    const p = resolveParams(machine, {
-      ...this.params,
-      pullerId: this.params.pullerId || this.state.settings.pullerId
-    });
-    return machine === 'CAPSTONE' ? capstone(p) : solve(machine, p);
-  }
-
-  goalPassed(result) {
-    const m = this.state.mode === 'MISSIONS' ? this.mission : null;
-    if (m && m.goalTest) return m.goalTest(result);
-    return !!result.feasible;
+    setLab(this.state.lab);
+    return solve(this.machine, resolveParams(this.machine, this.params));
   }
 
   // ─────────── راه‌اندازی ───────────
   init() {
     this.dom = {
-      body: document.body,
-      toolbar: document.getElementById('stageToolbar'),
+      bar: document.getElementById('machineBar'),
       canvas: document.getElementById('stageCanvas'),
-      hud: document.getElementById('hud'),
       side: document.getElementById('sidepanel'),
-      captions: document.getElementById('captions'),
-      verdict: document.getElementById('verdict'),
       btnRun: document.getElementById('btnRun'),
       btnRunText: document.getElementById('btnRunText'),
-      btnReset: document.getElementById('btnReset'),
       btnVectors: document.getElementById('btnVectors'),
-      btnSlowmo: document.getElementById('btnSlowmo'),
+      btnDims: document.getElementById('btnDims'),
+      btnSlow: document.getElementById('btnSlow'),
       modal: document.getElementById('modal'),
       modalTitle: document.getElementById('modalTitle'),
-      modalBody: document.getElementById('modalBody'),
-      discoveryCount: document.getElementById('discoveryCount'),
-      tabs: [...document.querySelectorAll('.tab')]
+      modalBody: document.getElementById('modalBody')
     };
 
     this.stage = new Stage(this.dom.canvas);
     this.stage.getState = () => this.viewState();
-    this.stage.onHandleChange = (id, value) => this.onHandleDrag(id, value);
+    this.stage.onHandleChange = (id, v) => this.onDrag(id, v);
 
-    this.applySettings();
-    this.bindEvents();
+    this.applyTheme();
+    this.bind();
     this.stage.resize();
     this.stage.start();
-    this.renderAll();
+    this.renderBar();
+    this.renderSide();
 
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => this.stage.render());
-    }
-    window.addEventListener('resize', () => this.stage.resize());
+    document.fonts?.ready.then(() => this.stage.render());
+    window.addEventListener('resize', () => { this.stage.resize(); this.refreshChart(); });
   }
 
   viewState() {
-    const result = this.compute();
-    this.lastResult = result;
+    const state = this.compute();
+    this.dom.canvas.setAttribute('aria-label', this.describe(state));
     return {
-      machine: this.machine,
-      state: result,
-      t: this.t,
-      showVectors: this.state.settings.vectors,
+      machine: this.machine, state, t: this.t,
+      showVectors: this.state.view.vectors,
+      showDims: this.state.view.dims,
       interactive: !this.running
     };
   }
 
-  onHandleDrag(id, value) {
-    const p = this.params;
-    if (id === 'fulcrum' && 'fulcrumM' in p) {
-      const def = MACHINE_CONTROLS.LEVER.find((c) => c.key === 'fulcrumM');
-      p.fulcrumM = Math.round(clamp(value, Math.max(def.min, p.loadM + 0.1), p.beamLengthM - 0.2) * 10) / 10;
-    } else if (id === 'rampLength' && 'lengthM' in p) {
-      const def = MACHINE_CONTROLS.INCLINED_PLANE.find((c) => c.key === 'lengthM');
-      p.lengthM = Math.round(clamp(value, Math.max(def.min, p.heightM * 1.05), def.max) * 4) / 4;
-    } else return;
-    this.reset(false);
-    this.refreshControls();
-    this.save();
-  }
-
-  applySettings() {
-    const s = this.state.settings;
-    document.documentElement.dataset.theme = s.theme;
-    document.documentElement.dataset.contrast = s.contrast;
-    this.stage.setTheme(s.contrast === 'high' ? 'light' : s.theme);
-    this.stage.reducedMotion = s.reducedMotion;
-    sound.captionsEnabled = s.captions;
-    sound.setVolumes(s.volumes);
-    this.dom.btnVectors.setAttribute('aria-pressed', s.vectors ? 'true' : 'false');
-  }
-
-  // ─────────── رویدادها ───────────
-  bindEvents() {
-    const d = this.dom;
-
-    for (const tab of d.tabs) {
-      tab.addEventListener('click', () => this.setMode(tab.dataset.mode));
+  describe(r) {
+    if (r.machine === 'GEARS') {
+      return `${MACHINES[r.machine].name}: نسبت دنده ${fa(num(r.ratio, 2))}، گشتاور خروجی ${fa(num(r.outputTorqueNm, 1))} نیوتون‌متر.`;
     }
+    return `${MACHINES[r.machine].name}: وزن بار ${fa(num(r.loadN, 0))} نیوتون، نیروی لازم ${fa(num(r.effortN, 1))} نیوتون، مزیت مکانیکی ${fa(num(r.maActual || 1, 2))}.`;
+  }
+
+  applyTheme() {
+    document.documentElement.dataset.theme = this.state.theme;
+    this.stage.setTheme(this.state.theme);
+  }
+
+  bind() {
+    const d = this.dom;
     d.btnRun.addEventListener('click', () => this.run());
-    d.btnReset.addEventListener('click', () => this.reset(true));
-    d.btnVectors.addEventListener('click', () => {
-      this.state.settings.vectors = !this.state.settings.vectors;
-      d.btnVectors.setAttribute('aria-pressed', this.state.settings.vectors ? 'true' : 'false');
-      sound.playClick();
+    document.getElementById('btnReset').addEventListener('click', () => this.reset());
+    d.btnVectors.addEventListener('click', () => this.toggleView('vectors', d.btnVectors));
+    d.btnDims.addEventListener('click', () => this.toggleView('dims', d.btnDims));
+    d.btnSlow.addEventListener('click', () => {
+      this.slow = !this.slow;
+      d.btnSlow.setAttribute('aria-pressed', this.slow ? 'true' : 'false');
+    });
+    d.btnDims.setAttribute('aria-pressed', this.state.view.dims ? 'true' : 'false');
+    d.btnVectors.setAttribute('aria-pressed', this.state.view.vectors ? 'true' : 'false');
+
+    document.getElementById('btnTheme').addEventListener('click', () => {
+      this.state.theme = this.state.theme === 'dark' ? 'light' : 'dark';
+      this.applyTheme();
+      this.refreshChart();
       this.save();
     });
-    d.btnSlowmo.addEventListener('click', () => {
-      this.slowmo = !this.slowmo;
-      d.btnSlowmo.setAttribute('aria-pressed', this.slowmo ? 'true' : 'false');
-      sound.playClick();
-    });
-
-    document.getElementById('btnProgress').addEventListener('click', () => this.openProgress());
-    document.getElementById('btnTeacher').addEventListener('click', () => this.openTeacher());
-    document.getElementById('btnSettings').addEventListener('click', () => this.openSettings());
-
-    d.modal.querySelectorAll('[data-close]').forEach((n) =>
-      n.addEventListener('click', () => this.closeModal()));
-
-    sound.setCaptionCallback(({ text, icon }) => this.showCaption(`${icon} ${text}`));
-    document.body.addEventListener('pointerdown', () => sound.resume(), { once: true });
-
+    document.getElementById('btnReport').addEventListener('click', () => this.printReport());
+    document.getElementById('btnHelp').addEventListener('click', () => this.openHelp());
+    d.modal.querySelectorAll('[data-close]').forEach((n) => n.addEventListener('click', () => this.closeModal()));
     window.addEventListener('keydown', (e) => this.onKey(e));
   }
 
+  toggleView(key, btn) {
+    this.state.view[key] = !this.state.view[key];
+    btn.setAttribute('aria-pressed', this.state.view[key] ? 'true' : 'false');
+    this.save();
+  }
+
   onKey(e) {
-    const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
     if (e.key === 'Escape') { this.closeModal(); return; }
-    if (typing) return;
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
     const k = e.key.toLowerCase();
     if (e.code === 'Space') { e.preventDefault(); this.run(); }
-    else if (k === 'r' || k === 'ق') this.reset(true);
-    else if (k === 'h' || k === 'ا') this.nextHint();
+    else if (k === 'r' || k === 'ق') this.reset();
     else if (k === 'v' || k === 'و') this.dom.btnVectors.click();
-    else if (k === 'm' || k === 'پ') sound.toggleMute();
-    else if (/^[1-9]$/.test(e.key)) {
-      const idx = Number(e.key) - 1;
-      if (this.state.mode === 'MISSIONS' && MISSIONS[idx]) this.goMission(MISSIONS[idx].id);
-      else if (MACHINE_IDS[idx]) this.goMachine(MACHINE_IDS[idx]);
+    else if (k === 'd' || k === 'ی') this.dom.btnDims.click();
+    else if (/^[1-8]$/.test(e.key)) this.setMachine(MACHINE_IDS[Number(e.key) - 1]);
+  }
+
+  // ─────────── ناوبری و پارامترها ───────────
+  setMachine(id) {
+    if (!id || id === this.state.machine) return;
+    this.state.machine = id;
+    this.reset();
+    this.renderBar();
+    this.renderSide();
+    this.save();
+  }
+
+  setParam(key, value) {
+    const p = this.params;
+    p[key] = value;
+    if (key === 'beamLengthM') {
+      p.fulcrumM = Math.min(p.fulcrumM, value - 0.1);
+      p.loadM = Math.min(p.loadM, p.fulcrumM - 0.05);
     }
-  }
-
-  // ─────────── ناوبری ───────────
-  setMode(mode) {
-    if (this.state.mode === mode) return;
-    this.state.mode = mode;
-    for (const tab of this.dom.tabs) {
-      const on = tab.dataset.mode === mode;
-      tab.classList.toggle('is-active', on);
-      tab.setAttribute('aria-selected', on ? 'true' : 'false');
-    }
-    this.reset(false);
-    this.hintStep = 0;
-    sound.playClick();
-    this.renderAll();
+    this.reset();
+    this.refreshResults();
     this.save();
   }
 
-  goMission(id) {
-    this.state.missionId = id;
-    this.hintStep = 0;
-    this.reset(false);
-    sound.playClick();
-    this.renderAll();
+  onDrag(id, value) {
+    const p = this.params;
+    if (id === 'fulcrum' && 'fulcrumM' in p) {
+      const def = MACHINE_CONTROLS.LEVER.find((c) => c.key === 'fulcrumM');
+      p.fulcrumM = Math.round(clamp(value, Math.max(def.min, p.loadM + 0.05), p.beamLengthM - 0.1) * 20) / 20;
+    } else if (id === 'rampLength' && 'lengthM' in p) {
+      const def = MACHINE_CONTROLS.INCLINED_PLANE.find((c) => c.key === 'lengthM');
+      p.lengthM = Math.round(clamp(value, Math.max(def.min, p.heightM * 1.05), def.max) * 10) / 10;
+    } else return;
+    this.reset();
+    this.renderSide();
     this.save();
   }
 
-  goMachine(id) {
-    this.state.labMachine = id;
-    this.reset(false);
-    sound.playClick();
-    this.renderAll();
-    this.save();
-  }
-
-  // ─────────── اجرای آزمایش ───────────
+  // ─────────── اجرای حرکت ───────────
   run() {
     if (this.running) return;
-    const result = this.compute();
-    const ok = this.goalPassed(result);
-
     this.running = true;
     this.t = 0;
-    this.hideVerdict();
     this.dom.btnRun.disabled = true;
-    this.dom.btnRunText.textContent = 'در حال آزمایش…';
-
-    if (this.machine === 'FRICTION' && result.useRollers) sound.playRollingSound();
-    else if (this.machine === 'PULLEY') sound.playPulleyWhir();
-    else if (!ok) sound.playHeavyGrind();
-    else sound.playRopeTension();
-
-    const limit = ok ? 1 : 0.22;
-    const duration = (this.slowmo ? RUN_SECONDS * 2.6 : RUN_SECONDS) * (ok ? 1 : 0.55);
+    this.dom.btnRunText.textContent = 'در حال حرکت…';
+    const duration = (this.slow ? RUN_SECONDS * 2.6 : RUN_SECONDS) * 1000;
     const start = performance.now();
-
     const step = (now) => {
-      const raw = clamp((now - start) / (duration * 1000), 0, 1);
-      this.t = easeInOut(raw) * limit;
-      if (raw < 1) {
-        this._raf = requestAnimationFrame(step);
-      } else {
+      const raw = clamp((now - start) / duration, 0, 1);
+      this.t = easeInOut(raw);
+      if (raw < 1) this._raf = requestAnimationFrame(step);
+      else {
         this.running = false;
         this.dom.btnRun.disabled = false;
-        ok ? this.onSuccess(result) : this.onFailure(result);
+        this.dom.btnRunText.textContent = 'دوباره اجرا کن';
       }
     };
     this._raf = requestAnimationFrame(step);
   }
 
-  reset(playSound = true) {
+  reset() {
     if (this._raf) cancelAnimationFrame(this._raf);
     this.running = false;
     this.t = 0;
-    this.hideVerdict();
     if (this.dom) {
       this.dom.btnRun.disabled = false;
-      this.dom.btnRunText.textContent = 'آزمایش کن';
+      this.dom.btnRunText.textContent = 'اجرای حرکت';
     }
-    if (playSound) sound.playClick();
   }
 
-  onSuccess(result) {
-    this.dom.btnRunText.textContent = 'دوباره آزمایش کن';
-    this.showVerdict(true, this.successText(result));
-    sound.playDiscoveryJingle();
-    this.stage.celebrate(this.stage.w * 0.5, this.stage.h * 0.45);
-    this.recordExperiment(result, true);
-
-    if (this.state.mode === 'MISSIONS') {
-      const m = this.mission;
-      if (!this.state.progress.completed.includes(m.id)) {
-        this.state.progress.completed.push(m.id);
-      }
-      if (!this.state.progress.discoveries.some((d) => d.id === m.discovery.id)) {
-        this.state.progress.discoveries.push({ ...m.discovery, missionId: m.id });
-        setTimeout(() => this.openDiscovery(m, result), 700);
-      }
-      if (result.badges) {
-        for (const b of result.badges) {
-          if (!this.state.progress.badges.some((x) => x.id === b.id)) this.state.progress.badges.push(b);
-        }
-      }
-      this.renderToolbar();
-      this.updateDiscoveryCount();
-    }
-    this.save();
+  // ─────────── نوار ماشین‌ها ───────────
+  renderBar() {
+    this.dom.bar.replaceChildren(...MACHINE_IDS.map((id, i) => el('button', {
+      class: `chip${id === this.state.machine ? ' is-active' : ''}`,
+      type: 'button',
+      'aria-current': id === this.state.machine ? 'true' : null,
+      onclick: () => this.setMachine(id)
+    }, [
+      el('span', { 'aria-hidden': 'true' }, [MACHINES[id].icon]),
+      el('span', {}, [MACHINES[id].short]),
+      el('kbd', { 'aria-hidden': 'true' }, [fa(i + 1)])
+    ])));
   }
 
-  onFailure(result) {
-    this.dom.btnRunText.textContent = 'دوباره آزمایش کن';
-    this.showVerdict(false, this.failureText(result));
-    sound.playHeavyGrind();
-    this.recordExperiment(result, false);
-    this.save();
-  }
-
-  successText(r) {
-    if (r.machine === 'CAPSTONE') return 'محموله سالم به درمانگاه رسید! طرح مهندسی تو جواب داد.';
-    if (r.machine === 'GEARS') return `گشتاور خروجی به ${fa(r.outputTorqueNm)} نیوتون‌متر رسید — آسیاب می‌چرخد!`;
-    return `آفرین! با ${fa(num(r.effortN, 0))} نیوتون کار انجام شد؛ توان ${r.puller.name} ${fa(r.humanLimitN)} نیوتون است.`;
-  }
-
-  failureText(r) {
-    if (r.machine === 'CAPSTONE') return r.insightFa;
-    if (r.machine === 'GEARS') return `گشتاور خروجی فقط ${fa(r.outputTorqueNm)} نیوتون‌متر است؛ هنوز کافی نیست.`;
-    return `${fa(num(r.effortN, 0))} نیوتون لازم است، ولی ${r.puller.name} بیشتر از ${fa(r.humanLimitN)} نیوتون نمی‌تواند. طرح را عوض کن!`;
-  }
-
-  recordExperiment(result, success) {
-    const machineId = this.machine;
-    const p = resolveParams(machineId, this.params);
-    this.state.log.unshift({
-      machine: machineId,
-      machineName: machineId === 'CAPSTONE' ? 'مأموریت پایانی' : MACHINES[machineId].name,
-      setup: describeSetup(machineId, p, result),
-      effortN: result.effortN ?? result.maxForceN ?? 0,
-      effortDistanceM: result.effortDistanceM ?? 0,
-      workInJ: result.workInJ ?? result.totalWorkJ ?? 0,
-      success,
-      at: new Date().toLocaleTimeString('fa-IR')
-    });
-    if (this.state.log.length > 40) this.state.log.length = 40;
-  }
-
-  // ─────────── نمایش‌ها ───────────
-  showCaption(text) {
-    if (!this.state.settings.captions) return;
-    const c = this.dom.captions;
-    c.textContent = text;
-    c.classList.add('is-on');
-    clearTimeout(this._captionTimer);
-    this._captionTimer = setTimeout(() => c.classList.remove('is-on'), 2200);
-  }
-
-  showVerdict(ok, text) {
-    const v = this.dom.verdict;
-    v.className = `verdict is-on ${ok ? 'v-ok' : 'v-bad'}`;
-    v.textContent = `${ok ? '✅' : '⚠️'} ${text}`;
-  }
-
-  hideVerdict() {
-    if (this.dom) this.dom.verdict.className = 'verdict';
-  }
-
-  renderAll() {
-    this.renderToolbar();
-    this.renderSide();
-    this.updateHud();
-    this.updateDiscoveryCount();
-    this.dom.canvas.setAttribute('aria-label', this.canvasDescription());
-  }
-
-  canvasDescription() {
+  // ─────────── پنل کناری ───────────
+  renderSide() {
+    const side = this.dom.side;
     const r = this.compute();
-    const name = this.machine === 'CAPSTONE' ? 'مأموریت پایانی' : MACHINES[this.machine].name;
-    if (this.machine === 'GEARS') {
-      return `نمای ${name}: نسبت دنده ${fa(r.ratio)}، گشتاور خروجی ${fa(r.outputTorqueNm)} نیوتون‌متر.`;
-    }
-    return `نمای ${name}: نیروی لازم ${fa(num(r.effortN ?? r.maxForceN, 0))} نیوتون، ${this.goalPassed(r) ? 'در توان' : 'بیش از توان'} ${r.puller.name}.`;
+    const id = this.machine;
+
+    // ۱) پارامترها
+    const controls = el('div', {});
+    controls.append(buildControls(id, this.params, (k, v) => this.setParam(k, v)));
+    this._controls = controls;
+
+    const labRow = el('div', { class: 'lab-row' }, [
+      el('div', { class: 'lab-item' }, [
+        el('span', { class: 'lab-label' }, ['شتاب گرانش g']),
+        el('div', { class: 'segment cols-2' }, [10, 9.81].map((g) => el('button', {
+          class: `seg${this.state.lab.g === g ? ' is-active' : ''}`, type: 'button',
+          onclick: () => { this.state.lab.g = g; setLab(this.state.lab); this.reset(); this.renderSide(); this.save(); }
+        }, [el('span', {}, [`${fa(g)} m/s²`]), el('span', { class: 'seg-sub' }, [g === 10 ? 'کتاب درسی' : 'مقدار واقعی'])])))
+      ]),
+      el('div', { class: 'lab-item' }, [
+        el('span', { class: 'lab-label' }, ['اصطکاک']),
+        el('div', { class: 'segment cols-2' }, [false, true].map((ideal) => el('button', {
+          class: `seg${this.state.lab.ideal === ideal ? ' is-active' : ''}`, type: 'button',
+          onclick: () => { this.state.lab.ideal = ideal; setLab(this.state.lab); this.reset(); this.renderSide(); this.save(); }
+        }, [el('span', {}, [ideal ? 'آرمانی' : 'واقعی']), el('span', { class: 'seg-sub' }, [ideal ? 'بدون اصطکاک' : 'با اصطکاک'])])))
+      ])
+    ]);
+
+    // ۲) اندازه‌گیری‌ها
+    const measure = el('div', {});
+    this._measure = measure;
+    measure.append(quantityTable(r), el('p', { class: 'insight' }, [r.insightFa]));
+
+    // ۳) محاسبهٔ گام‌به‌گام
+    const steps = el('div', {});
+    this._steps = steps;
+    steps.append(stepsList(explain(r)));
+
+    // ۴) نمودار
+    const chartCanvas = CHART_SPEC[id] ? el('canvas', { class: 'chart' }) : null;
+    this._chart = chartCanvas;
+
+    // ۵) ثبت
+    const records = el('div', {});
+    this._records = records;
+    records.append(
+      el('div', { class: 'row-end' }, [
+        el('button', { class: 'btn btn-quiet', onclick: () => this.record() }, ['➕ ثبت اندازه‌گیری'])
+      ]),
+      logTable(this.state.log.slice(0, 15), () => { this.state.log = []; this.save(); this.renderSide(); })
+    );
+
+    side.replaceChildren(
+      card('پارامترهای آزمایش', [labRow, controls]),
+      card('اندازه‌گیری‌ها', [measure]),
+      card('محاسبهٔ گام‌به‌گام', [steps], {
+        collapsible: true, open: this.state.view.steps,
+        onToggle: (v) => { this.state.view.steps = v; this.save(); }
+      }),
+      chartCanvas ? card(CHART_SPEC[id].title, [chartCanvas], {
+        collapsible: true, open: this.state.view.chart,
+        onToggle: (v) => { this.state.view.chart = v; this.save(); if (v) this.refreshChart(); }
+      }) : null,
+      card(`ثبت و مقایسه${this.state.log.length ? ` (${fa(this.state.log.length)})` : ''}`, [records], {
+        collapsible: true, open: this.state.view.records,
+        onToggle: (v) => { this.state.view.records = v; this.save(); }
+      })
+    );
+    this.refreshChart();
   }
 
-  updateHud() {
-    renderHud(this.dom.hud, this.compute());
-    this.dom.canvas.setAttribute('aria-label', this.canvasDescription());
-  }
-
-  updateDiscoveryCount() {
-    this.dom.discoveryCount.textContent = fa(this.state.progress.discoveries.length);
-  }
-
-  renderToolbar() {
-    const bar = this.dom.toolbar;
-    bar.replaceChildren();
-    if (this.state.mode === 'MISSIONS') {
-      MISSIONS.forEach((m, i) => {
-        const done = this.state.progress.completed.includes(m.id);
-        const active = m.id === this.state.missionId;
-        bar.append(el('button', {
-          class: `chip${active ? ' is-active' : ''}${done ? ' is-done' : ''}`,
-          type: 'button',
-          'aria-current': active ? 'step' : null,
-          onclick: () => this.goMission(m.id)
-        }, [
-          el('span', { class: 'chip-num', 'aria-hidden': 'true' }, [done ? '✓' : fa(i + 1)]),
-          el('span', {}, [m.title])
-        ]));
-      });
-    } else {
-      for (const id of MACHINE_IDS) {
-        const active = id === this.state.labMachine;
-        bar.append(el('button', {
-          class: `chip${active ? ' is-active' : ''}`,
-          type: 'button',
-          onclick: () => this.goMachine(id)
-        }, [
-          el('span', { 'aria-hidden': 'true' }, [MACHINES[id].icon]),
-          el('span', {}, [MACHINES[id].short])
-        ]));
-      }
-    }
-  }
-
-  refreshControls() {
-    this.updateHud();
-    if (this._controlsHost) {
-      this._controlsHost.replaceChildren(
-        buildControls(this.machine, this.params, (k, v) => this.setParam(k, v), this._controlKeys)
-      );
-    }
+  /** فقط بخش‌های وابسته به عدد را تازه می‌کند تا لغزنده‌ها پرش نکنند */
+  refreshResults() {
+    const r = this.compute();
+    if (this._measure) this._measure.replaceChildren(quantityTable(r), el('p', { class: 'insight' }, [r.insightFa]));
+    if (this._steps) this._steps.replaceChildren(stepsList(explain(r)));
     this.refreshChart();
   }
 
   refreshChart() {
-    if (this._chartCanvas && CHART_SPEC[this.machine]) {
-      drawChart(this._chartCanvas, this.machine, resolveParams(this.machine, this.params), this.state.settings.theme);
+    if (this._chart && CHART_SPEC[this.machine] && !this._chart.closest('[hidden]')) {
+      drawChart(this._chart, this.machine, resolveParams(this.machine, this.params), this.state.theme === 'dark');
     }
   }
 
-  renderSide() {
-    const side = this.dom.side;
-    side.replaceChildren();
-    this._controlsHost = null;
-    this._chartCanvas = null;
-    if (this.state.mode === 'MISSIONS') this.renderMissionSide(side);
-    else this.renderLabSide(side);
-    this.refreshChart();
-  }
-
-  // ─────────── پنل مأموریت ───────────
-  renderMissionSide(side) {
-    const m = this.mission;
-    const picked = this.state.progress.predictions[m.id];
-
-    side.append(el('section', { class: 'card story' }, [
-      el('div', { class: 'avatar', 'aria-hidden': 'true' }, [m.story.avatar]),
-      el('div', {}, [
-        el('h3', {}, [m.story.who]),
-        el('p', {}, [m.story.text]),
-        el('p', { class: 'goal' }, [`🎯 هدف: ${m.goalText || m.story.goal}`])
-      ])
-    ]));
-
-    // پیش‌بینی
-    const optionsWrap = el('div', { class: 'options' });
-    const feedback = el('p', { class: 'feedback', hidden: picked === undefined });
-    const paint = () => {
-      optionsWrap.replaceChildren();
-      m.prediction.options.forEach((opt, i) => {
-        let cls = 'option';
-        if (picked !== undefined) {
-          if (i === picked) cls += opt.correct ? ' is-right' : ' is-wrong';
-          else if (opt.correct) cls += ' is-right';
-        }
-        optionsWrap.append(el('button', {
-          class: cls, type: 'button', disabled: picked !== undefined,
-          onclick: () => {
-            this.state.progress.predictions[m.id] = i;
-            sound.playSnap();
-            this.save();
-            this.renderMissionSideRefresh();
-          }
-        }, [
-          el('span', { class: 'mark', 'aria-hidden': 'true' }, [
-            picked === undefined ? ['الف', 'ب', 'پ'][i] : (opt.correct ? '✓' : (i === picked ? '✕' : ''))
-          ]),
-          el('span', {}, [opt.text])
-        ]));
-      });
-      if (picked !== undefined) {
-        feedback.hidden = false;
-        feedback.textContent = m.prediction.options[picked].feedback;
-      }
-    };
-    paint();
-
-    side.append(card('اول پیش‌بینی کن، بعد آزمایش', '🤔', [
-      el('p', { class: 'q' }, [m.prediction.question]),
-      optionsWrap,
-      feedback
-    ], 'quiz'));
-
-    // ابزارها
-    const host = el('div', {});
-    this._controlsHost = host;
-    this._controlKeys = m.controls;
-    host.append(buildControls(m.machine, this.params, (k, v) => this.setParam(k, v), m.controls));
-    side.append(card('ابزارهای کارگاه', '🛠️', [host]));
-
-    // نمودار
-    if (CHART_SPEC[m.machine]) {
-      const cv = el('canvas', { class: 'chart' });
-      this._chartCanvas = cv;
-      side.append(card(CHART_SPEC[m.machine].title, '📈', [
-        cv, el('p', { class: 'card-note' }, ['نقطهٔ نارنجی، تنظیم فعلی توست.'])
-      ]));
-    }
-
-    // راهنمایی
-    const hintBox = el('div', { class: 'hint' }, [
-      el('span', { 'aria-hidden': 'true' }, ['💡']),
-      el('span', { id: 'hintText' }, ['اگر گیر کردی، راهنمایی بگیر — سه پله راهنمایی داریم.'])
-    ]);
-    this._hintText = hintBox.querySelector('#hintText');
-    side.append(card('راهنمایی پله‌پله', '💡', [
-      hintBox,
-      el('div', { style: 'display:flex;gap:8px;margin-top:10px' }, [
-        el('button', { class: 'btn btn-ghost', style: 'flex:1', onclick: () => this.nextHint() }, ['راهنمایی بعدی']),
-        el('button', { class: 'btn btn-ghost', style: 'flex:1', onclick: () => this.openDiscovery(m, this.compute(), true) }, ['کارت علمی این درس'])
-      ])
-    ]));
-  }
-
-  renderMissionSideRefresh() {
-    const scroll = this.dom.side.scrollTop;
+  record() {
+    const r = this.compute();
+    const isGears = this.machine === 'GEARS';
+    this.state.log.unshift({
+      machineName: MACHINES[this.machine].short,
+      setup: describeSetup(this.machine, resolveParams(this.machine, this.params), r),
+      // برای چرخ‌دنده «نیرو» و «مسافت» معنا ندارد؛ به جای صفرِ گمراه‌کننده خالی می‌ماند
+      effortN: isGears ? null : r.effortN,
+      maActual: isGears ? r.ratio : r.maActual ?? null,
+      effortDistanceM: isGears ? null : r.effortDistanceM,
+      efficiencyPercent: Math.round((r.efficiency ?? 1) * 100),
+      loadN: isGears ? null : r.loadN,
+      workInJ: isGears ? null : r.workInJ,
+      g: this.state.lab.g,
+      ideal: this.state.lab.ideal
+    });
+    if (this.state.log.length > 60) this.state.log.length = 60;
+    this.state.view.records = true;
+    this.save();
     this.renderSide();
-    this.dom.side.scrollTop = scroll;
   }
 
-  nextHint() {
-    const m = this.mission;
-    if (this.state.mode !== 'MISSIONS' || !this._hintText) return;
-    this.hintStep = (this.hintStep % m.hints.length) + 1;
-    this._hintText.textContent = `پلهٔ ${fa(this.hintStep)} از ${fa(m.hints.length)}: ${m.hints[this.hintStep - 1]}`;
-    sound.playClick();
-  }
-
-  // ─────────── پنل آزمایشگاه ───────────
-  renderLabSide(side) {
-    const id = this.state.labMachine;
-    const machine = MACHINES[id];
-
-    side.append(el('section', { class: 'card story', style: 'background:var(--violet-soft);border-color:color-mix(in srgb,var(--violet) 30%,transparent)' }, [
-      el('div', { class: 'avatar', 'aria-hidden': 'true' }, [machine.icon]),
-      el('div', {}, [
-        el('h3', { style: 'color:var(--violet)' }, [machine.name]),
-        el('p', {}, [this.compute().insightFa])
-      ])
-    ]));
-
-    const host = el('div', {});
-    this._controlsHost = host;
-    this._controlKeys = null;
-    host.append(buildControls(id, this.params, (k, v) => this.setParam(k, v), null));
-    side.append(card('تنظیم آزادِ همهٔ متغیرها', '🎛️', [
-      host,
-      id === 'GEARS' ? null : el('div', { class: 'field' }, [
-        el('p', { class: 'field-label' }, [el('span', {}, ['چه کسی نیرو را وارد می‌کند؟'])]),
-        el('div', { class: 'segment' }, pullerOptions().map((o) => el('button', {
-          class: `seg${this.state.settings.pullerId === o.value ? ' is-active' : ''}`,
-          type: 'button',
-          onclick: () => {
-            this.state.settings.pullerId = o.value;
-            this.reset(false);
-            this.renderSide();
-            this.updateHud();
-            this.save();
-          }
-        }, [
-          el('span', { class: 'seg-icon', 'aria-hidden': 'true' }, [o.icon]),
-          el('span', {}, [o.label]),
-          el('span', { class: 'seg-sub' }, [o.sub])
-        ])))
-      ])
-    ]));
-
-    if (CHART_SPEC[id]) {
-      const cv = el('canvas', { class: 'chart' });
-      this._chartCanvas = cv;
-      side.append(card(CHART_SPEC[id].title, '📈', [cv]));
-    }
-
-    side.append(card('جدول اندازه‌گیری', '📋', [
-      el('div', { style: 'display:flex;gap:8px;margin-bottom:10px' }, [
-        el('button', {
-          class: 'btn btn-primary', style: 'flex:1;font-size:.86rem;padding:9px 14px',
-          onclick: () => {
-            this.recordExperiment(this.compute(), this.goalPassed(this.compute()));
-            sound.playSnap();
-            this.save();
-            this.renderSide();
-          }
-        }, ['➕ ثبت در جدول'])
-      ]),
-      measurementTable(this.state.log.slice(0, 12), () => {
-        this.state.log = [];
-        this.save();
-        this.renderSide();
-      })
-    ]));
-
-    side.append(card('نکتهٔ علمی', '🔍', [
-      el('p', { class: 'card-note' }, [
-        'یادت باشد: هیچ ماشین ساده‌ای مقدارِ «کار» را کم نمی‌کند. هر بار که نیرو کم می‌شود، مسافت زیاد می‌شود. ',
-        'فقط بخشی از انرژی صرف اصطکاک می‌شود و بازده را از ۱۰۰٪ کمتر می‌کند.'
-      ])
-    ]));
-  }
-
-  // ─────────── مودال‌ها ───────────
+  // ─────────── پنجره‌ها ───────────
   openModal(title, nodes) {
     this.dom.modalTitle.textContent = title;
     this.dom.modalBody.replaceChildren(...[].concat(nodes).filter(Boolean));
@@ -663,190 +358,50 @@ class App {
 
   closeModal() { this.dom.modal.hidden = true; }
 
-  openDiscovery(mission, result, quiet = false) {
-    const d = mission.discovery;
-    if (!quiet) sound.playGentleFanfare();
-    const badges = (result && result.badges) || [];
-    const nextIdx = MISSIONS.findIndex((m) => m.id === mission.id) + 1;
-    this.openModal('کارت کشف علمی', [
-      el('div', { class: 'discovery' }, [
-        el('span', { class: 'd-icon', 'aria-hidden': 'true' }, [d.icon]),
-        el('h3', {}, [d.title]),
-        el('p', { class: 'd-topic' }, [`موضوع: ${d.topic}`]),
-        el('p', {}, [d.summary]),
-        d.formula ? el('p', { class: 'formula' }, [d.formula]) : null
-      ]),
-      badges.length ? el('div', { class: 'badges' }, badges.map((b) =>
-        el('span', { class: 'badge' }, [`${b.icon} ${b.title}`]))) : null,
-      el('div', { class: 'modal-actions' }, [
-        nextIdx < MISSIONS.length
-          ? el('button', {
-            class: 'btn btn-primary',
-            onclick: () => { this.closeModal(); this.goMission(MISSIONS[nextIdx].id); }
-          }, ['مأموریت بعدی 🚀'])
-          : el('button', { class: 'btn btn-primary', onclick: () => this.closeModal() }, ['عالی بود! 🎉']),
-        el('button', { class: 'btn btn-ghost', onclick: () => this.closeModal() }, ['بستن'])
-      ])
-    ]);
-  }
-
-  openProgress() {
-    sound.playClick();
-    const found = this.state.progress.discoveries;
-    const cards = MISSIONS.map((m) => {
-      const has = found.some((d) => d.id === m.discovery.id);
-      return el('div', { class: `mini-card${has ? '' : ' is-locked'}` }, [
-        el('span', { class: 'm-icon', 'aria-hidden': 'true' }, [has ? m.discovery.icon : '🔒']),
-        el('div', {}, [
-          el('h4', {}, [has ? m.discovery.title : 'هنوز باز نشده']),
-          el('p', {}, [has ? m.discovery.summary : `مأموریت «${m.title}» را کامل کن.`])
-        ])
-      ]);
-    });
-    this.openModal('کارت‌های کشف و نشان‌ها', [
-      el('p', {}, [`تا اینجا ${fa(found.length)} کارت از ${fa(MISSIONS.length)} کارت علمی را باز کرده‌ای.`]),
-      el('div', { class: 'grid-cards' }, cards),
-      this.state.progress.badges.length
-        ? el('div', {}, [
-          el('h3', {}, ['نشان‌های مهندسی']),
-          el('div', { class: 'badges' }, this.state.progress.badges.map((b) =>
-            el('span', { class: 'badge' }, [`${b.icon} ${b.title}`])))
-        ])
-        : el('p', { class: 'card-note' }, ['نشان‌های مهندسی در مأموریت پایانی به دست می‌آیند.'])
-    ]);
-  }
-
-  openTeacher() {
-    sound.playClick();
-    this.openModal('راهنمای آموزگار و اولیا', [
+  openHelp() {
+    this.openModal('راهنمای آموزگار', [
+      el('h3', {}, ['این ابزار چه کاری می‌کند؟']),
+      el('p', {}, ['هر ماشین ساده را با اعداد واقعی می‌سازید، آزمایش را اجرا می‌کنید و نتیجه را در سه سطح می‌بینید: نمای صحنه، جدول کمیت‌ها و محاسبهٔ گام‌به‌گام با فرمول. همهٔ اعداد از یک موتور فیزیک واحد می‌آیند؛ هیچ عددی دستی نوشته نشده است.']),
+      el('h3', {}, ['پیشنهاد برای کلاس']),
+      el('ul', {}, CLASSROOM_TIPS.map((t) => el('li', {}, [t]))),
       el('h3', {}, ['اهداف برنامهٔ درسی']),
       el('ul', {}, CURRICULUM.map((g) => el('li', {}, [el('b', {}, [`${g.title}: `]), g.text]))),
-      el('h3', {}, ['پیشنهادهای کلاسی']),
-      el('ul', {}, CLASSROOM_TIPS.map((t) => el('li', {}, [t]))),
-      el('h3', {}, [`کارنامهٔ دانش‌آموز (${fa(this.state.progress.completed.length)} مأموریت از ${fa(MISSIONS.length)})`]),
-      measurementTable(this.state.log.slice(0, 10), () => { this.state.log = []; this.save(); this.openTeacher(); }),
-      el('div', { class: 'modal-actions' }, [
-        el('button', { class: 'btn btn-primary', onclick: () => this.printNotebook() }, ['🖨 دفترچهٔ مخترع (چاپ / PDF)'])
-      ])
+      el('h3', {}, ['میان‌برهای صفحه‌کلید']),
+      el('p', { class: 'muted' }, ['فاصله = اجرای حرکت • R = بازنشانی • V = بردارهای نیرو • D = خط‌های اندازه • ۱ تا ۸ = انتخاب ماشین • Esc = بستن'])
     ]);
   }
 
-  /**
-   * دفترچهٔ گزارش را برای چاپ آماده می‌کند.
-   * نخست از یک قاب پنهان استفاده می‌شود (در همه‌جا کار می‌کند)؛
-   * اگر نشد، سراغ باز کردن پنجرهٔ تازه می‌رویم.
-   */
-  printNotebook() {
-    const html = notebookHTML({
-      rows: this.state.log,
-      discoveries: this.state.progress.discoveries,
-      badges: this.state.progress.badges
+  printReport() {
+    const r = this.compute();
+    const html = reportHTML({
+      machineName: MACHINES[this.machine].name,
+      setup: describeSetup(this.machine, resolveParams(this.machine, this.params), r),
+      lab: this.state.lab,
+      steps: explain(r),
+      result: r,
+      log: this.state.log
     });
-
     try {
       const frame = document.createElement('iframe');
-      frame.setAttribute('title', 'دفترچهٔ مخترع');
+      frame.setAttribute('title', 'گزارش آزمایش');
       frame.style.cssText = 'position:fixed;inset:auto 0 0 auto;width:0;height:0;border:0;opacity:0;';
       frame.srcdoc = html;
       frame.addEventListener('load', () => {
-        try {
-          frame.contentWindow.focus();
-          frame.contentWindow.print();
-        } catch {
-          this.openNotebookWindow(html);
-        }
+        try { frame.contentWindow.focus(); frame.contentWindow.print(); }
+        catch { this.openReportWindow(html); }
         setTimeout(() => frame.remove(), 60000);
       }, { once: true });
       document.body.append(frame);
-    } catch {
-      this.openNotebookWindow(html);
-    }
+    } catch { this.openReportWindow(html); }
   }
 
-  openNotebookWindow(html) {
+  openReportWindow(html) {
     const win = window.open('', '_blank');
-    if (!win) {
-      this.showCaption('⚠️ مرورگر پنجرهٔ چاپ را باز نکرد؛ اجازهٔ باز شدن پنجره را بدهید.');
-      return;
-    }
+    if (!win) return;
     win.document.write(html);
     win.document.close();
-  }
-
-  openSettings() {
-    sound.playClick();
-    const s = this.state.settings;
-    const themeBtn = (value, labelText, icon) => el('button', {
-      class: `seg${(value === 'high' ? s.contrast === 'high' : s.contrast !== 'high' && s.theme === value) ? ' is-active' : ''}`,
-      type: 'button',
-      onclick: () => {
-        if (value === 'high') { s.contrast = 'high'; }
-        else { s.contrast = 'normal'; s.theme = value; }
-        this.applySettings();
-        this.save();
-        this.openSettings();
-        this.refreshChart();
-      }
-    }, [el('span', { class: 'seg-icon', 'aria-hidden': 'true' }, [icon]), el('span', {}, [labelText])]);
-
-    const toggle = (labelText, subText, key, onToggle) => {
-      const input = el('input', {
-        type: 'checkbox', checked: !!s[key],
-        onchange: (e) => { s[key] = e.target.checked; (onToggle || (() => {}))(); this.applySettings(); this.save(); }
-      });
-      return el('label', { class: 'switch', style: 'width:100%' }, [
-        input, el('span', { class: 'track', 'aria-hidden': 'true' }),
-        el('span', {}, [labelText, subText ? el('span', { class: 'switch-sub' }, [subText]) : null])
-      ]);
-    };
-
-    const volume = (labelText, key) => {
-      const input = el('input', {
-        type: 'range', min: 0, max: 1, step: 0.05, value: s.volumes[key],
-        oninput: (e) => { s.volumes[key] = Number(e.target.value); sound.setVolumes(s.volumes); this.save(); }
-      });
-      input.style.setProperty('--fill', `${s.volumes[key] * 100}%`);
-      input.addEventListener('input', () => input.style.setProperty('--fill', `${Number(input.value) * 100}%`));
-      return el('div', { class: 'field' }, [el('p', { class: 'field-label' }, [el('span', {}, [labelText])]), input]);
-    };
-
-    this.openModal('تنظیمات و دسترسی‌پذیری', [
-      el('h3', {}, ['ظاهر برنامه']),
-      el('div', { class: 'segment' }, [
-        themeBtn('light', 'روشن', '☀️'),
-        themeBtn('dark', 'تیره', '🌙'),
-        themeBtn('high', 'کنتراست بالا', '🔳')
-      ]),
-      el('h3', {}, ['دسترسی‌پذیری']),
-      el('div', { style: 'display:flex;flex-direction:column;gap:8px' }, [
-        toggle('کاهش انیمیشن و ذرات متحرک', 'برای دانش‌آموزانی که به حرکت حساس‌اند', 'reducedMotion'),
-        toggle('نمایش زیرنویس صداها', 'متن هر صدا روی صحنه نوشته می‌شود', 'captions'),
-        toggle('نمایش همیشگی بردارهای نیرو', 'وزن، اصطکاک، تکیه‌گاه و نیروی دست', 'vectors', () => {
-          this.dom.btnVectors.setAttribute('aria-pressed', s.vectors ? 'true' : 'false');
-        })
-      ]),
-      el('h3', {}, ['صدا']),
-      volume('صدای کلی', 'master'),
-      volume('جلوه‌های صوتی', 'sfx'),
-      volume('صدای کوهستان', 'ambient'),
-      el('h3', {}, ['میان‌برهای صفحه‌کلید']),
-      el('p', { class: 'card-note' }, ['فاصله = آزمایش • R = از نو • H = راهنمایی • V = بردارها • M = بی‌صدا • ۱ تا ۹ = رفتن به مأموریت/ماشین • Esc = بستن پنجره']),
-      el('div', { class: 'modal-actions' }, [
-        el('button', {
-          class: 'btn btn-ghost',
-          onclick: () => {
-            if (!confirm('همهٔ پیشرفت، کارت‌های کشف و جدول اندازه‌گیری پاک شود؟')) return;
-            localStorage.removeItem(SAVE_KEY);
-            location.reload();
-          }
-        }, ['♻️ پاک کردن همهٔ پیشرفت'])
-      ])
-    ]);
   }
 }
 
 const app = new App();
-window.addEventListener('DOMContentLoaded', () => {
-  app.init();
-  window.kargah = app;
-});
+window.addEventListener('DOMContentLoaded', () => { app.init(); window.lab = app; });

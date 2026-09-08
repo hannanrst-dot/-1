@@ -3,97 +3,54 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="آزمایشگاه تعاملی ماشین‌های ساده برای علوم تجربی پایهٔ پنجم دبستان: اهرم، قرقره، سطح شیب‌دار، چرخ و محور، گوه، پیچ و چرخ‌دنده">
-  <meta name="theme-color" content="#0ea5e9">
-  <title>کارگاه ماشین‌های ساده | علوم پنجم دبستان</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+  <meta name="description" content="آزمایشگاه اندازه‌گیری ماشین‌های ساده برای تدریس علوم تجربی: اهرم، قرقره، سطح شیب‌دار، چرخ و محور، گوه، پیچ و چرخ‌دنده">
+  <title>آزمایشگاه ماشین‌های ساده</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📐</text></svg>">
   <link rel="stylesheet" href="./src/style.css">
 </head>
 <body>
 
 <a class="skip-link" href="#stage">پرش به محیط آزمایش</a>
 
-<!-- ═══════════ نوار بالا ═══════════ -->
 <header class="topbar">
   <div class="brand">
-    <span class="brand-mark" aria-hidden="true">⚙️</span>
-    <div class="brand-text">
-      <h1>کارگاه ماشین‌های ساده</h1>
-      <p>علوم تجربی پایهٔ پنجم دبستان</p>
+    <span class="brand-mark" aria-hidden="true">📐</span>
+    <div>
+      <h1>آزمایشگاه ماشین‌های ساده</h1>
+      <p>اندازه‌گیری نیرو، مزیت مکانیکی، کار و بازده</p>
     </div>
   </div>
-
-  <nav class="tabs" role="tablist" aria-label="حالت‌های برنامه">
-    <button class="tab is-active" role="tab" aria-selected="true" data-mode="MISSIONS">
-      <span aria-hidden="true">🎒</span><span>مأموریت‌ها</span>
-    </button>
-    <button class="tab" role="tab" aria-selected="false" data-mode="LAB">
-      <span aria-hidden="true">🔬</span><span>آزمایشگاه</span>
-    </button>
-  </nav>
-
   <div class="topbar-actions">
-    <button class="iconbtn" id="btnProgress" title="کارت‌های کشف و نشان‌ها" aria-label="کارت‌های کشف و نشان‌ها">
-      <span aria-hidden="true">⭐</span><span class="iconbtn-text">کشف‌ها</span>
-      <span class="pill" id="discoveryCount" aria-hidden="true">۰</span>
+    <button class="iconbtn" id="btnTheme" aria-label="تغییر تم روشن و تیره" title="تم روشن / تیره"><span aria-hidden="true">◐</span></button>
+    <button class="iconbtn" id="btnReport" title="گزارش قابل چاپ">
+      <span aria-hidden="true">🖨</span><span class="iconbtn-text">گزارش</span>
     </button>
-    <button class="iconbtn" id="btnTeacher" title="راهنمای آموزگار و اولیا" aria-label="راهنمای آموزگار و اولیا">
-      <span aria-hidden="true">👩‍🏫</span><span class="iconbtn-text">آموزگار</span>
-    </button>
-    <button class="iconbtn" id="btnSettings" title="تنظیمات و دسترسی‌پذیری" aria-label="تنظیمات و دسترسی‌پذیری">
-      <span aria-hidden="true">⚙️</span><span class="iconbtn-text">تنظیمات</span>
+    <button class="iconbtn" id="btnHelp" title="راهنما و میان‌برها">
+      <span aria-hidden="true">؟</span><span class="iconbtn-text">راهنما</span>
     </button>
   </div>
 </header>
 
-<!-- ═══════════ فضای کار ═══════════ -->
+<nav class="machine-bar" id="machineBar" aria-label="انتخاب ماشین ساده"></nav>
+
 <main class="workspace">
-
-  <!-- ---------- ستون صحنه ---------- -->
   <section class="stage" id="stage" aria-label="محیط آزمایش">
-
-    <div class="stage-toolbar" id="stageToolbar">
-      <!-- تراشه‌های مأموریت یا انتخاب ماشین — با جاوااسکریپت پر می‌شود -->
-    </div>
-
     <div class="stage-canvas-wrap">
-      <canvas id="stageCanvas" role="img" aria-label="نمای آزمایش ماشین ساده"></canvas>
-
-      <div class="stage-overlay">
-        <div class="hud" id="hud" aria-live="polite">
-          <!-- تراشه‌های عددی — با جاوااسکریپت پر می‌شود -->
-        </div>
-        <p class="canvas-alt" id="canvasAlt" aria-live="polite"></p>
-      </div>
-
-      <div class="captions" id="captions" aria-live="polite"></div>
-      <div class="verdict" id="verdict" role="status"></div>
+      <canvas id="stageCanvas" role="img" aria-label="نمای آزمایش"></canvas>
     </div>
-
     <div class="stage-actions">
-      <button class="btn btn-primary" id="btnRun">
-        <span aria-hidden="true">▶</span><span id="btnRunText">آزمایش کن</span>
-      </button>
-      <button class="btn btn-ghost" id="btnReset">
-        <span aria-hidden="true">↺</span><span>از نو</span>
-      </button>
-      <div class="spacer"></div>
-      <button class="btn btn-toggle" id="btnVectors" aria-pressed="false" title="نمایش بردارهای نیرو">
-        <span aria-hidden="true">➔</span><span class="btn-text">بردارهای نیرو</span>
-      </button>
-      <button class="btn btn-toggle" id="btnSlowmo" aria-pressed="false" title="حرکت آهسته">
-        <span aria-hidden="true">🐢</span><span class="btn-text">آهسته</span>
-      </button>
+      <button class="btn btn-primary" id="btnRun"><span aria-hidden="true">▶</span><span id="btnRunText">اجرای حرکت</span></button>
+      <button class="btn btn-ghost" id="btnReset"><span aria-hidden="true">↺</span><span>بازنشانی</span></button>
+      <span class="sep" aria-hidden="true"></span>
+      <button class="btn btn-toggle" id="btnVectors" aria-pressed="false"><span aria-hidden="true">→</span><span class="btn-text">بردارهای نیرو</span></button>
+      <button class="btn btn-toggle" id="btnDims" aria-pressed="true"><span aria-hidden="true">⇤⇥</span><span class="btn-text">خط‌های اندازه</span></button>
+      <button class="btn btn-toggle" id="btnSlow" aria-pressed="false"><span aria-hidden="true">🐢</span><span class="btn-text">آهسته</span></button>
     </div>
   </section>
 
-  <!-- ---------- ستون کنترل ---------- -->
-  <aside class="sidepanel" id="sidepanel" aria-label="پنل کنترل و آموزش">
-    <!-- با جاوااسکریپت پر می‌شود -->
-  </aside>
+  <aside class="sidepanel" id="sidepanel" aria-label="پارامترها و اندازه‌گیری‌ها"></aside>
 </main>
 
-<!-- ═══════════ مودال‌ها ═══════════ -->
 <div class="modal" id="modal" hidden>
   <div class="modal-backdrop" data-close></div>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">

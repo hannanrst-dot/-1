@@ -3,11 +3,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  G, solve, friction, inclinedPlane, lever, leverClass,
+  G, LAB, setLab, solve, friction, inclinedPlane, lever, leverClass,
   pulley, wheelAxle, wedge, screw, gears, MACHINE_IDS, SURFACES, PULLEYS
 } from '../src/physics/machines.js';
-import { capstone } from '../src/physics/capstone.js';
+import { explain } from '../src/physics/explain.js';
+import { MACHINE_CONTROLS, DEFAULT_PARAMS, resolveParams, describeSetup } from '../src/content/controls.js';
 import { fa, num, round, clamp, mapRange } from '../src/core/format.js';
+
+// هر تست از حالت پایه شروع می‌شود
+const base = () => setLab({ g: 10, ideal: false });
 
 const near = (a, b, tol = 0.06) =>
   assert.ok(Math.abs(a - b) <= tol * Math.max(1, Math.abs(b)), `${a} ≉ ${b}`);
@@ -147,34 +151,73 @@ test('حل‌کنندهٔ یکپارچه برای همهٔ ماشین‌ها ک�
   assert.throws(() => solve('NOPE'));
 });
 
-test('توان کشش: انتخاب نیروی کشندهٔ قوی‌تر، آزمایش را شدنی می‌کند', () => {
-  const child = pulley({ massKg: 60, systemId: 'COMPOUND_2', pullerId: 'CHILD' });
-  const team = pulley({ massKg: 60, systemId: 'COMPOUND_2', pullerId: 'TEAM' });
-  assert.equal(child.feasible, false);
-  assert.equal(team.feasible, true);
+test('شتاب گرانش قابل تنظیم است و روی همهٔ محاسبه‌ها اثر می‌گذارد', () => {
+  base();
+  const a = inclinedPlane({ massKg: 50, heightM: 2, lengthM: 5 });
+  setLab({ g: 9.81 });
+  const b = inclinedPlane({ massKg: 50, heightM: 2, lengthM: 5 });
+  base();
+  near(a.loadN, 500);
+  near(b.loadN, 490.5);
+  assert.ok(b.effortN < a.effortN);
+  near(b.maIdeal, a.maIdeal);   // مزیت مکانیکی فقط به هندسه بستگی دارد
 });
 
-test('مأموریت پایانی: طرح خوب موفق و طرح ضعیف مردود می‌شود', () => {
-  const good = capstone({
-    massKg: 60, surfaceId: 'WOOD_PLANKS', useRollers: true,
-    rampLengthM: 7, bridgeBeams: 2, pulleySystemId: 'COMPOUND_3', pullerId: 'ADULT'
-  });
-  assert.equal(good.success, true);
-  assert.ok(good.badges.length >= 1);
-  assert.ok(good.totalWorkJ > 0);
-
-  const weak = capstone({
-    massKg: 60, surfaceId: 'ROUGH_STONE', useRollers: false,
-    rampLengthM: 2.5, bridgeBeams: 1, pulleySystemId: 'FIXED', pullerId: 'CHILD'
-  });
-  assert.equal(weak.success, false);
-  assert.ok(weak.blockingStage);
+test('حالت آرمانی همهٔ اصطکاک‌ها را صفر می‌کند و بازده را ۱۰۰٪', () => {
+  setLab({ ideal: true });
+  for (const id of ['INCLINED_PLANE', 'LEVER', 'PULLEY', 'WHEEL_AXLE', 'WEDGE', 'SCREW']) {
+    const r = solve(id);
+    assert.equal(r.frictionN, 0, `${id}: اصطکاک صفر نشد`);
+    near(r.efficiency, 1, 0.001);
+    near(r.maActual, r.maIdeal, 0.001);
+    near(r.workInJ, r.workOutJ, 0.01);   // در ماشین آرمانی کار ورودی و مفید برابرند
+  }
+  assert.equal(solve('FRICTION').effortN, 0);
+  base();
 });
 
-test('مأموریت پایانی: فراتر رفتن از بودجهٔ مصالح، طرح را رد می‌کند', () => {
-  const r = capstone({ rampLengthM: 8, bridgeBeams: 4, pulleySystemId: 'COMPOUND_4', useRollers: true, budget: 8 });
+test('محاسبهٔ گام‌به‌گام برای همهٔ ماشین‌ها ساخته می‌شود', () => {
+  base();
+  for (const id of MACHINE_IDS) {
+    const steps = explain(solve(id));
+    assert.ok(steps.length >= 3, `${id}: گام کافی ندارد`);
+    for (const st of steps) {
+      assert.ok(st.name && st.formula, `${id}: گام ناقص`);
+      assert.ok(String(st.value).length > 0, `${id}: گام بدون نتیجه`);
+      assert.ok(!/NaN|undefined|Infinity/.test(`${st.work} ${st.value}`), `${id}: عدد نامعتبر در گام «${st.name}»`);
+    }
+  }
+});
 
-  assert.ok(r.materialsUsed > 8);
-  assert.equal(r.withinBudget, false);
-  assert.equal(r.success, false);
+test('پارامترهای پیش‌فرض در بازهٔ لغزنده‌ها هستند و نتیجهٔ معتبر می‌دهند', () => {
+  base();
+  for (const id of MACHINE_IDS) {
+    const params = DEFAULT_PARAMS[id];
+    assert.ok(params, `${id}: پارامتر پیش‌فرض ندارد`);
+    for (const c of MACHINE_CONTROLS[id]) {
+      assert.ok(c.key in params, `${id}: مقدار پیش‌فرض برای ${c.key} نیست`);
+      if (c.kind === 'slider') {
+        const v = params[c.key];
+        assert.ok(v >= c.min && v <= c.max, `${id}.${c.key}: ${v} خارج از بازه [${c.min}, ${c.max}]`);
+      }
+    }
+    const r = solve(id, resolveParams(id, params));
+    assert.equal(r.machine, id);
+    assert.ok(describeSetup(id, resolveParams(id, params), r).length > 3);
+  }
+});
+
+test('کرانه‌های لغزنده‌ها هم عدد معتبر می‌دهند (بدون NaN یا بی‌نهایت)', () => {
+  base();
+  for (const id of MACHINE_IDS) {
+    for (const c of MACHINE_CONTROLS[id].filter((x) => x.kind === 'slider')) {
+      for (const v of [c.min, c.max]) {
+        const r = solve(id, resolveParams(id, { ...DEFAULT_PARAMS[id], [c.key]: v }));
+        for (const key of ['effortN', 'loadN', 'workInJ', 'workOutJ']) {
+          if (r[key] === undefined) continue;
+          assert.ok(Number.isFinite(r[key]), `${id}.${c.key}=${v}: ${key} نامعتبر است (${r[key]})`);
+        }
+      }
+    }
+  }
 });

@@ -1,6 +1,6 @@
 // مدیریت بوم: اندازه، حلقهٔ انیمیشن، تم، ذرات و کشیدن دستگیره‌ها
-import { PALETTE, Particles, rr, setPalette } from './draw.js';
-import { SCENES, drawWorld } from './scenes.js';
+import { PALETTE, rr, setPalette } from './draw.js';
+import { SCENES, drawWorld, GROUND_RATIO } from './scenes.js';
 import { clamp } from '../core/format.js';
 
 export class Stage {
@@ -12,7 +12,6 @@ export class Stage {
     this.h = 0;
     this.time = 0;
     this.theme = 'light';
-    this.particles = new Particles();
     this.handles = [];
     this.activeHandle = null;
     this.hoverHandle = null;
@@ -57,7 +56,6 @@ export class Stage {
       const dt = Math.min(0.05, (now - this._lastFrame) / 1000);
       this._lastFrame = now;
       if (!this.reducedMotion) this.time += dt;
-      this.particles.update(dt);
       this.render();
       this._raf = requestAnimationFrame(loop);
     };
@@ -77,12 +75,7 @@ export class Stage {
     setPalette(P);
     ctx.clearRect(0, 0, this.w, this.h);
 
-    const groundY = view.machine === 'GEARS' ? 0.92 : 0.80;
-    const gy = drawWorld(ctx, this.w, this.h, P, this.time, {
-      groundY,
-      trees: view.machine !== 'GEARS',
-      birds: !this.reducedMotion
-    });
+    const gy = drawWorld(ctx, this.w, this.h, P, { groundRatio: GROUND_RATIO[view.machine] ?? 0.84 });
 
     const scene = SCENES[view.machine];
     let handles = [];
@@ -95,15 +88,13 @@ export class Stage {
           t: clamp(view.t ?? 0, 0, 1),
           state: view.state,
           showVectors: !!view.showVectors,
-          particles: this.reducedMotion ? null : this.particles
+          showDims: view.showDims !== false
         }) || [];
       } catch (err) {
         console.error('خطا در رسم صحنه:', err);
       }
       ctx.restore();
     }
-
-    this.particles.draw(ctx);
 
     this.handles = view.interactive === false ? [] : handles;
     this._drawHandles(ctx, P);
@@ -206,12 +197,4 @@ export class Stage {
     c.addEventListener('pointerleave', () => { this.hoverHandle = null; });
   }
 
-  celebrate(x, y) {
-    if (this.reducedMotion) return;
-    const colors = ['#f0900c', '#12a06a', '#0b7fc4', '#e0435a', '#fbbf24'];
-    for (let i = 0; i < 5; i++) {
-      this.particles.burst(x ?? this.w / 2, y ?? this.h / 2, 14, colors[i % colors.length],
-        { speed: 5, life: 1.4, size: 5, gravity: 0.16 });
-    }
-  }
 }

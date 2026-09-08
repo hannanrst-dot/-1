@@ -1,6 +1,6 @@
 // ساخت نسخهٔ تک‌فایلی و کاملاً خودکفا از برنامه
 // خروجی‌ها:
-//   dist/kargah-mashinhaye-sadeh.html  → یک فایل HTML مستقل برای اجرای آفلاین
+//   dist/azmayeshgah-mashinhaye-sadeh.html  → یک فایل HTML مستقل برای اجرای آفلاین
 //   dist/artifact.html                 → همان محتوا بدون تگ‌های html/head/body
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -14,16 +14,14 @@ const MODULES = [
   'src/core/format.js',
   'src/physics/constants.js',
   'src/physics/machines.js',
-  'src/physics/capstone.js',
+  'src/physics/explain.js',
   'src/content/controls.js',
-  'src/content/missions.js',
   'src/content/curriculum.js',
   'src/render/draw.js',
   'src/render/world.js',
   'src/render/scenes.js',
   'src/render/stage.js',
   'src/ui/components.js',
-  'src/audio.js',
   'src/app.js'
 ];
 
@@ -53,7 +51,7 @@ const body = html
   .replace(/<script[\s\S]*?<\/script>/g, '')
   .trim();
 
-const title = 'کارگاه ماشین‌های ساده';
+const title = 'آزمایشگاه ماشین‌های ساده';
 const inner = `<title>${title}</title>
 <style>
 ${css}
@@ -73,18 +71,18 @@ ${bundle}
 mkdirSync(join(root, 'dist'), { recursive: true });
 
 writeFileSync(join(root, 'dist/artifact.html'), inner, 'utf8');
-writeFileSync(join(root, 'dist/kargah-mashinhaye-sadeh.html'),
+writeFileSync(join(root, 'dist/azmayeshgah-mashinhaye-sadeh.html'),
   `<!DOCTYPE html>
 <html dir="rtl" lang="fa">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="آزمایشگاه تعاملی ماشین‌های ساده برای علوم تجربی پایهٔ پنجم دبستان">
+<meta name="description" content="آزمایشگاه اندازه‌گیری ماشین‌های ساده برای تدریس علوم تجربی">
 ${inner.replace(/^<title>/, '<title>').replace('</style>', '</style>\n</head>\n<body>').replace('<script>', '<script>')}
 </body>
 </html>`, 'utf8');
 
 const size = (p) => (readFileSync(join(root, p)).length / 1024).toFixed(0);
 console.log(`ساخته شد:
-  dist/kargah-mashinhaye-sadeh.html  (${size('dist/kargah-mashinhaye-sadeh.html')} کیلوبایت)
+  dist/azmayeshgah-mashinhaye-sadeh.html  (${size('dist/azmayeshgah-mashinhaye-sadeh.html')} کیلوبایت)
   dist/artifact.html                 (${size('dist/artifact.html')} کیلوبایت)`);

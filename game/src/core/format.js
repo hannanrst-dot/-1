@@ -9,6 +9,18 @@ export function fa(value) {
     .replace(/\./g, '٫');
 }
 
+/** تبدیل رشتهٔ فارسی/عربی به عدد (برای کادرهای ورودی) */
+export function parseFa(str) {
+  if (typeof str === 'number') return str;
+  const normalized = String(str)
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[٫،]/g, '.')
+    .replace(/[^\d.\-]/g, '');
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : NaN;
+}
+
 /** گرد کردن هوشمند: اعداد بزرگ بدون اعشار، اعداد کوچک با یک/دو رقم اعشار */
 export function round(value, digits) {
   if (!Number.isFinite(value)) return 0;
