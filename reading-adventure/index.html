@@ -2,1145 +2,941 @@
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>چراغِ کاروانسرا</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>شبِ چراغ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;600;700&display=swap">
 <style>
-/* ===================== توکن‌های طراحی ===================== */
+/* ============================================================
+   یک جهانِ بصریِ واحد: شبِ بیابان و نورِ چراغ.
+   عمداً تک‌تم است؛ این یک بازیِ شبانه است، نه یک سند.
+   ============================================================ */
 :root{
-  --ground:#EFE7D8; --ground-2:#E4D9C4;
-  --panel:#FBF6EC; --panel-edge:#DBCBB0; --panel-in:#F5EDDE;
-  --ink:#2B2438; --ink-soft:#5E5270; --muted:#8B7F92;
-  --lamp:#B0700A; --lamp-hot:#DF9418; --lamp-glow:rgba(176,112,10,.13);
-  --clay:#A8452F; --clay-soft:rgba(168,69,47,.10);
-  --ok:#2C7A55; --ok-soft:rgba(44,122,85,.11);
-  --mark:rgba(223,148,24,.24); --mark-edge:rgba(176,112,10,.55);
-  --sky-1:#8FA6C4; --sky-2:#C8B79A; --star:#C0A87E;
-  --shadow:0 1px 0 rgba(43,36,56,.05), 0 10px 30px -18px rgba(43,36,56,.45);
-  --r-s:8px; --r-m:14px; --r-l:22px;
-  --base:17px;
+  --ink0:#08070F; --ink1:#100D1B; --ink2:#181428;
+  --glass:rgba(14,11,24,.82); --edge:rgba(245,177,74,.18); --edge2:rgba(245,177,74,.34);
+  --text:#F4ECDD; --dim:#A79DB6;
+  --lamp:#F5B14A; --lamp2:#FFD98A; --lampGlow:rgba(245,177,74,.30);
+  --rose:#E8795A; --sage:#7BC79A; --sky:#7C93C4;
+  --r:16px;
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --ground:#14121F; --ground-2:#0E0C17;
-    --panel:#201C33; --panel-edge:#332C4E; --panel-in:#1A1729;
-    --ink:#EFE6D6; --ink-soft:#B6ACC6; --muted:#8E85A6;
-    --lamp:#F0A93C; --lamp-hot:#FFC46B; --lamp-glow:rgba(240,169,60,.15);
-    --clay:#E27A56; --clay-soft:rgba(226,122,86,.14);
-    --ok:#67C795; --ok-soft:rgba(103,199,149,.13);
-    --mark:rgba(240,169,60,.20); --mark-edge:rgba(240,169,60,.55);
-    --sky-1:#2A2748; --sky-2:#3B2F44; --star:#D9CFE8;
-    --shadow:0 1px 0 rgba(0,0,0,.3), 0 18px 44px -22px rgba(0,0,0,.85);
-  }
-}
-:root[data-theme="dark"]{
-  --ground:#14121F; --ground-2:#0E0C17;
-  --panel:#201C33; --panel-edge:#332C4E; --panel-in:#1A1729;
-  --ink:#EFE6D6; --ink-soft:#B6ACC6; --muted:#8E85A6;
-  --lamp:#F0A93C; --lamp-hot:#FFC46B; --lamp-glow:rgba(240,169,60,.15);
-  --clay:#E27A56; --clay-soft:rgba(226,122,86,.14);
-  --ok:#67C795; --ok-soft:rgba(103,199,149,.13);
-  --mark:rgba(240,169,60,.20); --mark-edge:rgba(240,169,60,.55);
-  --sky-1:#2A2748; --sky-2:#3B2F44; --star:#D9CFE8;
-  --shadow:0 1px 0 rgba(0,0,0,.3), 0 18px 44px -22px rgba(0,0,0,.85);
-}
-
 *{box-sizing:border-box}
-body{margin:0;background:var(--ground);}
-.app{
-  font-family:Vazirmatn,"Segoe UI",Tahoma,sans-serif;
-  font-size:var(--base); color:var(--ink); background:var(--ground);
-  min-height:100vh; display:flex; flex-direction:column; position:relative; overflow-x:hidden;
+html,body{height:100%}
+body{margin:0;background:var(--ink0);overscroll-behavior:none}
+.game{
+  position:fixed;inset:0;overflow:hidden;background:var(--ink0);color:var(--text);
+  font-family:Vazirmatn,"Segoe UI",Tahoma,sans-serif;font-size:17px;
+  display:flex;flex-direction:column;user-select:none;-webkit-tap-highlight-color:transparent;
 }
-.app.class-mode{--base:21px}
-h1,h2,h3,.display{font-family:Lalezar,Vazirmatn,Tahoma,sans-serif;font-weight:400;text-wrap:balance;line-height:1.45}
-button{font-family:inherit;font-size:inherit;color:inherit}
-:focus-visible{outline:3px solid var(--lamp-hot);outline-offset:3px;border-radius:6px}
+h1,h2,h3,.disp{font-family:Lalezar,Vazirmatn,Tahoma,sans-serif;font-weight:400;line-height:1.5;text-wrap:balance;margin:0}
+button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:none;cursor:pointer}
+:focus-visible{outline:2.5px solid var(--lamp2);outline-offset:3px;border-radius:10px}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
 
-/* ===================== آسمان ===================== */
-#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:0;transition:opacity .9s ease}
-.app.sky-on #sky{opacity:1}
+#art{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+.vig{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse 120% 85% at 50% 38%,transparent 30%,rgba(6,5,12,.72) 100%)}
+.flash{position:absolute;inset:0;z-index:6;pointer-events:none;background:#fff;opacity:0}
+.flash.go{animation:fl .5s ease-out}
+@keyframes fl{0%{opacity:.32}100%{opacity:0}}
 
-/* ===================== نوار بالا ===================== */
-.topbar{
-  position:relative;z-index:3;display:flex;align-items:center;gap:14px;
-  padding:12px clamp(14px,4vw,34px);border-bottom:1px solid var(--panel-edge);
-  background:color-mix(in srgb,var(--ground) 86%,transparent);backdrop-filter:blur(8px);
+/* ---------------- نوارِ وضعیت ---------------- */
+.hud{position:relative;z-index:4;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px}
+.pips{display:flex;align-items:center;gap:8px;background:var(--glass);border:1px solid var(--edge);
+  border-radius:999px;padding:7px 14px;backdrop-filter:blur(10px)}
+.pips .lab{font-size:.76rem;color:var(--dim)}
+.pips .row{display:flex;gap:5px}
+.pip{width:9px;height:9px;border-radius:50%;background:var(--lamp);box-shadow:0 0 8px var(--lampGlow);
+  transition:background .45s,box-shadow .45s,transform .45s}
+.pip.out{background:rgba(255,255,255,.14);box-shadow:none;transform:scale(.72)}
+.pips.low .pip:not(.out){animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.chip{display:inline-flex;align-items:center;gap:7px;background:var(--glass);border:1px solid var(--edge);
+  border-radius:999px;padding:7px 14px;font-size:.82rem;backdrop-filter:blur(10px);
+  transition:opacity .4s,border-color .4s,color .4s}
+.chip .d{width:7px;height:7px;border-radius:50%;background:var(--sage)}
+.chip.off{color:var(--dim);border-color:rgba(255,255,255,.09)}
+.chip.off .d{background:rgba(255,255,255,.18)}
+.chip.hot{border-color:var(--edge2);color:var(--lamp2)}
+.chip.hot .d{background:var(--lamp)}
+.hud .sp{flex:1}
+.icobtn{width:38px;height:38px;border-radius:50%;background:var(--glass);border:1px solid var(--edge);
+  display:grid;place-items:center;backdrop-filter:blur(10px);transition:border-color .2s}
+.icobtn:hover{border-color:var(--edge2)}
+
+/* ---------------- توستِ تغییرِ وضعیت ---------------- */
+.toasts{position:absolute;top:64px;inset-inline:0;z-index:7;display:flex;flex-direction:column;
+  align-items:center;gap:8px;pointer-events:none}
+.toast{background:var(--glass);border:1px solid var(--edge2);border-radius:999px;padding:9px 20px;
+  font-size:.9rem;font-weight:500;backdrop-filter:blur(12px);animation:tin 3.4s ease both;
+  box-shadow:0 10px 30px -12px #000}
+.toast.bad{border-color:rgba(232,121,90,.5);color:var(--rose)}
+.toast.good{border-color:rgba(123,199,154,.5);color:var(--sage)}
+@keyframes tin{0%{opacity:0;transform:translateY(-12px)}10%,84%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-8px)}}
+
+/* ---------------- سنِ بازی ---------------- */
+.stage{position:relative;z-index:3;flex:1;display:flex;flex-direction:column;justify-content:flex-end;
+  padding:0 14px calc(18px + env(safe-area-inset-bottom));gap:14px;min-height:0}
+
+/* حباب گفت‌وگو */
+.say{width:min(54ch,100%);margin:0 auto;position:relative}
+.who{display:inline-block;font-family:Lalezar,Vazirmatn,sans-serif;font-size:1.02rem;
+  padding:4px 16px 6px;border-radius:12px 12px 0 0;background:var(--glass);
+  border:1px solid var(--edge);border-bottom:0;color:var(--who,var(--lamp2))}
+.who[hidden]{display:none}
+.bubble{background:var(--glass);border:1px solid var(--edge);border-radius:var(--r);
+  padding:20px 22px 22px;backdrop-filter:blur(14px);box-shadow:0 20px 50px -24px #000;
+  font-size:1.22rem;line-height:1.95;min-height:4.4em;display:flex;align-items:center}
+.who:not([hidden]) + .bubble{border-start-end-radius:0}
+.bubble .txt{animation:bin .34s cubic-bezier(.2,.7,.3,1) both;width:100%}
+@keyframes bin{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+.bubble em{font-style:normal;color:var(--lamp2)}
+.more{position:absolute;inset-inline-start:18px;bottom:12px;color:var(--lamp);font-size:1rem;
+  animation:bob 1.3s ease-in-out infinite}
+.more[hidden]{display:none}
+@keyframes bob{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(4px);opacity:1}}
+.tap{text-align:center;font-size:.76rem;color:var(--dim);height:1em}
+
+/* گزینه‌ها */
+.choices{width:min(54ch,100%);margin:0 auto;display:flex;flex-direction:column;gap:9px}
+.choices[hidden]{display:none}
+.ask{font-family:Lalezar,Vazirmatn,sans-serif;font-size:1.24rem;text-align:center;
+  color:var(--lamp2);margin-bottom:2px;text-shadow:0 2px 20px #000}
+.ch{display:flex;align-items:center;gap:12px;text-align:start;background:var(--glass);
+  border:1.5px solid var(--edge);border-radius:14px;padding:15px 17px;line-height:1.75;
+  backdrop-filter:blur(14px);transition:transform .16s,border-color .16s,background .16s;
+  animation:cin .4s cubic-bezier(.2,.7,.3,1) both;animation-delay:var(--d,0s)}
+@keyframes cin{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.ch:hover{border-color:var(--edge2);transform:translateX(-5px);background:rgba(30,23,44,.9)}
+.ch .k{flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+  border:1px solid var(--edge);font-size:.82rem;font-weight:700;color:var(--lamp)}
+.ch:disabled{opacity:.4}
+
+/* ---------------- پرده‌ها ---------------- */
+.sheet{position:absolute;inset:0;z-index:9;display:none;overflow:auto;
+  background:linear-gradient(180deg,#0A0813,#08070F 55%,#0B0814)}
+.game.sheeted .hud{opacity:0;pointer-events:none;transition:opacity .3s}
+.sheet.on{display:block;animation:bin .5s both}
+.wrap{max-width:min(60ch,92vw);margin:0 auto;padding:clamp(28px,6vh,64px) 0 60px;
+  display:flex;flex-direction:column;gap:22px;text-align:center}
+
+/* جلد */
+.cover h1{font-size:clamp(2.8rem,11vw,4.6rem);color:var(--lamp2);text-shadow:0 0 44px var(--lampGlow)}
+.cover .kick{font-size:.82rem;color:var(--dim)}
+.cover .tag{color:var(--text);opacity:.86;line-height:2;font-size:1.05rem;max-width:32ch;margin:0 auto}
+.rules{display:flex;flex-direction:column;gap:10px;text-align:start;margin:4px auto;max-width:34ch}
+.rule{display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.035);
+  border:1px solid var(--edge);border-radius:12px;padding:13px 15px;font-size:.94rem;line-height:1.8}
+.rule b{color:var(--lamp2);font-weight:600}
+.rule .ic{flex:none;font-size:1.1rem;line-height:1.6}
+.go{font-family:Lalezar,Vazirmatn,sans-serif;font-size:1.5rem;
+  background:linear-gradient(180deg,var(--lamp2),var(--lamp));color:#160F06;
+  padding:14px 54px 17px;border-radius:999px;box-shadow:0 16px 40px -14px var(--lamp);
+  transition:transform .2s,box-shadow .2s;align-self:center}
+.go:hover{transform:translateY(-2px);box-shadow:0 22px 46px -14px var(--lamp)}
+.gh{border:1.5px solid var(--edge);border-radius:999px;padding:11px 24px;font-size:.92rem;
+  transition:border-color .2s;align-self:center}
+.gh:hover{border-color:var(--edge2)}
+.row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+/* پایان */
+.rank{display:flex;gap:10px;justify-content:center;margin:2px 0 4px}
+.rank svg{width:34px;height:44px;opacity:.22;transition:opacity .5s}
+.rank svg.lit{opacity:1;filter:drop-shadow(0 0 12px var(--lampGlow));animation:lite .6s ease both;
+  animation-delay:var(--d,0s)}
+@keyframes lite{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+.endtitle{font-size:clamp(2.1rem,8vw,3.2rem);color:var(--lamp2)}
+.endno{font-size:.84rem;color:var(--dim)}
+.endbody{text-align:start;line-height:2.05;font-size:1.08rem;display:flex;flex-direction:column;gap:.9em;
+  background:rgba(255,255,255,.03);border:1px solid var(--edge);border-radius:var(--r);padding:22px 24px}
+.recap{text-align:start;border:1px solid var(--edge);border-radius:var(--r);overflow:hidden}
+.recap h3{padding:14px 18px;font-size:1.16rem;background:rgba(255,255,255,.05)}
+.rw{display:grid;grid-template-columns:auto 1fr;gap:13px;padding:14px 18px;
+  border-top:1px solid rgba(255,255,255,.07);line-height:1.8;font-size:.94rem}
+.rw .c{font-size:.78rem;font-weight:600;padding:3px 10px;border-radius:999px;height:fit-content;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.rw .c.g{color:var(--sage);border:1px solid rgba(123,199,154,.4)}
+.rw .c.b{color:var(--rose);border:1px solid rgba(232,121,90,.4)}
+.rw .c.n{color:var(--dim);border:1px solid rgba(255,255,255,.14)}
+.rw small{display:block;color:var(--dim);margin-top:3px;font-size:.85rem;line-height:1.7}
+
+@media (max-width:560px){
+  .game{font-size:16px}
+  .bubble{font-size:1.12rem;padding:17px 18px 19px;min-height:6em}
+  .hud{gap:7px;padding-inline:10px}
+  .chip{padding:6px 11px;font-size:.78rem}
 }
-.brand{display:flex;align-items:center;gap:11px;min-width:0}
-.brand .t{font-family:Lalezar,Vazirmatn,sans-serif;font-size:1.18rem;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.brand .p{font-size:.78rem;color:var(--muted);white-space:nowrap}
-.lamp-meter{width:30px;height:42px;flex:none;filter:drop-shadow(0 0 var(--halo,0px) var(--lamp-hot))}
-.spacer{flex:1}
-.tbtn{
-  display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--panel-edge);
-  padding:8px 13px;border-radius:999px;cursor:pointer;font-size:.85rem;font-weight:500;
-  transition:border-color .18s,transform .18s,background .18s;white-space:nowrap;
-}
-.tbtn:hover{border-color:var(--lamp);transform:translateY(-1px)}
-.tbtn[aria-pressed="true"]{background:var(--lamp);border-color:var(--lamp);color:var(--panel-in)}
-.tbtn .n{background:var(--lamp);color:var(--panel-in);border-radius:999px;min-width:20px;height:20px;
-  display:grid;place-items:center;font-size:.72rem;font-weight:700;font-variant-numeric:tabular-nums}
-.tbtn[aria-pressed="true"] .n{background:var(--panel-in);color:var(--lamp)}
-
-/* ===================== صفحه‌ها ===================== */
-.stage{position:relative;z-index:2;flex:1;display:flex;flex-direction:column}
-.view{display:none;flex:1;flex-direction:column}
-.view.on{display:flex;animation:rise .55s cubic-bezier(.2,.7,.3,1) both}
-@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-
-/* --------- جلد --------- */
-.cover{align-items:center;justify-content:center;text-align:center;padding:clamp(24px,6vw,60px) 20px 46px;gap:0}
-.cover-art{width:min(560px,92vw);margin-bottom:-6px}
-.kicker{font-size:.82rem;color:var(--muted)}
-.cover h1{font-size:clamp(2.6rem,9vw,4.4rem);margin:.1em 0 .12em;color:var(--ink)}
-.cover h1 .glow{color:var(--lamp-hot);text-shadow:0 0 26px var(--lamp-glow)}
-.tagline{max-width:34ch;margin:0 auto;color:var(--ink-soft);line-height:2;font-size:1.02rem}
-.setup{display:flex;flex-wrap:wrap;gap:22px;justify-content:center;margin:30px 0 26px}
-.field{display:flex;flex-direction:column;gap:9px;align-items:center}
-.field>span{font-size:.8rem;color:var(--muted);font-weight:500}
-.seg{display:flex;background:var(--panel);border:1px solid var(--panel-edge);border-radius:999px;padding:4px;gap:2px;box-shadow:var(--shadow)}
-.seg button{border:0;background:transparent;padding:9px 17px;border-radius:999px;cursor:pointer;font-weight:500;font-size:.9rem;transition:background .2s,color .2s}
-.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
-.start{
-  font-family:Lalezar,Vazirmatn,sans-serif;font-size:1.5rem;border:0;cursor:pointer;
-  background:linear-gradient(180deg,var(--lamp-hot),var(--lamp));color:#1A1424;
-  padding:15px 52px 18px;border-radius:999px;box-shadow:0 14px 34px -14px var(--lamp);
-  transition:transform .2s, box-shadow .2s;
-}
-.start:hover{transform:translateY(-2px);box-shadow:0 20px 40px -14px var(--lamp)}
-.meta{margin-top:20px;font-size:.82rem;color:var(--muted);display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
-
-/* --------- صحنه --------- */
-.scene{align-items:center;padding:clamp(18px,3.4vw,34px) 20px 60px}
-.scene-wrap{width:100%;max-width:none;display:flex;flex-direction:column;align-items:center;gap:20px}
-.place{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.82rem;font-weight:500}
-.place::before,.place::after{content:"";height:1px;width:clamp(18px,7vw,60px);background:var(--panel-edge)}
-.card{
-  width:min(64ch,100%);background:var(--panel);border:1px solid var(--panel-edge);
-  border-radius:var(--r-l);padding:clamp(22px,4vw,40px);box-shadow:var(--shadow);position:relative;
-}
-.card::before{content:"";position:absolute;inset:-40% 8% auto;height:160px;border-radius:50%;
-  background:radial-gradient(closest-side,var(--lamp-glow),transparent);pointer-events:none}
-.prose{font-size:1.16rem;line-height:2.05}
-.prose p{margin:0 0 1.1em}
-.prose p:last-child{margin-bottom:0}
-.s{cursor:pointer;border-radius:5px;padding:1px 2px;margin:0 -2px;transition:background .2s,box-shadow .2s}
-.s:hover{background:var(--mark)}
-.s.marked{background:var(--mark);box-shadow:inset 0 -2px 0 var(--mark-edge)}
-.s.evidence{animation:ping 1.5s ease 3;background:var(--mark);box-shadow:inset 0 -2px 0 var(--mark-edge)}
-@keyframes ping{0%,100%{box-shadow:inset 0 -2px 0 var(--mark-edge)}50%{box-shadow:inset 0 -2.2em 0 var(--mark),0 0 0 4px var(--mark)}}
-.gl{border-bottom:1.5px dotted var(--lamp);cursor:help;position:relative}
-.app[data-support="6"] .gl{border-bottom-color:transparent}
-.glosslist{margin-top:22px;padding-top:16px;border-top:1px dashed var(--panel-edge);display:flex;flex-direction:column;gap:7px;font-size:.9rem;color:var(--ink-soft)}
-.glosslist b{color:var(--lamp);font-weight:600}
-.glosslist[hidden]{display:none}
-.readhint{font-size:.79rem;color:var(--muted);text-align:center;margin-top:2px}
-
-/* --------- پرسش و انتخاب --------- */
-.ask{width:min(64ch,100%);display:flex;flex-direction:column;gap:12px}
-.ask-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.q{font-family:Lalezar,Vazirmatn,sans-serif;font-size:1.45rem;flex:1;min-width:14ch}
-.level{font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:999px;
-  background:var(--panel);border:1px solid var(--panel-edge);color:var(--ink-soft);display:none}
-.app.class-mode .level{display:inline-block}
-.opts{display:flex;flex-direction:column;gap:10px}
-.opt{
-  display:flex;align-items:flex-start;gap:13px;text-align:right;width:100%;cursor:pointer;
-  background:var(--panel);border:1.5px solid var(--panel-edge);border-radius:var(--r-m);
-  padding:15px 17px;line-height:1.85;transition:border-color .18s,transform .14s,background .18s;
-}
-.opt:hover:not(:disabled){border-color:var(--lamp);transform:translateX(-4px)}
-.opt:disabled{cursor:default}
-.opt .k{flex:none;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;
-  background:var(--panel-in);border:1px solid var(--panel-edge);font-size:.85rem;font-weight:700;margin-top:2px}
-.opt.pick-ok{border-color:var(--ok);background:var(--ok-soft)}
-.opt.pick-ok .k{background:var(--ok);border-color:var(--ok);color:var(--panel)}
-.opt.pick-no{border-color:var(--clay);background:var(--clay-soft)}
-.opt.pick-no .k{background:var(--clay);border-color:var(--clay);color:var(--panel)}
-.opt.dim{opacity:.42}
-.verdict{border-radius:var(--r-m);padding:15px 18px;line-height:1.95;font-size:.98rem;
-  border:1px solid var(--panel-edge);background:var(--panel-in)}
-.verdict.ok{border-color:var(--ok);background:var(--ok-soft)}
-.verdict.no{border-color:var(--clay);background:var(--clay-soft)}
-.verdict b{font-weight:600}
-.verdict .head{display:block;font-family:Lalezar,Vazirmatn,sans-serif;font-size:1.15rem;margin-bottom:3px}
-.verdict.ok .head{color:var(--ok)} .verdict.no .head{color:var(--clay)}
-.rowend{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.next{
-  border:0;cursor:pointer;font-family:Lalezar,Vazirmatn,sans-serif;font-size:1.15rem;
-  background:var(--ink);color:var(--panel);padding:11px 30px 13px;border-radius:999px;transition:transform .18s
-}
-.next:hover{transform:translateX(-3px)}
-.ghost{background:transparent;border:1.5px solid var(--panel-edge);cursor:pointer;padding:10px 18px;border-radius:999px;font-size:.88rem;font-weight:500}
-.ghost:hover{border-color:var(--lamp)}
-.gain{font-size:.83rem;color:var(--lamp);font-weight:500}
-
-/* --------- دفترچه --------- */
-.sheet{position:fixed;inset:0;z-index:20;display:none}
-.sheet.on{display:block}
-.sheet .veil{position:absolute;inset:0;background:rgba(10,8,18,.5);animation:fade .3s both}
-@keyframes fade{from{opacity:0}to{opacity:1}}
-.sheet .panel{
-  position:absolute;inset-block:0;inset-inline-start:0;width:min(420px,88vw);background:var(--panel);
-  border-inline-end:1px solid var(--panel-edge);padding:26px 24px;overflow:auto;
-  display:flex;flex-direction:column;gap:16px;animation:slide .34s cubic-bezier(.2,.7,.3,1) both;
-}
-@keyframes slide{from{transform:translateX(100%)}to{transform:none}}
-:dir(rtl) .sheet .panel{animation-name:slide-r}
-@keyframes slide-r{from{transform:translateX(-100%)}to{transform:none}}
-.sheet h2{font-size:1.5rem;margin:0}
-.note{background:var(--panel-in);border:1px solid var(--panel-edge);border-inline-start:3px solid var(--lamp);
-  border-radius:var(--r-s);padding:12px 14px;line-height:1.9;font-size:.94rem}
-.note.key{border-inline-start-color:var(--ok)}
-.note .tag{display:block;font-size:.72rem;color:var(--muted);margin-bottom:3px}
-.empty{color:var(--muted);line-height:2;font-size:.94rem}
-
-/* --------- پایان --------- */
-.finish{align-items:center;padding:clamp(22px,4vw,44px) 20px 60px;gap:26px}
-.ending-card{width:min(64ch,100%);background:var(--panel);border:1px solid var(--panel-edge);
-  border-radius:var(--r-l);padding:clamp(24px,4vw,42px);box-shadow:var(--shadow);text-align:center}
-.ending-badge{font-size:.78rem;color:var(--muted)}
-.ending-card h2{font-size:clamp(2rem,6vw,3rem);margin:.12em 0 .3em;color:var(--lamp)}
-.ending-card .body{text-align:right;line-height:2.05;font-size:1.1rem;color:var(--ink)}
-.report{width:min(64ch,100%);display:flex;flex-direction:column;gap:0;
-  border:1px solid var(--panel-edge);border-radius:var(--r-m);overflow:hidden;background:var(--panel)}
-.report h3{margin:0;padding:15px 18px;font-size:1.2rem;background:var(--panel-in);border-bottom:1px solid var(--panel-edge)}
-.rrow{display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:center;
-  padding:13px 18px;border-bottom:1px solid var(--panel-edge)}
-.rrow:last-child{border-bottom:0}
-.dot{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:.9rem;font-weight:700;flex:none}
-.dot.y{background:var(--ok-soft);color:var(--ok);border:1.5px solid var(--ok)}
-.dot.n{background:var(--clay-soft);color:var(--clay);border:1.5px solid var(--clay)}
-.dot.o{background:var(--panel-in);color:var(--muted);border:1.5px solid var(--panel-edge)}
-.rrow .lab{line-height:1.7}
-.rrow .lab small{display:block;color:var(--muted);font-size:.8rem}
-.rrow .sc{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
-.map{width:min(64ch,100%);background:var(--panel);border:1px solid var(--panel-edge);border-radius:var(--r-m);padding:18px}
-.map h3{margin:0 0 6px;font-size:1.2rem}
-.map p{margin:0 0 12px;color:var(--muted);font-size:.85rem;line-height:1.8}
-.map .scroll{overflow-x:auto}
-.again{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
-
-/* --------- پاپ‌آور واژه --------- */
-.pop{position:fixed;z-index:30;max-width:min(300px,80vw);background:var(--ink);color:var(--ground);
-  padding:11px 14px;border-radius:var(--r-s);font-size:.9rem;line-height:1.8;box-shadow:0 14px 34px -12px rgba(0,0,0,.6);
-  display:none;pointer-events:none}
-.pop.on{display:block;animation:fade .18s both}
-.pop b{color:var(--lamp-hot)}
-
-/* --------- راهنمای کلید در حالت کلاس --------- */
-.keys{display:none;font-size:.78rem;color:var(--muted);text-align:center}
-.app.class-mode .keys{display:block}
-.app.class-mode .card{max-width:74ch}
-.app.class-mode .ask,.app.class-mode .report,.app.class-mode .map,.app.class-mode .ending-card{max-width:74ch}
-.app.class-mode .readhint{display:none}
+@media (min-width:900px){ .game{font-size:18px} }
 </style>
 </head>
 <body>
-<div class="app" id="app" dir="rtl" lang="fa" data-support="5">
-<canvas id="sky"></canvas>
+<div class="game" id="game">
+  <canvas id="art"></canvas>
+  <div class="vig"></div>
+  <div class="flash" id="flash"></div>
 
-<header class="topbar">
-  <div class="brand">
-    <svg class="lamp-meter" id="lampMeter" viewBox="0 0 30 42" aria-hidden="true">
-      <defs><clipPath id="glassClip"><path d="M7 12 h16 v17 a8 8 0 0 1 -16 0 z"/></clipPath></defs>
-      <path d="M12 3 h6 M15 3 v4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".55"/>
-      <path d="M6.5 8 h17 l-1.5 4 h-14 z" fill="currentColor" opacity=".45"/>
-      <rect id="glassFill" x="7" y="29" width="16" height="0" fill="var(--lamp-hot)" clip-path="url(#glassClip)"/>
-      <circle id="flame" cx="15" cy="22" r="0" fill="var(--lamp-hot)" opacity=".95"/>
-      <path d="M7 12 h16 v17 a8 8 0 0 1 -16 0 z" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".5"/>
-      <path d="M6 33 h18 l-2 5 h-14 z" fill="currentColor" opacity=".45"/>
-    </svg>
-    <div>
-      <div class="t" id="barTitle">چراغِ کاروانسرا</div>
-      <div class="p" id="barStep">آمادهٔ شروع</div>
+  <header class="hud" id="hud">
+    <div class="pips" id="pipsBox">
+      <span class="lab">تا سحر</span>
+      <span class="row" id="pips"></span>
     </div>
-  </div>
-  <div class="spacer"></div>
-  <button class="tbtn" id="btnNotes" aria-pressed="false">دفترچهٔ سرنخ <span class="n" id="noteCount">۰</span></button>
-  <button class="tbtn" id="btnClass" aria-pressed="false" title="بزرگ‌نمایی برای ویدئوپروژکتور">حالت کلاس</button>
-</header>
+    <span class="chip off" id="chNegar"><span class="d"></span>نگار</span>
+    <span class="chip off" id="chLamp"><span class="d"></span>چراغِ برج</span>
+    <span class="sp"></span>
+    <button class="icobtn" id="btnSound" aria-label="صدا">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 5 6 9H2v6h4l5 4z"/>
+        <path id="wave1" d="M15.5 8.5a5 5 0 0 1 0 7"/>
+        <path id="wave2" d="M18.5 5.5a9 9 0 0 1 0 13"/>
+        <path id="mute" d="M22 9l-6 6M16 9l6 6" style="display:none"/>
+      </svg>
+    </button>
+  </header>
 
-<main class="stage">
+  <div class="toasts" id="toasts"></div>
 
-  <!-- ========== جلد ========== -->
-  <section class="view cover on" id="viewCover">
-    <svg class="cover-art" viewBox="0 0 560 190" aria-label="طرحی از کاروانسرای کهنه در شب">
-      <g fill="var(--sky-1)" opacity=".5">
-        <path d="M0 150 C 70 128, 120 142, 190 132 C 250 124, 300 140, 360 133 C 430 125, 490 141, 560 130 L560 190 L0 190 Z"/>
-      </g>
-      <g fill="var(--ink)">
-        <!-- برج چراغ -->
-        <path d="M392 44 h50 v112 h-50 z"/>
-        <path d="M386 44 h62 l-8 -11 h-46 z"/>
-        <path d="M417 20 l7 13 h-14 z"/>
-        <!-- بدنهٔ کاروانسرا -->
-        <path d="M118 92 h278 v64 h-278 z"/>
-        <path d="M112 92 h290 l-9 -10 h-272 z"/>
-        <!-- گنبدها -->
-        <path d="M168 82 a22 22 0 0 1 44 0 z"/>
-        <path d="M262 82 a26 26 0 0 1 52 0 z"/>
-        <path d="M188 60 l2 -14 l2 14 z"/><path d="M286 56 l2 -16 l2 16 z"/>
-      </g>
-      <!-- سردر و پنجره‌ها -->
-      <path d="M240 156 v-30 a22 22 0 0 1 44 0 v30 z" fill="var(--panel-in)" opacity=".22"/>
-      <g fill="var(--lamp-hot)" opacity=".65">
-        <rect x="150" y="112" width="11" height="16" rx="5"/>
-        <rect x="196" y="112" width="11" height="16" rx="5"/>
-        <rect x="330" y="112" width="11" height="16" rx="5"/>
-      </g>
-      <!-- چراغ برج: خاموش -->
-      <circle id="coverFlame" cx="417" cy="62" r="9" fill="var(--lamp-hot)" opacity="0"/>
-      <rect x="408" y="54" width="18" height="17" rx="3" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
-      <path d="M0 156 h560" stroke="var(--ink)" stroke-width="2" opacity=".35"/>
-    </svg>
-
-    <p class="kicker">داستان تعاملیِ درک مطلب · فارسیِ دبستان</p>
-    <h1>چراغِ <span class="glow">کاروانسرا</span></h1>
-    <p class="tagline">چهل سال است که چراغِ آن برج هر شب روشن بوده. امشب خاموش است و تو تنها کسی هستی که دنبال جوابی. <b>هر انتخابت، مسیر و پایان داستان را عوض می‌کند.</b></p>
-
-    <div class="setup">
-      <label class="field"><span>پایهٔ تحصیلی</span>
-        <div class="seg" id="segGrade" role="group">
-          <button type="button" data-g="4" aria-pressed="false">چهارم</button>
-          <button type="button" data-g="5" aria-pressed="true">پنجم</button>
-          <button type="button" data-g="6" aria-pressed="false">ششم</button>
-        </div>
-      </label>
-      <label class="field"><span>جای استفاده</span>
-        <div class="seg" id="segMode" role="group">
-          <button type="button" data-m="solo" aria-pressed="true">تنها می‌خوانم</button>
-          <button type="button" data-m="class" aria-pressed="false">کلاس و پرده</button>
-        </div>
-      </label>
+  <main class="stage" id="stage">
+    <div class="choices" id="choices" hidden></div>
+    <div class="say" id="say">
+      <span class="who" id="who" hidden></span>
+      <div class="bubble"><div class="txt" id="txt"></div></div>
+      <span class="more" id="more">▾</span>
     </div>
+    <p class="tap" id="tapHint">برای ادامه، هرجای صفحه را بزن</p>
+  </main>
 
-    <button class="start" id="btnStart">چراغ را روشن کن</button>
-    <p class="meta"><span>۷ صحنه</span><span>۴ پایانِ متفاوت</span><span>حدود ۱۲ دقیقه</span></p>
-  </section>
-
-  <!-- ========== صحنه ========== -->
-  <section class="view scene" id="viewScene">
-    <div class="scene-wrap">
-      <p class="place" id="scPlace"></p>
-      <article class="card">
-        <div class="prose" id="scText"></div>
-        <div class="glosslist" id="scGloss" hidden></div>
-      </article>
-      <p class="readhint">روی هر جمله‌ای که به‌نظرت مهم است ضربه بزن تا در دفترچهٔ سرنخ ذخیره شود.</p>
-      <div class="ask" id="scAsk"></div>
-      <p class="keys">کلیدهای ۱ و ۲ و ۳ برای انتخاب · کلید Enter برای ادامه</p>
+  <!-- ---------------- جلد ---------------- -->
+  <section class="sheet on" id="cover">
+    <div class="wrap cover">
+      <p class="kick">بازیِ داستانیِ درکِ مطلب · فارسیِ چهارم تا ششم</p>
+      <h1>شبِ چراغ</h1>
+      <p class="tag">چراغِ برجِ کاروانسرا چهل سال است هر شب روشن بوده. امشب خاموش است و یک مسافر توی بیابان در راه است.</p>
+      <div class="rules">
+        <div class="rule"><span class="ic">🕯️</span><span>تا سحر فقط <b>شش نوبت</b> وقت داری. هر کاری یک نوبت می‌برد.</span></div>
+        <div class="rule"><span class="ic">🧭</span><span>هیچ انتخابی <b>غلط</b> نیست. ولی انتخابی که از روی حواس‌پرتی باشد، وقتِ بیشتری می‌خورد.</span></div>
+        <div class="rule"><span class="ic">📖</span><span>جوابِ همه‌چیز <b>توی حرف‌های آدم‌ها</b>ست. حواست به چیزی که می‌گویند باشد.</span></div>
+        <div class="rule"><span class="ic">🌅</span><span>اگر وقت تمام شود، داستان <b>همان‌جا</b> تمام می‌شود. پنج پایان دارد.</span></div>
+      </div>
+      <button class="go" id="btnGo">شروع</button>
+      <p class="kick">حدود ۸ دقیقه</p>
     </div>
   </section>
 
-  <!-- ========== پایان ========== -->
-  <section class="view finish" id="viewFinish">
-    <div class="ending-card">
-      <p class="ending-badge" id="fnBadge"></p>
-      <h2 id="fnTitle"></h2>
-      <div class="body" id="fnBody"></div>
-    </div>
-    <div class="report" id="fnReport"></div>
-    <div class="map">
-      <h3>مسیری که رفتی</h3>
-      <p>ستاره‌های روشن، صحنه‌هایی هستند که از آن‌ها گذشتی. خط‌های کم‌رنگ، راه‌هایی که این بار نرفتی.</p>
-      <div class="scroll"><svg id="fnMap" role="img" aria-label="نقشهٔ مسیر داستان"></svg></div>
-    </div>
-    <div class="again">
-      <button class="next" id="btnBranch">برگرد به دوراهی و راه دیگر را برو</button>
-      <button class="ghost" id="btnRestart">از اول شروع کن</button>
+  <!-- ---------------- پایان ---------------- -->
+  <section class="sheet" id="over">
+    <div class="wrap">
+      <div class="rank" id="rank"></div>
+      <p class="endno" id="endNo"></p>
+      <h2 class="endtitle" id="endTitle"></h2>
+      <div class="endbody" id="endBody"></div>
+      <div class="recap" id="recap"></div>
+      <div class="row">
+        <button class="go" id="btnAgain">دوباره بازی کن</button>
+      </div>
+      <p class="kick">هر بار که بازی می‌کنی، با دقتِ بیشتر بخوان. پایانِ بهتری هست.</p>
     </div>
   </section>
-</main>
-
-<!-- ========== دفترچهٔ سرنخ ========== -->
-<div class="sheet" id="sheet">
-  <div class="veil" data-close></div>
-  <aside class="panel" role="dialog" aria-label="دفترچهٔ سرنخ">
-    <h2>دفترچهٔ سرنخ</h2>
-    <div id="notesBox" style="display:flex;flex-direction:column;gap:10px"></div>
-    <button class="ghost" data-close style="margin-top:auto">بستن</button>
-  </aside>
 </div>
-<div class="pop" id="pop"></div>
 
 <script>
 /* ============================================================
-   بانکِ داستان — این بخش دادهٔ خالص است.
-   می‌توانی همین شیء را به یک فایل جدا، دیتابیس یا API منتقل کنی
-   بدون اینکه یک خط از موتورِ پایین تغییر کند.
-   ساختار کامل در README.md توضیح داده شده است.
+   داستان — دادهٔ خالص. موتور هیچ چیزی دربارهٔ این داستان نمی‌داند.
+   ساختار در README.md توضیح داده شده است.
+
+   قانونِ طلاییِ نوشتن: هیچ گزینه‌ای «غلط» نیست.
+   گزینه‌ها فقط هزینهٔ متفاوت دارند، و هزینه را متن تعیین می‌کند —
+   کسی که حرفِ آدم‌ها را خوانده باشد، ارزان‌تر جلو می‌رود.
    ============================================================ */
 
-const LEVELS = {
-  0:{name:"تصمیمِ مسیر", hint:"اینجا جوابِ درست و غلط نداریم؛ فقط راهت عوض می‌شود."},
-  1:{name:"سطح ۱ — بازیابیِ اطلاعاتِ صریح", hint:"پیدا کردنِ چیزی که مستقیم در متن نوشته شده"},
-  2:{name:"سطح ۲ — استنباطِ مستقیم", hint:"ربط دادنِ دو جمله به هم و نتیجه گرفتن"},
-  3:{name:"سطح ۳ — تفسیر و یکپارچه‌سازی", hint:"فهمیدنِ نیت و احساسِ آدم‌ها از روی نشانه‌ها"},
-  4:{name:"سطح ۴ — ارزیابی و قضاوت", hint:"سنجیدنِ درست و نادرست و پیامدِ کارها"}
+const CAST = {
+  "بی‌بی گوهر":"#C9A8E8",
+  "مشد رجب"  :"#8FB8E8",
+  "نگار"     :"#F5B14A",
+  "عمویِ نگار":"#E8956A"
 };
 
 const STORY = {
-  id:"charagh", title:"چراغِ کاروانسرا", start:"s1",
+  title:"شبِ چراغ",
+  start:"gate",
+  time:6,                      // شش نوبت تا سحر
 
-  scenes:{
+  nodes:{
 
-  s1:{ place:"دروازهٔ دِه‌بالا · شب",
-    text:[
-      "گاری با صدای خش‌خش روی خاکِ نرم ایستاد.",
-      "بی‌بی گوهر دستت را گرفت و گفت: «رسیدیم به دِه‌بالا.»",
-      "بوی خاکِ داغ و کاهگل توی هوا بود و جلوتر، دیوارهای بلندِ کاروانسرا مثل قلعه‌ای خوابیده زیرِ آسمان دیده می‌شد.","|",
-      "بی‌بی گوهر به بالای برجِ کاروانسرا اشاره کرد: «چهل سال است که هر شب، چراغِ آن برج روشن بوده.",
-      "تا وقتی آن چراغ روشن باشد، هیچ مسافری توی این بیابان گم نمی‌شود.»",
-      "بعد ساکت شد.",
-      "تو هم به بالای برج نگاه کردی.",
-      "برج، تاریکِ تاریک بود.","|",
-      "مشد رجب، نگهبانِ پیرِ کاروانسرا، جلوی در ایستاده بود و دست‌هایش می‌لرزید.",
-      "گفت: «امشب هر کاری کردم روشن نشد.»",
-      "باد بیابان زوزه می‌کشید.",
-      "مشد رجب گفت: «باید برویم بالای برج، ولی پله‌ها تاریکِ تاریک است؛ بی‌فانوس نمی‌شود.»","|",
-      "بی‌بی گوهر زیر لب گفت: «بادِ این بیابان هر فانوسی را خاموش می‌کند؛ جز فانوسِ شیشه‌ای.»",
-      "روی طاقچه سه فانوس بود: یکی حلبی، یکی کاغذی، یکی شیشه‌ای."
-    ],
-    gloss:{ "کاروانسرا":"مهمان‌خانه‌ای بزرگ کنارِ راه، برای مسافران و کاروان‌ها در قدیم",
-            "کاهگل":"گِلی که با کاه مخلوط می‌کنند و دیوارِ خانه‌ها را با آن می‌پوشانند",
-            "طاقچه":"فرورفتگیِ کوچکی در دیوار که چیزهای کوچک را روی آن می‌گذارند",
-            "حلبی":"ساخته‌شده از ورقهٔ نازکِ فلز" },
-    level:1, question:"کدام فانوس را برمی‌داری؟",
-    choices:[
-      {t:"فانوسِ حلبی",  ev:[12], why:"فانوسِ حلبی سرپوش ندارد. بی‌بی گوهر گفت بادِ این بیابان هر فانوسی را خاموش می‌کند جز شیشه‌ای."},
-      {t:"فانوسِ کاغذی", ev:[12], why:"کاغذ جلوی باد دوام نمی‌آورد. جوابِ درست همان جمله‌ای است که بی‌بی گوهر زیر لب گفت."},
-      {t:"فانوسِ شیشه‌ای", ok:true, ev:[12],
-       why:"آفرین. جواب مستقیم توی متن نوشته شده بود: «بادِ این بیابان هر فانوسی را خاموش می‌کند؛ جز فانوسِ شیشه‌ای.»"}
-    ],
-    clue:"بادِ بیابان فقط فانوسِ شیشه‌ای را خاموش نمی‌کند.",
-    next:"s2" },
+  /* ═══════════ ۱ · دروازه ═══════════ */
+  gate:{ art:"gate", amb:"wind", beats:[
+    {t:"گاری وسطِ بیابان ایستاد و خاک نشست."},
+    {who:"بی‌بی گوهر", t:"رسیدیم. اینجا دِه‌بالاست."},
+    {t:"دیوارهای کاروانسرا مثل قلعه‌ای خوابیده زیرِ ستاره‌ها بود."},
+    {who:"بی‌بی گوهر", t:"چهل سال است چراغِ آن برج هر شب روشن بوده."},
+    {who:"بی‌بی گوهر", t:"تا آن چراغ روشن باشد، هیچ مسافری توی این بیابان گم نمی‌شود."},
+    {t:"سرت را بلند کردی."},
+    {t:"برج تاریک بود.", fx:"sting"},
+    {who:"مشد رجب", t:"امشب هر کاری کردم روشن نشد. قطره روغنی نمانده."},
+    {who:"مشد رجب", t:"و یک مسافر امشب توی راه است. تا سحر باید روشنش کنیم.", fx:"heart"},
+    {t:"تا سحر <em>شش نوبت</em> وقت داری. نه بیشتر."},
+    {who:"نگار", t:"من نگارم. خانه‌مان همان‌جاست. تنهایت نمی‌گذارم.", set:{negar:true}, fx:"chime"},
+    {who:"نگار", t:"ولی حواست باشد: بادِ امشب فانوسِ حلبی را خاموش می‌کند. فقط شیشه‌ای دوام می‌آورد."},
+    {who:"مشد رجب", t:"پله‌های برج تاریکِ تاریک است. بی‌فانوس بالا نرو."},
+    {t:"روی طاقچه سه فانوس بود: حلبی، کاغذی، شیشه‌ای."}
+  ], ask:"کدام فانوس را برمی‌داری؟", opts:[
+    { t:"فانوسِ حلبی", cost:2, goto:"tower",
+      beats:[ {t:"وسطِ پله‌ها باد از پنجره زد.", fx:"wind"},
+              {t:"شعله لرزید و خاموش شد. همه‌جا سیاه شد."},
+              {who:"نگار", t:"گفتم که! برگرد، شیشه‌ای را بردار."},
+              {t:"برگشتی. یک نوبتِ اضافه رفت."} ],
+      recap:{k:"b", c:"۲ نوبت", label:"فانوسِ حلبی را برداشتی",
+             note:"نگار همان اول گفته بود: بادِ امشب فانوسِ حلبی را خاموش می‌کند."} },
+    { t:"فانوسِ کاغذی", cost:2, goto:"tower",
+      beats:[ {t:"باد از پنجرهٔ پله‌ها تو زد.", fx:"wind"},
+              {t:"کاغذ جلوی این باد تاب نداشت. فانوس مچاله شد."},
+              {who:"نگار", t:"برگرد. شیشه‌ای را بردار."},
+              {t:"برگشتی. یک نوبتِ اضافه رفت."} ],
+      recap:{k:"b", c:"۲ نوبت", label:"فانوسِ کاغذی را برداشتی",
+             note:"نگار همان اول گفته بود فقط فانوسِ شیشه‌ای دوام می‌آورد."} },
+    { t:"فانوسِ شیشه‌ای", cost:1, goto:"tower",
+      beats:[ {t:"باد زوزه کشید، ولی شعله پشتِ شیشه ماند.", fx:"wind"},
+              {t:"پله‌ها را بالا رفتید."} ],
+      recap:{k:"g", c:"۱ نوبت", label:"فانوسِ شیشه‌ای را برداشتی",
+             note:"همان که نگار گفته بود. حواست به حرفش بود."} }
+  ]},
 
-  s2:{ place:"بالای برجِ کاروانسرا",
-    text:[
-      "پله‌های خشتیِ برج باریک بودند و بوی نم می‌دادند.",
-      "فانوس، دیوارها را نارنجی کرده بود.",
-      "بالای برج اتاقکی بود با یک چراغِ بزرگِ مسی وسطش.","|",
-      "مشد رجب درِ مخزنِ روغن را باز کرد.",
-      "مخزن خالیِ خالی بود.",
-      "صدایش لرزید: «دیروز غروب، خودم تا خودِ لبه پُرش کردم.»","|",
-      "تو فانوس را نزدیک بردی و کفِ اتاقک را نگاه کردی.",
-      "زمین خشکِ خشک بود؛ نه لکه‌ای، نه جای چکه‌ای، نه بوی روغنی که ریخته باشد.",
-      "درِ مخزن هم باز مانده بود."
-    ],
-    gloss:{ "خشتی":"ساخته‌شده از خشت؛ آجرِ گِلیِ پخته‌نشده",
-            "مخزن":"ظرف یا جای بزرگی که چیزی را در آن انبار می‌کنند" },
-    level:2, question:"به‌نظرت روغنِ چراغ کجا رفته است؟",
-    choices:[
-      {t:"از مخزن چکه کرده و کم‌کم تمام شده.", ev:[7],
-       why:"اگر روغن چکه کرده بود، باید روی زمین لکه و بو می‌ماند. ولی متن می‌گوید زمین خشکِ خشک بود، نه لکه‌ای و نه بویی."},
-      {t:"کسی روغن را از مخزن برداشته است.", ok:true, ev:[5,7,8],
-       why:"درست. سه جمله را کنارِ هم گذاشتی: دیروز غروب پُر بوده، روی زمین هیچ لکه‌ای نیست، و درِ مخزن باز مانده. پس روغن نریخته؛ برده شده."},
-      {t:"مشد رجب یادش رفته مخزن را پُر کند.", ev:[5],
-       why:"خودِ مشد رجب گفت: «دیروز غروب، خودم تا خودِ لبه پُرش کردم.» پس یادش نرفته بود."}
-    ],
-    clue:"کسی روغن را برده است — زمین خشک بود و درِ مخزن باز مانده بود.",
-    next:"s3" },
+  /* ═══════════ ۲ · بالای برج ═══════════ */
+  tower:{ art:"tower", amb:"room", beats:[
+    {t:"بالای برج، چراغِ بزرگِ مسی وسطِ اتاقک ایستاده بود. خاموش."},
+    {who:"مشد رجب", t:"دیروز غروب، خودم مخزنش را تا لبه پُر کردم."},
+    {t:"درِ مخزن باز مانده بود. تَهش خشکِ خشک."},
+    {t:"فانوس را پایین گرفتی و کفِ اتاق را نگاه کردی."},
+    {t:"زمین خشک بود. نه لکه‌ای، نه چکه‌ای، نه بویی."}
+  ], ask:"روغن کجا رفته؟ چه می‌کنی؟", opts:[
+    { t:"مخزن را می‌گردم؛ شاید سوراخ شده باشد.", cost:2, goto:"yard",
+      beats:[ {t:"دورتادورِ مخزن را وجب به وجب گشتی."},
+              {t:"سالمِ سالم بود."},
+              {who:"نگار", t:"اگر چکه کرده بود، زمین خیس می‌شد. زمین خشک است."},
+              {t:"یک نوبتِ اضافه رفت."} ],
+      recap:{k:"b", c:"۲ نوبت", label:"دنبالِ سوراخِ مخزن گشتی",
+             note:"زمینِ خشک یعنی روغن نریخته. متن همین را گفته بود."} },
+    { t:"می‌روم پایین، دنبالِ ردِ کسی که برده.", cost:1, goto:"yard",
+      beats:[ {t:"از پله‌ها دویدی پایین.", fx:"step"} ],
+      recap:{k:"g", c:"۱ نوبت", label:"رفتی دنبالِ ردِ کسی که روغن را برده",
+             note:"زمینِ خشک و درِ بازِ مخزن را کنارِ هم گذاشتی."} },
+    { t:"از مشد رجب می‌پرسم امشب کی بالا آمده.", cost:1, goto:"yard",
+      beats:[ {who:"مشد رجب", t:"هیچ‌کس. تمامِ شب دمِ در بودم."},
+              {t:"نگار سرش را انداخت پایین.", fx:"chime"},
+              {who:"نگار", t:"...برویم پایین."} ],
+      recap:{k:"n", c:"۱ نوبت", label:"از مشد رجب پرسیدی",
+             note:"جوابِ روغن را نگرفتی، ولی فهمیدی نگار چیزی می‌داند."} }
+  ]},
 
-  s3:{ place:"حیاطِ کاروانسرا · نزدیکِ نیمه‌شب",
-    text:[
-      "برگشتی پایین، توی حیاطِ کاروانسرا.",
-      "ماه بالا آمده بود و حیاط را نقره‌ای کرده بود.",
-      "دو چیز توجهت را گرفت.","|",
-      "یکی: ردِ باریکِ چرخِ یک گاری، که تازه روی خاکِ نرم افتاده بود.",
-      "دوتا: پنجرهٔ روشنِ اتاقی در گوشهٔ حیاط، که صدای پچ‌پچ از آن می‌آمد.","|",
-      "تا صبح چند ساعت بیشتر نمانده و فقط می‌توانی یکی را دنبال کنی."
-    ],
-    gloss:{ "پچ‌پچ":"حرف زدنِ آهسته و در گوشی" },
-    level:0, question:"کدام را دنبال می‌کنی؟",
-    note:"این دوراهیِ اصلیِ داستان است. هر دو راه به انبارِ ته ده می‌رسند، ولی چیزهایی که در راه می‌فهمی فرق می‌کند.",
-    choices:[
-      {t:"ردِ چرخِ گاری را می‌گیرم و می‌روم.", next:"s4a", why:"خم شدی روی خاک و ردها را دنبال کردی."},
-      {t:"می‌روم سراغِ پنجرهٔ روشن.",           next:"s4b", why:"پاورچین به سمتِ پنجره رفتی."}
-    ] },
+  /* ═══════════ ۳ · حیاط ═══════════ */
+  yard:{ art:"yard", amb:"wind", beats:[
+    {t:"ماه بالا آمده بود و حیاط را نقره‌ای کرده بود."},
+    {t:"روی خاکِ نرم، ردِ چرخِ یک گاری مانده بود. تازه بود."},
+    {t:"کنارِ رد، چند قطرهٔ براق. انگشتت را زدی و بو کردی."},
+    {t:"روغنِ چراغ.", fx:"chime"},
+    {t:"ردها از ده بیرون نمی‌رفتند. دورِ ده می‌چرخیدند."},
+    {t:"نگار ایستاده بود و به خانهٔ گوشهٔ ده نگاه می‌کرد."},
+    {t:"تا نگاهت را دید، دستش را تندی برد پشتش."},
+    {t:"ولی دیده بودی. کفِ دستش چرب بود.", fx:"sting"}
+  ], ask:"به نگار چه می‌گویی؟", opts:[
+    { t:"دستت چرب است! پس تو برداشتی!", cost:1, set:{negar:false},
+      toast:{t:"نگار رفت.", k:"bad"}, goto:"alone",
+      beats:[ {who:"نگار", t:"..."},
+              {t:"نگار یک قدم عقب رفت."},
+              {t:"برگشت و توی تاریکیِ کوچه گم شد.", fx:"door"},
+              {t:"حالا تنهایی."} ],
+      recap:{k:"b", c:"نگار رفت", label:"نگار را متهم کردی",
+             note:"نگار نترسیده بود؛ داشت از کسی محافظت می‌کرد. به خانهٔ گوشهٔ ده نگاه کرد، نه به تو."} },
+    { t:"باشد. خودم پیدایش می‌کنم.", cost:1, goto:"withher",
+      beats:[ {t:"نگار چیزی نگفت و ساکت دنبالت راه افتاد."} ],
+      recap:{k:"n", c:"۱ نوبت", label:"چیزی نپرسیدی",
+             note:"نگار ماند، ولی راهِ میان‌بر را هم به تو نگفت."} },
+    { t:"من فقط می‌خواهم آن چراغ روشن شود. کاری به کسی ندارم.", cost:1, time:1, goto:"store",
+      toast:{t:"نگار میان‌بر را نشانت داد. یک نوبت جلو افتادی.", k:"good"},
+      beats:[ {t:"نگار نفسی کشید و شانه‌هایش پایین آمد."},
+              {who:"نگار", t:"پشتِ انبارِ ته ده. از این کوچه میان‌بر است."},
+              {t:"دنبالش دویدی.", fx:"step"} ],
+      recap:{k:"g", c:"+۱ نوبت", label:"به نگار اطمینان دادی",
+             note:"فهمیدی که نگار می‌ترسد، نه اینکه دزد باشد. برای همین کمکت کرد."} }
+  ]},
 
-  s4a:{ place:"دنبالِ ردِ گاری", branch:"a",
-    text:[
-      "ردِ چرخ روی خاکِ نرم مانده بود، مثل دو خطِ موازی.",
-      "کنارِ رد، چند قطرهٔ درشت و براق روی خاک نشسته بود.",
-      "انگشتت را زدی و بو کردی: روغنِ چراغ.","|",
-      "ردها را دنبال کردی.",
-      "از درِ کاروانسرا بیرون می‌رفتند، ولی به سمتِ جادهٔ خاکی و بیابان نمی‌پیچیدند.",
-      "دورِ ده می‌چرخیدند و پشتِ انبارِ ته ده تمام می‌شدند."
-    ],
-    gloss:{ "موازی":"دو خط که کنارِ هم می‌روند و هیچ‌وقت به هم نمی‌رسند" },
-    level:3, question:"این ردها چه چیزی را به تو می‌گویند؟",
-    choices:[
-      {t:"مسافری از راهِ دور آمده، روغن را برده و رفته.", ev:[4],
-       why:"اگر مسافر بود، ردها باید به سمتِ جاده و بیابان می‌رفت. ولی متن می‌گوید ردها اصلاً از ده بیرون نرفتند."},
-      {t:"کسی از خودِ همین ده روغن را برده است.", ok:true, ev:[4,5],
-       why:"درست. ردها از ده بیرون نمی‌روند و پشتِ انبارِ ته ده تمام می‌شوند. پس هرکه بوده، همین‌جا زندگی می‌کند."},
-      {t:"گاری فقط اتفاقی از آنجا رد شده.", ev:[1,2],
-       why:"قطره‌های روغن کنارِ ردها ریخته بود و بویشان بوی روغنِ چراغ بود. پس این گاری بی‌ربط نیست."}
-    ],
-    clue:"ردِ گاری از ده بیرون نرفت؛ کارِ یکی از اهالیِ همین ده است.",
-    next:"s5" },
+  /* ═══════════ ۳٫۵ · گشتنِ انبارها ═══════════ */
+  withher:{ art:"yard", amb:"wind", cost:1, goto:"store", beats:[
+    {t:"سه انبار ته ده بود."},
+    {t:"یکی‌یکی سر زدید. نگار ساکت پشتِ سرت می‌آمد.", fx:"step"},
+    {t:"انبارِ سوم، نورِ کم‌رنگی از لای در می‌آمد."}
+  ], recap:{k:"n", c:"۱ نوبت", label:"سه انبار را گشتی",
+            note:"نگار راهِ میان‌بر را بلد بود، ولی نپرسیدی."} },
 
-  s4b:{ place:"پشتِ پنجرهٔ روشن", branch:"b",
-    text:[
-      "آهسته به پنجره نزدیک شدی.",
-      "نگار، دخترِ همسایه، بیدار بود و پشتِ پنجره نشسته بود.",
-      "تا تو را دید، از جا پرید و آمد توی حیاط.","|",
-      "پرسیدی: «امشب کسی را دیدی که از کاروانسرا چیزی ببرد؟»",
-      "نگار یک لحظه به خانهٔ گوشهٔ ده نگاه کرد؛ همان خانه‌ای که چراغش هنوز روشن بود.",
-      "بعد سرش را انداخت پایین: «نه... من چیزی ندیدم.»","|",
-      "دستش را تندی برد پشتش.",
-      "ولی تو دیده بودی: کفِ دستش برق می‌زد و چرب بود."
-    ],
-    gloss:{},
-    level:3, question:"چرا نگار راستش را نمی‌گوید؟",
-    choices:[
-      {t:"چون از تاریکی می‌ترسد.", ev:[1],
-       why:"نگار خودش بیدار و پشتِ پنجره نشسته بود و بدونِ ترس آمد توی حیاطِ تاریک. پس مشکلش تاریکی نیست."},
-      {t:"چون کسی را که روغن را برده می‌شناسد و نمی‌خواهد لو برود.", ok:true, ev:[4,5,7],
-       why:"درست. سه نشانه را کنارِ هم گذاشتی: نگاهش به آن خانهٔ روشن، سر پایین انداختنش، و دستِ چربش. نگار می‌داند و دارد پنهان می‌کند."},
-      {t:"چون تو را نمی‌شناسد و رویش نمی‌شود حرف بزند.", ev:[2],
-       why:"تا تو را دید از جا پرید و خودش آمد بیرون. پس با تو راحت است؛ مشکل جای دیگری است."}
-    ],
-    clue:"دستِ نگار چرب بود و وقتِ سؤال، به خانهٔ گوشهٔ ده نگاه کرد.",
-    next:"s4b2" },
+  alone:{ art:"yard", amb:"wind", cost:2, goto:"store", beats:[
+    {t:"سه انبار ته ده بود و تو تنها بودی."},
+    {t:"در تاریکی، هر در را باز کردی و بستی.", fx:"door"},
+    {t:"باد فانوس را می‌خواباند و باید دوباره روشنش می‌کردی."},
+    {t:"انبارِ سوم، نورِ کم‌رنگی از لای در می‌آمد. دو نوبت رفته بود."}
+  ], recap:{k:"b", c:"۲ نوبت", label:"تنها دنبالِ انبار گشتی",
+            note:"نگار راه را بلد بود. اگر نرفته بود، نصفِ این وقت کافی بود."} },
 
-  s4b2:{ place:"حیاط · روبه‌روی نگار", branch:"b",
-    text:[
-      "نگار زل زد به تو و چیزی نگفت.",
-      "معلوم بود منتظر است ببیند تو چه می‌کنی."
-    ],
-    gloss:{},
-    level:4, question:"چه می‌گویی؟",
-    choices:[
-      {t:"همین حالا می‌روم به مشد رجب می‌گویم.", vars:{trust:-1},
-       why:"نگار یک قدم عقب رفت، دست‌هایش را توی آستینش قایم کرد و دیگر حرفی نزد."},
-      {t:"نگران نباش. من فقط می‌خواهم آن چراغ روشن شود، نه اینکه کسی را لو بدهم.", vars:{trust:1},
-       why:"نگار نفسِ راحتی کشید و خیلی آهسته گفت: «پشتِ انبارِ ته ده را نگاه کن.»"},
-      {t:"باشد، مجبورت نمی‌کنم.", vars:{trust:0},
-       why:"نگار سرش را تکان داد، برگشت داخل و درِ اتاق را آرام بست."}
-    ],
-    next:"s5" },
-
-  s5:{ place:"انبارِ ته ده",
-    text:[
-      "درِ چوبیِ انبارِ ته ده نیمه‌باز بود.",
-      "از لای در، نورِ لرزانِ یک چراغِ کوچک بیرون می‌زد.","|",
-      "رفتی تو.",
-      "پشتِ چند گونیِ جو، حلبِ روغنِ کاروانسرا را دیدی.",
-      "کنارش عمویِ نگار نشسته بود و روی تشک، مادرِ پیرش خوابیده بود.",
-      "یک چراغِ کوچک بالای سرِ پیرزن روشن بود.","|",
-      "عمویِ نگار تا تو را دید، رنگش پرید و از جا بلند شد.",
-      "بریده‌بریده گفت: «مادرم توی تاریکی نفسش می‌گیرد و می‌ترسد.",
-      "سه شب است که پولِ روغن ندارم.»",
-      "بعد به کفشِ پارهٔ خودش نگاه کرد و ساکت شد."
-    ],
-    gloss:{ "گونی":"کیسهٔ بزرگ و زبر که در آن گندم و جو می‌ریزند",
-            "حلب":"ظرفِ فلزیِ بزرگ و چهارگوش برای نگه‌داشتنِ روغن یا نفت" },
-    level:3, question:"به‌نظرت چرا عمویِ نگار تا امشب به کسی چیزی نگفته بود؟",
-    choices:[
-      {t:"چون خیالش راحت بوده که هیچ‌کس نمی‌فهمد.", ev:[6],
-       why:"تا تو را دید رنگش پرید و از جا بلند شد. آدمی که خیالش راحت است این‌طور نمی‌ترسد."},
-      {t:"چون خجالت می‌کشیده بگوید پولِ روغن ندارد.", ok:true, ev:[8,9],
-       why:"درست. متن مستقیم نگفت «خجالت کشید»؛ تو از روی نشانه‌ها فهمیدی: گفت پولِ روغن ندارم، بعد به کفشِ پارهٔ خودش نگاه کرد و ساکت شد."},
-      {t:"چون از مشد رجب دلخور بوده.", ev:[7,8],
-       why:"در کلِ متن یک نشانه هم از دلخوری نیست؛ نه حرفی زد، نه کاری کرد. حدسی که شاهد نداشته باشد، جواب نیست."}
-    ],
-    clue:"عمو از رویِ نیاز روغن را برده، نه از رویِ دزدی.",
-    next:"s6" },
-
-  s6:{ place:"سرِ دوراهیِ آخر",
-    text:[
-      "حالا هم روغن را پیدا کرده‌ای، هم فهمیده‌ای چرا برده شده.",
-      "بیرون، بادِ بیابان هنوز می‌آید و برجِ کاروانسرا هنوز تاریک است.",
-      "هر چه بگویی، صبحِ فردای این ده را عوض می‌کند."
-    ],
-    gloss:{},
-    level:4, question:"چه می‌کنی؟",
-    note:"اینجا جوابِ درست و غلط نداریم. ولی هر انتخاب، پایانِ دیگری می‌سازد.",
-    choices:[
-      {t:"می‌دوم و همه را خبر می‌کنم؛ حقیقت باید معلوم شود.", vars:{moral:"tell"},   why:"دویدی سمتِ حیاط و صدا زدی."},
-      {t:"چیزی نمی‌گویم. روغن پیشِ او بماند.",                  vars:{moral:"silent"}, why:"آرام عقب‌عقب رفتی و از انبار بیرون آمدی."},
-      {t:"به او می‌گویم: «با هم برویم پیشِ مشد رجب و راستش را بگوییم.»", vars:{moral:"together"}, why:"دستت را دراز کردی سمتِ حلب."}
-    ],
-    next:"END" }
+  /* ═══════════ ۴ · انبار ═══════════ */
+  store:{ art:"store", amb:"room", beats:[
+    {t:"درِ چوبیِ انبار نیمه‌باز بود."},
+    {t:"از لای در، نورِ لرزانِ یک چراغِ کوچک بیرون می‌زد."},
+    {t:"رفتی تو.", fx:"door"},
+    {t:"پشتِ گونی‌های جو، حلبِ روغنِ کاروانسرا بود."},
+    {t:"کنارش مردی نشسته بود. عمویِ نگار."},
+    {t:"روی تشک، مادرِ پیرش خوابیده بود و چراغِ کوچکی بالای سرش می‌سوخت."},
+    {who:"عمویِ نگار", t:"مادرم توی تاریکی نفسش می‌گیرد. می‌ترسد."},
+    {who:"عمویِ نگار", t:"سه شب است که پولِ روغن ندارم."},
+    {t:"به کفشِ پارهٔ خودش نگاه کرد و ساکت شد."}
+  ], ask:"چه می‌کنی؟", opts:[
+    { t:"می‌دوم و همه را خبر می‌کنم. حقیقت باید معلوم شود.", cost:1,
+      set:{moral:"tell"}, goto:"END",
+      beats:[ {t:"دویدی سمتِ حیاط و صدا زدی.", fx:"step"} ],
+      recap:{k:"n", c:"انتخابِ تو", label:"همه را خبر کردی",
+             note:"حقیقت معلوم شد. ولی جلوی همه."} },
+    { t:"چیزی نمی‌گویم. روغن پیشِ او بماند.", cost:1,
+      set:{moral:"silent"}, goto:"END",
+      beats:[ {t:"آرام عقب‌عقب رفتی و از انبار بیرون آمدی.", fx:"door"} ],
+      recap:{k:"n", c:"انتخابِ تو", label:"سکوت کردی",
+             note:"رازِ او را نگه داشتی. چراغِ برج خاموش ماند."} },
+    { t:"با هم می‌رویم پیشِ مشد رجب و راستش را می‌گوییم.", cost:1,
+      set:{moral:"together"}, goto:"END",
+      beats:[ {t:"دستت را دراز کردی سمتِ حلب."},
+              {who:"عمویِ نگار", t:"...باشد."} ],
+      recap:{k:"g", c:"انتخابِ تو", label:"با هم رفتید",
+             note:"هم حقیقت گفته شد، هم آبروی کسی نریخت."} }
+  ]}
   },
 
-  /* قواعدِ پایان — از بالا به پایین بررسی می‌شوند، اولین قاعدهٔ درست برنده است */
+  /* ═══════════ پایان‌ها ═══════════
+     از بالا به پایین؛ اولین قاعده‌ای که درست باشد برنده است.
+     rank همان امتیازِ ۱ تا ۵ است.                                   */
   endingRules:[
-    {when:{moral:"together", minCorrect:3}, id:"gold"},
-    {when:{moral:"together"},               id:"good"},
-    {when:{moral:"tell"},                   id:"cold"},
-    {when:{moral:"silent"},                 id:"quiet"},
-    {when:{},                               id:"good"}
+    {when:{timeout:true},                                   id:"dawn"},
+    {when:{moral:"together", negar:true, minTime:2},        id:"village"},
+    {when:{moral:"together"},                               id:"again"},
+    {when:{moral:"tell"},                                   id:"bitter"},
+    {when:{moral:"silent"},                                 id:"secret"},
+    {when:{},                                               id:"dawn"}
   ],
 
   endings:{
-    gold:{ badge:"پایانِ ۱ از ۴ · بهترین پایان", title:"چراغِ ده", text:[
-      "با هم رفتید. مشد رجب اول چیزی نگفت؛ فقط طولانی به کفشِ پارهٔ عمو نگاه کرد. بعد بلند شد، حلب را برداشت، نصفش را ریخت توی چراغِ کاروانسرا و نصفِ دیگر را گذاشت کفِ دستِ عمو.",
-      "آن شب، چراغِ برج دوباره روشن شد.",
-      "صبح، بی‌بی گوهر ماجرا را برای زن‌های ده تعریف کرد. از آن هفته، هر خانه یک پیمانهٔ کوچک روغن می‌آورد و کنارِ درِ کاروانسرا می‌گذارد.",
-      "حالا دو چراغ در دِه‌بالا روشن است: یکی بالای برج، برای مسافرهایی که هنوز نیامده‌اند؛ و یکی بالای سرِ پیرزنی که از تاریکی می‌ترسد."]},
-    good:{ badge:"پایانِ ۲ از ۴", title:"چراغِ دوباره", text:[
-      "با هم رفتید و مشد رجب حرفتان را باور کرد. حلب برگشت سرِ جایش و چراغ همان شب روشن شد.",
-      "ولی وقتی مشد رجب پرسید «تو از کجا فهمیدی؟»، جوابِ درست‌وحسابی نداشتی که بدهی؛ خیلی از نشانه‌ها را رد کرده بودی.",
-      "فردا صبح مسافری از راه رسید و گفت شب، نورِ برج را از دور دیده و راه را پیدا کرده است.",
-      "چراغ روشن شد. اما نصفِ ماجرا هنوز برای خودت هم روشن نیست. شاید بارِ دیگر، جمله‌ها را آهسته‌تر بخوانی."]},
-    cold:{ badge:"پایانِ ۳ از ۴", title:"راستِ تلخ", text:[
-      "دویدی و همه را خبر کردی. مردم با فانوس آمدند. حلبِ روغن برگشت به کاروانسرا و چراغِ برج همان شب روشن شد.",
-      "ولی عمویِ نگار وسطِ حیاط، جلوی همه ایستاده بود و سرش پایین بود. هیچ‌کس به او دزد نگفت؛ لازم هم نبود، نگاه‌ها گفتند.",
-      "فردا صبح، نگار از کنارِ تو رد شد و سلام نکرد.",
-      "چراغِ برج روشن است و حقیقت هم معلوم شد. اما چیزی در این ده شکست که با روغن درست نمی‌شود."]},
-    quiet:{ badge:"پایانِ ۴ از ۴", title:"رازِ نگفته", text:[
-      "چیزی نگفتی. برگشتی، توی رخت‌خوابت دراز کشیدی و تا صبح خوابت نبرد.",
+    village:{ rank:5, art:"dawn", title:"چراغِ ده", lamp:true, text:[
+      "با هم رفتید. مشد رجب اول چیزی نگفت؛ فقط طولانی به کفشِ پارهٔ عمو نگاه کرد.",
+      "بعد حلب را برداشت، نصفش را ریخت توی چراغِ برج و نصفِ دیگر را گذاشت کفِ دستِ عمو.",
+      "چراغ که روشن شد، نگار خندید. نزدیکِ سحر مسافری از راه رسید و گفت نور را از چند فرسخی دیده.",
+      "از آن هفته، هر خانهٔ ده یک پیمانه روغن می‌آورد و کنارِ درِ کاروانسرا می‌گذارد. حالا دو چراغ در دِه‌بالا روشن است."]},
+
+    again:{ rank:4, art:"dawn", title:"چراغِ دوباره", lamp:true, text:[
+      "رفتید و مشد رجب حرفتان را باور کرد. حلب برگشت سرِ جایش و چراغ روشن شد.",
+      "ولی راه را سخت‌تر از آنچه لازم بود رفتی و سحر نزدیک شده بود.",
+      "مسافر تا نزدیکِ صبح توی بیابان دورِ خودش چرخید. سالم رسید؛ خسته و ترسیده.",
+      "چراغ روشن است. ولی یک راهِ کوتاه‌تر هم بود که ندیدی."]},
+
+    bitter:{ rank:3, art:"yard", title:"راستِ تلخ", lamp:true, text:[
+      "دویدی و همه را خبر کردی. مردم با فانوس آمدند.",
+      "حلب برگشت به کاروانسرا و چراغ همان شب روشن شد. مسافر راه را پیدا کرد.",
+      "ولی عمو وسطِ حیاط، جلوی همه ایستاده بود و سرش پایین بود. هیچ‌کس به او دزد نگفت؛ لازم هم نبود.",
+      "فردا صبح، نگار از کنارت رد شد و سلام نکرد."]},
+
+    secret:{ rank:2, art:"gate", title:"رازِ نگفته", lamp:false, text:[
+      "چیزی نگفتی. برگشتی، دراز کشیدی و تا صبح خوابت نبرد.",
       "آن شب، برجِ کاروانسرا برای اولین بار در چهل سال تاریک ماند.",
-      "صبح خبر آمد که مسافری تا نزدیکِ سحر توی بیابان دورِ خودش چرخیده و راه را گم کرده بود؛ خوشبختانه سالم پیدایش کردند.",
-      "مشد رجب تمامِ آن روز روی پلهٔ اولِ برج نشست و با کسی حرف نزد.",
-      "تو رازِ یک نفر را نگه داشتی. سکوت هم یک انتخاب است — با پیامدِ خودش."]}
+      "صبح خبر آمد مسافری تا سحر توی بیابان دورِ خودش چرخیده بود. خوشبختانه پیدایش کردند.",
+      "مشد رجب تمامِ آن روز روی پلهٔ اولِ برج نشست و با کسی حرف نزد."]},
+
+    dawn:{ rank:1, art:"dawn", title:"سحر", lamp:false, text:[
+      "آسمان کم‌کم روشن شد. سحر شده بود و تو هنوز وسطِ راه بودی.",
+      "چراغِ برج آن شب هیچ‌وقت روشن نشد.",
+      "نزدیکِ ظهر، مردها مسافر را چند فرسخ آن‌طرف‌تر پیدا کردند؛ گم‌شده و تشنه، زیرِ آفتاب.",
+      "زنده ماند. ولی آن شب هیچ نوری راه را نشانش نداد.",
+      "وقت داشتی. جوابِ همه‌چیز توی حرف‌های آدم‌ها بود."]}
   }
 };
 </script>
 
 <script>
 /* ============================================================
-   موتورِ بازی — مستقل از داستان. هر داستانی با ساختارِ بالا را اجرا می‌کند.
+   موتور — پخشِ ضربه‌ها، پس‌زمینهٔ نقاشی‌شده، صدا، و شمارشِ نوبت.
+   هیچ فایلِ بیرونی لازم ندارد: تصویرها با Canvas و صداها با WebAudio ساخته می‌شوند.
    ============================================================ */
 (function(){
 "use strict";
 var $ = function(s){ return document.querySelector(s); };
-var app = $("#app");
 function fa(n){ return String(n).replace(/[0-9]/g, function(d){ return "۰۱۲۳۴۵۶۷۸۹"[d]; }); }
-function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-var MAP_LABEL = { s1:"دروازه", s2:"برجِ چراغ", s3:"دوراهی", s4a:"ردِ گاری", s4b:"نگار",
-                  s4b2:"قولِ تو", s5:"انبار", s6:"تصمیم" };
-var TOTAL_STEPS = 7;
-
-/* ---------------- وضعیت ---------------- */
-function fresh(){
-  return { grade:5, mode:"solo", scene:null, path:[], marks:{}, notes:[],
-           results:{}, vars:{ trust:0, moral:null }, attempts:0, answered:false };
-}
-var S = fresh();
-
-/* ---------------- آسمانِ ستاره ---------------- */
-var sky = $("#sky"), sctx = sky.getContext("2d"), stars = [], raf = 0;
 var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-function sizeSky(){
-  var d = window.devicePixelRatio || 1;
-  sky.width = innerWidth * d; sky.height = innerHeight * d;
-  sctx.setTransform(d,0,0,d,0,0);
-  var n = Math.round(innerWidth * innerHeight / 9000), out = [];
-  for(var i=0;i<n;i++) out.push({ x:Math.random()*innerWidth, y:Math.random()*innerHeight*0.82,
-    r:Math.random()*1.5+0.4, p:Math.random()*Math.PI*2, sp:Math.random()*0.9+0.25 });
-  stars = out;
+
+/* ══════════════ پس‌زمینه ══════════════ */
+var cv = $("#art"), cx = cv.getContext("2d");
+var W = 0, H = 0, seeds = [], px = 0, py = 0, curArt = "gate";
+
+function resize(){
+  var d = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * d; cv.height = H * d;
+  cx.setTransform(d, 0, 0, d, 0, 0);
+  seeds = [];
+  for(var i = 0; i < 150; i++) seeds.push([Math.random(), Math.random(), Math.random(), Math.random()]);
 }
-function drawSky(t){
-  var c = getComputedStyle(app).getPropertyValue("--star").trim() || "#ffffff";
-  sctx.clearRect(0,0,innerWidth,innerHeight);
-  for(var i=0;i<stars.length;i++){
-    var s = stars[i];
-    sctx.globalAlpha = reduced ? 0.34 : 0.18 + 0.3*(0.5 + 0.5*Math.sin(t/900*s.sp + s.p));
-    sctx.fillStyle = c;
-    sctx.beginPath(); sctx.arc(s.x, s.y, s.r, 0, 6.284); sctx.fill();
+addEventListener("resize", resize);
+
+function poly(pts, fill){
+  cx.beginPath();
+  cx.moveTo(pts[0][0] * W, pts[0][1] * H);
+  for(var i = 1; i < pts.length; i++) cx.lineTo(pts[i][0] * W, pts[i][1] * H);
+  cx.closePath(); cx.fillStyle = fill; cx.fill();
+}
+function box(x, y, w2, h2, fill){ cx.fillStyle = fill; cx.fillRect(x * W, y * H, w2 * W, h2 * H); }
+function grad(stops){
+  var g = cx.createLinearGradient(0, 0, 0, H);
+  stops.forEach(function(s){ g.addColorStop(s[0], s[1]); });
+  cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+}
+function glow(x, y, r, c1){
+  var g = cx.createRadialGradient(x * W, y * H, 0, x * W, y * H, r * Math.max(W, H));
+  g.addColorStop(0, c1); g.addColorStop(1, "rgba(0,0,0,0)");
+  cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+}
+function stars(t, n, topFrac, col){
+  for(var i = 0; i < n; i++){
+    var s = seeds[i];
+    var tw = reduced ? .6 : .35 + .45 * (0.5 + 0.5 * Math.sin(t / 800 * (0.4 + s[2]) + s[3] * 9));
+    cx.globalAlpha = tw * (0.5 + s[2] * 0.5);
+    cx.fillStyle = col || "#EFE7FF";
+    cx.beginPath();
+    cx.arc(s[0] * W, s[1] * topFrac * H, 0.6 + s[2] * 1.3, 0, 6.284);
+    cx.fill();
   }
-  sctx.globalAlpha = 1;
-  if(!reduced) raf = requestAnimationFrame(drawSky);
+  cx.globalAlpha = 1;
 }
-function skyOn(on){
-  app.classList.toggle("sky-on", on);
-  cancelAnimationFrame(raf);
-  if(on){ sizeSky(); if(reduced){ drawSky(0); } else { raf = requestAnimationFrame(drawSky); } }
+function motes(t, n, col){
+  for(var i = 0; i < n; i++){
+    var s = seeds[i + 40];
+    var y = (s[1] + (reduced ? 0 : (t / 26000) * (0.3 + s[2]))) % 1;
+    cx.globalAlpha = .10 + s[2] * .18;
+    cx.fillStyle = col;
+    cx.beginPath(); cx.arc(s[0] * W, (1 - y) * H, 0.7 + s[3] * 1.5, 0, 6.284); cx.fill();
+  }
+  cx.globalAlpha = 1;
 }
-addEventListener("resize", function(){
-  if(app.classList.contains("sky-on")){ sizeSky(); if(reduced) drawSky(0); }
-});
+function battlements(x0, x1, y, step, hgt, fill){
+  cx.fillStyle = fill;
+  for(var x = x0; x < x1 - step * 0.4; x += step)
+    cx.fillRect(x * W, (y - hgt) * H, step * 0.55 * W, hgt * H);
+}
+function caravanserai(ox, lit){
+  var o = ox * 0.010;
+  box(.20 + o, .36, .60, .28, "#0A0716");                        // بدنه
+  battlements(.20 + o, .80 + o, .36, .044, .026, "#0A0716");
+  box(.575 + o, .15, .145, .21, "#07040F");                      // برج
+  battlements(.575 + o, .72 + o, .15, .036, .022, "#07040F");
+  poly([[.41 + o, .64], [.41 + o, .495], [.47 + o, .435],
+        [.53 + o, .495], [.53 + o, .64]], "#02010A");            // سردر
+  cx.fillStyle = "rgba(245,177,74,.60)";                         // پنجره‌ها
+  [.25, .305, .66, .715].forEach(function(x){
+    cx.fillRect((x + o) * W, .465 * H, .019 * W, .032 * H);
+  });
+  cx.fillStyle = lit ? "#FFD98A" : "#150F22";                    // فانوسِ برج
+  cx.fillRect((.617 + o) * W, .188 * H, .038 * W, .046 * H);
+  if(lit) glow(.636 + o, .211, .18, "rgba(255,217,138,.58)");
+}
 
-/* ---------------- فانوسِ پیشرفت ---------------- */
-function lamp(){
-  var p = Math.min(1, S.path.length / TOTAL_STEPS), h = 17 * p;
-  $("#glassFill").setAttribute("y", 29 - h);
-  $("#glassFill").setAttribute("height", h.toFixed(1));
-  $("#flame").setAttribute("r", (p*4.5).toFixed(1));
-  $("#lampMeter").style.setProperty("--halo", (p*7).toFixed(1) + "px");
-  $("#barStep").textContent = S.path.length
-    ? ("صحنهٔ " + fa(S.path.length) + " از " + fa(TOTAL_STEPS))
-    : "آمادهٔ شروع";
-}
+var SCENES = {
+  gate: function(t, lit){
+    grad([[0, "#06080F"], [.36, "#110E24"], [.62, "#1F1733"], [1, "#2A1D33"]]);
+    stars(t, 110, .5);
+    glow(.19, .12, .14, "rgba(210,220,255,.17)");
+    cx.fillStyle = "#E8E4F6"; cx.beginPath();
+    cx.arc(.19 * W, .12 * H, Math.min(W, H) * .034, 0, 6.284); cx.fill();
+    poly([[0, .62], [.2, .575], [.45, .625], [.7, .565], [1, .61], [1, 1], [0, 1]], "#181234");
+    caravanserai(px, lit);
+    poly([[0, .70], [.28, .662], [.62, .715], [1, .678], [1, 1], [0, 1]], "#060410");
+  },
 
-/* ---------------- نما ---------------- */
-function show(id){
-  var vs = document.querySelectorAll(".view");
-  for(var i=0;i<vs.length;i++) vs[i].classList.remove("on");
-  $(id).classList.add("on");
-  skyOn(id !== "#viewScene");
-  scrollTo({ top:0, behavior:"smooth" });
-}
-
-/* ---------------- ساختِ متنِ صحنه ---------------- */
-function buildText(sc){
-  var gloss = sc.gloss || {};
-  var keys = Object.keys(gloss).sort(function(a,b){ return b.length - a.length; });
-  var box = $("#scText");
-  box.innerHTML = "";
-  var para = document.createElement("p"), si = -1, used = {};
-  for(var t=0; t<sc.text.length; t++){
-    var item = sc.text[t];
-    if(item === "|"){ box.appendChild(para); para = document.createElement("p"); continue; }
-    si++;
-    var html = esc(item), slots = [];
-    for(var k=0;k<keys.length;k++){
-      var key = keys[k];
-      if(used[key]) continue;                 // هر واژه فقط بارِ اول علامت می‌خورد
-      var pos = html.indexOf(key);
-      if(pos !== -1){
-        used[key] = 1;
-        slots.push(key);
-        html = html.slice(0, pos) + "@@" + (slots.length-1) + "##" + html.slice(pos + key.length);
-      }
+  tower: function(t){
+    grad([[0, "#0E0A18"], [.6, "#191223"], [1, "#100C1A"]]);
+    cx.strokeStyle = "rgba(255,255,255,.028)"; cx.lineWidth = 1;
+    for(var y = .12; y < .8; y += .052){
+      cx.beginPath(); cx.moveTo(0, y * H); cx.lineTo(W, y * H); cx.stroke();
     }
-    html = html.replace(/@@(\d+)##/g, function(_, i){
-      var w = slots[+i];
-      return '<span class="gl" data-w="' + esc(w) + '">' + esc(w) + '</span>';
+    box(.09 + px * .004, .10, .19, .27, "#070917");                  // پنجره
+    cx.save(); cx.beginPath();
+    cx.rect((.09 + px * .004) * W, .10 * H, .19 * W, .27 * H); cx.clip();
+    stars(t, 26, .38); cx.restore();
+    cx.strokeStyle = "rgba(245,177,74,.20)"; cx.lineWidth = 2;
+    cx.strokeRect((.09 + px * .004) * W, .10 * H, .19 * W, .27 * H);
+    glow(.5, .72, .48, "rgba(245,177,74,.24)");                       // نورِ فانوسِ دست
+    var o = px * .008;
+    box(.43 + o, .50, .14, .07, "#08050F");                           // پایهٔ چراغِ مسی
+    poly([[.447 + o, .50], [.465 + o, .19], [.535 + o, .19], [.553 + o, .50]], "#0A0714");
+    cx.strokeStyle = "rgba(245,177,74,.34)"; cx.lineWidth = 2.5;
+    cx.beginPath();
+    cx.moveTo((.447 + o) * W, .50 * H); cx.lineTo((.465 + o) * W, .19 * H);
+    cx.moveTo((.553 + o) * W, .50 * H); cx.lineTo((.535 + o) * W, .19 * H);
+    cx.stroke();
+    box(0, .57, 1, .43, "#08050F");                                   // کف
+    motes(t, 40, "#F5D9A8");
+  },
+
+  yard: function(t){
+    grad([[0, "#070B1C"], [.44, "#121A34"], [1, "#1A1E38"]]);
+    stars(t, 90, .42);
+    glow(.80, .09, .19, "rgba(190,210,255,.20)");
+    cx.fillStyle = "#E4EAFB"; cx.beginPath();
+    cx.arc(.80 * W, .09 * H, Math.min(W, H) * .028, 0, 6.284); cx.fill();
+    box(0, .17 + px * .004, .31, .50, "#080B18");                     // دیوارِ راست
+    battlements(0, .31, .17, .044, .026, "#080B18");
+    box(.65, .21 - px * .004, .35, .46, "#070A15");                   // دیوارِ چپ
+    battlements(.65, 1, .21, .044, .026, "#070A15");
+    cx.fillStyle = "rgba(245,177,74,.68)"; cx.fillRect(.755 * W, .32 * H, .05 * W, .07 * H);
+    glow(.78, .355, .12, "rgba(245,177,74,.22)");                     // پنجرهٔ روشن
+    box(0, .655, 1, .345, "#0A0816");
+    cx.strokeStyle = "rgba(200,215,255,.15)"; cx.lineWidth = 2;       // ردِ چرخِ گاری
+    [.72, .77].forEach(function(y){
+      cx.beginPath(); cx.moveTo(W, y * H);
+      cx.bezierCurveTo(.6 * W, (y - .02) * H, .35 * W, (y + .02) * H, 0, (y - .01) * H);
+      cx.stroke();
     });
-    var sp = document.createElement("span");
-    sp.className = "s";
-    sp.dataset.si = si;
-    sp.innerHTML = html;
-    if(S.marks[S.scene + ":" + si]) sp.classList.add("marked");
-    para.appendChild(sp);
-    para.appendChild(document.createTextNode(" "));
-  }
-  box.appendChild(para);
+  },
 
-  var gl = $("#scGloss"), entries = Object.keys(gloss);
-  if(S.grade === 4 && entries.length){
-    gl.hidden = false;
-    gl.innerHTML = entries.map(function(w){
-      return "<div><b>" + esc(w) + "</b>: " + esc(gloss[w]) + "</div>";
-    }).join("");
-  } else {
-    gl.hidden = true;
+  store: function(t){
+    grad([[0, "#08060E"], [.6, "#100B14"], [1, "#0A0710"]]);
+    box(.87 + px * .004, 0, .05, 1, "#2A1B14");                       // لایِ در
+    glow(.895, .38, .24, "rgba(150,120,90,.18)");
+    glow(.31, .42, .34, "rgba(245,177,74,.26)");                      // چراغِ کوچک
+    cx.fillStyle = "#FFD98A";
+    cx.beginPath(); cx.arc(.31 * W, .42 * H, Math.min(W, H) * .013, 0, 6.284); cx.fill();
+    var o = px * .008;
+    [[.17, .60, .15], [.31, .635, .115], [.44, .615, .13]].forEach(function(s){  // گونی‌ها
+      cx.fillStyle = "#0B0810";
+      cx.beginPath();
+      cx.ellipse((s[0] + o) * W, s[1] * H, s[2] * W * .5, .135 * H, 0, 0, 6.284);
+      cx.fill();
+    });
+    box(0, .74, 1, .26, "#060409");
+    motes(t, 45, "#F5C98A");
+  },
+
+  dawn: function(t, lit){
+    grad([[0, "#2A2150"], [.26, "#6E4468"], [.5, "#C4685C"], [.7, "#EDA35C"], [1, "#F6C77A"]]);
+    glow(.5, .60, .30, "rgba(255,210,140,.44)");
+    cx.fillStyle = "#FFE7B0";
+    cx.beginPath(); cx.arc(.5 * W, .60 * H, Math.min(W, H) * .048, 0, 6.284); cx.fill();
+    poly([[0, .625], [.24, .585], [.52, .63], [.78, .575], [1, .615], [1, 1], [0, 1]], "#5A3352");
+    caravanserai(px * .5, lit);
+    poly([[0, .715], [.3, .682], [.66, .73], [1, .695], [1, 1], [0, 1]], "#2A1730");
   }
+};
+
+function frame(t){
+  cx.clearRect(0, 0, W, H);
+  (SCENES[curArt] || SCENES.gate)(t, S.lampLit);
+  requestAnimationFrame(frame);
+}
+function setArt(name){
+  if(!name || name === curArt) return;
+  curArt = name;
+  cv.animate([{opacity:.15},{opacity:1}], {duration: reduced ? 1 : 620, easing:"ease-out"});
+}
+addEventListener("pointermove", function(e){
+  px = (e.clientX / innerWidth - .5) * 2;
+  py = (e.clientY / innerHeight - .5) * 2;
+});
+
+/* ══════════════ صدا ══════════════ */
+var A = { c:null, out:null, amb:null, on:true };
+function noiseBuf(){
+  var n = A.c.sampleRate * 2, b = A.c.createBuffer(1, n, A.c.sampleRate), d = b.getChannelData(0);
+  for(var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  return b;
+}
+A.init = function(){
+  if(A.c) return;
+  var C = window.AudioContext || window.webkitAudioContext;
+  if(!C) { A.on = false; return; }
+  A.c = new C();
+  A.out = A.c.createGain(); A.out.gain.value = A.on ? .9 : 0; A.out.connect(A.c.destination);
+  A.nb = noiseBuf();
+};
+A.env = function(node, peak, dur, delay){
+  var g = A.c.createGain(), t0 = A.c.currentTime + (delay || 0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  node.connect(g); g.connect(A.out);
+  return t0;
+};
+A.tone = function(type, f0, f1, peak, dur, delay){
+  if(!A.c) return;
+  var o = A.c.createOscillator(); o.type = type;
+  var t0 = A.env(o, peak, dur, delay);
+  o.frequency.setValueAtTime(f0, t0);
+  if(f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+  o.start(t0); o.stop(t0 + dur + .05);
+};
+A.noise = function(freq, q, peak, dur, delay){
+  if(!A.c) return;
+  var s = A.c.createBufferSource(); s.buffer = A.nb;
+  var f = A.c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq; f.Q.value = q || 1;
+  s.connect(f);
+  var t0 = A.env(f, peak, dur, delay);
+  s.start(t0); s.stop(t0 + dur + .05);
+};
+A.sfx = function(n){
+  if(!A.c || !A.on) return;
+  if(n === "chime"){ A.tone("sine", 880, 880, .10, .7); A.tone("sine", 1320, 1320, .05, .5, .05); }
+  else if(n === "sting"){ A.tone("sine", 190, 62, .16, .9); A.noise(300, .8, .05, .5); }
+  else if(n === "wind"){ A.noise(500, .5, .10, 1.4); }
+  else if(n === "step"){ A.noise(320, 1.5, .07, .13); A.noise(300, 1.5, .06, .13, .19); }
+  else if(n === "door"){ A.tone("sawtooth", 105, 68, .05, .55); A.noise(700, 3, .04, .5); }
+  else if(n === "heart"){ A.tone("sine", 58, 44, .20, .28); A.tone("sine", 55, 40, .14, .26, .34); }
+  else if(n === "pip"){ A.tone("triangle", 620, 480, .06, .16); }
+  else if(n === "gain"){ A.tone("sine", 660, 990, .09, .35); }
+  else if(n === "dawn"){ A.tone("sine", 330, 495, .09, 1.8); A.tone("sine", 247, 330, .06, 1.8, .1); }
+};
+A.setAmb = function(kind){
+  if(!A.c) return;
+  if(A.amb){ try{ A.amb.stop(); }catch(e){} A.amb = null; }
+  A.ambKind = kind;
+  if(!kind) return;
+  var s = A.c.createBufferSource(); s.buffer = A.nb; s.loop = true;
+  var f = A.c.createBiquadFilter(); f.type = "bandpass";
+  f.frequency.value = kind === "wind" ? 420 : 180; f.Q.value = kind === "wind" ? .7 : 1.6;
+  var g = A.c.createGain(); g.gain.value = kind === "wind" ? .045 : .022;
+  var lfo = A.c.createOscillator(); lfo.frequency.value = .07;
+  var lg = A.c.createGain(); lg.gain.value = kind === "wind" ? 230 : 60;
+  lfo.connect(lg); lg.connect(f.frequency); lfo.start();
+  s.connect(f); f.connect(g); g.connect(A.out); s.start();
+  A.amb = s; A.ambKind = kind;
+};
+
+/* ══════════════ وضعیت ══════════════ */
+var S, Q = [], qi = 0, onDone = null, waiting = false;
+function fresh(){
+  return { time: STORY.time, negar:false, moral:null, timeout:false,
+           lampLit:false, node:null, recap:[] };
 }
 
-/* ---------------- پرسش ---------------- */
-function buildAsk(sc){
-  var ask = $("#scAsk");
-  ask.innerHTML = "";
-  S.attempts = 0; S.answered = false;
-
-  var head = document.createElement("div");
-  head.className = "ask-head";
-  head.innerHTML = '<div class="q">' + esc(sc.question) + '</div>' +
-    '<span class="level">' + esc(LEVELS[sc.level].name) + " · " + esc(LEVELS[sc.level].hint) + '</span>';
-  ask.appendChild(head);
-
-  if(sc.note){
-    var n = document.createElement("div");
-    n.className = "verdict";
-    n.textContent = sc.note;
-    ask.appendChild(n);
+/* ══════════════ نوار وضعیت ══════════════ */
+function drawPips(){
+  var box2 = $("#pips"), html = "";
+  for(var i = 0; i < STORY.time; i++) html += '<span class="pip' + (i < S.time ? "" : " out") + '"></span>';
+  box2.innerHTML = html;
+  $("#pipsBox").classList.toggle("low", S.time <= 2 && S.time > 0);
+}
+function drawChips(){
+  $("#chNegar").className = "chip " + (S.negar ? "hot" : "off");
+  $("#chNegar").lastChild.textContent = S.negar ? "نگار همراهت است" : "نگار";
+  $("#chLamp").className = "chip " + (S.lampLit ? "hot" : "off");
+  $("#chLamp").lastChild.textContent = S.lampLit ? "چراغِ برج روشن" : "چراغِ برج خاموش";
+}
+function toast(text, kind){
+  var d = document.createElement("div");
+  d.className = "toast " + (kind || "");
+  d.textContent = text;
+  $("#toasts").appendChild(d);
+  setTimeout(function(){ d.remove(); }, 3600);
+}
+function spend(n){
+  for(var i = 0; i < n; i++){
+    if(S.time <= 0) break;
+    S.time--;
+    A.sfx("pip");
   }
-
-  var opts = document.createElement("div");
-  opts.className = "opts";
-  sc.choices.forEach(function(c, i){
-    var b = document.createElement("button");
-    b.className = "opt"; b.type = "button"; b.dataset.i = i;
-    b.innerHTML = '<span class="k">' + fa(i+1) + '</span><span>' + esc(c.t) + '</span>';
-    b.addEventListener("click", function(){ pick(sc, i); });
-    opts.appendChild(b);
-  });
-  ask.appendChild(opts);
-
-  var out = document.createElement("div");
-  out.id = "scOut";
-  out.style.cssText = "display:flex;flex-direction:column;gap:12px";
-  ask.appendChild(out);
+  if(S.time <= 0){ S.time = 0; S.timeout = true; }
+  drawPips();
+}
+function gainTime(n){
+  S.time = Math.min(STORY.time, S.time + n);
+  A.sfx("gain");
+  drawPips();
 }
 
-function highlight(list){
-  var old = document.querySelectorAll(".s.evidence");
-  for(var i=0;i<old.length;i++) old[i].classList.remove("evidence");
-  if(!list || !list.length) return;
-  list.forEach(function(i){
-    var el = document.querySelector('.s[data-si="' + i + '"]');
-    if(el) el.classList.add("evidence");
-  });
-  var first = document.querySelector('.s[data-si="' + list[0] + '"]');
-  if(first) first.scrollIntoView({ block:"center", behavior:"smooth" });
-  setTimeout(function(){
-    var e = document.querySelectorAll(".s.evidence");
-    for(var i=0;i<e.length;i++) e[i].classList.remove("evidence");
-  }, 5000);
+/* ══════════════ پخشِ ضربه‌ها ══════════════ */
+function playBeats(list, done){
+  Q = list || []; qi = 0; onDone = done;
+  step();
+}
+function step(){
+  if(qi >= Q.length){ waiting = false; var d = onDone; onDone = null; if(d) d(); return; }
+  var b = Q[qi];
+  if(b.set) for(var k in b.set) S[k] = b.set[k];
+  if(b.set){ drawChips(); }
+  if(b.art) setArt(b.art);
+  if(b.fx) A.sfx(b.fx);
+  if(b.fx === "sting"){ var f = $("#flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
+
+  var who = $("#who");
+  if(b.who){
+    who.hidden = false; who.textContent = b.who;
+    who.style.setProperty("--who", CAST[b.who] || "var(--lamp2)");
+  } else who.hidden = true;
+
+  var txt = $("#txt");
+  txt.innerHTML = "";
+  var span = document.createElement("div");
+  span.className = "txt";
+  span.innerHTML = b.t;
+  txt.replaceWith(span); span.id = "txt";
+
+  $("#more").hidden = false;
+  waiting = true;
+  qi++;
+}
+function advance(){
+  if(!waiting) return;
+  if(qi < Q.length){ step(); }
+  else { waiting = false; var d = onDone; onDone = null; $("#more").hidden = true; if(d) d(); }
 }
 
-function pick(sc, i){
-  if(S.answered) return;
-  var c = sc.choices[i];
-  var btns = [].slice.call(document.querySelectorAll(".opt"));
-  var out = $("#scOut");
-  var graded = sc.level >= 1 && sc.level <= 3;
-
-  /* پرسش‌های بدونِ درست و غلط: تصمیمِ مسیر و ارزیابیِ اخلاقی */
-  if(!graded){
-    S.answered = true;
-    btns.forEach(function(b){ b.disabled = true; if(+b.dataset.i !== i) b.classList.add("dim"); });
-    btns[i].classList.add("pick-ok");
-    if(c.vars) for(var kk in c.vars) S.vars[kk] = c.vars[kk];
-    if(sc.level === 4) S.results[S.scene] = { level:4, score:"done" };
-    out.innerHTML = '<div class="verdict"><b class="head">انتخابت ثبت شد</b>' + esc(c.why) + '</div>';
-    addNext(out, c.next || sc.next);
-    return;
-  }
-
-  S.attempts++;
-
-  if(c.ok){
-    S.answered = true;
-    btns.forEach(function(b){ b.disabled = true; if(+b.dataset.i !== i) b.classList.add("dim"); });
-    btns[i].classList.add("pick-ok");
-    S.results[S.scene] = { level:sc.level, score: S.attempts === 1 ? "full" : "half" };
-    if(sc.clue) addNote(sc.clue, true);
-    highlight(c.ev);
-    out.innerHTML = '<div class="verdict ok"><b class="head">' +
-      (S.attempts === 1 ? "درست خواندی" : "این بار درست بود") + '</b>' + esc(c.why) + '</div>';
-    addNext(out, sc.next);
-    return;
-  }
-
-  btns[i].classList.add("pick-no");
-  btns[i].disabled = true;
-  var revealNow = (S.grade === 6) ? (S.attempts >= 2) : true;
-  if(revealNow) highlight(c.ev);
-
-  if(S.attempts === 1){
-    out.innerHTML = '<div class="verdict no"><b class="head">هنوز نه — برگرد به متن</b>' +
-      esc(c.why) +
-      (revealNow ? " <b>جملهٔ مربوطه در متن روشن شد.</b>" : " یک بار دیگر متن را بخوان.") +
-      '</div>';
-    return;
-  }
-
-  S.answered = true;
-  var ci = -1;
-  sc.choices.forEach(function(x, j){ if(x.ok) ci = j; });
-  btns.forEach(function(b){ b.disabled = true; if(+b.dataset.i !== ci) b.classList.add("dim"); });
-  btns[ci].classList.add("pick-ok");
-  S.results[S.scene] = { level:sc.level, score:"miss" };
-  if(sc.clue) addNote(sc.clue, true);
-  highlight(sc.choices[ci].ev);
-  out.innerHTML = '<div class="verdict no"><b class="head">جوابِ درست این بود</b>' +
-    esc(sc.choices[ci].why) + '</div>';
-  addNext(out, sc.next);
-}
-
-function addNext(out, next){
-  var row = document.createElement("div");
-  row.className = "rowend";
-  var b = document.createElement("button");
-  b.className = "next"; b.id = "btnNext"; b.type = "button";
-  b.textContent = next === "END" ? "پایانِ داستان را ببین" : "ادامهٔ داستان";
-  b.addEventListener("click", function(){ go(next); });
-  row.appendChild(b);
-  if(S.notes.length){
-    var g = document.createElement("span");
-    g.className = "gain";
-    g.textContent = fa(S.notes.length) + " سرنخ در دفترچه";
-    row.appendChild(g);
-  }
-  out.appendChild(row);
-  b.focus({ preventScroll:true });
-}
-
-/* ---------------- دفترچهٔ سرنخ ---------------- */
-function addNote(text, key){
-  for(var i=0;i<S.notes.length;i++) if(S.notes[i].text === text) return;
-  S.notes.push({ text:text, key:!!key, at:S.scene });
-  $("#noteCount").textContent = fa(S.notes.length);
-}
-function renderNotes(){
-  var box = $("#notesBox");
-  if(!S.notes.length){
-    box.innerHTML = '<p class="empty">هنوز چیزی اینجا نیست.<br>موقعِ خواندن، روی هر جمله‌ای که به‌نظرت مهم است ضربه بزن تا همین‌جا ذخیره شود. سرِ تصمیم‌های سخت، همین‌ها به کارت می‌آیند.</p>';
-    return;
-  }
-  box.innerHTML = S.notes.map(function(n){
-    var place = STORY.scenes[n.at] ? STORY.scenes[n.at].place : "";
-    return '<div class="note' + (n.key ? " key" : "") + '"><span class="tag">' +
-      (n.key ? "سرنخِ کلیدی" : "خودت علامت زدی") + " · " + esc(place) + '</span>' +
-      esc(n.text) + '</div>';
-  }).join("");
-}
-function sheet(on){
-  $("#sheet").classList.toggle("on", on);
-  $("#btnNotes").setAttribute("aria-pressed", on ? "true" : "false");
-  if(on) renderNotes();
-}
-
-/* ---------------- رفتن به صحنه ---------------- */
-function go(id){
+/* ══════════════ گره‌ها ══════════════ */
+function enter(id){
   if(id === "END"){ finish(); return; }
-  S.scene = id;
-  S.path.push(id);
-  var sc = STORY.scenes[id];
-  $("#scPlace").textContent = sc.place;
-  buildText(sc);
-  buildAsk(sc);
-  lamp();
-  show("#viewScene");
+  var n = STORY.nodes[id];
+  S.node = id;
+  setArt(n.art);
+  if(A.ambKind !== n.amb) A.setAmb(n.amb);
+  if(n.cost) spend(n.cost);
+  if(n.recap) S.recap.push(n.recap);
+  playBeats(n.beats, function(){
+    if(S.timeout) return toDawn();
+    if(n.ask) showChoices(n);
+    else enter(n.goto);
+  });
 }
 
-/* ---------------- پایان ---------------- */
-function countFull(){
-  var n = 0;
-  for(var k in S.results) if(S.results[k].score === "full") n++;
-  return n;
+function showChoices(n){
+  var box2 = $("#choices");
+  box2.innerHTML = '<p class="ask">' + n.ask + "</p>";
+  n.opts.forEach(function(o, i){
+    var b = document.createElement("button");
+    b.className = "ch"; b.type = "button"; b.style.setProperty("--d", (i * .07 + .05) + "s");
+    b.innerHTML = '<span class="k">' + fa(i + 1) + "</span><span>" + o.t + "</span>";
+    b.addEventListener("click", function(e){ e.stopPropagation(); choose(n, i); });
+    box2.appendChild(b);
+  });
+  box2.hidden = false;
+  $("#more").hidden = true;
+  $("#tapHint").textContent = "یکی را انتخاب کن";
 }
-function endingKey(){
-  for(var i=0;i<STORY.endingRules.length;i++){
+
+function choose(n, i){
+  var o = n.opts[i];
+  $("#choices").hidden = true;
+  $("#tapHint").textContent = "برای ادامه، هرجای صفحه را بزن";
+  if(o.cost) spend(o.cost);
+  if(o.time) gainTime(o.time);
+  if(o.set) for(var k in o.set) S[k] = o.set[k];
+  drawChips();
+  if(o.recap) S.recap.push(o.recap);
+  if(o.toast) toast(o.toast.t, o.toast.k);
+  playBeats(o.beats || [], function(){
+    if(S.timeout) return toDawn();
+    enter(o.goto);
+  });
+}
+
+function toDawn(){
+  setArt("dawn"); A.setAmb("wind");
+  playBeats([
+    {t:"آسمان پشتِ کوه کم‌کم روشن شد."},
+    {t:"سحر شد و تو هنوز وسطِ راه بودی.", fx:"dawn"}
+  ], function(){ finish(); });
+}
+
+/* ══════════════ پایان ══════════════ */
+function pickEnding(){
+  for(var i = 0; i < STORY.endingRules.length; i++){
     var w = STORY.endingRules[i].when;
-    if(w.moral && S.vars.moral !== w.moral) continue;
-    if(w.minCorrect != null && countFull() < w.minCorrect) continue;
-    if(w.minTrust != null && S.vars.trust < w.minTrust) continue;
-    return STORY.endingRules[i].id;
+    if(w.timeout && !S.timeout) continue;
+    if(w.moral && S.moral !== w.moral) continue;
+    if(w.negar != null && S.negar !== w.negar) continue;
+    if(w.minTime != null && S.time < w.minTime) continue;
+    return STORY.endings[STORY.endingRules[i].id];
   }
-  return STORY.endingRules[STORY.endingRules.length - 1].id;
+  return STORY.endings.dawn;
 }
-
+function lampSvg(){
+  return '<svg viewBox="0 0 30 42" aria-hidden="true">' +
+    '<path d="M12 3h6M15 3v4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".5"/>' +
+    '<path d="M6.5 8h17l-1.5 4h-14z" fill="#F5B14A"/>' +
+    '<path d="M7 12h16v17a8 8 0 0 1-16 0z" fill="#FFD98A" opacity=".92"/>' +
+    '<path d="M6 33h18l-2 5h-14z" fill="#F5B14A"/></svg>';
+}
 function finish(){
-  var key = endingKey(), e = STORY.endings[key];
-  $("#fnBadge").textContent = e.badge;
-  $("#fnTitle").textContent = e.title;
-  $("#fnBody").innerHTML = e.text.map(function(p){ return "<p>" + esc(p) + "</p>"; }).join("");
+  var e = pickEnding();
+  S.lampLit = !!e.lamp; drawChips();
+  setArt(e.art); A.setAmb(e.rank >= 4 ? null : "wind");
+  A.sfx(e.rank >= 4 ? "chime" : "sting");
 
-  var ICON = { full:["y","✓"], half:["y","✓"], miss:["n","✕"], done:["o","•"] };
-  var NOTE = { full:"در اولین تلاش", half:"در تلاشِ دوم", miss:"جوابِ درست نشانت داده شد", done:"بدونِ درست و غلط" };
-  var rows = S.path.filter(function(id){ return S.results[id]; }).map(function(id){
-    var r = S.results[id], ic = ICON[r.score];
-    return '<div class="rrow"><span class="dot ' + ic[0] + '">' + ic[1] + '</span>' +
-      '<span class="lab">' + esc(LEVELS[r.level].name) + '<small>' + esc(LEVELS[r.level].hint) + '</small></span>' +
-      '<span class="sc">' + esc(NOTE[r.score]) + '</span></div>';
-  }).join("");
+  var r = $("#rank"); r.innerHTML = "";
+  for(var i = 0; i < 5; i++){
+    var d = document.createElement("div");
+    d.innerHTML = lampSvg();
+    var svg = d.firstChild;
+    if(i < e.rank){ svg.classList.add("lit"); svg.style.setProperty("--d", (i * .16 + .2) + "s"); }
+    r.appendChild(svg);
+  }
+  $("#endNo").textContent = "پایانِ " + fa(e.rank) + " از ۵";
+  $("#endTitle").textContent = e.title;
+  $("#endBody").innerHTML = e.text.map(function(p){ return "<p style='margin:0'>" + p + "</p>"; }).join("");
 
-  $("#fnReport").innerHTML = "<h3>کارنامهٔ خواندنِ تو</h3>" + rows +
-    '<div class="rrow"><span class="dot o">' + fa(S.notes.length) + '</span>' +
-    '<span class="lab">سرنخ در دفترچه<small>جمله‌هایی که موقعِ خواندن مهم تشخیص دادی</small></span>' +
-    '<span class="sc">در ' + fa(S.path.length) + ' صحنه</span></div>';
+  $("#recap").innerHTML = "<h3>چه چیزی مسیرت را ساخت</h3>" + S.recap.map(function(r2){
+    return '<div class="rw"><span class="c ' + r2.k + '">' + r2.c + "</span>" +
+      "<span>" + r2.label + "<small>" + r2.note + "</small></span></div>";
+  }).join("") +
+  '<div class="rw"><span class="c ' + (S.time > 0 ? "g" : "b") + '">' +
+    (S.time > 0 ? fa(S.time) + " نوبت" : "تمام") + "</span>" +
+    "<span>وقتی که برایت ماند<small>" +
+    (S.time > 0 ? "هرچه بیشتر بماند، پایانِ بهتری در انتظارت است." : "وقت تمام شد و داستان همان‌جا ایستاد.") +
+    "</small></span></div>";
 
-  drawMap(key);
-  show("#viewFinish");
+  $("#over").classList.add("on");
+  $("#game").classList.add("sheeted");
 }
 
-/* ---------------- نقشهٔ مسیر ---------------- */
-function drawMap(endKey){
-  var edges = [];
-  Object.keys(STORY.scenes).forEach(function(id){
-    var sc = STORY.scenes[id], outs = {};
-    sc.choices.forEach(function(c){ if(c.next) outs[c.next] = 1; });
-    if(sc.next) outs[sc.next] = 1;
-    Object.keys(outs).forEach(function(n){ if(n !== "END") edges.push([id, n]); });
-  });
-  var endIds = [];
-  STORY.endingRules.forEach(function(r){ if(endIds.indexOf(r.id) < 0) endIds.push(r.id); });
-  endIds.forEach(function(k){ edges.push(["s6", "e_" + k]); });
-
-  var nodes = {};
-  function add(id){ if(!nodes[id]) nodes[id] = { id:id, depth:0 }; return nodes[id]; }
-  edges.forEach(function(e){ add(e[0]); add(e[1]); });
-  for(var pass=0; pass<12; pass++){
-    edges.forEach(function(e){
-      nodes[e[1]].depth = Math.max(nodes[e[1]].depth, nodes[e[0]].depth + 1);
-    });
-  }
-
-  var cols = {}, maxD = 0;
-  Object.keys(nodes).forEach(function(id){
-    var n = nodes[id];
-    (cols[n.depth] = cols[n.depth] || []).push(n);
-    if(n.depth > maxD) maxD = n.depth;
-  });
-  var maxRows = 1;
-  Object.keys(cols).forEach(function(d){ if(cols[d].length > maxRows) maxRows = cols[d].length; });
-
-  /* از بالا به پایین جریان دارد تا در ستونِ باریکِ متن جا شود؛
-     صحنه‌های هم‌ردیف، از راست به چپ کنارِ هم می‌نشینند. */
-  var colW = 116, rowH = 66, padX = 58, padY = 26;
-  var W = padX*2 + (maxRows-1)*colW;
-  var H = padY*2 + maxD*rowH + 22;
-
-  Object.keys(cols).forEach(function(d){
-    var list = cols[d];
-    list.sort(function(a,b){ return a.id < b.id ? -1 : 1; });
-    list.forEach(function(n, i){
-      n.x = W/2 + ((list.length-1)*colW)/2 - i*colW;
-      n.y = padY + n.depth*rowH;
-    });
-  });
-
-  var lit = {};
-  S.path.forEach(function(id){ lit[id] = 1; });
-  lit["e_" + endKey] = 1;
-  function litEdge(a, b){
-    if(!lit[a] || !lit[b]) return false;
-    if(a === "s6" && b.indexOf("e_") === 0) return true;
-    return S.path.indexOf(b) === S.path.indexOf(a) + 1;
-  }
-  function label(id){
-    return id.indexOf("e_") === 0 ? STORY.endings[id.slice(2)].title : (MAP_LABEL[id] || id);
-  }
-
-  var svg = "";
-  edges.forEach(function(e){
-    var A = nodes[e[0]], B = nodes[e[1]], on = litEdge(e[0], e[1]), my = (A.y + B.y)/2;
-    svg += '<path d="M' + A.x + ' ' + A.y + ' C ' + A.x + ' ' + my + ', ' + B.x + ' ' + my +
-      ', ' + B.x + ' ' + B.y + '" fill="none" stroke="' + (on ? "var(--lamp)" : "var(--panel-edge)") +
-      '" stroke-width="' + (on ? 2.4 : 1.4) + '" ' + (on ? "" : 'stroke-dasharray="3 5" ') + '/>';
-  });
-  Object.keys(nodes).forEach(function(id){
-    var n = nodes[id], on = !!lit[id], isEnd = id.indexOf("e_") === 0;
-    if(on) svg += '<circle cx="' + n.x + '" cy="' + n.y + '" r="13" fill="var(--lamp)" opacity=".16"/>';
-    svg += '<circle cx="' + n.x + '" cy="' + n.y + '" r="' + (on ? (isEnd ? 8 : 6.5) : 4.5) +
-      '" fill="' + (on ? "var(--lamp)" : "var(--panel-edge)") + '"/>';
-    svg += '<text x="' + n.x + '" y="' + (n.y + 22) + '" text-anchor="middle" font-size="11" ' +
-      'font-family="Vazirmatn,Tahoma,sans-serif" fill="' + (on ? "var(--ink)" : "var(--muted)") + '">' +
-      esc(label(id)) + '</text>';
-  });
-
-  var el = $("#fnMap");
-  el.setAttribute("viewBox", "0 0 " + W + " " + H);
-  el.removeAttribute("width");
-  el.removeAttribute("height");
-  el.style.width = "100%";
-  el.style.maxWidth = W + "px";
-  el.style.height = "auto";
-  el.style.display = "block";
-  el.style.margin = "0 auto";
-  el.innerHTML = svg;
-}
-
-/* ---------------- تعامل‌ها ---------------- */
-var pop = $("#pop"), popTimer = 0;
-function popup(el){
-  var sc = STORY.scenes[S.scene];
-  var w = el.dataset.w, d = sc.gloss ? sc.gloss[w] : null;
-  if(!d) return;
-  pop.innerHTML = "<b>" + esc(w) + "</b> — " + esc(d);
-  pop.classList.add("on");
-  var r = el.getBoundingClientRect();
-  pop.style.top = Math.min(innerHeight - 96, r.bottom + 9) + "px";
-  pop.style.left = Math.max(10, Math.min(innerWidth - pop.offsetWidth - 10, r.left - 20)) + "px";
-  clearTimeout(popTimer);
-  popTimer = setTimeout(function(){ pop.classList.remove("on"); }, 4200);
-}
-
-$("#scText").addEventListener("click", function(e){
-  var g = e.target.closest(".gl");
-  if(g){ popup(g); return; }
-  var s = e.target.closest(".s");
-  if(!s) return;
-  var key = S.scene + ":" + s.dataset.si;
-  var txt = s.textContent.trim();
-  if(S.marks[key]){
-    delete S.marks[key];
-    s.classList.remove("marked");
-    S.notes = S.notes.filter(function(n){ return n.text !== txt; });
-  } else {
-    S.marks[key] = true;
-    s.classList.add("marked");
-    addNote(txt, false);
-  }
-  $("#noteCount").textContent = fa(S.notes.length);
-});
-$("#scText").addEventListener("mouseover", function(e){
-  var g = e.target.closest(".gl");
-  if(g) popup(g);
-});
-
-$("#segGrade").addEventListener("click", function(e){
-  var b = e.target.closest("button");
-  if(!b) return;
-  S.grade = +b.dataset.g;
-  [].slice.call(e.currentTarget.children).forEach(function(x){
-    x.setAttribute("aria-pressed", x === b ? "true" : "false");
-  });
-  app.dataset.support = S.grade;
-});
-function setClass(on){
-  app.classList.toggle("class-mode", on);
-  $("#btnClass").setAttribute("aria-pressed", on ? "true" : "false");
-  S.mode = on ? "class" : "solo";
-  [].slice.call($("#segMode").children).forEach(function(x){
-    x.setAttribute("aria-pressed", x.dataset.m === S.mode ? "true" : "false");
-  });
-}
-$("#segMode").addEventListener("click", function(e){
-  var b = e.target.closest("button");
-  if(b) setClass(b.dataset.m === "class");
-});
-$("#btnClass").addEventListener("click", function(){
-  setClass(!app.classList.contains("class-mode"));
-});
-$("#btnNotes").addEventListener("click", function(){
-  sheet(!$("#sheet").classList.contains("on"));
-});
-$("#sheet").addEventListener("click", function(e){
-  if(e.target.hasAttribute("data-close")) sheet(false);
-});
-
+/* ══════════════ ورودی‌ها ══════════════ */
+$("#stage").addEventListener("click", function(){ if($("#choices").hidden) advance(); });
 addEventListener("keydown", function(e){
-  if(e.key === "Escape" && $("#sheet").classList.contains("on")){ sheet(false); return; }
-  if(!$("#viewScene").classList.contains("on")) return;
-  var fai = "۱۲۳".indexOf(e.key);
-  var idx = fai >= 0 ? fai : (/^[1-3]$/.test(e.key) ? (+e.key - 1) : -1);
-  if(idx >= 0){
-    var b = document.querySelectorAll(".opt")[idx];
-    if(b && !b.disabled) b.click();
-    return;
-  }
-  if(e.key === "Enter" || e.key === " "){
-    var n = $("#btnNext");
-    if(n){ e.preventDefault(); n.click(); }
+  if(!$("#cover").classList.contains("on") && !$("#over").classList.contains("on")){
+    var box2 = $("#choices");
+    if(!box2.hidden){
+      var fi = "۱۲۳".indexOf(e.key);
+      var idx = fi >= 0 ? fi : (/^[1-3]$/.test(e.key) ? +e.key - 1 : -1);
+      var bs = box2.querySelectorAll(".ch");
+      if(idx >= 0 && bs[idx]){ e.preventDefault(); bs[idx].click(); }
+      return;
+    }
+    if(e.key === " " || e.key === "Enter"){ e.preventDefault(); advance(); }
   }
 });
+$("#btnSound").addEventListener("click", function(){
+  A.on = !A.on;
+  if(A.out) A.out.gain.value = A.on ? .9 : 0;
+  $("#wave1").style.display = $("#wave2").style.display = A.on ? "" : "none";
+  $("#mute").style.display = A.on ? "none" : "";
+});
 
-/* ---------------- شروع و شروعِ دوباره ---------------- */
-function restart(keepSetup){
-  var g = S.grade, m = S.mode;
+function begin(){
+  A.init();
+  if(A.c && A.c.state === "suspended") A.c.resume();
   S = fresh();
-  if(keepSetup){ S.grade = g; S.mode = m; }
-  $("#noteCount").textContent = "۰";
-  lamp();
+  drawPips(); drawChips();
+  $("#cover").classList.remove("on");
+  $("#over").classList.remove("on");
+  $("#game").classList.remove("sheeted");
+  $("#tapHint").textContent = "برای ادامه، هرجای صفحه را بزن";
+  enter(STORY.start);
 }
-$("#btnStart").addEventListener("click", function(){
-  var fl = $("#coverFlame");
-  if(fl.animate) fl.animate([{opacity:0},{opacity:.9},{opacity:.5},{opacity:1}], { duration:600, fill:"forwards" });
-  setTimeout(function(){ restart(true); go(STORY.start); }, reduced ? 0 : 520);
-});
-$("#btnRestart").addEventListener("click", function(){
-  restart(true);
-  show("#viewCover");
-});
-$("#btnBranch").addEventListener("click", function(){
-  var cut = S.path.indexOf("s3");
-  if(cut < 0){ restart(true); show("#viewCover"); return; }
-  var keep = S.path.slice(0, cut);
-  var results = {};
-  keep.forEach(function(id){ if(S.results[id]) results[id] = S.results[id]; });
-  S.path = keep;
-  S.results = results;
-  S.vars = { trust:0, moral:null };
-  S.notes = S.notes.filter(function(n){ return keep.indexOf(n.at) >= 0; });
-  $("#noteCount").textContent = fa(S.notes.length);
-  go("s3");
-});
+$("#btnGo").addEventListener("click", begin);
+$("#btnAgain").addEventListener("click", begin);
 
-lamp();
-skyOn(true);
+/* ══════════════ راه‌اندازی ══════════════ */
+S = fresh();
+resize();
+drawPips();
+drawChips();
+requestAnimationFrame(frame);
 })();
 </script>
 </body>
