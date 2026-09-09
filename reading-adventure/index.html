@@ -76,6 +76,62 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .icobtn:hover{border-color:var(--edge2)}
 .game.sheeted .hud{opacity:0;pointer-events:none;transition:opacity .3s}
 
+/* ---------------- دفترچهٔ «چه گفتند؟» ---------------- */
+.bookbtn{display:inline-flex;align-items:center;gap:8px;background:var(--glass);
+  border:1.5px solid var(--edge2);border-radius:999px;padding:7px 16px;font-size:.85rem;
+  font-weight:500;color:var(--lamp2);backdrop-filter:blur(10px);
+  transition:border-color .2s,background .2s,transform .16s}
+.bookbtn:hover{background:rgba(245,177,74,.14);transform:translateY(-1px)}
+.bookbtn .n{background:var(--lamp);color:#160F06;border-radius:999px;min-width:19px;height:19px;
+  display:grid;place-items:center;font-size:.7rem;font-weight:700;font-variant-numeric:tabular-nums}
+.book{position:absolute;inset:0;z-index:11;display:none;
+  background:linear-gradient(180deg,#0A0813,#08070F 55%,#0B0814)}
+.game.reading .hud{opacity:0;pointer-events:none;transition:opacity .25s}
+.book.on{display:flex;flex-direction:column;animation:bin .3s both}
+.book header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  padding:calc(18px + env(safe-area-inset-top)) 20px 14px;border-bottom:1px solid var(--edge);
+  max-width:64ch;margin:0 auto;width:100%}
+.book header h2{font-size:1.6rem;color:var(--lamp2)}
+.book header p{margin:0;font-size:.82rem;color:var(--dim);flex:1;min-width:16ch;line-height:1.7}
+.book .close{border:1px solid var(--edge);border-radius:999px;padding:7px 18px;font-size:.85rem}
+.book .close:hover{border-color:var(--edge2)}
+.book .scroll{flex:1;overflow:auto;padding:6px 20px calc(30px + env(safe-area-inset-bottom));
+  max-width:64ch;margin:0 auto;width:100%}
+.bkch{font-family:Lalezar,Vazirmatn,sans-serif;font-size:.95rem;color:var(--dim);
+  margin:20px 0 10px;display:flex;align-items:center;gap:10px}
+.bkch::after{content:"";flex:1;height:1px;background:var(--edge)}
+.bkline{display:grid;grid-template-columns:auto 1fr;gap:11px;align-items:start;
+  padding:9px 0;line-height:1.95;font-size:1.02rem}
+.bkline .w{font-family:Lalezar,Vazirmatn,sans-serif;font-size:.9rem;white-space:nowrap;
+  color:var(--who,var(--lamp2));padding-top:3px}
+.bkline.nar{grid-template-columns:1fr;color:var(--dim);font-size:.96rem;
+  border-inline-start:2px solid var(--edge);padding-inline-start:12px;margin-inline-start:2px}
+.book .empty{color:var(--dim);line-height:2;padding:26px 0;text-align:center}
+
+/* ---------------- کارتِ فصل ---------------- */
+.chcard{position:absolute;inset:0;z-index:8;display:none;place-items:center;pointer-events:none;
+  background:radial-gradient(ellipse 70% 50% at 50% 50%,rgba(8,7,15,.86),rgba(8,7,15,.55))}
+.chcard.on{display:grid;animation:chin 2.1s ease both}
+@keyframes chin{0%{opacity:0}14%,74%{opacity:1}100%{opacity:0}}
+.chcard .no{font-size:.86rem;color:var(--lamp);letter-spacing:0;margin-bottom:6px;text-align:center}
+.chcard .nm{font-family:Lalezar,Vazirmatn,sans-serif;font-size:clamp(2.4rem,9vw,3.6rem);
+  color:var(--text);text-shadow:0 4px 34px #000;text-align:center}
+.chcard .rule{width:120px;height:1.5px;background:var(--lamp);margin:16px auto 0;opacity:.7}
+
+/* ---------------- آموزشِ اولِ کار ---------------- */
+.tut{position:absolute;inset:0;z-index:12;display:none;place-items:center;padding:20px;
+  background:rgba(8,7,15,.90)}
+.tut.on{display:grid;animation:bin .35s both}
+.tut .card2{max-width:36ch;background:var(--glass);border:1.5px solid var(--edge2);
+  border-radius:var(--r);padding:26px 26px 22px;backdrop-filter:blur(14px);text-align:center;
+  box-shadow:0 24px 60px -24px #000}
+.tut h3{font-size:1.7rem;color:var(--lamp2);margin-bottom:12px}
+.tut ul{list-style:none;margin:0 0 20px;padding:0;text-align:start;
+  display:flex;flex-direction:column;gap:11px}
+.tut li{display:flex;gap:11px;line-height:1.85;font-size:.97rem}
+.tut li b{color:var(--lamp2);font-weight:600}
+.tut .ic2{flex:none}
+
 /* ---------------- توستِ تغییرِ وضعیت ---------------- */
 .toasts{position:absolute;top:64px;inset-inline:0;z-index:7;display:flex;flex-direction:column;
   align-items:center;gap:8px;pointer-events:none}
@@ -252,8 +308,10 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
       <span class="lab" id="timeLab">تا سحر</span>
       <span class="row" id="pips"></span>
     </div>
+    <span class="chip off" id="chapChip" hidden><span class="d"></span><span></span></span>
     <span id="chips" style="display:contents"></span>
     <span class="sp"></span>
+    <button class="bookbtn" id="btnBook">چه گفتند؟ <span class="n" id="bookN">۰</span></button>
     <button class="icobtn" id="btnVoice" aria-label="صدای شخصیت‌ها" title="صدای شخصیت‌ها">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
            stroke-linecap="round" stroke-linejoin="round">
@@ -274,6 +332,31 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
   </header>
 
   <div class="toasts" id="toasts"></div>
+
+  <div class="chcard" id="chCard">
+    <div><p class="no" id="chNo"></p><p class="nm" id="chNm"></p><div class="rule"></div></div>
+  </div>
+
+  <div class="book" id="book">
+    <header>
+      <h2>چه گفتند؟</h2>
+      <p>هرچه تا حالا شنیده‌ای و دیده‌ای. برگشتن به اینجا هیچ وقتی نمی‌برد.</p>
+      <button class="close" id="bookClose">بستن</button>
+    </header>
+    <div class="scroll" id="bookBody"></div>
+  </div>
+
+  <div class="tut" id="tut">
+    <div class="card2">
+      <h3>قانونِ بازی</h3>
+      <ul>
+        <li><span class="ic2">🕯️</span><span>هر کاری که بکنی <b>یک نوبت</b> وقت می‌برد. بیشتر از این نداری.</span></li>
+        <li><span class="ic2">🧭</span><span>هیچ انتخابی <b>غلط</b> نیست. ولی انتخابی که از روی حواس‌پرتی باشد، <b>دو نوبت</b> می‌برد.</span></li>
+        <li><span class="ic2">📖</span><span>جوابِ همه‌چیز توی <b>حرف‌های آدم‌ها</b>ست. اگر یادت رفت، دکمهٔ <b>«چه گفتند؟»</b> بالای صفحه همه‌شان را دوباره نشانت می‌دهد — مجانی.</span></li>
+      </ul>
+      <button class="go" id="tutGo">فهمیدم</button>
+    </div>
+  </div>
 
   <!-- ---------------- پیدا کن ---------------- -->
   <div class="hunt" id="hunt">
@@ -352,9 +435,10 @@ const STORY_CHERAGH = {
   blurb:"چراغِ برجِ کاروانسرا چهل سال است هر شب روشن بوده. امشب خاموش است و یک مسافر توی بیابان در راه است.",
   minutes:8,
   tint:"linear-gradient(135deg,#191333,#3B2A47 55%,#8A5722)",
-  start:"gate",
+  start:"arrive",
   time:6,
   timeLabel:"تا سحر",
+  chapters:["دروازه","برجِ چراغ","حیاط","انبار"],
 
   cast:{
     "بی‌بی گوهر":{ c:"#C9A8E8", pic:"gohar" },
@@ -369,21 +453,30 @@ const STORY_CHERAGH = {
 
   nodes:{
 
-  gate:{ art:"gate", amb:"wind", beats:[
+  arrive:{ chapter:"دروازه", art:"gate", amb:"wind", beats:[
     {t:"گاری وسطِ بیابان ایستاد و خاک نشست."},
     {who:"بی‌بی گوهر", vo:"cheragh-01", t:"رسیدیم. اینجا دِه‌بالاست."},
     {t:"دیوارهای کاروانسرا مثل قلعه‌ای خوابیده زیرِ ستاره‌ها بود."},
     {who:"بی‌بی گوهر", vo:"cheragh-02", t:"چهل سال است چراغِ آن برج هر شب روشن بوده."},
     {who:"بی‌بی گوهر", vo:"cheragh-03", t:"تا آن چراغ روشن باشد، هیچ مسافری توی این بیابان گم نمی‌شود."},
     {t:"سرت را بلند کردی."},
-    {t:"برج تاریک بود.", fx:"sting"},
+    {key:1, t:"برج تاریک بود.", fx:"sting"}
+  ], ask:"اول چه می‌کنی؟", free:true, opts:[
+    { t:"می‌دوم بالای برج ببینم چه خبر است.", goto:"gate",
+      beats:[ {t:"دویدی سمتِ پله‌ها.", fx:"step"},
+              {who:"مشد رجب", t:"صبر کن! آن بالا تاریکِ تاریک است."} ] },
+    { t:"از پیرمردِ دمِ در می‌پرسم چه شده.", goto:"gate",
+      beats:[ {t:"پیرمرد نفسی گرفت."} ] }
+  ]},
+
+  gate:{ chapter:"دروازه", art:"gate", amb:"wind", beats:[
     {who:"مشد رجب", vo:"cheragh-04", t:"امشب هر کاری کردم روشن نشد. قطره روغنی نمانده."},
     {who:"مشد رجب", vo:"cheragh-05", t:"و یک مسافر امشب توی راه است. تا سحر باید روشنش کنیم.", fx:"heart"},
     {t:"تا سحر <em>شش نوبت</em> وقت داری. نه بیشتر."},
     {who:"نگار", vo:"cheragh-06", t:"من نگارم. خانه‌مان همان‌جاست. تنهایت نمی‌گذارم.", set:{negar:true}, fx:"chime"},
     {who:"نگار", vo:"cheragh-07", t:"ولی حواست باشد: بادِ امشب فانوسِ حلبی را خاموش می‌کند. فقط شیشه‌ای دوام می‌آورد."},
     {who:"مشد رجب", vo:"cheragh-08", t:"پله‌های برج تاریکِ تاریک است. بی‌فانوس بالا نرو."},
-    {t:"روی طاقچه سه فانوس بود: حلبی، کاغذی، شیشه‌ای."}
+    {key:1, t:"روی طاقچه سه فانوس بود: حلبی، کاغذی، شیشه‌ای."}
   ], ask:"کدام فانوس را برمی‌داری؟", opts:[
     { t:"فانوسِ حلبی", cost:2, goto:"tower",
       beats:[ {t:"وسطِ پله‌ها باد از پنجره زد.", fx:"wind"},
@@ -406,7 +499,7 @@ const STORY_CHERAGH = {
              note:"همان که نگار گفته بود. حواست به حرفش بود."} }
   ]},
 
-  tower:{ art:"tower", amb:"room", beats:[
+  tower:{ chapter:"برجِ چراغ", art:"tower", amb:"room", beats:[
     {t:"بالای برج، چراغِ بزرگِ مسی وسطِ اتاقک ایستاده بود. خاموش."},
     {who:"مشد رجب", vo:"cheragh-11", t:"دیروز غروب، خودم مخزنش را تا لبه پُر کردم."},
     {t:"چیزی در این اتاقک سرِ جایش نبود."},
@@ -417,7 +510,7 @@ const STORY_CHERAGH = {
             recap:{k:"b", c:"۱ نوبت", label:"درِ بازِ مخزن را ندیدی",
                    note:"مشد رجب گفته بود دیروز خودش پُرش کرده؛ اولین جایی که باید می‌گشتی همان مخزن بود."} }},
     {t:"فانوس را پایین گرفتی و کفِ اتاق را نگاه کردی."},
-    {t:"زمین خشک بود. نه لکه‌ای، نه چکه‌ای، نه بویی."}
+    {key:1, t:"زمین خشک بود. نه لکه‌ای، نه چکه‌ای، نه بویی."}
   ], ask:"روغن کجا رفته؟ چه می‌کنی؟", opts:[
     { t:"مخزن را می‌گردم؛ شاید سوراخ شده باشد.", cost:2, goto:"yard",
       beats:[ {t:"دورتادورِ مخزن را وجب به وجب گشتی."},
@@ -438,7 +531,7 @@ const STORY_CHERAGH = {
              note:"جوابِ روغن را نگرفتی، ولی فهمیدی نگار چیزی می‌داند."} }
   ]},
 
-  yard:{ art:"yard", amb:"wind", beats:[
+  yard:{ chapter:"حیاط", art:"yard", amb:"wind", beats:[
     {t:"ماه بالا آمده بود و حیاط را نقره‌ای کرده بود."},
     {t:"روی خاکِ نرم، ردِ چرخِ یک گاری مانده بود. تازه بود."},
     {t:"کنارِ رد، چیزی زیرِ نورِ ماه برق می‌زد."},
@@ -448,10 +541,10 @@ const STORY_CHERAGH = {
             ok:"انگشتت را زدی و بو کردی. روغنِ چراغ بود.",
             recap:{k:"b", c:"۱ نوبت", label:"قطره‌های روغن را پیدا نکردی",
                    note:"متن گفته بود کنارِ ردِ چرخ چیزی برق می‌زند."} }},
-    {t:"ردها از ده بیرون نمی‌رفتند. دورِ ده می‌چرخیدند."},
-    {t:"نگار ایستاده بود و به خانهٔ گوشهٔ ده نگاه می‌کرد."},
+    {key:1, t:"ردها از ده بیرون نمی‌رفتند. دورِ ده می‌چرخیدند."},
+    {key:1, t:"نگار ایستاده بود و به خانهٔ گوشهٔ ده نگاه می‌کرد."},
     {t:"تا نگاهت را دید، دستش را تندی برد پشتش."},
-    {t:"ولی دیده بودی. کفِ دستش چرب بود.", fx:"sting"}
+    {key:1, t:"ولی دیده بودی. کفِ دستش چرب بود.", fx:"sting"}
   ], ask:"به نگار چه می‌گویی؟", opts:[
     { t:"دستت چرب است! پس تو برداشتی!", cost:1, set:{negar:false},
       toast:{t:"نگار رفت.", k:"bad"}, goto:"alone",
@@ -474,14 +567,14 @@ const STORY_CHERAGH = {
              note:"فهمیدی که نگار می‌ترسد، نه اینکه دزد باشد. برای همین کمکت کرد."} }
   ]},
 
-  withher:{ art:"yard", amb:"wind", cost:1, goto:"store", beats:[
+  withher:{ chapter:"حیاط", art:"yard", amb:"wind", cost:1, goto:"store", beats:[
     {t:"سه انبار ته ده بود."},
     {t:"یکی‌یکی سر زدید. نگار ساکت پشتِ سرت می‌آمد.", fx:"step"},
     {t:"انبارِ سوم، نورِ کم‌رنگی از لای در می‌آمد."}
   ], recap:{k:"n", c:"۱ نوبت", label:"سه انبار را گشتی",
             note:"نگار راهِ میان‌بر را بلد بود، ولی نپرسیدی."} },
 
-  alone:{ art:"yard", amb:"wind", cost:2, goto:"store", beats:[
+  alone:{ chapter:"حیاط", art:"yard", amb:"wind", cost:2, goto:"store", beats:[
     {t:"سه انبار ته ده بود و تو تنها بودی."},
     {t:"در تاریکی، هر در را باز کردی و بستی.", fx:"door"},
     {t:"باد فانوس را می‌خواباند و باید دوباره روشنش می‌کردی."},
@@ -489,7 +582,7 @@ const STORY_CHERAGH = {
   ], recap:{k:"b", c:"۲ نوبت", label:"تنها دنبالِ انبار گشتی",
             note:"نگار راه را بلد بود. اگر نرفته بود، نصفِ این وقت کافی بود."} },
 
-  store:{ art:"store", amb:"room", beats:[
+  store:{ chapter:"انبار", art:"store", amb:"room", beats:[
     {t:"درِ چوبیِ انبار نیمه‌باز بود."},
     {t:"از لای در، نورِ لرزانِ یک چراغِ کوچک بیرون می‌زد."},
     {t:"رفتی تو.", fx:"door"},
@@ -504,7 +597,7 @@ const STORY_CHERAGH = {
     {t:"روی تشک، مادرِ پیرش خوابیده بود و چراغِ کوچکی بالای سرش می‌سوخت."},
     {who:"عمویِ نگار", vo:"cheragh-17", t:"مادرم توی تاریکی نفسش می‌گیرد. می‌ترسد."},
     {who:"عمویِ نگار", vo:"cheragh-18", t:"سه شب است که پولِ روغن ندارم."},
-    {t:"به کفشِ پارهٔ خودش نگاه کرد و ساکت شد."}
+    {key:1, t:"به کفشِ پارهٔ خودش نگاه کرد و ساکت شد."}
   ], ask:"چه می‌کنی؟", opts:[
     { t:"می‌دوم و همه را خبر می‌کنم. حقیقت باید معلوم شود.", cost:1,
       set:{moral:"tell"}, goto:"END",
@@ -579,9 +672,10 @@ const STORY_POL = {
   blurb:"سه روز است باران بند نیامده. رود بالا آمده و ننه‌سکینه آن‌طرفِ آب تنهاست — و گوشش سنگین است.",
   minutes:8,
   tint:"linear-gradient(135deg,#1E2C36,#35484C 55%,#63735E)",
-  start:"village",
+  start:"wake",
   time:6,
   timeLabel:"تا تاریکی",
+  chapters:["ده","رود","راهِ باغ","آغل"],
 
   cast:{
     "مشدی حیدر":{ c:"#7FC8C0", pic:"heydar"  },
@@ -594,14 +688,23 @@ const STORY_POL = {
 
   nodes:{
 
-  village:{ art:"village", amb:"rain", beats:[
+  wake:{ chapter:"ده", art:"village", amb:"rain", beats:[
     {t:"سه روز است که باران بند نیامده."},
-    {t:"از پشتِ پنجره، صدای رود می‌آید؛ بلندتر از هر سال."},
+    {t:"از پشتِ پنجره، صدای رود می‌آید؛ بلندتر از هر سال."}
+  ], ask:"اول چه می‌کنی؟", free:true, opts:[
+    { t:"از پنجره به رود نگاه می‌کنم.", goto:"village",
+      beats:[ {t:"آب تا لبِ باغ‌ها بالا آمده بود."},
+              {t:"تا حالا این‌طور ندیده بودیش."} ] },
+    { t:"چکمه می‌پوشم و می‌روم بیرون.", goto:"village",
+      beats:[ {t:"در را که باز کردی، باران خورد توی صورتت.", fx:"door"} ] }
+  ]},
+
+  village:{ chapter:"ده", art:"village", amb:"rain", beats:[
     {who:"مشدی حیدر", vo:"pol-01", t:"آب بالا آمده. تا شب، پلِ چوبی را می‌برد."},
     {t:"مشدی حیدر آسیابانِ ده است و پنجاه سال کنارِ این رود زندگی کرده."},
     {t:"یک‌دفعه یادت آمد.", fx:"sting"},
     {t:"ننه‌سکینه آن‌طرفِ رود، توی باغ، تنها زندگی می‌کند."},
-    {t:"آن‌طرفِ آب، فقط یک خانه چراغش روشن است."},
+    {key:1, t:"آن‌طرفِ آب، فقط یک خانه چراغش روشن است."},
     {find:{ title:"کدام خانه مالِ اوست؟",
             hint:"آن‌طرفِ رود؛ تنها خانه‌ای که چراغش روشن است. رویش ضربه بزن.",
             at:[.735, .335, .075],
@@ -637,11 +740,11 @@ const STORY_POL = {
              note:"کسی نبود. ضرر نکردی، ولی جلو هم نیفتادی."} }
   ]},
 
-  river:{ art:"river", amb:"rain", beats:[
+  river:{ chapter:"رود", art:"river", amb:"rain", beats:[
     {t:"رود قهوه‌ای و پهن شده بود و صدایش توی دره می‌پیچید."},
     {t:"دو جا می‌شد پا گذاشت توی آب."},
-    {t:"یک‌جا آب صاف و آرام رد می‌شد، بی‌هیچ صدایی."},
-    {t:"یک‌جا آب می‌خورد به چیزی و سفید کف می‌کرد."},
+    {key:1, t:"یک‌جا آب صاف و آرام رد می‌شد، بی‌هیچ صدایی."},
+    {key:1, t:"یک‌جا آب می‌خورد به چیزی و سفید کف می‌کرد."},
     {find:{ title:"از کجا رد شوی؟",
             hint:"حرفِ مشدی حیدر یادت هست؟ روی جای درست ضربه بزن.",
             at:[.63, .655, .085],
@@ -649,7 +752,7 @@ const STORY_POL = {
             recap:{k:"b", c:"۱ نوبت", label:"جای کم‌عمق را پیدا نکردی",
                    note:"مشدی حیدر گفته بود هرجا آب کف کرد و سفید شد، زیرش سنگ است."} }},
     {t:"وسطِ آب، پلنگ ایستاد.", fx:"sting"},
-    {t:"پارس نمی‌کرد. فقط ایستاده بود و به یک نقطه زل زده بود."},
+    {key:1, t:"پارس نمی‌کرد. فقط ایستاده بود و به یک نقطه زل زده بود."},
     {t:"آب داشت تندتر می‌شد."}
   ], ask:"پلنگ نمی‌آید. چه می‌کنی؟", opts:[
     { t:"قلاده‌اش را می‌کشم و می‌برمش.", cost:1, set:{dog:false},
@@ -674,14 +777,14 @@ const STORY_POL = {
              note:"دقیقاً همان‌طور که مشدی حیدر گفته بود: هرجا او نایستاد، تو هم نایست."} }
   ]},
 
-  alonePath:{ art:"path", amb:"rain", cost:2, goto:"path", beats:[
+  alonePath:{ chapter:"راهِ باغ", art:"path", amb:"rain", cost:2, goto:"path", beats:[
     {t:"آن‌طرفِ رود، راهِ باغ‌ها گِل بود و لیز."},
     {t:"بی‌پلنگ، هر چند قدم یک‌بار پایت سُر می‌خورد.", fx:"step"},
     {t:"دو بار افتادی و بلند شدی. دو نوبت رفت."}
   ], recap:{k:"b", c:"۲ نوبت", label:"تنها از راهِ گِلی رفتی",
             note:"پلنگ راهِ سفتِ کنارهٔ باغ را بلد بود."} },
 
-  path:{ art:"path", amb:"rain", beats:[
+  path:{ chapter:"راهِ باغ", art:"path", amb:"rain", beats:[
     {t:"راهِ باغ‌ها گِل بود و باران توی چاله‌ها می‌جوشید."},
     {t:"خانهٔ ننه‌سکینه ته این راه بود، پشتِ درخت‌های گردو."},
     {t:"وسطِ راه، چیزی روی گِل افتاده بود."},
@@ -691,7 +794,7 @@ const STORY_POL = {
             ok:"عصای ننه‌سکینه بود.",
             recap:{k:"b", c:"۱ نوبت", label:"عصا را ندیدی",
                    note:"متن گفته بود وسطِ راه چیزی روی گِل افتاده."} }},
-    {t:"برش داشتی. سرد بود؛ مدتی بود آنجا افتاده بود.", fx:"sting"},
+    {key:1, t:"برش داشتی. سرد بود؛ مدتی بود آنجا افتاده بود.", fx:"sting"},
     {t:"یعنی ننه‌سکینه از خانه بیرون آمده."},
     {t:"از خانه هم چراغی پیدا نبود."}
   ], ask:"کجا را بگردی؟", opts:[
@@ -714,7 +817,7 @@ const STORY_POL = {
              note:"عصا افتاده بود، پس بیرون آمده بود. رد را گرفتی و مستقیم رسیدی."} }
   ]},
 
-  barn:{ art:"house", amb:"rain", beats:[
+  barn:{ chapter:"آغل", art:"house", amb:"rain", beats:[
     {t:"درِ آغل نیمه‌باز بود و آب تا مچِ پا بالا آمده بود."},
     {t:"ننه‌سکینه آنجا بود؛ نشسته روی زانو، خیسِ خیس.", set:{found:true}, fx:"chime"},
     {who:"ننه‌سکینه", vo:"pol-09", t:"تو اینجا چه می‌کنی؟ برگرد آن‌طرفِ آب!"},
@@ -726,7 +829,7 @@ const STORY_POL = {
             ok:"پیدایش کردی. گره سفت بود و خیس.",
             recap:{k:"b", c:"۱ نوبت", label:"گره را پیدا نکردی",
                    note:"وقت داشت می‌گذشت و آب بالا می‌آمد."} }},
-    {t:"بز می‌ترسید و هر بار که تکان می‌خورد، گره سفت‌تر می‌شد."},
+    {key:1, t:"بز می‌ترسید و هر بار که تکان می‌خورد، گره سفت‌تر می‌شد."},
     {t:"بیرون، صدای رود عوض شد؛ کلفت‌تر و نزدیک‌تر.", fx:"sting"},
     {t:"آسمان داشت تاریک می‌شد."}
   ], ask:"چه می‌کنی؟", opts:[
@@ -790,9 +893,7 @@ const STORY_POL = {
 };
 
 const STORIES = [STORY_CHERAGH, STORY_POL];
-</script>
-
-<script>
+</script><script>
 /* ============================================================
    موتور — پخشِ ضربه‌ها، پس‌زمینه، صدا، جست‌وجوی تصویری و شمارشِ نوبت.
    بدونِ هیچ فایلِ بیرونی کار می‌کند. اگر تصویرهای واقعی را در art/ و
@@ -1328,12 +1429,80 @@ A.setAmb = function(kind){
 /* ══════════════ وضعیت ══════════════ */
 var G = null, S, Q = [], qi = 0, onDone = null, waiting = false, heart = 0;
 function fresh(){
-  var s = { time: G ? G.time : 6, timeout:false, node:null, recap:[], moral:null };
+  var s = { time: G ? G.time : 6, timeout:false, node:null, recap:[], moral:null,
+            book:[], chapter:null };
   if(G) (G.chips || []).forEach(function(c){ s[c.key] = false; });
   return s;
 }
 function sheetOpen(){
-  return $("#cover").classList.contains("on") || $("#over").classList.contains("on");
+  return $("#cover").classList.contains("on") || $("#over").classList.contains("on") ||
+         $("#book").classList.contains("on")  || $("#tut").classList.contains("on");
+}
+
+/* ══════════════ دفترچهٔ «چه گفتند؟» ══════════════
+   هرچه شخصیت‌ها گفته‌اند و هر ضربهٔ کلیدی، اینجا می‌ماند.
+   باز کردنش هیچ نوبتی خرج نمی‌کند — عمداً. برگشتن به متن همان
+   کاری است که می‌خواهیم عادت شود، پس نباید جریمه داشته باشد.     */
+function bookAdd(b){
+  if(!b || (!b.who && !b.key)) return;
+  var e = { ch:S.chapter };
+  if(b.who) e.who = b.who;
+  e.t = b.t;
+  S.book.push(e);
+  $("#bookN").textContent = fa(S.book.length);
+}
+function drawBook(){
+  var body = $("#bookBody");
+  if(!S.book.length){
+    body.innerHTML = '<p class="empty">هنوز چیزی نشنیده‌ای.<br>هرچه آدم‌ها بگویند و هر نشانهٔ مهمی که ببینی، همین‌جا می‌ماند.</p>';
+    return;
+  }
+  var out = "", last = null;
+  S.book.forEach(function(e){
+    if(e.ch && e.ch !== last){ last = e.ch; out += '<p class="bkch">' + e.ch + "</p>"; }
+    if(e.who){
+      var role = (G.cast || {})[e.who] || {};
+      out += '<div class="bkline"><span class="w" style="--who:' + (role.c || "var(--lamp2)") +
+             '">' + e.who + "</span><span>" + e.t + "</span></div>";
+    } else {
+      out += '<div class="bkline nar">' + e.t + "</div>";
+    }
+  });
+  body.innerHTML = out;
+  body.scrollTop = 0;
+}
+function book(on){
+  $("#book").classList.toggle("on", on);
+  $("#game").classList.toggle("reading", on);
+  if(on) drawBook();
+}
+
+/* ══════════════ فصل‌ها ══════════════ */
+function drawChapChip(){
+  var el = $("#chapChip"), list = (G && G.chapters) || [], i = list.indexOf(S.chapter);
+  if(!S.chapter || i < 0){ el.hidden = true; return; }
+  el.hidden = false;
+  el.className = "chip hot";
+  el.lastChild.textContent = "فصلِ " + fa(i + 1) + " · " + S.chapter;
+}
+function chapterCard(name, done){
+  var list = (G && G.chapters) || [], i = list.indexOf(name);
+  $("#chNo").textContent = i >= 0 ? ("فصلِ " + fa(i + 1) + " از " + fa(list.length)) : "";
+  $("#chNm").textContent = name;
+  var c = $("#chCard");
+  c.classList.remove("on"); void c.offsetWidth; c.classList.add("on");
+  A.sfx("chime");
+  setTimeout(function(){ c.classList.remove("on"); done(); }, reduced ? 10 : 1700);
+}
+
+/* ══════════════ آموزشِ اولِ کار ══════════════ */
+var tutDone = null;
+function showTut(done){
+  var seen = false;
+  try { seen = localStorage.getItem("shab/tut") === "1"; } catch(e){}
+  if(seen){ done(); return; }
+  tutDone = done;
+  $("#tut").classList.add("on");
 }
 
 /* ══════════════ نوار وضعیت ══════════════ */
@@ -1447,6 +1616,8 @@ function step(){
     shake();
   }
 
+  bookAdd(b);
+
   var who = $("#who"), pot = $("#pot");
   if(b.who){
     var role = (G.cast || {})[b.who] || {};
@@ -1488,7 +1659,7 @@ function huntEnd(){
   $("#hunt").classList.remove("on");
   $("#tapHint").textContent = "برای ادامه، هرجای صفحه را بزن";
   hunt = null;
-  Q.splice(qi, 0, { t: ok });
+  Q.splice(qi, 0, { key:1, t: ok });
   step();
 }
 function huntReveal(){
@@ -1528,14 +1699,22 @@ function enter(id){
   if(A.ambKind !== n.amb) A.setAmb(n.amb);
   if(n.cost) spend(n.cost);
   if(n.recap) S.recap.push(n.recap);
-  playBeats(n.beats, function(){
-    if(S.timeout) return outOfTime();
-    if(n.ask) showChoices(n); else enter(n.goto);
-  });
+  var run = function(){
+    playBeats(n.beats, function(){
+      if(S.timeout) return outOfTime();
+      if(n.ask) showChoices(n); else enter(n.goto);
+    });
+  };
+  if(n.chapter && n.chapter !== S.chapter){
+    S.chapter = n.chapter;
+    drawChapChip();
+    chapterCard(n.chapter, run);
+  } else run();
 }
 function showChoices(n){
   var b = $("#choices");
-  b.innerHTML = '<p class="ask">' + n.ask + "</p>";
+  b.innerHTML = '<p class="ask">' + n.ask +
+    (n.free ? ' <span style="font-size:.8rem;color:var(--sage);font-family:Vazirmatn,sans-serif">— این یکی وقت نمی‌برد</span>' : "") + "</p>";
   n.opts.forEach(function(o, i){
     var el = document.createElement("button");
     el.className = "ch"; el.type = "button"; el.style.setProperty("--d", (i * .07 + .05) + "s");
@@ -1551,7 +1730,7 @@ function choose(n, i){
   var o = n.opts[i];
   $("#choices").hidden = true;
   $("#tapHint").textContent = "برای ادامه، هرجای صفحه را بزن";
-  if(o.cost) spend(o.cost);
+  if(o.cost && !n.free) spend(o.cost);
   if(o.time) gainTime(o.time);
   if(o.set) for(var k in o.set) S[k] = o.set[k];
   drawChips();
@@ -1559,6 +1738,7 @@ function choose(n, i){
   if(o.toast) toast(o.toast.t, o.toast.k);
   playBeats(o.beats || [], function(){
     if(S.timeout) return outOfTime();
+    if(n.free) return showTut(function(){ enter(o.goto); });
     enter(o.goto);
   });
 }
@@ -1688,6 +1868,15 @@ $("#stage").addEventListener("click", function(){
   if($("#choices").hidden && !hunt) advance();
 });
 addEventListener("keydown", function(e){
+  if($("#book").classList.contains("on")){
+    if(e.key === "Escape" || e.key === "Enter" || e.key === " "){ e.preventDefault(); book(false); }
+    return;
+  }
+  if($("#tut").classList.contains("on")){
+    if(e.key === "Enter" || e.key === " "){ e.preventDefault(); $("#tutGo").click(); }
+    return;
+  }
+  if(e.key === "b" || e.key === "B"){ e.preventDefault(); book(true); return; }
   if(sheetOpen()) return;
   var b = $("#choices");
   if(!b.hidden){
@@ -1699,6 +1888,14 @@ addEventListener("keydown", function(e){
   }
   if(hunt){ if(e.key === "Enter" || e.key === " "){ e.preventDefault(); huntReveal(); } return; }
   if(e.key === " " || e.key === "Enter"){ e.preventDefault(); advance(); }
+});
+$("#btnBook").addEventListener("click", function(){ book(true); });
+$("#bookClose").addEventListener("click", function(){ book(false); });
+$("#book").addEventListener("click", function(e){ if(e.target.id === "book") book(false); });
+$("#tutGo").addEventListener("click", function(){
+  try { localStorage.setItem("shab/tut", "1"); } catch(e){}
+  $("#tut").classList.remove("on");
+  var d = tutDone; tutDone = null; if(d) d();
 });
 $("#btnSound").addEventListener("click", function(){
   A.on = !A.on;
@@ -1721,8 +1918,11 @@ function startStory(st){
   clearInterval(typer); typer = 0;
   stopVo();
   hunt = null; $("#hunt").classList.remove("on");
+  book(false);
+  $("#tut").classList.remove("on"); $("#chCard").classList.remove("on"); tutDone = null;
   S = fresh();
-  drawPips(); drawChips();
+  $("#bookN").textContent = "۰";
+  drawPips(); drawChips(); drawChapChip();
   $("#cover").classList.remove("on");
   $("#over").classList.remove("on");
   $("#game").classList.remove("sheeted");
@@ -1736,6 +1936,7 @@ function toMenu(){
   if(heart){ clearInterval(heart); heart = 0; }
   $("#game").classList.remove("danger");
   $("#over").classList.remove("on");
+  book(false);
   $("#cover").classList.add("on");
   $("#game").classList.add("sheeted");
   setArt(STORIES[0].nodes[STORIES[0].start].art);
