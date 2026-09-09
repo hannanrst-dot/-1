@@ -85,8 +85,7 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .bookbtn .n{background:var(--lamp);color:#160F06;border-radius:999px;min-width:19px;height:19px;
   display:grid;place-items:center;font-size:.7rem;font-weight:700;font-variant-numeric:tabular-nums}
 .book{position:absolute;inset:0;z-index:11;display:none;
-  background:linear-gradient(180deg,#0A0813,#08070F 55%,#0B0814)}
-.game.reading .hud{opacity:0;pointer-events:none;transition:opacity .25s}
+  background:linear-gradient(180deg,rgba(8,7,15,.97),rgba(11,8,20,.99))}
 .book.on{display:flex;flex-direction:column;animation:bin .3s both}
 .book header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
   padding:calc(18px + env(safe-area-inset-top)) 20px 14px;border-bottom:1px solid var(--edge);
@@ -145,15 +144,20 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 /* ---------------- حالتِ «پیدا کن» ---------------- */
 .hunt{position:absolute;inset:0;z-index:5;display:none;cursor:crosshair}
 .hunt.on{display:block}
-.hunt .banner{position:absolute;top:78px;inset-inline:0;margin:0 auto;width:fit-content;max-width:88vw;
-  background:var(--glass);border:1px solid var(--edge2);border-radius:14px;padding:13px 22px;
-  backdrop-filter:blur(12px);text-align:center;line-height:1.8;font-size:1.02rem;
-  box-shadow:0 14px 40px -16px #000;animation:tin2 .5s ease both}
+.hunt .banner{position:absolute;inset-inline:0;margin:0 auto;width:fit-content;max-width:92vw;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;
+  background:var(--glass);border:1px solid var(--edge2);border-radius:999px;padding:9px 12px 9px 20px;
+  backdrop-filter:blur(12px);line-height:1.7;font-size:.95rem;
+  box-shadow:0 14px 40px -16px #000;animation:tin2 .5s ease both;transition:opacity .5s}
+.hunt .banner.top{top:74px}
+.hunt .banner.bottom{bottom:22px}
+.hunt.faded .banner{opacity:.3}
+.hunt.faded .banner:hover{opacity:1}
 @keyframes tin2{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
-.hunt .banner b{display:block;font-family:Lalezar,Vazirmatn,sans-serif;color:var(--lamp2);
-  font-size:1.16rem;margin-bottom:2px}
-.hunt .give{margin-top:9px;font-size:.82rem;color:var(--dim);border:1px solid var(--edge);
-  border-radius:999px;padding:6px 16px}
+.hunt .banner b{font-family:Lalezar,Vazirmatn,sans-serif;color:var(--lamp2);
+  font-size:1.08rem;white-space:nowrap}
+.hunt .give{font-size:.8rem;color:var(--dim);border:1px solid var(--edge);
+  border-radius:999px;padding:6px 15px;white-space:nowrap}
 .hunt .give:hover{border-color:var(--edge2);color:var(--text)}
 .ring{position:absolute;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;
   border:2.5px solid var(--lamp2);pointer-events:none;opacity:0}
@@ -203,6 +207,36 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .ch .k{flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
   border:1px solid var(--edge);font-size:.82rem;font-weight:700;color:var(--lamp)}
 .ch:disabled{opacity:.4}
+
+/* به ترتیب بزن */
+.oitem{display:flex;align-items:center;gap:12px;text-align:start;background:var(--glass);
+  border:1.5px solid var(--edge);border-radius:14px;padding:14px 16px;line-height:1.75;
+  backdrop-filter:blur(14px);width:100%;transition:border-color .16s,opacity .3s,transform .16s;
+  animation:cin .4s cubic-bezier(.2,.7,.3,1) both;animation-delay:var(--d,0s)}
+.oitem:hover:not(.done){border-color:var(--edge2);transform:translateX(-4px)}
+.oitem .num{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+  border:1.5px dashed var(--edge);font-size:.82rem;font-weight:700;color:var(--dim)}
+.oitem.done{opacity:.5;border-color:var(--sage)}
+.oitem.done .num{border-style:solid;border-color:var(--sage);background:var(--sage);color:#0B1A12}
+.oitem.bad{animation:nope .45s}
+@keyframes nope{0%,100%{transform:none}20%{transform:translateX(-9px)}40%{transform:translateX(9px)}
+  60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+/* کدام واژه؟ */
+.wsent{background:var(--glass);border:1.5px solid var(--edge);border-radius:14px;
+  padding:20px 22px;backdrop-filter:blur(14px);font-size:1.18rem;line-height:2.2;text-align:center;
+  animation:cin .4s both}
+.wtok{cursor:pointer;border-radius:7px;padding:2px 5px;margin:0 -1px;
+  transition:background .16s,color .16s;display:inline-block}
+.wtok:hover{background:var(--mark)}
+.wtok.bad{animation:nope .45s;color:var(--rose)}
+.wtok.good{background:var(--lamp);color:#160F06;font-weight:600}
+.subhint{text-align:center;font-size:.82rem;color:var(--dim);margin-top:-2px}
+.game.interacting .say{display:none}
+.giveline{display:flex;justify-content:center}
+.giveline button{font-size:.8rem;color:var(--dim);border:1px solid var(--edge);
+  border-radius:999px;padding:6px 16px}
+.giveline button:hover{border-color:var(--edge2);color:var(--text)}
 
 /* ---------------- پرده‌ها ---------------- */
 .sheet{position:absolute;inset:0;z-index:9;display:none;overflow:auto;
@@ -360,10 +394,10 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 
   <!-- ---------------- پیدا کن ---------------- -->
   <div class="hunt" id="hunt">
-    <div class="banner">
+    <div class="banner top" id="huntBanner">
       <b id="huntTitle"></b>
       <span id="huntHint"></span>
-      <div><button class="give" id="huntGive">نمی‌بینمش، نشانم بده</button></div>
+      <button class="give" id="huntGive">نشانم بده</button>
     </div>
     <div class="ring" id="ring"></div>
   </div>
@@ -444,7 +478,8 @@ const STORY_CHERAGH = {
     "بی‌بی گوهر":{ c:"#C9A8E8", pic:"gohar" },
     "مشد رجب"  :{ c:"#8FB8E8", pic:"rajab" },
     "نگار"     :{ c:"#F5B14A", pic:"negar" },
-    "عمویِ نگار":{ c:"#E8956A", pic:"amoo"  }
+    "عمویِ نگار":{ c:"#E8956A", pic:"amoo"  },
+    "زردی"      :{ c:"#E8C46A", pic:"zardi" }
   },
   chips:[
     { key:"negar",   off:"نگار",       on:"نگار همراهت است" },
@@ -456,7 +491,9 @@ const STORY_CHERAGH = {
   arrive:{ chapter:"دروازه", art:"gate", amb:"wind", beats:[
     {t:"گاری وسطِ بیابان ایستاد و خاک نشست."},
     {who:"بی‌بی گوهر", vo:"cheragh-01", t:"رسیدیم. اینجا دِه‌بالاست."},
-    {t:"دیوارهای کاروانسرا مثل قلعه‌ای خوابیده زیرِ ستاره‌ها بود."},
+    {t:"کاروانسرا مثل یک قلعهٔ خوابیده زیرِ ستاره‌ها بود."},
+    {t:"یک گربهٔ زرد از روی دیوار پرید پایین و درست وسطِ راهت نشست."},
+    {who:"بی‌بی گوهر", vo:"cheragh-20", t:"این زردی است. صاحبِ اینجاست. ما مهمانیم."},
     {who:"بی‌بی گوهر", vo:"cheragh-02", t:"چهل سال است چراغِ آن برج هر شب روشن بوده."},
     {who:"بی‌بی گوهر", vo:"cheragh-03", t:"تا آن چراغ روشن باشد، هیچ مسافری توی این بیابان گم نمی‌شود."},
     {t:"سرت را بلند کردی."},
@@ -470,12 +507,14 @@ const STORY_CHERAGH = {
   ]},
 
   gate:{ chapter:"دروازه", art:"gate", amb:"wind", beats:[
-    {who:"مشد رجب", vo:"cheragh-04", t:"امشب هر کاری کردم روشن نشد. قطره روغنی نمانده."},
+    {who:"مشد رجب", vo:"cheragh-04", t:"چهل سال است این چراغ را روشن می‌کنم. چهل سال! امشب لج کرده."},
+    {who:"مشد رجب", vo:"cheragh-21", t:"یک قطره روغن هم توی مخزنش نمانده."},
     {who:"مشد رجب", vo:"cheragh-05", t:"و یک مسافر امشب توی راه است. تا سحر باید روشنش کنیم.", fx:"heart"},
     {t:"تا سحر <em>شش نوبت</em> وقت داری. نه بیشتر."},
-    {who:"نگار", vo:"cheragh-06", t:"من نگارم. خانه‌مان همان‌جاست. تنهایت نمی‌گذارم.", set:{negar:true}, fx:"chime"},
+    {who:"نگار", vo:"cheragh-06", t:"من نگارم. خانه‌مان همان‌جاست و این ده را از تو بهتر بلدم.", set:{negar:true}, fx:"chime"},
     {who:"نگار", vo:"cheragh-07", t:"ولی حواست باشد: بادِ امشب فانوسِ حلبی را خاموش می‌کند. فقط شیشه‌ای دوام می‌آورد."},
     {who:"مشد رجب", vo:"cheragh-08", t:"پله‌های برج تاریکِ تاریک است. بی‌فانوس بالا نرو."},
+    {t:"زردی از لای پایت رد شد و نزدیک بود با کله بروی زمین."},
     {key:1, t:"روی طاقچه سه فانوس بود: حلبی، کاغذی، شیشه‌ای."}
   ], ask:"کدام فانوس را برمی‌داری؟", opts:[
     { t:"فانوسِ حلبی", cost:2, goto:"tower",
@@ -501,6 +540,8 @@ const STORY_CHERAGH = {
 
   tower:{ chapter:"برجِ چراغ", art:"tower", amb:"room", beats:[
     {t:"بالای برج، چراغِ بزرگِ مسی وسطِ اتاقک ایستاده بود. خاموش."},
+    {t:"زردی زودتر از تو رسیده بود و روی خودِ چراغ نشسته بود."},
+    {t:"تا دیدت، خودش را زد به بی‌خیالی."},
     {who:"مشد رجب", vo:"cheragh-11", t:"دیروز غروب، خودم مخزنش را تا لبه پُر کردم."},
     {t:"چیزی در این اتاقک سرِ جایش نبود."},
     {find:{ title:"چه چیزی سرِ جایش نیست؟",
@@ -510,7 +551,16 @@ const STORY_CHERAGH = {
             recap:{k:"b", c:"۱ نوبت", label:"درِ بازِ مخزن را ندیدی",
                    note:"مشد رجب گفته بود دیروز خودش پُرش کرده؛ اولین جایی که باید می‌گشتی همان مخزن بود."} }},
     {t:"فانوس را پایین گرفتی و کفِ اتاق را نگاه کردی."},
-    {key:1, t:"زمین خشک بود. نه لکه‌ای، نه چکه‌ای، نه بویی."}
+    {key:1, t:"زمین خشک بود. نه لکه‌ای، نه چکه‌ای، نه بویی."},
+    {order:{ title:"پس چه شد؟ به ترتیب بزن.",
+             hint:"از اولین اتفاق شروع کن.",
+             items:["مشد رجب دیروز غروب مخزن را پُر کرد.",
+                    "یک نفر آمد بالای برج.",
+                    "روغن را برد و درِ مخزن را باز گذاشت.",
+                    "چراغ خاموش شد."],
+             ok:"حالا ترتیبش دستت آمد. یکی روغن را برده.",
+             recap:{k:"b", c:"۱ نوبت", label:"ترتیبِ اتفاق‌ها را پیدا نکردی",
+                    note:"مشد رجب گفته بود دیروز غروب پُرش کرده، و زمینِ اتاقک هم خشک بود."} }}
   ], ask:"روغن کجا رفته؟ چه می‌کنی؟", opts:[
     { t:"مخزن را می‌گردم؛ شاید سوراخ شده باشد.", cost:2, goto:"yard",
       beats:[ {t:"دورتادورِ مخزن را وجب به وجب گشتی."},
@@ -534,7 +584,8 @@ const STORY_CHERAGH = {
   yard:{ chapter:"حیاط", art:"yard", amb:"wind", beats:[
     {t:"ماه بالا آمده بود و حیاط را نقره‌ای کرده بود."},
     {t:"روی خاکِ نرم، ردِ چرخِ یک گاری مانده بود. تازه بود."},
-    {t:"کنارِ رد، چیزی زیرِ نورِ ماه برق می‌زد."},
+    {t:"زردی رفت جلو، خاکِ کنارِ رد را بو کرد و عطسه کرد."},
+    {t:"چیزی آنجا زیرِ نورِ ماه برق می‌زد."},
     {find:{ title:"پیدایش کن",
             hint:"روی خاکِ حیاط، کنارِ ردِ چرخ. رویش ضربه بزن.",
             at:[.40, .745, .085],
@@ -544,7 +595,13 @@ const STORY_CHERAGH = {
     {key:1, t:"ردها از ده بیرون نمی‌رفتند. دورِ ده می‌چرخیدند."},
     {key:1, t:"نگار ایستاده بود و به خانهٔ گوشهٔ ده نگاه می‌کرد."},
     {t:"تا نگاهت را دید، دستش را تندی برد پشتش."},
-    {key:1, t:"ولی دیده بودی. کفِ دستش چرب بود.", fx:"sting"}
+    {word:{ q:"کدام کلمه نشان می‌دهد نگار عجله داشت؟",
+            sentence:"تا نگاهت را دید، دستش را تندی برد پشتش.",
+            answer:"تندی",
+            ok:"«تندی». یعنی وقت نکرد فکر کند — یعنی نمی‌خواست ببینی.",
+            recap:{k:"b", c:"۱ نوبت", label:"کلمهٔ «تندی» را ندیدی",
+                   note:"همین یک کلمه می‌گفت نگار عجله داشت چیزی را قایم کند."} }},
+    {key:1, t:"و دیده بودی: کفِ دستش چرب بود.", fx:"sting"}
   ], ask:"به نگار چه می‌گویی؟", opts:[
     { t:"دستت چرب است! پس تو برداشتی!", cost:1, set:{negar:false},
       toast:{t:"نگار رفت.", k:"bad"}, goto:"alone",
@@ -585,7 +642,9 @@ const STORY_CHERAGH = {
   store:{ chapter:"انبار", art:"store", amb:"room", beats:[
     {t:"درِ چوبیِ انبار نیمه‌باز بود."},
     {t:"از لای در، نورِ لرزانِ یک چراغِ کوچک بیرون می‌زد."},
-    {t:"رفتی تو.", fx:"door"},
+    {t:"زردی زودتر از تو رفت تو. صدای افتادنِ چیزی آمد.", fx:"door"},
+    {t:"بعد سکوت."},
+    {t:"رفتی تو."},
     {t:"پشتِ گونی‌های جو، فلزی زیرِ نورِ چراغ برق می‌زد."},
     {find:{ title:"آن چیست؟",
             hint:"پشتِ گونی‌ها را نگاه کن و رویش ضربه بزن.",
@@ -637,7 +696,8 @@ const STORY_CHERAGH = {
       "با هم رفتید. مشد رجب اول چیزی نگفت؛ فقط طولانی به کفشِ پارهٔ عمو نگاه کرد.",
       "بعد حلب را برداشت، نصفش را ریخت توی چراغِ برج و نصفِ دیگر را گذاشت کفِ دستِ عمو.",
       "چراغ که روشن شد، نگار خندید. نزدیکِ سحر مسافری از راه رسید و گفت نور را از چند فرسخی دیده.",
-      "از آن هفته، هر خانهٔ ده یک پیمانه روغن می‌آورد و کنارِ درِ کاروانسرا می‌گذارد. حالا دو چراغ در دِه‌بالا روشن است."]},
+      "از آن هفته، هر خانهٔ ده یک پیمانه روغن می‌آورد و کنارِ درِ کاروانسرا می‌گذارد. حالا دو چراغ در دِه‌بالا روشن است.",
+      "و زردی؟ زردی هر شب می‌رود بالای برج، کنارِ چراغ می‌نشیند و تا صبح تکان نمی‌خورد. انگار خودش روشنش کرده."]},
     again:{ rank:4, art:"dawn", title:"چراغِ دوباره", state:{lampLit:true}, text:[
       "رفتید و مشد رجب حرفتان را باور کرد. حلب برگشت سرِ جایش و چراغ روشن شد.",
       "ولی راه را سخت‌تر از آنچه لازم بود رفتی و سحر نزدیک شده بود.",
@@ -716,7 +776,15 @@ const STORY_POL = {
     {who:"مشدی حیدر", vo:"pol-03", t:"پایهٔ وسطِ پل را آب شسته. رویش پا نگذار."},
     {who:"مشدی حیدر", vo:"pol-04", t:"از بالادست رد شو. هرجا آب کف کرد و سفید شد، زیرش سنگ است و کم‌عمق."},
     {who:"مشدی حیدر", vo:"pol-05", t:"هرجا آب صاف و آرام بود، یعنی گود است. آنجا نرو."},
+    {word:{ q:"کدام کلمه می‌گوید آبِ آرام خطرناک است؟",
+            sentence:"هرجا آب صاف و آرام بود، یعنی گود است.",
+            answer:"گود",
+            ok:"«گود» یعنی عمیق. یعنی پایت به ته نمی‌رسد.",
+            recap:{k:"b", c:"۱ نوبت", label:"معنیِ «گود» را نگرفتی",
+                   note:"همین کلمه فرقِ آبِ آرام و آبِ کف‌کرده را می‌گفت."} }},
     {t:"پلنگ، سگِ گله، از زیرِ ایوان بیرون آمد و کنارت ایستاد.", set:{dog:true}, fx:"chime"},
+    {t:"بعد خودش را تکاند و تمامِ آبِ روی پشمش را ریخت روی تو."},
+    {t:"ممنون، پلنگ."},
     {who:"مشدی حیدر", vo:"pol-06", t:"پلنگ بویِ آبِ خطرناک را می‌فهمد. هرجا او نایستاد، تو هم نایست."},
     {t:"چکمه پوشیدی و زدی بیرون. باران تندتر شد."}
   ], ask:"از کجا بروی آن‌طرفِ رود؟", opts:[
@@ -796,7 +864,15 @@ const STORY_POL = {
                    note:"متن گفته بود وسطِ راه چیزی روی گِل افتاده."} }},
     {key:1, t:"برش داشتی. سرد بود؛ مدتی بود آنجا افتاده بود.", fx:"sting"},
     {t:"یعنی ننه‌سکینه از خانه بیرون آمده."},
-    {t:"از خانه هم چراغی پیدا نبود."}
+    {t:"از خانه هم چراغی پیدا نبود."},
+    {order:{ title:"پس چه اتفاقی افتاده؟ به ترتیب بزن.",
+             hint:"از روی چیزهایی که دیدی حدس بزن.",
+             items:["ننه‌سکینه از خانه بیرون آمد.",
+                    "عصایش توی گِل افتاد.",
+                    "رفت جلوتر و برنگشت."],
+             ok:"پس پیاده رفته جلوتر. باید همین نزدیکی باشد.",
+             recap:{k:"b", c:"۱ نوبت", label:"ترتیبِ اتفاق‌ها را پیدا نکردی",
+                    note:"عصا وسطِ راه افتاده بود و خانه خالی — یعنی بیرون آمده و جلوتر رفته."} }}
   ], ask:"کجا را بگردی؟", opts:[
     { t:"صدایش می‌زنم.", cost:2, goto:"barn",
       beats:[ {t:"تا می‌توانستی داد زدی."},
@@ -1469,11 +1545,10 @@ function drawBook(){
     }
   });
   body.innerHTML = out;
-  body.scrollTop = 0;
+  body.scrollTop = body.scrollHeight;
 }
 function book(on){
   $("#book").classList.toggle("on", on);
-  $("#game").classList.toggle("reading", on);
   if(on) drawBook();
 }
 
@@ -1608,6 +1683,8 @@ function step(){
   var b = Q[qi]; qi++;
 
   if(b.find){ startHunt(b.find); return; }
+  if(b.order){ startOrder(b.order); return; }
+  if(b.word){ startWord(b.word); return; }
   if(b.set){ for(var k in b.set) S[k] = b.set[k]; drawChips(); }
   if(b.art) setArt(b.art);
   if(b.fx) A.sfx(b.fx);
@@ -1645,18 +1722,28 @@ function advance(){
 
 /* ══════════════ پیدا کن ══════════════ */
 var hunt = null, huntMiss = 0;
+var huntFade = 0;
 function startHunt(f){
   hunt = f; huntMiss = 0;
   $("#huntTitle").textContent = f.title;
   $("#huntHint").textContent = f.hint;
-  $("#hunt").classList.add("on");
+  /* بنر همیشه آن‌طرفِ نقطهٔ جست‌وجو می‌نشیند تا رویش را نگیرد */
+  var bn = $("#huntBanner");
+  bn.className = "banner " + (f.at[1] < .55 ? "bottom" : "top");
+  var hu = $("#hunt");
+  hu.classList.remove("faded");
+  hu.classList.add("on");
+  clearTimeout(huntFade);
+  huntFade = setTimeout(function(){ hu.classList.add("faded"); }, 5000);
   $("#more").hidden = true;
   $("#tapHint").textContent = "روی تصویر بگرد";
   waiting = false;
 }
 function huntEnd(){
   var ok = hunt.ok;
+  clearTimeout(huntFade);
   $("#hunt").classList.remove("on");
+  $("#hunt").classList.remove("faded");
   $("#tapHint").textContent = "برای ادامه، هرجای صفحه را بزن";
   hunt = null;
   Q.splice(qi, 0, { key:1, t: ok });
@@ -1689,6 +1776,144 @@ $("#hunt").addEventListener("click", function(e){
   if(++huntMiss >= 5) huntReveal();
 });
 $("#huntGive").addEventListener("click", function(e){ e.stopPropagation(); huntReveal(); });
+
+/* ══════════════ به ترتیب بزن ══════════════
+   مهارتِ ترتیبِ رویدادها: چه چیزی اول شد، چه چیزی بعد.
+   تا سه بار اشتباه رایگان است؛ بعدش یک نوبت می‌برد.        */
+var ord = null, ordAt = 0, ordTries = 0;
+function startOrder(o){
+  ord = o; ordAt = 0; ordTries = 0;
+  var idx = o.items.map(function(_, i){ return i; });
+  for(var i = idx.length - 1; i > 0; i--){
+    var j = Math.floor(Math.random() * (i + 1)), t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+  }
+  var b = $("#choices");
+  b.innerHTML = '<p class="ask">' + o.title + "</p>" +
+                '<p class="subhint">' + o.hint + "</p>";
+  idx.forEach(function(realIdx, i){
+    var el = document.createElement("button");
+    el.className = "oitem"; el.type = "button";
+    el.dataset.i = realIdx;
+    el.style.setProperty("--d", (i * .07 + .05) + "s");
+    el.innerHTML = '<span class="num"></span><span>' + o.items[realIdx] + "</span>";
+    el.addEventListener("click", function(e){ e.stopPropagation(); orderTap(el); });
+    b.appendChild(el);
+  });
+  var gl = document.createElement("div");
+  gl.className = "giveline";
+  gl.innerHTML = '<button type="button">نمی‌دانم، نشانم بده</button>';
+  gl.firstChild.addEventListener("click", function(e){ e.stopPropagation(); orderReveal(); });
+  b.appendChild(gl);
+  b.hidden = false;
+  $("#game").classList.add("interacting");
+  $("#more").hidden = true;
+  $("#tapHint").textContent = "به ترتیب بزن";
+  waiting = false;
+}
+function orderTap(el){
+  if(!ord || el.classList.contains("done")) return;
+  if(+el.dataset.i === ordAt){
+    el.classList.add("done");
+    el.firstChild.textContent = fa(++ordAt);
+    A.sfx("found");
+    if(ordAt >= ord.items.length) setTimeout(orderDone, 420);
+  } else {
+    el.classList.remove("bad"); void el.offsetWidth; el.classList.add("bad");
+    A.sfx("tick");
+    ordTries++;
+    var all = $("#choices").querySelectorAll(".oitem");
+    for(var i = 0; i < all.length; i++){
+      all[i].classList.remove("done"); all[i].firstChild.textContent = "";
+    }
+    ordAt = 0;
+    if(ordTries >= 3) orderReveal();
+  }
+}
+function orderReveal(){
+  if(!ord) return;
+  spend(1);
+  if(ord.recap) S.recap.push(ord.recap);
+  A.sfx("sting");
+  var all = [].slice.call($("#choices").querySelectorAll(".oitem"));
+  all.sort(function(a, b){ return +a.dataset.i - +b.dataset.i; });
+  all.forEach(function(el, i){
+    el.classList.add("done"); el.firstChild.textContent = fa(i + 1);
+  });
+  ordAt = ord.items.length;
+  setTimeout(orderDone, 900);
+}
+function orderDone(){
+  if(!ord) return;
+  var ok = ord.ok;
+  ord = null;
+  $("#choices").hidden = true;
+  $("#game").classList.remove("interacting");
+  $("#tapHint").textContent = "برای ادامه، هرجای صفحه را بزن";
+  Q.splice(qi, 0, { key:1, t: ok });
+  step();
+}
+
+/* ══════════════ کدام واژه؟ ══════════════
+   ریزترین شکلِ «شاهد را از متن پیدا کن»: در سطحِ یک کلمه.  */
+var wrd = null, wrdTries = 0;
+function norm(s){ return s.replace(/[.،؛:!؟«»"'()\u200c]/g, "").trim(); }
+function startWord(w){
+  wrd = w; wrdTries = 0;
+  var b = $("#choices");
+  b.innerHTML = '<p class="ask">' + w.q + "</p>";
+  var box = document.createElement("div");
+  box.className = "wsent";
+  w.sentence.split(" ").forEach(function(tok){
+    var s = document.createElement("span");
+    s.className = "wtok"; s.textContent = tok;
+    s.addEventListener("click", function(e){ e.stopPropagation(); wordTap(s, tok); });
+    box.appendChild(s);
+    box.appendChild(document.createTextNode(" "));
+  });
+  b.appendChild(box);
+  var gl = document.createElement("div");
+  gl.className = "giveline";
+  gl.innerHTML = '<button type="button">نمی‌دانم، نشانم بده</button>';
+  gl.firstChild.addEventListener("click", function(e){ e.stopPropagation(); wordReveal(); });
+  b.appendChild(gl);
+  b.hidden = false;
+  $("#game").classList.add("interacting");
+  $("#more").hidden = true;
+  $("#tapHint").textContent = "روی یک کلمه بزن";
+  waiting = false;
+}
+function wordTap(el, tok){
+  if(!wrd) return;
+  if(norm(tok) === norm(wrd.answer)){
+    el.classList.add("good"); A.sfx("found");
+    setTimeout(wordDone, 620);
+    return;
+  }
+  el.classList.remove("bad"); void el.offsetWidth; el.classList.add("bad");
+  A.sfx("tick");
+  if(++wrdTries >= 3) wordReveal();
+}
+function wordReveal(){
+  if(!wrd) return;
+  spend(1);
+  if(wrd.recap) S.recap.push(wrd.recap);
+  A.sfx("sting");
+  var toks = $("#choices").querySelectorAll(".wtok");
+  for(var i = 0; i < toks.length; i++){
+    if(norm(toks[i].textContent) === norm(wrd.answer)) toks[i].classList.add("good");
+  }
+  setTimeout(wordDone, 1100);
+}
+function wordDone(){
+  if(!wrd) return;
+  var ok = wrd.ok;
+  wrd = null;
+  $("#choices").hidden = true;
+  $("#game").classList.remove("interacting");
+  $("#tapHint").textContent = "برای ادامه، هرجای صفحه را بزن";
+  Q.splice(qi, 0, { key:1, t: ok });
+  step();
+}
 
 /* ══════════════ گره‌ها ══════════════ */
 function enter(id){
@@ -1865,7 +2090,7 @@ function finish(){
 
 /* ══════════════ ورودی‌ها ══════════════ */
 $("#stage").addEventListener("click", function(){
-  if($("#choices").hidden && !hunt) advance();
+  if($("#choices").hidden && !hunt && !ord && !wrd) advance();
 });
 addEventListener("keydown", function(e){
   if($("#book").classList.contains("on")){
@@ -1917,7 +2142,10 @@ function startStory(st){
   if(A.c && A.c.state === "suspended") A.c.resume();
   clearInterval(typer); typer = 0;
   stopVo();
-  hunt = null; $("#hunt").classList.remove("on");
+  hunt = null; ord = null; wrd = null;
+  $("#game").classList.remove("interacting");
+  $("#hunt").classList.remove("on"); $("#hunt").classList.remove("faded");
+  clearTimeout(huntFade);
   book(false);
   $("#tut").classList.remove("on"); $("#chCard").classList.remove("on"); tutDone = null;
   S = fresh();
