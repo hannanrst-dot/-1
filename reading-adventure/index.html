@@ -475,11 +475,11 @@ const STORY_CHERAGH = {
   chapters:["دروازه","برجِ چراغ","حیاط","انبار"],
 
   cast:{
-    "بی‌بی گوهر":{ c:"#C9A8E8", pic:"gohar", fig:"oldwoman", at:.24, size:.21, rim:"rgba(201,168,232,.5)" },
-    "مشد رجب"  :{ c:"#8FB8E8", pic:"rajab", fig:"oldman",   at:.78, size:.22, rim:"rgba(143,184,232,.5)" },
-    "نگار"     :{ c:"#F5B14A", pic:"negar", fig:"girl",     at:.22, size:.185, rim:"rgba(245,177,74,.6)" },
-    "عمویِ نگار":{ c:"#E8956A", pic:"amoo",  fig:"man",      at:.76, size:.22, rim:"rgba(232,149,106,.55)" },
-    "زردی"      :{ c:"#E8C46A", pic:"zardi", fig:"cat",      at:.66, size:.095, rim:"rgba(232,196,106,.5)" }
+    "بی‌بی گوهر":{ c:"#C9A8E8", pic:"gohar", fig:"oldwoman", at:.24, size:.235, rim:"rgba(201,168,232,.5)" },
+    "مشد رجب"  :{ c:"#8FB8E8", pic:"rajab", fig:"oldman",   at:.78, size:.245, rim:"rgba(143,184,232,.5)" },
+    "نگار"     :{ c:"#F5B14A", pic:"negar", fig:"girl",     at:.22, size:.205, rim:"rgba(245,177,74,.6)" },
+    "عمویِ نگار":{ c:"#E8956A", pic:"amoo",  fig:"man",      at:.76, size:.245, rim:"rgba(232,149,106,.55)" },
+    "زردی"      :{ c:"#E8C46A", pic:"zardi", fig:"cat",      at:.66, size:.115, rim:"rgba(232,196,106,.5)" }
   },
   chips:[
     { key:"negar",   off:"نگار",       on:"نگار همراهت است" },
@@ -738,9 +738,9 @@ const STORY_POL = {
   chapters:["ده","رود","راهِ باغ","آغل"],
 
   cast:{
-    "مشدی حیدر":{ c:"#7FC8C0", pic:"heydar",  fig:"oldman",   at:.77, size:.22, rim:"rgba(127,200,192,.5)" },
-    "ننه‌سکینه" :{ c:"#E3A9C6", pic:"sakineh", fig:"oldwoman", at:.25, size:.20, rim:"rgba(227,169,198,.5)" },
-    "پلنگ"      :{ c:"#A8C878", fig:"dog", at:.60, size:.115, rim:"rgba(168,200,120,.5)" }
+    "مشدی حیدر":{ c:"#7FC8C0", pic:"heydar",  fig:"oldman",   at:.77, size:.245, rim:"rgba(127,200,192,.5)" },
+    "ننه‌سکینه" :{ c:"#E3A9C6", pic:"sakineh", fig:"oldwoman", at:.25, size:.225, rim:"rgba(227,169,198,.5)" },
+    "پلنگ"      :{ c:"#A8C878", pic:"palang", at:.60, size:.135, rim:"rgba(168,200,120,.5)" }
   },
   chips:[
     { key:"dog",   off:"پلنگ",           on:"پلنگ همراهت است" },
@@ -1131,143 +1131,309 @@ function flash(a){
 /* ══════════════ شخصیت‌ها ══════════════
    سایه‌نما با یک لبهٔ نورخورده. سبکِ کلِ بازی سایه‌نماست، پس آدم‌ها هم
    همان‌طور کشیده می‌شوند — و همه نفس می‌کشند و تکان می‌خورند.        */
-var DARK = "#08070E";
-/* سایه‌نما با خطِ دورِ روشن: در هر پس‌زمینه‌ای خوانا می‌ماند */
-function shape(drawFn, rim){
-  cx.fillStyle = DARK;
-  drawFn();
-  cx.strokeStyle = rim; cx.lineWidth = 1.6; cx.lineJoin = "round";
-  drawFn(true);
-}
-function ell(x, y, rx, ry, st){
-  cx.beginPath(); cx.ellipse(x, y, rx, ry, 0, 0, 6.284);
-  st ? cx.stroke() : cx.fill();
-}
-function pth(pts, st){
-  cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1]);
-  for(var i = 1; i < pts.length; i++) cx.lineTo(pts[i][0], pts[i][1]);
+/* ══════════════ شخصیت‌ها ══════════════
+   همه در شبِ یکسانی ایستاده‌اند، پس تنِ پایه برای همه یکی است و آنچه
+   فرقشان می‌گذارد، خطِ بیرونی و نوری است که از یک طرف رویشان می‌افتد.
+   پارچه با منحنی می‌افتد، نه با خطِ صاف — به همین دلیل هیچ چندضلعیِ
+   تیزی در این بخش نیست.                                              */
+var SKIN = "#4A3B40", CLOTH = "#1B1729", CLOTH2 = "#100D1A", CLOTH3 = "#272036";
+
+function bez(pts){
+  cx.beginPath();
+  for(var i = 0; i < pts.length; i++){
+    var p = pts[i];
+    if(p[0] === "m") cx.moveTo(p[1], p[2]);
+    else if(p[0] === "l") cx.lineTo(p[1], p[2]);
+    else if(p[0] === "q") cx.quadraticCurveTo(p[1], p[2], p[3], p[4]);
+    else if(p[0] === "c") cx.bezierCurveTo(p[1], p[2], p[3], p[4], p[5], p[6]);
+  }
   cx.closePath();
-  st ? cx.stroke() : cx.fill();
 }
-function shadowAt(x, g, w2){
+function alpha(col, a){ return col.replace(/[\d.]+\)$/, a + ")"); }
+
+/* یک شکل: تنِ تیره، نورِ کناری، و خطِ روشن فقط روی نیمه‌ای که نور می‌خورد.
+   همین «فقط یک طرف» است که کاری می‌کند شبیهِ نقاشی شود، نه شبیهِ کتابِ رنگ‌آمیزی. */
+function form(pts, fill, x, g, s, dir, litCol, rimCol, rimW){
+  bez(pts); cx.fillStyle = fill; cx.fill();
+  if(litCol){
+    cx.save(); bez(pts); cx.clip();
+    var gr = cx.createLinearGradient(x + dir * .42 * s, 0, x - dir * .26 * s, 0);
+    gr.addColorStop(0, litCol); gr.addColorStop(1, "rgba(0,0,0,0)");
+    cx.fillStyle = gr; cx.fillRect(x - s, g - 1.25 * s, 2 * s, 1.35 * s);
+    cx.restore();
+  }
+  if(rimCol){
+    cx.save();
+    cx.beginPath();
+    cx.rect(dir > 0 ? x - .04 * s : x - 1.3 * s, g - 1.3 * s, 1.34 * s, 1.4 * s);
+    cx.clip();
+    bez(pts); cx.strokeStyle = rimCol; cx.lineWidth = rimW || 1.7;
+    cx.lineJoin = "round"; cx.stroke();
+    cx.restore();
+  }
+}
+function blob(x, y, rx, ry, fill){
+  cx.beginPath(); cx.ellipse(x, y, rx, ry, 0, 0, 6.284);
+  cx.fillStyle = fill; cx.fill();
+}
+function footShadow(x, g, w2){
   var gr = cx.createRadialGradient(x, g, 0, x, g, w2);
-  gr.addColorStop(0, "rgba(0,0,0,.45)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+  gr.addColorStop(0, "rgba(0,0,0,.55)"); gr.addColorStop(1, "rgba(0,0,0,0)");
   cx.fillStyle = gr;
-  cx.beginPath(); cx.ellipse(x, g, w2, w2 * .26, 0, 0, 6.284); cx.fill();
+  cx.beginPath(); cx.ellipse(x, g, w2, w2 * .22, 0, 0, 6.284); cx.fill();
 }
 
 var FIGS = {
-  /* s = قدِ کاملِ آدم. سر حدودِ یک‌هفتمِ قد است، مثلِ آدمِ واقعی. */
-  oldwoman: function(x, g, s, rim){
-    shadowAt(x, g, .20 * s);
-    shape(function(st){
-      pth([[x - .075*s, g - .80*s], [x - .17*s, g], [x + .17*s, g], [x + .075*s, g - .80*s]], st);
-    }, rim);
-    shape(function(st){                                   /* روسری که تا شانه می‌آید */
-      cx.beginPath();
-      cx.moveTo(x - .072*s, g - .885*s);
-      cx.quadraticCurveTo(x - .115*s, g - .78*s, x - .10*s, g - .70*s);
-      cx.lineTo(x + .10*s, g - .70*s);
-      cx.quadraticCurveTo(x + .115*s, g - .78*s, x + .072*s, g - .885*s);
-      cx.closePath(); st ? cx.stroke() : cx.fill();
-    }, rim);
-    shape(function(st){ ell(x, g - .905*s, .062*s, .068*s, st); }, rim);
-    shape(function(st){ ell(x - .13*s, g - .48*s, .035*s, .055*s, st); }, rim);   /* دست */
-  },
-
-  oldman: function(x, g, s, rim){
-    shadowAt(x, g, .19 * s);
-    shape(function(st){
-      pth([[x - .085*s, g - .82*s], [x - .135*s, g], [x + .135*s, g], [x + .085*s, g - .82*s]], st);
-    }, rim);
-    shape(function(st){ ell(x, g - .895*s, .056*s, .062*s, st); }, rim);
-    shape(function(st){                                   /* ریش */
-      pth([[x - .048*s, g - .875*s], [x, g - .795*s], [x + .048*s, g - .875*s]], st);
-    }, rim);
-    shape(function(st){                                   /* کلاهِ نمدی */
-      pth([[x - .085*s, g - .952*s], [x + .085*s, g - .952*s],
-           [x + .062*s, g - .968*s], [x + .052*s, g - 1.02*s],
-           [x - .052*s, g - 1.02*s], [x - .062*s, g - .968*s]], st);
-    }, rim);
-    cx.strokeStyle = rim; cx.lineWidth = 2;               /* عصا */
-    cx.beginPath(); cx.moveTo(x + .145*s, g - .74*s); cx.lineTo(x + .16*s, g); cx.stroke();
-  },
-
-  girl: function(x, g, s, rim){
-    shadowAt(x, g, .17 * s);
-    shape(function(st){
-      pth([[x - .07*s, g - .78*s], [x - .155*s, g], [x + .155*s, g], [x + .07*s, g - .78*s]], st);
-    }, rim);
-    shape(function(st){
-      cx.beginPath();
-      cx.moveTo(x - .068*s, g - .875*s);
-      cx.quadraticCurveTo(x - .105*s, g - .77*s, x - .092*s, g - .70*s);
-      cx.lineTo(x + .092*s, g - .70*s);
-      cx.quadraticCurveTo(x + .105*s, g - .77*s, x + .068*s, g - .875*s);
-      cx.closePath(); st ? cx.stroke() : cx.fill();
-    }, rim);
-    shape(function(st){ ell(x, g - .895*s, .058*s, .064*s, st); }, rim);
-    shape(function(st){ ell(x + .10*s, g - .74*s, .026*s, .055*s, st); }, rim);   /* گیس */
-  },
-
-  man: function(x, g, s, rim){
-    shadowAt(x, g, .18 * s);
-    shape(function(st){
-      pth([[x - .09*s, g - .84*s], [x - .115*s, g], [x + .115*s, g], [x + .09*s, g - .84*s]], st);
-    }, rim);
-    shape(function(st){ ell(x, g - .905*s, .053*s, .059*s, st); }, rim);
-    shape(function(st){ ell(x, g - .82*s, .095*s, .035*s, st); }, rim);           /* شانه‌ها */
-  },
-
-  /* s برای گربه و سگ = قدِ خودشان، نه قدِ آدم */
-  cat: function(x, g, s, rim, t){
-    var tw = reduced ? 0 : Math.sin(t / 620) * .16;
-    shadowAt(x, g, .34 * s);
-    cx.strokeStyle = rim; cx.lineWidth = 1.6; cx.lineCap = "round";
-    cx.beginPath();                                        /* دُم */
-    cx.moveTo(x - .26*s, g - .10*s);
-    cx.quadraticCurveTo(x - .58*s, g - (.20 + tw)*s, x - .44*s, g - (.62 + tw)*s);
+  /* پیرزن: پیراهنِ بلند، و چادری که رویش می‌افتد. قامتِ خمیده و عصا. */
+  oldwoman: function(x, g, s, rim, t, dir){
+    var d = dir, ln = d * .022 * s;
+    footShadow(x, g, .20 * s);
+    cx.strokeStyle = alpha(rim, .8); cx.lineWidth = .019 * s; cx.lineCap = "round";
+    cx.beginPath();
+    cx.moveTo(x - d * .098 * s, g - .58 * s);
+    cx.quadraticCurveTo(x - d * .148 * s, g - .30 * s, x - d * .156 * s, g);
     cx.stroke();
-    shape(function(st){ ell(x - .05*s, g - .26*s, .30*s, .26*s, st); }, rim);      /* تنِ نشسته */
-    shape(function(st){ ell(x + .16*s, g - .33*s, .17*s, .30*s, st); }, rim);      /* سینه */
-    shape(function(st){                                    /* گوش‌ها */
-      pth([[x + .04*s, g - .76*s], [x + .07*s, g - .96*s], [x + .19*s, g - .80*s]], st);
-      pth([[x + .24*s, g - .80*s], [x + .35*s, g - .95*s], [x + .34*s, g - .74*s]], st);
-    }, rim);
-    shape(function(st){ ell(x + .19*s, g - .72*s, .19*s, .17*s, st); }, rim);      /* سر */
-    cx.fillStyle = "#FFE9AE";
-    cx.globalAlpha = .7 + .3 * Math.sin(t / 700);
-    ell(x + .12*s, g - .75*s, .026*s, .021*s);
-    ell(x + .27*s, g - .75*s, .026*s, .021*s);
+    form([                                                   /* پیراهن */
+      ["m", x - .148 * s, g],
+      ["c", x - .124 * s, g - .30 * s, x - .092 * s, g - .52 * s, x - .072 * s, g - .700 * s],
+      ["q", x - .064 * s, g - .766 * s, x, g - .778 * s],
+      ["q", x + .066 * s, g - .766 * s, x + .074 * s, g - .700 * s],
+      ["c", x + .096 * s, g - .52 * s, x + .130 * s, g - .30 * s, x + .156 * s, g],
+      ["q", x, g + .022 * s, x - .148 * s, g]
+    ], CLOTH, x, g, s, d, alpha(rim, .34), rim, 1.7);
+    blob(x + ln, g - .800 * s, .036 * s, .024 * s, CLOTH2);   /* گردن */
+    blob(x + ln, g - .852 * s, .050 * s, .056 * s, SKIN);     /* سر */
+    form([                                                   /* چادر: از سر تا زیرِ کمر */
+      ["m", x - .058 * s + ln, g - .842 * s],
+      ["c", x - .066 * s + ln, g - .926 * s, x - .026 * s + ln, g - .952 * s, x + .006 * s + ln, g - .950 * s],
+      ["c", x + .048 * s + ln, g - .948 * s, x + .070 * s + ln, g - .914 * s, x + .064 * s + ln, g - .842 * s],
+      ["c", x + .108 * s, g - .700 * s, x + .134 * s, g - .530 * s, x + .128 * s, g - .400 * s],
+      ["q", x, g - .360 * s, x - .120 * s, g - .400 * s],
+      ["c", x - .120 * s, g - .530 * s, x - .100 * s, g - .700 * s, x - .058 * s + ln, g - .842 * s]
+    ], CLOTH2, x, g, s, d, alpha(rim, .46), rim, 1.7);
+    blob(x + d * .020 * s + ln, g - .856 * s, .030 * s, .038 * s, SKIN);  /* صورت از لای چادر */
+  },
+
+  /* پیرمرد: شانه‌های پهن، بالاپوشِ باز، کلاهِ نمدی، و فانوسی که تنها نورِ خودش است */
+  oldman: function(x, g, s, rim, t, dir){
+    var d = dir;
+    footShadow(x, g, .22 * s);
+    form([                                                /* بالاپوش */
+      ["m", x - .188 * s, g],
+      ["c", x - .162 * s, g - .34 * s, x - .140 * s, g - .58 * s, x - .128 * s, g - .742 * s],
+      ["q", x - .118 * s, g - .800 * s, x - .058 * s, g - .815 * s],
+      ["l", x + .058 * s, g - .815 * s],
+      ["q", x + .118 * s, g - .800 * s, x + .128 * s, g - .742 * s],
+      ["c", x + .140 * s, g - .58 * s, x + .162 * s, g - .34 * s, x + .188 * s, g],
+      ["q", x, g + .024 * s, x - .188 * s, g]
+    ], CLOTH, x, g, s, d, alpha(rim, .38), rim, 1.8);
+    form([                                                /* قبای زیرین، از لای بالاپوش */
+      ["m", x - .046 * s, g - .760 * s],
+      ["c", x - .052 * s, g - .48 * s, x - .058 * s, g - .24 * s, x - .062 * s, g],
+      ["l", x + .062 * s, g],
+      ["c", x + .058 * s, g - .24 * s, x + .052 * s, g - .48 * s, x + .046 * s, g - .760 * s]
+    ], CLOTH3, x, g, s, d, alpha(rim, .18), null);
+    form([                                                /* بازویی که فانوس را گرفته */
+      ["m", x + d * .118 * s, g - .780 * s],
+      ["c", x + d * .175 * s, g - .70 * s, x + d * .182 * s, g - .55 * s, x + d * .160 * s, g - .44 * s],
+      ["l", x + d * .108 * s, g - .46 * s],
+      ["c", x + d * .126 * s, g - .58 * s, x + d * .118 * s, g - .70 * s, x + d * .074 * s, g - .762 * s]
+    ], CLOTH2, x, g, s, d, alpha(rim, .30), rim, 1.4);
+    blob(x, g - .830 * s, .042 * s, .026 * s, CLOTH2);                     /* گردن */
+    blob(x, g - .878 * s, .052 * s, .058 * s, SKIN);                        /* سر */
+    form([                                                /* ریش */
+      ["m", x - .046 * s, g - .880 * s],
+      ["c", x - .052 * s, g - .800 * s, x - .028 * s, g - .756 * s, x, g - .752 * s],
+      ["c", x + .028 * s, g - .756 * s, x + .052 * s, g - .800 * s, x + .046 * s, g - .880 * s],
+      ["c", x + .022 * s, g - .852 * s, x - .022 * s, g - .852 * s, x - .046 * s, g - .880 * s]
+    ], "#544852", x, g, s, d, alpha(rim, .34), null);
+    blob(x, g - .928 * s, .098 * s, .019 * s, CLOTH2);                      /* لبهٔ کلاه */
+    form([                                                /* تاجِ کلاه */
+      ["m", x - .058 * s, g - .932 * s],
+      ["c", x - .062 * s, g - 1.002 * s, x - .034 * s, g - 1.030 * s, x, g - 1.030 * s],
+      ["c", x + .034 * s, g - 1.030 * s, x + .062 * s, g - 1.002 * s, x + .058 * s, g - .932 * s]
+    ], CLOTH2, x, g, s, d, alpha(rim, .42), rim, 1.6);
+
+    var lx = x + d * .175 * s, ly = g - .40 * s, fl = flicker(t, 1.3, .3);
+    var gg = cx.createRadialGradient(lx, ly, 0, lx, ly, .34 * s);
+    gg.addColorStop(0, "rgba(255,198,112," + (.55 * fl).toFixed(3) + ")");
+    gg.addColorStop(1, "rgba(0,0,0,0)");
+    cx.fillStyle = gg; cx.beginPath(); cx.arc(lx, ly, .34 * s, 0, 6.284); cx.fill();
+    cx.strokeStyle = alpha(rim, .8); cx.lineWidth = 1.3;
+    cx.beginPath(); cx.moveTo(x + d * .152 * s, g - .452 * s); cx.lineTo(lx, ly - .046 * s); cx.stroke();
+    blob(lx, ly, .024 * s, .030 * s, "#FFCE7C");
+    cx.strokeStyle = "rgba(18,13,9,.9)"; cx.lineWidth = 2;
+    cx.strokeRect(lx - .026 * s, ly - .034 * s, .052 * s, .068 * s);
+  },
+
+  /* دخترک: قدِ کوتاه‌تر، روسریِ کوچک، یک بازوی جلو آمده */
+  girl: function(x, g, s, rim, t, dir){
+    var d = dir, sw = reduced ? 0 : Math.sin(t / 1250) * .012 * s;
+    footShadow(x, g, .15 * s);
+    form([                                                   /* پیراهن */
+      ["m", x - .132 * s, g],
+      ["c", x - .110 * s, g - .28 * s, x - .080 * s, g - .48 * s, x - .062 * s, g - .640 * s],
+      ["q", x - .056 * s, g - .700 * s, x, g - .712 * s],
+      ["q", x + .058 * s, g - .700 * s, x + .064 * s, g - .640 * s],
+      ["c", x + .084 * s, g - .48 * s, x + .116 * s, g - .28 * s, x + .140 * s, g],
+      ["q", x, g + .020 * s, x - .132 * s, g]
+    ], CLOTH, x, g, s, d, alpha(rim, .44), rim, 1.7);
+    form([                                                   /* بازوی جلو آمده */
+      ["m", x + d * .054 * s, g - .676 * s],
+      ["c", x + d * .104 * s, g - .624 * s, x + d * .118 * s, g - .520 * s, x + d * .104 * s, g - .444 * s],
+      ["l", x + d * .064 * s, g - .462 * s],
+      ["c", x + d * .076 * s, g - .540 * s, x + d * .066 * s, g - .614 * s, x + d * .032 * s, g - .660 * s]
+    ], CLOTH2, x, g, s, d, alpha(rim, .34), rim, 1.3);
+    blob(x, g - .732 * s, .032 * s, .022 * s, CLOTH2);       /* گردن */
+    blob(x, g - .786 * s, .048 * s, .054 * s, SKIN);         /* سر */
+    cx.strokeStyle = alpha(rim, .7); cx.lineWidth = .020 * s; cx.lineCap = "round";
+    cx.beginPath();                                          /* گیس از پشتِ روسری */
+    cx.moveTo(x - d * .044 * s, g - .784 * s);
+    cx.quadraticCurveTo(x - d * .092 * s + sw, g - .700 * s, x - d * .074 * s + sw * 2, g - .606 * s);
+    cx.stroke();
+    form([                                                   /* روسری: تاجِ سر و پشتِ گردن */
+      ["m", x - .052 * s, g - .782 * s],
+      ["c", x - .058 * s, g - .858 * s, x - .022 * s, g - .880 * s, x + .006 * s, g - .878 * s],
+      ["c", x + .042 * s, g - .876 * s, x + .060 * s, g - .848 * s, x + .054 * s, g - .782 * s],
+      ["q", x + .030 * s, g - .758 * s, x + .016 * s, g - .742 * s],
+      ["q", x - .034 * s, g - .756 * s, x - .052 * s, g - .782 * s]
+    ], CLOTH2, x, g, s, d, alpha(rim, .50), rim, 1.6);
+    blob(x + d * .018 * s, g - .786 * s, .028 * s, .034 * s, SKIN);
+  },
+
+  /* مردِ شرمنده: بالاپوشِ باریک، دو بازوی آویزان، سرِ پایین */
+  man: function(x, g, s, rim, t, dir){
+    var d = dir, hd = d * .022 * s;
+    footShadow(x, g, .17 * s);
+    form([                                                   /* بالاپوش */
+      ["m", x - .118 * s, g],
+      ["c", x - .110 * s, g - .32 * s, x - .102 * s, g - .56 * s, x - .096 * s, g - .700 * s],
+      ["q", x - .090 * s, g - .762 * s, x + hd * .5, g - .776 * s],
+      ["q", x + .094 * s, g - .762 * s, x + .100 * s, g - .700 * s],
+      ["c", x + .106 * s, g - .56 * s, x + .114 * s, g - .32 * s, x + .122 * s, g],
+      ["q", x, g + .020 * s, x - .118 * s, g]
+    ], CLOTH, x, g, s, d, alpha(rim, .38), rim, 1.7);
+    [-1, 1].forEach(function(sd){                            /* دو بازو */
+      form([
+        ["m", x + sd * .086 * s, g - .742 * s],
+        ["c", x + sd * .122 * s, g - .690 * s, x + sd * .128 * s, g - .560 * s, x + sd * .118 * s, g - .438 * s],
+        ["l", x + sd * .080 * s, g - .448 * s],
+        ["c", x + sd * .086 * s, g - .560 * s, x + sd * .080 * s, g - .680 * s, x + sd * .052 * s, g - .726 * s]
+      ], CLOTH2, x, g, s, d, alpha(rim, .26), rim, 1.2);
+    });
+    form([                                                   /* وصله */
+      ["m", x - d * .066 * s, g - .520 * s], ["l", x - d * .018 * s, g - .534 * s],
+      ["l", x - d * .012 * s, g - .452 * s], ["l", x - d * .062 * s, g - .438 * s]
+    ], CLOTH3, x, g, s, d, alpha(rim, .12), null);
+    blob(x + hd * .6, g - .796 * s, .034 * s, .022 * s, CLOTH2);
+    blob(x + hd, g - .842 * s, .048 * s, .053 * s, SKIN);    /* سرِ پایین‌افتاده */
+    form([                                                   /* موی ژولیده */
+      ["m", x + hd - .050 * s, g - .852 * s],
+      ["c", x + hd - .054 * s, g - .910 * s, x + hd - .016 * s, g - .924 * s, x + hd + .012 * s, g - .918 * s],
+      ["c", x + hd + .042 * s, g - .912 * s, x + hd + .052 * s, g - .880 * s, x + hd + .048 * s, g - .852 * s],
+      ["c", x + hd + .018 * s, g - .876 * s, x + hd - .020 * s, g - .876 * s, x + hd - .050 * s, g - .852 * s]
+    ], CLOTH2, x, g, s, d, alpha(rim, .40), rim, 1.4);
+  },
+
+  /* گربه: یک خطِ پیوسته از پنجه تا گوش تا دُم */
+  cat: function(x, g, s, rim, t, dir){
+    var tw = reduced ? 0 : Math.sin(t / 640) * .13;
+    footShadow(x, g, .36 * s);
+    cx.strokeStyle = rim; cx.lineWidth = .085 * s; cx.lineCap = "round";
+    cx.beginPath();
+    cx.moveTo(x - .30 * s, g - .06 * s);
+    cx.bezierCurveTo(x - .62 * s, g - (.10 + tw) * s, x - .60 * s, g - (.52 + tw) * s,
+                     x - .40 * s, g - (.62 + tw) * s);
+    cx.stroke();
+    form([
+      ["m", x + .34 * s, g],
+      ["q", x + .40 * s, g - .10 * s, x + .36 * s, g - .26 * s],
+      ["c", x + .34 * s, g - .44 * s, x + .30 * s, g - .52 * s, x + .29 * s, g - .66 * s],
+      ["q", x + .285 * s, g - .78 * s, x + .315 * s, g - .84 * s],
+      ["l", x + .335 * s, g - 1.03 * s], ["l", x + .155 * s, g - .885 * s],
+      ["q", x + .06 * s, g - .90 * s, x - .01 * s, g - .875 * s],
+      ["l", x - .075 * s, g - 1.02 * s], ["l", x - .085 * s, g - .835 * s],
+      ["c", x - .155 * s, g - .78 * s, x - .175 * s, g - .68 * s, x - .215 * s, g - .58 * s],
+      ["c", x - .30 * s, g - .44 * s, x - .40 * s, g - .32 * s, x - .40 * s, g - .12 * s],
+      ["q", x - .38 * s, g - .006 * s, x - .22 * s, g],
+      ["q", x + .06 * s, g + .012 * s, x + .34 * s, g]
+    ], CLOTH, x, g, s, dir, alpha(rim, .42), rim, 1.7);
+    cx.fillStyle = "rgba(255,214,150,.32)";
+    cx.beginPath();
+    cx.moveTo(x + .315 * s, g - .855 * s); cx.lineTo(x + .322 * s, g - .985 * s);
+    cx.lineTo(x + .205 * s, g - .878 * s); cx.closePath(); cx.fill();
+    cx.beginPath();
+    cx.moveTo(x - .066 * s, g - .975 * s); cx.lineTo(x - .075 * s, g - .855 * s);
+    cx.lineTo(x + .002 * s, g - .875 * s); cx.closePath(); cx.fill();
+    cx.globalAlpha = .72 + .28 * Math.sin(t / 700);
+    blob(x + .245 * s, g - .80 * s, .030 * s, .024 * s, "#FFE9AE");
+    blob(x + .105 * s, g - .795 * s, .030 * s, .024 * s, "#FFE9AE");
     cx.globalAlpha = 1;
   },
 
-  dog: function(x, g, s, rim, t){
-    var wag = reduced ? 0 : Math.sin(t / 200) * .18;
-    shadowAt(x, g, .48 * s);
-    cx.strokeStyle = rim; cx.lineWidth = 2; cx.lineCap = "round";
-    cx.beginPath();                                        /* دُمِ تکان‌خور */
-    cx.moveTo(x - .40*s, g - .48*s);
-    cx.quadraticCurveTo(x - .62*s, g - (.60 + wag)*s, x - .52*s, g - (.80 + wag)*s);
+  /* سگِ گله: هندسه‌اش ثابت است و رو به راست — با جهتِ نور نمی‌چرخد.
+     دقیقاً همان چیزی که گربه را درست نگه داشته. s = ارتفاعِ شانه. */
+  dog: function(x, g, s, rim, t, dir){
+    var wag = reduced ? 0 : Math.sin(t / 195) * .17;
+    footShadow(x, g, .52 * s);
+
+    cx.strokeStyle = alpha(rim, .85); cx.lineWidth = .080 * s; cx.lineCap = "round";
+    cx.beginPath();
+    cx.moveTo(x - .42 * s, g - .58 * s);
+    cx.bezierCurveTo(x - .64 * s, g - (.62 + wag) * s, x - .68 * s, g - (.84 + wag) * s,
+                     x - .52 * s, g - (.92 + wag) * s);
     cx.stroke();
-    shape(function(st){
-      [-.30, -.12, .16, .32].forEach(function(o){
-        pth([[x + o*s, g - .42*s], [x + o*s - .035*s, g],
-             [x + o*s + .045*s, g], [x + o*s + .07*s, g - .42*s]], st);
-      });
-    }, rim);
-    shape(function(st){ ell(x, g - .48*s, .42*s, .21*s, st); }, rim);              /* تن */
-    shape(function(st){                                    /* گوشِ افتاده */
-      pth([[x + .34*s, g - .78*s], [x + .30*s, g - .50*s], [x + .44*s, g - .72*s]], st);
-    }, rim);
-    shape(function(st){ ell(x + .44*s, g - .70*s, .18*s, .16*s, st); }, rim);      /* سر */
-    shape(function(st){                                    /* پوزه */
-      pth([[x + .54*s, g - .74*s], [x + .70*s, g - .68*s], [x + .55*s, g - .60*s]], st);
-    }, rim);
-    cx.fillStyle = "#FFE9AE"; cx.globalAlpha = .6;
-    ell(x + .48*s, g - .74*s, .022*s, .019*s);
+
+    function leg(ox, back){
+      var lx = x + ox * s;
+      form([
+        ["m", lx - .040 * s, g - .56 * s],
+        ["c", lx - .048 * s, g - .34 * s, lx - .042 * s, g - .15 * s, lx - .044 * s, g - .010 * s],
+        ["q", lx, g + .014 * s, lx + .044 * s, g - .010 * s],
+        ["c", lx + .042 * s, g - .15 * s, lx + .048 * s, g - .34 * s, lx + .040 * s, g - .56 * s]
+      ], back ? CLOTH2 : CLOTH, x, g, s, dir, alpha(rim, back ? .14 : .24), rim, 1.2);
+    }
+    leg(-.32, true); leg(.16, true); leg(-.22, false); leg(.28, false);
+
+    form([
+      ["m", x - .44 * s, g - .56 * s],
+      ["c", x - .50 * s, g - .72 * s, x - .34 * s, g - .82 * s, x - .10 * s, g - .825 * s],
+      ["c", x + .14 * s, g - .830 * s, x + .32 * s, g - .79 * s, x + .40 * s, g - .70 * s],
+      ["c", x + .46 * s, g - .60 * s, x + .40 * s, g - .46 * s, x + .22 * s, g - .425 * s],
+      ["c", x - .04 * s, g - .385 * s, x - .30 * s, g - .42 * s, x - .44 * s, g - .56 * s]
+    ], CLOTH, x, g, s, dir, alpha(rim, .40), rim, 1.8);
+
+    form([
+      ["m", x + .30 * s, g - .76 * s],
+      ["c", x + .38 * s, g - .86 * s, x + .46 * s, g - .90 * s, x + .54 * s, g - .92 * s],
+      ["l", x + .56 * s, g - .80 * s],
+      ["c", x + .46 * s, g - .78 * s, x + .40 * s, g - .72 * s, x + .34 * s, g - .66 * s]
+    ], CLOTH, x, g, s, dir, alpha(rim, .24), null);
+
+    var hx = x + .60 * s, hy = g - .90 * s;
+    form([
+      ["m", hx + .06 * s, hy - .045 * s],
+      ["q", hx + .26 * s, hy - .038 * s, hx + .265 * s, hy + .015 * s],
+      ["q", hx + .24 * s, hy + .068 * s, hx + .04 * s, hy + .055 * s]
+    ], CLOTH2, x, g, s, dir, alpha(rim, .34), rim, 1.4);
+    form([
+      ["m", hx - .04 * s, hy - .135 * s],
+      ["q", hx - .15 * s, hy - .05 * s, hx - .11 * s, hy + .08 * s],
+      ["q", hx - .01 * s, hy + .00 * s, hx + .05 * s, hy - .12 * s]
+    ], CLOTH2, x, g, s, dir, alpha(rim, .40), rim, 1.4);
+    form([
+      ["m", hx - .11 * s, hy - .095 * s],
+      ["c", hx - .145 * s, hy + .00 * s, hx - .09 * s, hy + .078 * s, hx + .015 * s, hy + .080 * s],
+      ["c", hx + .12 * s, hy + .082 * s, hx + .165 * s, hy + .00 * s, hx + .125 * s, hy - .085 * s],
+      ["c", hx + .065 * s, hy - .140 * s, hx - .045 * s, hy - .140 * s, hx - .11 * s, hy - .095 * s]
+    ], CLOTH, x, g, s, dir, alpha(rim, .46), rim, 1.7);
+    cx.globalAlpha = .9;
+    blob(hx + .05 * s, hy - .04 * s, .026 * s, .022 * s, "#FFE9AE");
     cx.globalAlpha = 1;
+    cx.fillStyle = "rgba(20,15,22,.9)";
+    cx.beginPath(); cx.ellipse(hx + .262 * s, hy + .012 * s, .022 * s, .019 * s, 0, 0, 6.284); cx.fill();
   }
+
 };
 
 /* کدام شخصیت روی صحنه است، و محوشدنِ نرم بینِ دو نفر */
@@ -1288,7 +1454,16 @@ function drawFigures(t, scn){
     cx.translate((f.at || .5) * W, g + bob);
     cx.rotate(sway(t, 2600, .012));
     cx.translate(-(f.at || .5) * W, -(g + bob));
-    FIGS[f.fig]((f.at || .5) * W, g + bob, s, f.rim || "rgba(245,177,74,.55)", t);
+    var lx = (scn && scn.lightX != null) ? scn.lightX : .5;
+    var dir = lx <= (f.at || .5) ? -1 : 1;
+    var fx = (f.at || .5) * W, fy = g + bob;
+    var im = f.pic && FIGIMG[f.pic];
+    if(im){                                     /* تصویرِ واقعی، اگر گذاشته باشی */
+      var iw = s * (im.naturalWidth / im.naturalHeight);
+      cx.drawImage(im, fx - iw / 2, fy - s, iw, s);
+    } else {
+      FIGS[f.fig](fx, fy, s, f.rim || "rgba(245,177,74,.55)", t, dir);
+    }
     cx.restore();
   }
   one(figOld, 1 - figA);
@@ -1313,9 +1488,11 @@ function caravanserai(ox, lit){
 
 /* شخصیت‌ها روی کدام ارتفاع بایستند، در هر صحنه */
 var SCENE_META = {
-  gate:{groundY:.70}, tower:{groundY:.62}, yard:{groundY:.72}, store:{groundY:.72},
-  dawn:{groundY:.70}, village:{groundY:.74}, river:{groundY:.76},
-  path:{groundY:.74}, house:{groundY:.76}, dusk:{groundY:.72}
+  gate:{groundY:.70, lightX:.19}, tower:{groundY:.62, lightX:.50},
+  yard:{groundY:.72, lightX:.79}, store:{groundY:.72, lightX:.31},
+  dawn:{groundY:.70, lightX:.50}, village:{groundY:.74, lightX:.735},
+  river:{groundY:.76, lightX:.63}, path:{groundY:.74, lightX:.50},
+  house:{groundY:.76, lightX:.25}, dusk:{groundY:.72, lightX:.50}
 };
 
 var SCENES = {
@@ -1514,11 +1691,10 @@ var SCENES = {
     poly([[-.02, .80], [.14, .74], [.32, .80]], "#0A0F13");
     /* دودِ دودکشِ خانه‌های آن‌طرفِ آب */
     if(!reduced){
-      cx.fillStyle = "rgba(200,212,216,.10)";
       for(var q = 0; q < 6; q++){
         var u = ((t / 5200) + q / 6) % 1;
-        ell((.335 + sway(t + q * 900, 1600, .012)) * W, (.395 - u * .16) * H,
-            (5 + u * 16), (4 + u * 12));
+        blob((.335 + sway(t + q * 900, 1600, .012)) * W, (.395 - u * .16) * H,
+             (5 + u * 16), (4 + u * 12), "rgba(200,212,216,.10)");
       }
     }
     rain(t, 150, .30);
@@ -1643,7 +1819,7 @@ var SCENES = {
 };
 
 /* ══════════════ تصویرها و صداهای اختیاری ══════════════ */
-var IMG = {}, POT = {}, VOICE = {};
+var IMG = {}, POT = {}, FIGIMG = {}, VOICE = {};
 function tryLoad(url, exts, i, done){
   if(i >= exts.length) return;
   var im = new Image();
@@ -1661,6 +1837,8 @@ Object.keys(SCENES).forEach(function(k){
   });
   Object.keys(pics).forEach(function(p){
     tryLoad("art/who-" + p, [".webp",".png",".jpg"], 0, function(im){ POT[p] = im; });
+    /* تمام‌قدِ شخصیت با پس‌زمینهٔ شفاف: اگر باشد، جای شکلِ کدی می‌نشیند */
+    tryLoad("art/fig-" + p, [".webp",".png"], 0, function(im){ FIGIMG[p] = im; });
   });
 })();
 

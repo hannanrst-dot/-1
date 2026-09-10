@@ -178,6 +178,61 @@
 
 ---
 
+---
+
+# شخصیت‌های تمام‌قد — مهم‌ترینِ این فهرست
+
+بازی شخصیت‌ها را خودش می‌کشد، ولی آن‌ها **سایه‌نمای کدی** هستند و سقفشان همین است.
+اگر یک فایل با نامِ زیر در `art/` بگذاری، به‌جای شکلِ کدی، **همان تصویر** توی صحنه
+می‌ایستد و همان‌جا نفس می‌کشد و تاب می‌خورد:
+
+| فایل | شخصیت |
+|---|---|
+| `fig-gohar.webp` | بی‌بی گوهر |
+| `fig-rajab.webp` | مشد رجب |
+| `fig-negar.webp` | نگار |
+| `fig-amoo.webp` | عمویِ نگار |
+| `fig-zardi.webp` | زردی، گربه |
+| `fig-heydar.webp` | مشدی حیدر |
+| `fig-sakineh.webp` | ننه‌سکینه |
+| `fig-palang.webp` | پلنگ، سگِ گله |
+
+## شرط‌های این تصویرها
+
+1. **پس‌زمینه باید کاملاً شفاف باشد** (PNG یا WebP با آلفا). اگر پس‌زمینه داشته باشد،
+   یک مستطیل وسطِ صحنه می‌نشیند و همه‌چیز را خراب می‌کند.
+2. **تمام‌قد، از فرقِ سر تا کفِ پا**، بدونِ فضای خالیِ اضافه در بالا و پایین —
+   موتور پایینِ تصویر را روی زمینِ صحنه می‌گذارد.
+3. عمودی، حدودِ ۸۰۰×۱۶۰۰ برای آدم‌ها و ۱۰۰۰×۱۰۰۰ برای حیوان‌ها.
+4. **رو به دوربین یا سه‌رخ.** از پشت نه.
+
+## سرآغازِ مشترکِ شخصیت‌ها
+
+> Full-body character illustration for a children's storybook game, cut out on a fully
+> transparent background. Hand-painted flat illustration with soft gradients and gentle grain,
+> NOT 3D, NOT photorealistic, no outline sticker border.
+> Iranian village people, warm and dignified, never caricatured.
+> Lit by a single warm lamp from one side against darkness, so most of the figure is in deep
+> shadow with a warm rim of light down one edge. Deep indigo shadows, amber highlight.
+> Whole body from head to feet, standing, three-quarter view.
+> No background, no ground, no shadow under the feet, no text, no logo, no frame.
+
+## هر کدام
+
+- **`fig-gohar.webp`** — An elderly Iranian grandmother in a long dark chador over a plain dress, calm and warm, deep laugh lines, leaning slightly on a walking stick.
+- **`fig-rajab.webp`** — An elderly Iranian village watchman, white beard, felt hat, a heavy long coat open over a lighter under-robe, holding up a small glass lantern that is the light source.
+- **`fig-negar.webp`** — An Iranian village girl about eleven, plain long dress, a headscarf tied under the chin with a braid escaping behind, one arm reaching forward as if pointing. Alert and a little cheeky.
+- **`fig-amoo.webp`** — An Iranian village man in his forties, thin, unshaven, a worn patched long coat, shoulders down, head lowered, hands together in front. Ashamed and exhausted.
+- **`fig-zardi.webp`** — A yellow-ginger village cat sitting upright, tail curled around, ears up, eyes catching the lamplight. Calm and a bit smug.
+- **`fig-heydar.webp`** — An elderly Iranian village miller, broad shoulders, grey stubble, a soaked wool hat and heavy wet coat, standing firm in the rain. Cold grey daylight instead of lamplight for this one.
+- **`fig-sakineh.webp`** — An elderly Iranian village woman in a soaked floral headscarf and long dress, small and stubborn, water running down her face. Cold grey daylight.
+- **`fig-palang.webp`** — A large Iranian shepherd dog standing in profile facing right, thick shaggy coat, ears down, tail up. Cold grey daylight.
+
+> برای دو تای آخر و پلنگ، به‌جای «warm lamp from one side» بنویس
+> «cold grey rainy daylight, soaked fur and cloth».
+
+---
+
 ## اگر خواستی همه‌شان یک‌دست باشند
 
 بهترین روش با نانو بنانا: اول `gate` را بساز، از نتیجه راضی شدی، بعد برای بقیه بنویس
