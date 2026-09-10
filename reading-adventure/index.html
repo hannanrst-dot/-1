@@ -226,8 +226,8 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .wsent{background:var(--glass);border:1.5px solid var(--edge);border-radius:14px;
   padding:20px 22px;backdrop-filter:blur(14px);font-size:1.18rem;line-height:2.2;text-align:center;
   animation:cin .4s both}
-.wtok{cursor:pointer;border-radius:7px;padding:2px 5px;margin:0 -1px;
-  transition:background .16s,color .16s;display:inline-block}
+.wtok{cursor:pointer;border-radius:7px;padding:4px 5px;margin:0 -5px;
+  transition:background .16s,color .16s;display:inline}
 .wtok:hover{background:var(--mark)}
 .wtok.bad{animation:nope .45s;color:var(--rose)}
 .wtok.good{background:var(--lamp);color:#160F06;font-weight:600}
@@ -475,11 +475,11 @@ const STORY_CHERAGH = {
   chapters:["دروازه","برجِ چراغ","حیاط","انبار"],
 
   cast:{
-    "بی‌بی گوهر":{ c:"#C9A8E8", pic:"gohar" },
-    "مشد رجب"  :{ c:"#8FB8E8", pic:"rajab" },
-    "نگار"     :{ c:"#F5B14A", pic:"negar" },
-    "عمویِ نگار":{ c:"#E8956A", pic:"amoo"  },
-    "زردی"      :{ c:"#E8C46A", pic:"zardi" }
+    "بی‌بی گوهر":{ c:"#C9A8E8", pic:"gohar", fig:"oldwoman", at:.24, size:.21, rim:"rgba(201,168,232,.5)" },
+    "مشد رجب"  :{ c:"#8FB8E8", pic:"rajab", fig:"oldman",   at:.78, size:.22, rim:"rgba(143,184,232,.5)" },
+    "نگار"     :{ c:"#F5B14A", pic:"negar", fig:"girl",     at:.22, size:.185, rim:"rgba(245,177,74,.6)" },
+    "عمویِ نگار":{ c:"#E8956A", pic:"amoo",  fig:"man",      at:.76, size:.22, rim:"rgba(232,149,106,.55)" },
+    "زردی"      :{ c:"#E8C46A", pic:"zardi", fig:"cat",      at:.66, size:.095, rim:"rgba(232,196,106,.5)" }
   },
   chips:[
     { key:"negar",   off:"نگار",       on:"نگار همراهت است" },
@@ -738,8 +738,9 @@ const STORY_POL = {
   chapters:["ده","رود","راهِ باغ","آغل"],
 
   cast:{
-    "مشدی حیدر":{ c:"#7FC8C0", pic:"heydar"  },
-    "ننه‌سکینه" :{ c:"#E3A9C6", pic:"sakineh" }
+    "مشدی حیدر":{ c:"#7FC8C0", pic:"heydar",  fig:"oldman",   at:.77, size:.22, rim:"rgba(127,200,192,.5)" },
+    "ننه‌سکینه" :{ c:"#E3A9C6", pic:"sakineh", fig:"oldwoman", at:.25, size:.20, rim:"rgba(227,169,198,.5)" },
+    "پلنگ"      :{ c:"#A8C878", fig:"dog", at:.60, size:.115, rim:"rgba(168,200,120,.5)" }
   },
   chips:[
     { key:"dog",   off:"پلنگ",           on:"پلنگ همراهت است" },
@@ -1076,6 +1077,223 @@ function battlements(x0, x1, y, step, hgt, fill){
 function twinkle(t, speed){
   return reduced ? .55 : .36 + .34 * (0.5 + 0.5 * Math.sin(t / (speed || 440)));
 }
+/* لرزشِ شعله: دو موجِ ناهم‌آهنگ، تا مثلِ آتشِ واقعی بی‌قاعده باشد */
+function flicker(t, sp, amt){
+  if(reduced) return 1;
+  sp = sp || 1; amt = amt == null ? .28 : amt;
+  var a = 0.5 + 0.5 * Math.sin(t / (130 / sp));
+  var b = 0.5 + 0.5 * Math.sin(t / (57 / sp) + 1.7);
+  return 1 - amt * (a * .6 + b * .4);
+}
+/* برقِ آسمان: هر چند ثانیه یک جرقهٔ کوتاه */
+function bolt(t, period, seedOff){
+  if(reduced) return 0;
+  var p = period || 11000, u = ((t + (seedOff || 0)) % p) / p;
+  if(u > .026) return 0;
+  var k = u / .026;
+  return Math.max(0, Math.sin(k * Math.PI * 3)) * (1 - k);
+}
+function sway(t, sp, amt){
+  return reduced ? 0 : Math.sin(t / (sp || 1500)) * (amt == null ? .02 : amt);
+}
+/* شهابِ گاه‌به‌گاه */
+function shootingStar(t){
+  if(reduced) return;
+  var p = 14000, u = (t % p) / p;
+  if(u > .05) return;
+  var k = u / .05, x = (.15 + k * .5) * W, y = (.08 + k * .22) * H;
+  cx.globalAlpha = Math.sin(k * Math.PI) * .8;
+  cx.strokeStyle = "#FFF6DD"; cx.lineWidth = 1.6; cx.lineCap = "round";
+  cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x - 46, y - 20); cx.stroke();
+  cx.globalAlpha = 1;
+}
+/* پرنده‌های دور */
+function birds(t, n, x0, y0, sp){
+  if(reduced) return;
+  cx.strokeStyle = "rgba(40,25,35,.55)"; cx.lineWidth = 1.6; cx.lineCap = "round";
+  for(var i = 0; i < n; i++){
+    var s = seeds[i + 120];
+    var x = ((x0 + s[0] * .5 + (t / (sp || 46000)) * (.6 + s[2] * .5)) % 1.25 - .12) * W;
+    var y = (y0 + s[1] * .07) * H + Math.sin(t / 900 + s[3] * 6) * 4;
+    var w2 = 5 + s[2] * 4, f = Math.sin(t / 190 + s[3] * 9) * .5 + .5;
+    cx.beginPath();
+    cx.moveTo(x - w2, y + f * 3); cx.lineTo(x, y - f * 2); cx.lineTo(x + w2, y + f * 3);
+    cx.stroke();
+  }
+}
+/* پردهٔ سفیدِ برقِ آسمان */
+function flash(a){
+  if(a <= 0) return;
+  cx.fillStyle = "rgba(214,232,245," + (a * .5).toFixed(3) + ")";
+  cx.fillRect(0, 0, W, H);
+}
+
+/* ══════════════ شخصیت‌ها ══════════════
+   سایه‌نما با یک لبهٔ نورخورده. سبکِ کلِ بازی سایه‌نماست، پس آدم‌ها هم
+   همان‌طور کشیده می‌شوند — و همه نفس می‌کشند و تکان می‌خورند.        */
+var DARK = "#08070E";
+/* سایه‌نما با خطِ دورِ روشن: در هر پس‌زمینه‌ای خوانا می‌ماند */
+function shape(drawFn, rim){
+  cx.fillStyle = DARK;
+  drawFn();
+  cx.strokeStyle = rim; cx.lineWidth = 1.6; cx.lineJoin = "round";
+  drawFn(true);
+}
+function ell(x, y, rx, ry, st){
+  cx.beginPath(); cx.ellipse(x, y, rx, ry, 0, 0, 6.284);
+  st ? cx.stroke() : cx.fill();
+}
+function pth(pts, st){
+  cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1]);
+  for(var i = 1; i < pts.length; i++) cx.lineTo(pts[i][0], pts[i][1]);
+  cx.closePath();
+  st ? cx.stroke() : cx.fill();
+}
+function shadowAt(x, g, w2){
+  var gr = cx.createRadialGradient(x, g, 0, x, g, w2);
+  gr.addColorStop(0, "rgba(0,0,0,.45)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+  cx.fillStyle = gr;
+  cx.beginPath(); cx.ellipse(x, g, w2, w2 * .26, 0, 0, 6.284); cx.fill();
+}
+
+var FIGS = {
+  /* s = قدِ کاملِ آدم. سر حدودِ یک‌هفتمِ قد است، مثلِ آدمِ واقعی. */
+  oldwoman: function(x, g, s, rim){
+    shadowAt(x, g, .20 * s);
+    shape(function(st){
+      pth([[x - .075*s, g - .80*s], [x - .17*s, g], [x + .17*s, g], [x + .075*s, g - .80*s]], st);
+    }, rim);
+    shape(function(st){                                   /* روسری که تا شانه می‌آید */
+      cx.beginPath();
+      cx.moveTo(x - .072*s, g - .885*s);
+      cx.quadraticCurveTo(x - .115*s, g - .78*s, x - .10*s, g - .70*s);
+      cx.lineTo(x + .10*s, g - .70*s);
+      cx.quadraticCurveTo(x + .115*s, g - .78*s, x + .072*s, g - .885*s);
+      cx.closePath(); st ? cx.stroke() : cx.fill();
+    }, rim);
+    shape(function(st){ ell(x, g - .905*s, .062*s, .068*s, st); }, rim);
+    shape(function(st){ ell(x - .13*s, g - .48*s, .035*s, .055*s, st); }, rim);   /* دست */
+  },
+
+  oldman: function(x, g, s, rim){
+    shadowAt(x, g, .19 * s);
+    shape(function(st){
+      pth([[x - .085*s, g - .82*s], [x - .135*s, g], [x + .135*s, g], [x + .085*s, g - .82*s]], st);
+    }, rim);
+    shape(function(st){ ell(x, g - .895*s, .056*s, .062*s, st); }, rim);
+    shape(function(st){                                   /* ریش */
+      pth([[x - .048*s, g - .875*s], [x, g - .795*s], [x + .048*s, g - .875*s]], st);
+    }, rim);
+    shape(function(st){                                   /* کلاهِ نمدی */
+      pth([[x - .085*s, g - .952*s], [x + .085*s, g - .952*s],
+           [x + .062*s, g - .968*s], [x + .052*s, g - 1.02*s],
+           [x - .052*s, g - 1.02*s], [x - .062*s, g - .968*s]], st);
+    }, rim);
+    cx.strokeStyle = rim; cx.lineWidth = 2;               /* عصا */
+    cx.beginPath(); cx.moveTo(x + .145*s, g - .74*s); cx.lineTo(x + .16*s, g); cx.stroke();
+  },
+
+  girl: function(x, g, s, rim){
+    shadowAt(x, g, .17 * s);
+    shape(function(st){
+      pth([[x - .07*s, g - .78*s], [x - .155*s, g], [x + .155*s, g], [x + .07*s, g - .78*s]], st);
+    }, rim);
+    shape(function(st){
+      cx.beginPath();
+      cx.moveTo(x - .068*s, g - .875*s);
+      cx.quadraticCurveTo(x - .105*s, g - .77*s, x - .092*s, g - .70*s);
+      cx.lineTo(x + .092*s, g - .70*s);
+      cx.quadraticCurveTo(x + .105*s, g - .77*s, x + .068*s, g - .875*s);
+      cx.closePath(); st ? cx.stroke() : cx.fill();
+    }, rim);
+    shape(function(st){ ell(x, g - .895*s, .058*s, .064*s, st); }, rim);
+    shape(function(st){ ell(x + .10*s, g - .74*s, .026*s, .055*s, st); }, rim);   /* گیس */
+  },
+
+  man: function(x, g, s, rim){
+    shadowAt(x, g, .18 * s);
+    shape(function(st){
+      pth([[x - .09*s, g - .84*s], [x - .115*s, g], [x + .115*s, g], [x + .09*s, g - .84*s]], st);
+    }, rim);
+    shape(function(st){ ell(x, g - .905*s, .053*s, .059*s, st); }, rim);
+    shape(function(st){ ell(x, g - .82*s, .095*s, .035*s, st); }, rim);           /* شانه‌ها */
+  },
+
+  /* s برای گربه و سگ = قدِ خودشان، نه قدِ آدم */
+  cat: function(x, g, s, rim, t){
+    var tw = reduced ? 0 : Math.sin(t / 620) * .16;
+    shadowAt(x, g, .34 * s);
+    cx.strokeStyle = rim; cx.lineWidth = 1.6; cx.lineCap = "round";
+    cx.beginPath();                                        /* دُم */
+    cx.moveTo(x - .26*s, g - .10*s);
+    cx.quadraticCurveTo(x - .58*s, g - (.20 + tw)*s, x - .44*s, g - (.62 + tw)*s);
+    cx.stroke();
+    shape(function(st){ ell(x - .05*s, g - .26*s, .30*s, .26*s, st); }, rim);      /* تنِ نشسته */
+    shape(function(st){ ell(x + .16*s, g - .33*s, .17*s, .30*s, st); }, rim);      /* سینه */
+    shape(function(st){                                    /* گوش‌ها */
+      pth([[x + .04*s, g - .76*s], [x + .07*s, g - .96*s], [x + .19*s, g - .80*s]], st);
+      pth([[x + .24*s, g - .80*s], [x + .35*s, g - .95*s], [x + .34*s, g - .74*s]], st);
+    }, rim);
+    shape(function(st){ ell(x + .19*s, g - .72*s, .19*s, .17*s, st); }, rim);      /* سر */
+    cx.fillStyle = "#FFE9AE";
+    cx.globalAlpha = .7 + .3 * Math.sin(t / 700);
+    ell(x + .12*s, g - .75*s, .026*s, .021*s);
+    ell(x + .27*s, g - .75*s, .026*s, .021*s);
+    cx.globalAlpha = 1;
+  },
+
+  dog: function(x, g, s, rim, t){
+    var wag = reduced ? 0 : Math.sin(t / 200) * .18;
+    shadowAt(x, g, .48 * s);
+    cx.strokeStyle = rim; cx.lineWidth = 2; cx.lineCap = "round";
+    cx.beginPath();                                        /* دُمِ تکان‌خور */
+    cx.moveTo(x - .40*s, g - .48*s);
+    cx.quadraticCurveTo(x - .62*s, g - (.60 + wag)*s, x - .52*s, g - (.80 + wag)*s);
+    cx.stroke();
+    shape(function(st){
+      [-.30, -.12, .16, .32].forEach(function(o){
+        pth([[x + o*s, g - .42*s], [x + o*s - .035*s, g],
+             [x + o*s + .045*s, g], [x + o*s + .07*s, g - .42*s]], st);
+      });
+    }, rim);
+    shape(function(st){ ell(x, g - .48*s, .42*s, .21*s, st); }, rim);              /* تن */
+    shape(function(st){                                    /* گوشِ افتاده */
+      pth([[x + .34*s, g - .78*s], [x + .30*s, g - .50*s], [x + .44*s, g - .72*s]], st);
+    }, rim);
+    shape(function(st){ ell(x + .44*s, g - .70*s, .18*s, .16*s, st); }, rim);      /* سر */
+    shape(function(st){                                    /* پوزه */
+      pth([[x + .54*s, g - .74*s], [x + .70*s, g - .68*s], [x + .55*s, g - .60*s]], st);
+    }, rim);
+    cx.fillStyle = "#FFE9AE"; cx.globalAlpha = .6;
+    ell(x + .48*s, g - .74*s, .022*s, .019*s);
+    cx.globalAlpha = 1;
+  }
+};
+
+/* کدام شخصیت روی صحنه است، و محوشدنِ نرم بینِ دو نفر */
+var figNow = null, figOld = null, figA = 0;
+function setFigure(f){
+  if(figNow && f && figNow.fig === f.fig && figNow.at === f.at) return;
+  figOld = figNow; figNow = f; figA = 0;
+}
+function drawFigures(t, scn){
+  var g = ((scn && scn.groundY) || .74) * H;
+  if(figA < 1) figA = Math.min(1, figA + (reduced ? 1 : .045));
+  function one(f, alpha){
+    if(!f || !FIGS[f.fig] || alpha <= 0) return;
+    var s = (f.size || .42) * H;
+    var bob = reduced ? 0 : Math.sin(t / 1150 + (f.at || .5) * 7) * .006 * H;
+    cx.save();
+    cx.globalAlpha = alpha;
+    cx.translate((f.at || .5) * W, g + bob);
+    cx.rotate(sway(t, 2600, .012));
+    cx.translate(-(f.at || .5) * W, -(g + bob));
+    FIGS[f.fig]((f.at || .5) * W, g + bob, s, f.rim || "rgba(245,177,74,.55)", t);
+    cx.restore();
+  }
+  one(figOld, 1 - figA);
+  one(figNow, figA);
+}
 function caravanserai(ox, lit){
   var o = ox * 0.010;
   box(.20 + o, .36, .60, .28, "#0A0716");
@@ -1093,6 +1311,13 @@ function caravanserai(ox, lit){
   if(lit) glow(.636 + o, .211, .18, "rgba(255,217,138,.58)");
 }
 
+/* شخصیت‌ها روی کدام ارتفاع بایستند، در هر صحنه */
+var SCENE_META = {
+  gate:{groundY:.70}, tower:{groundY:.62}, yard:{groundY:.72}, store:{groundY:.72},
+  dawn:{groundY:.70}, village:{groundY:.74}, river:{groundY:.76},
+  path:{groundY:.74}, house:{groundY:.76}, dusk:{groundY:.72}
+};
+
 var SCENES = {
   /* ───────── داستان یک ───────── */
   gate: function(t, lit){
@@ -1104,8 +1329,28 @@ var SCENES = {
     haze(.44, .68, "rgba(120,110,180,.10)");
     poly([[0, .62], [.2, .575], [.45, .625], [.7, .565], [1, .61], [1, 1], [0, 1]], "#181234");
     caravanserai(px, lit);
+    /* پارچهٔ سردر که در باد می‌رقصد */
+    var sw = sway(t, 900, .028);
+    cx.fillStyle = "#1A1024";
+    cx.beginPath();
+    cx.moveTo(.415 * W, .50 * H);
+    cx.quadraticCurveTo(.47 * W, (.545 + sw) * H, .525 * W, .50 * H);
+    cx.lineTo(.525 * W, .485 * H);
+    cx.quadraticCurveTo(.47 * W, (.53 + sw) * H, .415 * W, .485 * H);
+    cx.closePath(); cx.fill();
     haze(.60, .78, "rgba(90,80,150,.09)");
     poly([[0, .70], [.28, .662], [.62, .715], [1, .678], [1, 1], [0, 1]], "#060410");
+    /* خاکِ روان روی زمین */
+    if(!reduced){
+      cx.strokeStyle = "rgba(190,175,215,.10)"; cx.lineWidth = 1;
+      for(var d = 0; d < 14; d++){
+        var sd = seeds[d + 150];
+        var xx = ((sd[0] + (t / 5200) * (.4 + sd[2])) % 1.2 - .1) * W;
+        var yy = (.72 + sd[1] * .22) * H;
+        cx.beginPath(); cx.moveTo(xx, yy); cx.lineTo(xx + 18 + sd[3] * 26, yy - 1); cx.stroke();
+      }
+    }
+    shootingStar(t);
   },
 
   tower: function(t){
@@ -1120,7 +1365,15 @@ var SCENES = {
     stars(t, 26, .38); cx.restore();
     cx.strokeStyle = "rgba(245,177,74,.20)"; cx.lineWidth = 2;
     cx.strokeRect((.09 + px * .004) * W, .10 * H, .19 * W, .27 * H);
-    glow(.5, .72, .48, "rgba(245,177,74,.24)");
+    var fl = flicker(t, 1.2, .30);
+    glow(.5, .72, .48 * fl, "rgba(245,177,74," + (.26 * fl).toFixed(3) + ")");
+    /* خودِ شعله، پایینِ کادر */
+    cx.fillStyle = "#FFD27A"; cx.globalAlpha = .55 * fl;
+    cx.beginPath();
+    cx.moveTo(.5 * W, (.80 - .035 * fl) * H);
+    cx.quadraticCurveTo((.516 + sway(t, 260, .006)) * W, .845 * H, .5 * W, .875 * H);
+    cx.quadraticCurveTo((.484 + sway(t, 310, .006)) * W, .845 * H, .5 * W, (.80 - .035 * fl) * H);
+    cx.fill(); cx.globalAlpha = 1;
     var o = px * .008;
     box(.43 + o, .50, .14, .07, "#08050F");
     poly([[.447 + o, .50], [.465 + o, .19], [.535 + o, .19], [.553 + o, .50]], "#0A0714");
@@ -1155,8 +1408,9 @@ var SCENES = {
     battlements(0, .27, .17, .044, .026, "#070A14");
     box(.71, .21 - px * .004, .29, .46, "#06080F");
     battlements(.71, 1, .21, .044, .026, "#06080F");
+    var wf = flicker(t, .5, .18);
     var wx = .775, wy = .305, ww = .034, wh = .050;
-    glow(wx + ww / 2, wy + wh / 2, .13, "rgba(245,177,74,.26)");
+    glow(wx + ww / 2, wy + wh / 2, .13 * wf, "rgba(245,177,74," + (.28 * wf).toFixed(3) + ")");
     box(wx - .005, wy - .006, ww + .010, wh + .012, "#120C10");
     cx.fillStyle = "rgba(250,196,110,.82)";
     cx.fillRect(wx * W, wy * H, ww * W, wh * H);
@@ -1184,9 +1438,12 @@ var SCENES = {
     grad([[0, "#08060E"], [.6, "#100B14"], [1, "#0A0710"]]);
     box(.87 + px * .004, 0, .05, 1, "#2A1B14");
     glow(.895, .38, .24, "rgba(150,120,90,.18)");
-    glow(.31, .42, .34, "rgba(245,177,74,.26)");
-    cx.fillStyle = "#FFD98A";
-    cx.beginPath(); cx.arc(.31 * W, .42 * H, Math.min(W, H) * .013, 0, 6.284); cx.fill();
+    var sf = flicker(t, 1.5, .34);
+    glow(.31 + sway(t, 700, .004), .42, .34 * sf, "rgba(245,177,74," + (.28 * sf).toFixed(3) + ")");
+    cx.fillStyle = "#FFD98A"; cx.globalAlpha = .7 + .3 * sf;
+    cx.beginPath();
+    cx.arc((.31 + sway(t, 700, .004)) * W, .42 * H, Math.min(W, H) * .013 * (.85 + .3 * sf), 0, 6.284);
+    cx.fill(); cx.globalAlpha = 1;
     var o = px * .008, hx = .565 + o, hy = .60;
     box(hx - .023, hy - .046, .046, .092, "#241B14");
     box(hx - .009, hy - .062, .018, .016, "#1A140F");
@@ -1211,6 +1468,7 @@ var SCENES = {
     poly([[0, .625], [.24, .585], [.52, .63], [.78, .575], [1, .615], [1, 1], [0, 1]], "#5A3352");
     caravanserai(px * .5, lit);
     poly([[0, .715], [.3, .682], [.66, .73], [1, .695], [1, 1], [0, 1]], "#2A1730");
+    birds(t, 5, .05, .30, 52000);
   },
 
   /* ───────── داستان دو ───────── */
@@ -1254,7 +1512,17 @@ var SCENES = {
     poly([[0, .66], [.3, .635], [.66, .672], [1, .645], [1, 1], [0, 1]], "#141B20");
     box(0, .80, .30, .20, "#0D1317");
     poly([[-.02, .80], [.14, .74], [.32, .80]], "#0A0F13");
+    /* دودِ دودکشِ خانه‌های آن‌طرفِ آب */
+    if(!reduced){
+      cx.fillStyle = "rgba(200,212,216,.10)";
+      for(var q = 0; q < 6; q++){
+        var u = ((t / 5200) + q / 6) % 1;
+        ell((.335 + sway(t + q * 900, 1600, .012)) * W, (.395 - u * .16) * H,
+            (5 + u * 16), (4 + u * 12));
+      }
+    }
     rain(t, 150, .30);
+    flash(bolt(t, 12000));
   },
 
   river: function(t){
@@ -1280,16 +1548,17 @@ var SCENES = {
     });
     haze(.34, .48, "rgba(200,215,220,.12)");
     rain(t, 170, .34);
+    flash(bolt(t, 12000, 3000));
   },
 
   path: function(t){
     grad([[0, "#26333B"], [.26, "#2C3A3C"], [.6, "#3A3A31"], [1, "#232620"]]);
     /* درخت‌های گردو */
-    [[.10, .30], [.24, .24], [.86, .27], [.97, .21]].forEach(function(tr){
-      var x = tr[0] + px * .004;
+    [[.10, .30], [.24, .24], [.86, .27], [.97, .21]].forEach(function(tr, i){
+      var x = tr[0] + px * .004 + sway(t + i * 700, 1700, .008);
       cx.fillStyle = "#131A16";
       cx.beginPath(); cx.ellipse(x * W, tr[1] * H, .11 * W, .13 * H, 0, 0, 6.284); cx.fill();
-      cx.fillRect((x - .008) * W, tr[1] * H, .016 * W, .30 * H);
+      cx.fillRect((tr[0] - .008 + px * .004) * W, tr[1] * H, .016 * W, .30 * H);
     });
     /* دیوارِ باغ */
     box(0, .40, .22, .28, "#1C211C");
@@ -1314,6 +1583,7 @@ var SCENES = {
     cx.restore();
     haze(.30, .48, "rgba(190,205,205,.10)");
     rain(t, 160, .32);
+    flash(bolt(t, 13000, 6000));
   },
 
   house: function(t){
@@ -1325,9 +1595,12 @@ var SCENES = {
     rain(t, 60, .40); cx.restore();
     glow(.10, .48, .18, "rgba(150,180,195,.14)");
     /* فانوسِ کوچک */
-    glow(.25, .40, .26, "rgba(245,177,74,.22)");
-    cx.fillStyle = "#FFD98A";
-    cx.beginPath(); cx.arc(.25 * W, .40 * H, Math.min(W, H) * .011, 0, 6.284); cx.fill();
+    var hf = flicker(t, 1.6, .36);
+    glow(.25, .40, .26 * hf, "rgba(245,177,74," + (.24 * hf).toFixed(3) + ")");
+    cx.fillStyle = "#FFD98A"; cx.globalAlpha = .7 + .3 * hf;
+    cx.beginPath();
+    cx.arc(.25 * W, .40 * H, Math.min(W, H) * .011 * (.85 + .3 * hf), 0, 6.284);
+    cx.fill(); cx.globalAlpha = 1;
     /* تیرِ چوبی و گرهِ طناب — همان که باید پیدا شود */
     var pxx = .585 + px * .006;
     box(pxx - .018, .18, .036, .62, "#1C1611");
@@ -1365,6 +1638,7 @@ var SCENES = {
     box(0, .70, 1, .30, "#070C10");
     glow(.5, .49, .26, "rgba(150,175,195,.10)");
     rain(t, 200, .36);
+    flash(bolt(t, 8000));
   }
 };
 
@@ -1411,8 +1685,17 @@ function drawCover(im){
 }
 function frame(t){
   cx.clearRect(0, 0, W, H);
+  /* دوربین هیچ‌وقت کاملاً بی‌حرکت نیست */
+  cx.save();
+  if(!reduced){
+    var z = 1.035 + Math.sin(t / 17000) * .012;
+    var dx = Math.sin(t / 9500) * .006 * W, dy = Math.cos(t / 12500) * .004 * H;
+    cx.translate(W / 2 + dx, H / 2 + dy); cx.scale(z, z); cx.translate(-W / 2, -H / 2);
+  }
   if(IMG[curArt]) drawCover(IMG[curArt]);
   else (SCENES[curArt] || SCENES.gate)(t, S.lampLit);
+  drawFigures(t, SCENE_META[curArt]);
+  cx.restore();
   if(grain){
     cx.globalAlpha = .045; cx.globalCompositeOperation = "overlay";
     cx.fillStyle = grain; cx.fillRect(0, 0, W, H);
@@ -1698,6 +1981,7 @@ function step(){
   var who = $("#who"), pot = $("#pot");
   if(b.who){
     var role = (G.cast || {})[b.who] || {};
+    if(role.fig) setFigure(role);
     who.hidden = false; who.textContent = b.who;
     who.style.setProperty("--who", role.c || "var(--lamp2)");
     if(role.pic && POT[role.pic]){ pot.src = POT[role.pic].src; pot.hidden = false; }
@@ -1920,6 +2204,7 @@ function enter(id){
   if(id === "END"){ finish(); return; }
   var n = G.nodes[id];
   S.node = id;
+  if(n.art !== curArt) setFigure(null);
   setArt(n.art);
   if(A.ambKind !== n.amb) A.setAmb(n.amb);
   if(n.cost) spend(n.cost);
@@ -2143,6 +2428,7 @@ function startStory(st){
   clearInterval(typer); typer = 0;
   stopVo();
   hunt = null; ord = null; wrd = null;
+  figNow = null; figOld = null; figA = 1;
   $("#game").classList.remove("interacting");
   $("#hunt").classList.remove("on"); $("#hunt").classList.remove("faded");
   clearTimeout(huntFade);
