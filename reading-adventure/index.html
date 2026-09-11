@@ -37,8 +37,14 @@ h1,h2,h3,.disp{font-family:Lalezar,Vazirmatn,Tahoma,sans-serif;font-weight:400;l
 button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:none;cursor:pointer}
 :focus-visible{outline:2.5px solid var(--lamp2);outline-offset:3px;border-radius:10px}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+.game.lowfx .pips.low .pip:not(.out){animation:none}
+.game.lowfx .more{animation:none}
+.game.lowfx .danger-vig{animation:none}
 
 #art{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+.grainL{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.05;
+  mix-blend-mode:overlay;background-repeat:repeat}
+.game.lowfx .grainL{display:none}
 .vig{position:absolute;inset:0;z-index:1;pointer-events:none;
   background:radial-gradient(ellipse 130% 95% at 50% 40%,transparent 46%,rgba(24,18,44,.42) 100%)}
 .danger-vig{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0;transition:opacity .8s;
@@ -58,7 +64,7 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .hud{position:relative;z-index:4;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   padding:calc(10px + env(safe-area-inset-top)) 14px 10px}
 .pips{display:flex;align-items:center;gap:8px;background:var(--glass);border:1px solid var(--edge);
-  border-radius:999px;padding:7px 14px;backdrop-filter:blur(10px)}
+  border-radius:999px;padding:7px 14px;}
 .pips .lab{font-size:.78rem;color:var(--ink-soft)}
 .pips .row{display:flex;gap:5px}
 .pip{width:11px;height:11px;border-radius:50%;background:var(--lamp);box-shadow:0 0 8px var(--lampGlow);
@@ -68,8 +74,7 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .pips.low .pip:not(.out){animation:pulse 1.5s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
 .chip{display:inline-flex;align-items:center;gap:7px;background:var(--glass);border:1.5px solid var(--edge);
-  border-radius:999px;padding:7px 14px;font-size:.84rem;color:var(--ink);font-weight:500;
-  backdrop-filter:blur(10px);box-shadow:0 4px 14px -8px #3A2A1A;
+  border-radius:999px;padding:7px 14px;font-size:.84rem;color:var(--ink);font-weight:500;box-shadow:0 4px 14px -8px #3A2A1A;
   transition:opacity .4s,border-color .4s,color .4s}
 .chip .d{width:7px;height:7px;border-radius:50%;background:var(--sage)}
 .chip.off{color:var(--ink-soft);border-color:rgba(132,92,44,.16);opacity:.8}
@@ -78,8 +83,7 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .chip.hot .d{background:var(--lamp)}
 .hud .sp{flex:1}
 .icobtn{width:40px;height:40px;border-radius:50%;background:var(--glass);border:1.5px solid var(--edge);
-  color:var(--ink);display:grid;place-items:center;backdrop-filter:blur(10px);
-  box-shadow:0 4px 14px -8px #3A2A1A;transition:border-color .2s,transform .16s}
+  color:var(--ink);display:grid;place-items:center;box-shadow:0 4px 14px -8px #3A2A1A;transition:border-color .2s,transform .16s}
 .icobtn:active{transform:scale(.94)}
 .icobtn:hover{border-color:var(--edge2)}
 .game.sheeted .hud{opacity:0;pointer-events:none;transition:opacity .3s}
@@ -87,8 +91,7 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 /* ---------------- دفترچهٔ «چه گفتند؟» ---------------- */
 .bookbtn{display:inline-flex;align-items:center;gap:8px;background:var(--glass);
   border:1.5px solid var(--edge2);border-radius:999px;padding:8px 17px;font-size:.87rem;
-  font-weight:600;color:#8A4E12;backdrop-filter:blur(10px);
-  box-shadow:0 4px 14px -8px #3A2A1A;
+  font-weight:600;color:#8A4E12;box-shadow:0 4px 14px -8px #3A2A1A;
   transition:border-color .2s,background .2s,transform .16s}
 .bookbtn:hover{background:#FFEFD4;transform:translateY(-1px)}
 .bookbtn .n{background:var(--lamp);color:#FFF6E6;border-radius:999px;min-width:19px;height:19px;
@@ -119,7 +122,7 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 /* ---------------- کارتِ فصل ---------------- */
 .chcard{position:absolute;inset:0;z-index:8;display:none;place-items:center;pointer-events:none;
   background:radial-gradient(ellipse 70% 50% at 50% 50%,rgba(26,16,44,.80),rgba(26,16,44,.46))}
-.chcard.on{display:grid;animation:chin 2.1s ease both}
+.chcard.on{display:grid;animation:chin 1.6s ease both}
 @keyframes chin{0%{opacity:0}14%,74%{opacity:1}100%{opacity:0}}
 .chcard .no{font-size:.86rem;color:var(--lamp);letter-spacing:0;margin-bottom:6px;text-align:center}
 .chcard .nm{font-family:Lalezar,Vazirmatn,sans-serif;font-size:clamp(2.4rem,9vw,3.6rem);
@@ -156,7 +159,7 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .hunt .banner{position:absolute;inset-inline:0;margin:0 auto;width:fit-content;max-width:92vw;
   display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;
   background:var(--glass);border:2px solid var(--edge2);border-radius:999px;padding:9px 12px 9px 20px;
-  color:var(--ink);backdrop-filter:blur(12px);line-height:1.7;font-size:.97rem;
+  color:var(--ink);line-height:1.7;font-size:.97rem;
   box-shadow:0 14px 40px -16px #000;animation:tin2 .5s ease both;transition:opacity .5s}
 .hunt .banner.top{top:74px}
 .hunt .banner.bottom{bottom:22px}
@@ -205,6 +208,8 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .bubble .txt{animation:bin .34s cubic-bezier(.2,.7,.3,1) both;width:100%}
 @keyframes bin{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
 .bubble em{font-style:normal;color:#B4600C;font-weight:600}
+.tw{font-style:normal;visibility:hidden}
+.tw.on{visibility:visible}
 .more{position:absolute;inset-inline-start:18px;bottom:12px;color:#B4600C;font-size:1.1rem;
   animation:bob 1.3s ease-in-out infinite}
 .more[hidden]{display:none}
@@ -368,6 +373,7 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 <body>
 <div class="game" id="game">
   <canvas id="art"></canvas>
+  <div class="grainL" id="grainL"></div>
   <div class="vig"></div>
   <div class="danger-vig"></div>
   <div class="flash" id="flash"></div>
@@ -1411,7 +1417,7 @@ const STORY_HALVA = {
   chapters:["پشت‌بام","لبهٔ بام","کوچه","دکان"],
 
   cast:{
-    "ننه‌قند"  :{ c:"#E896B4", pic:"ghand",   fig:"oldwoman", at:.30, size:.355, rim:"rgba(232,150,180,.55)" , look:{cloth:"#E08BA6",cloth2:"#BE6A87",trim:"#FBEBD2",skin:"#EEBF9B",head:"scarf",headCol:"#D65F86",prop:"none",hair:"#8A7C80"} },
+    "ننه‌قند"  :{ c:"#E896B4", pic:"ghand",   fig:"oldwoman", at:.30, size:.355, rim:"rgba(232,150,180,.55)" , look:{cloth:"#E08BA6",cloth2:"#BE6A87",trim:"#EFCB9A",skin:"#EEBF9B",head:"scarf",headCol:"#D65F86",prop:"none",hair:"#8A7C80"} },
     "مشدی شکور":{ c:"#F0AA5A", pic:"shakoor", fig:"oldman",   at:.73, size:.380, rim:"rgba(240,170,90,.5)" , look:{cloth:"#D98E45",cloth2:"#B36F2E",trim:"#F5D79A",skin:"#DCA173",hat:"skull",hatCol:"#9A5E28",beard:"short",beardCol:"#DCD5CA",prop:"none",hair:"#C4BCB0"} },
     "گلی"      :{ c:"#7ECEC4", pic:"goli",    fig:"girl",     at:.28, size:.320, rim:"rgba(126,206,196,.6)" , look:{cloth:"#4FA8A0",cloth2:"#377F79",trim:"#F0C86A",skin:"#F0C39C",head:"braid",hair:"#241810"} },
     "مشتی"     :{ c:"#FFC478", pic:"moshti",  fig:"cat",      at:.63, size:.175, rim:"rgba(255,196,120,.55)" , look:{cloth:"#9A9AA8",cloth2:"#7C7C8C"} }
@@ -1702,21 +1708,33 @@ var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 var cv = $("#art"), cx = cv.getContext("2d");
 var W = 0, H = 0, seeds = [], px = 0, py = 0, curArt = "gate", grain = null;
 
+/* دانه یک بار ساخته می‌شود و به‌عنوان یک لایهٔ ثابتِ CSS می‌نشیند.
+   قبلاً در هر فریم با ترکیبِ overlay روی کلِ صفحه کشیده می‌شد. */
 function makeGrain(){
-  var g = document.createElement("canvas"); g.width = g.height = 140;
-  var c = g.getContext("2d"), d = c.createImageData(140, 140);
+  if(grain) return;
+  var g = document.createElement("canvas"); g.width = g.height = 128;
+  var c = g.getContext("2d"), d = c.createImageData(128, 128);
   for(var i = 0; i < d.data.length; i += 4){
     var v = 118 + Math.random() * 74;
     d.data[i] = d.data[i+1] = d.data[i+2] = v; d.data[i+3] = 255;
   }
   c.putImageData(d, 0, 0);
-  grain = cx.createPattern(g, "repeat");
+  grain = 1;
+  var el = $("#grainL");
+  if(el) el.style.backgroundImage = "url(" + g.toDataURL("image/png") + ")";
 }
+var BUF = null, BCX = null, MCX = null, bufT = -1e9, bufDirty = true, DPR = 1;
 function resize(){
-  var d = Math.min(window.devicePixelRatio || 1, 2);
+  /* نقاشی نرم است و متنی رویش نیست، پس پیکسلِ بیشتر فقط هزینه است */
+  var d = Math.min(window.devicePixelRatio || 1, 1.25);
+  DPR = d;
   W = innerWidth; H = innerHeight;
   cv.width = W * d; cv.height = H * d;
   cx.setTransform(d, 0, 0, d, 0, 0);
+  if(!BUF){ BUF = document.createElement("canvas"); BCX = BUF.getContext("2d"); }
+  BUF.width = W * d; BUF.height = H * d;
+  BCX.setTransform(d, 0, 0, d, 0, 0);
+  bufDirty = true;
   seeds = [];
   for(var i = 0; i < 220; i++) seeds.push([Math.random(), Math.random(), Math.random(), Math.random()]);
   makeGrain();
@@ -1736,9 +1754,11 @@ function grad(stops){
   cx.fillStyle = g; cx.fillRect(0, 0, W, H);
 }
 function glow(x, y, r, c1){
-  var g = cx.createRadialGradient(x * W, y * H, 0, x * W, y * H, r * Math.max(W, H));
+  var R = r * Math.max(W, H), gx = x * W, gy = y * H;
+  var g = cx.createRadialGradient(gx, gy, 0, gx, gy, R);
   g.addColorStop(0, c1); g.addColorStop(1, "rgba(0,0,0,0)");
-  cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+  /* فقط مربعِ خودِ نور، نه تمامِ بوم */
+  cx.fillStyle = g; cx.fillRect(gx - R, gy - R, R * 2, R * 2);
 }
 function haze(y0, y1, col){
   var g = cx.createLinearGradient(0, y0 * H, 0, y1 * H);
@@ -1746,44 +1766,65 @@ function haze(y0, y1, col){
   cx.fillStyle = g; cx.fillRect(0, y0 * H, W, (y1 - y0) * H);
 }
 function stars(t, n, topFrac, col){
+  n = Math.round(n * QUAL);
+  var B = [[], [], [], []];
   for(var i = 0; i < n; i++){
     var s = seeds[i];
     var tw = reduced ? .6 : .35 + .45 * (0.5 + 0.5 * Math.sin(t / 800 * (0.4 + s[2]) + s[3] * 9));
-    cx.globalAlpha = tw * (0.5 + s[2] * 0.5);
-    cx.fillStyle = col || "#EFE7FF";
-    cx.beginPath(); cx.arc(s[0] * W, s[1] * topFrac * H, 0.6 + s[2] * 1.3, 0, 6.284); cx.fill();
+    var a = tw * (0.5 + s[2] * 0.5);
+    B[Math.min(3, (a * 4) | 0)].push(i);
+  }
+  cx.fillStyle = col || "#EFE7FF";
+  for(var b = 0; b < 4; b++){
+    if(!B[b].length) continue;
+    cx.globalAlpha = (b + .6) / 4.2;
+    cx.beginPath();
+    for(var q = 0; q < B[b].length; q++){
+      var s2 = seeds[B[b][q]], r2 = 0.6 + s2[2] * 1.3;
+      var x2 = s2[0] * W, y2 = s2[1] * topFrac * H;
+      cx.moveTo(x2 + r2, y2); cx.arc(x2, y2, r2, 0, 6.284);
+    }
+    cx.fill();
   }
   cx.globalAlpha = 1;
 }
 function motes(t, n, col){
+  n = Math.round(n * QUAL);
+  cx.fillStyle = col; cx.globalAlpha = .19;
+  cx.beginPath();
   for(var i = 0; i < n; i++){
     var s = seeds[i + 40];
     var y = (s[1] + (reduced ? 0 : (t / 26000) * (0.3 + s[2]))) % 1;
-    cx.globalAlpha = .10 + s[2] * .18;
-    cx.fillStyle = col;
-    cx.beginPath(); cx.arc(s[0] * W, (1 - y) * H, 0.7 + s[3] * 1.5, 0, 6.284); cx.fill();
+    var r2 = 0.7 + s[3] * 1.5, x2 = s[0] * W, y2 = (1 - y) * H;
+    cx.moveTo(x2 + r2, y2); cx.arc(x2, y2, r2, 0, 6.284);
   }
-  cx.globalAlpha = 1;
+  cx.fill(); cx.globalAlpha = 1;
 }
 function rain(t, n, a){
+  n = Math.round(n * QUAL);
   cx.strokeStyle = "rgba(206,228,240," + a + ")"; cx.lineWidth = 1.1; cx.lineCap = "round";
+  cx.beginPath();
   for(var i = 0; i < n; i++){
     var s = seeds[i];
     var x = ((s[0] + (reduced ? 0 : (t / 30000) * (0.4 + s[2]))) % 1) * W;
     var y = ((s[1] + (reduced ? 0 : (t / 780) * (0.55 + s[2] * .7))) % 1) * H;
     var L = 11 + s[3] * 20;
-    cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x - L * .3, y + L); cx.stroke();
+    cx.moveTo(x, y); cx.lineTo(x - L * .3, y + L);
   }
+  cx.stroke();
 }
 function ripples(t, y0, y1, n, a){
+  n = Math.round(n * QUAL);
   cx.strokeStyle = "rgba(230,240,250," + a + ")"; cx.lineWidth = 1;
+  cx.beginPath();
   for(var i = 0; i < n; i++){
     var s = seeds[i + 90];
     var y = y0 + (y1 - y0) * s[1];
     var x = ((s[0] + (reduced ? 0 : (t / 2400) * (0.3 + s[2]))) % 1.2 - .1) * W;
     var w2 = (14 + s[3] * 46) * (0.4 + (y - y0) / (y1 - y0));
-    cx.beginPath(); cx.moveTo(x, y * H); cx.lineTo(x + w2, y * H); cx.stroke();
+    cx.moveTo(x, y * H); cx.lineTo(x + w2, y * H);
   }
+  cx.stroke();
 }
 function battlements(x0, x1, y, step, hgt, fill){
   cx.fillStyle = fill;
@@ -1839,7 +1880,7 @@ function birds(t, n, x0, y0, sp){
 }
 /* پردهٔ سفیدِ برقِ آسمان */
 function flash(a){
-  if(a <= 0) return;
+  if(a <= 0.004) return;
   cx.fillStyle = "rgba(214,232,245," + (a * .5).toFixed(3) + ")";
   cx.fillRect(0, 0, W, H);
 }
@@ -1875,7 +1916,7 @@ function blob(x, y, rx, ry, fill){
    زاویه‌ها: ۰ یعنی رو به پایین. مثبت یعنی ساعتگرد روی صفحه.
    ═══════════════════════════════════════════════════════════════════════ */
 
-var _rot = 0, _st = [], _ls = 1, LDIR = Math.PI;
+var _rot = 0, _st = [], _ls = 1, _s = 1, LDIR = Math.PI;
 
 function PS(x, y, a){
   cx.save(); _st.push(_rot);
@@ -1953,7 +1994,25 @@ function paint(pf, gx, gy, r, fill, lit, rim, rimW){
   if(fill){
     pf(); cx.fillStyle = fill; cx.fill();
     /* حجم: سایه روی نیمهٔ دورِ از نور، و برقِ نرم روی نیمهٔ نورخورده.
-       رنگِ خودِ پارچه دست‌نخورده می‌ماند، پس تن تیره نمی‌شود. */
+       رنگِ خودِ پارچه دست‌نخورده می‌ماند، پس تن تیره نمی‌شود.
+       قطعه‌های خیلی ریز از این مرحله می‌گذرند — دیده نمی‌شود و گران است. */
+    if(r * _s < 0.030){
+      if(rim){
+        var a0 = LDIR - _rot, ux0 = Math.cos(a0), uy0 = Math.sin(a0);
+        var vx0 = -uy0, vy0 = ux0, R0 = r * 3.2;
+        cx.save();
+        cx.beginPath();
+        cx.moveTo(gx + vx0 * R0, gy + vy0 * R0);
+        cx.lineTo(gx - vx0 * R0, gy - vy0 * R0);
+        cx.lineTo(gx - vx0 * R0 + ux0 * R0, gy - vy0 * R0 + uy0 * R0);
+        cx.lineTo(gx + vx0 * R0 + ux0 * R0, gy + vy0 * R0 + uy0 * R0);
+        cx.closePath(); cx.clip();
+        pf(); cx.strokeStyle = rim; cx.lineWidth = (rimW || 1.7) * _ls;
+        cx.lineJoin = "round"; cx.lineCap = "round"; cx.stroke();
+        cx.restore();
+      }
+      return;
+    }
     cx.save(); pf(); cx.clip();
     var gs = cx.createLinearGradient(gx - ux * r * .96, gy - uy * r * .96,
                                      gx + ux * r * .34, gy + uy * r * .34);
@@ -2267,7 +2326,7 @@ function wv(t, per, lag){ return reduced ? 0 : Math.sin((t - (lag || 0)) / per);
 function figure(x, g, s, dir, body){
   var oD = LDIR, oR = _rot, oL = _ls;
   LDIR = dir > 0 ? 0 : Math.PI;
-  cx.save(); _rot = 0; _ls = 1 / s;
+  cx.save(); _rot = 0; _ls = 1 / s; _s = s;
   cx.translate(x, g); cx.scale(s, s);
   var depth = _st.length;
   body();
@@ -3012,7 +3071,7 @@ function dogFarH(x, y, col, p){ dogLegH(x, y, col, p, 1); }
 var figNow = null, figOld = null, figA = 0;
 function setFigure(f){
   if(figNow && f && figNow.fig === f.fig && figNow.at === f.at) return;
-  figOld = figNow; figNow = f; figA = 0;
+  figOld = figNow; figNow = f; figA = 0; bufDirty = true;
 }
 var ANIM = null, PUFF = [];
 var ANIM_DUR = { staff:1200, point:1500, walk:1900, climb:2400, fly:1700,
@@ -3020,7 +3079,7 @@ var ANIM_DUR = { staff:1200, point:1500, walk:1900, climb:2400, fly:1700,
 var ANIM_GEST = { staff:1, point:1, walk:1 };
 function playAnim(name){
   if(!name) return;
-  ANIM = { n:name, t0: performance.now(), d: ANIM_DUR[name] || 1200 };
+  ANIM = { n:name, t0: performance.now(), d: ANIM_DUR[name] || 1200 }; bufDirty = true;
   if(name === "staff"){
     setTimeout(function(){
       if(!ANIM || ANIM.n !== "staff") return;
@@ -3060,10 +3119,35 @@ function drawPuffs(){
   }
   cx.globalAlpha = 1;
 }
+/* شخصیت در بومِ خودش کشیده می‌شود و بعد کپی. گران‌ترین کارِ صحنه بود. */
+var FIGC = [null, null];
+function figCache(slot, f, s, dir, t, pose){
+  var c = FIGC[slot];
+  var w2 = Math.ceil(2.00 * s), h2 = Math.ceil(1.34 * s);
+  var ox = 0.95 * s, oy = 1.20 * s;
+  if(!c || c.w !== w2 || c.h !== h2){
+    c = FIGC[slot] = { cv: document.createElement("canvas"), w: w2, h: h2, t: -1e9, key: "" };
+    c.cv.width = Math.ceil(w2 * DPR); c.cv.height = Math.ceil(h2 * DPR);
+    c.ctx = c.cv.getContext("2d");
+  }
+  var busy = pose || (ANIM && performance.now() - ANIM.t0 < ANIM.d);
+  var every = reduced ? 1e9 : (busy ? 55 : (QUAL < 1 ? 190 : 120));
+  var key = f.fig + "|" + dir + "|" + (pose ? pose.g : "");
+  if(c.key !== key || t - c.t >= every){
+    c.key = key; c.t = t;
+    var sv = cx;
+    cx = c.ctx;
+    cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    cx.clearRect(0, 0, w2, h2);
+    FIGS[f.fig](ox, oy, s, f.rim || "rgba(245,177,74,.55)", t, dir, f.look, pose);
+    cx = sv;
+  }
+  return { cv: c.cv, x: -ox, y: -oy, w: w2, h: h2 };
+}
 function drawFigures(t, scn){
   var g = ((scn && scn.groundY) || .74) * H;
   if(figA < 1) figA = Math.min(1, figA + (reduced ? 1 : .045));
-  function one(f, alpha){
+  function one(f, alpha, slot){
     if(!f || !FIGS[f.fig] || alpha <= 0) return;
     var s = (f.size || .42) * H;
     var bob = reduced ? 0 : Math.sin(t / 1150 + (f.at || .5) * 7) * .006 * H;
@@ -3083,12 +3167,13 @@ function drawFigures(t, scn){
       var ak = animK(), pose = null;
       if(ak != null && ANIM_GEST[ANIM.n]) pose = { g: ANIM.n, k: ak };
       if(pose && pose.g === "walk") fx += Math.sin(pose.k * Math.PI) * .05 * W * -dir;
-      FIGS[f.fig](fx, fy, s, f.rim || "rgba(245,177,74,.55)", t, dir, f.look, pose);
+      var fc = figCache(slot, f, s, dir, t, pose);
+      cx.drawImage(fc.cv, fx + fc.x, fy + fc.y, fc.w, fc.h);
     }
     cx.restore();
   }
-  one(figOld, 1 - figA);
-  one(figNow, figA);
+  one(figOld, 1 - figA, 1);
+  one(figNow, figA, 0);
 }
 function caravanserai(ox, lit){
   var o = ox * 0.010;
@@ -4096,11 +4181,21 @@ function drawCover(im){
   var w2 = im.naturalWidth * r, h2 = im.naturalHeight * r;
   cx.drawImage(im, (W - w2) / 2, (H - h2) / 2, w2, h2);
 }
-function frame(t){
+/* فقط صحنه روی بومِ پشتی. شخصیت خودش بومِ جداگانه دارد. */
+function drawScene(t){
+  MCX = cx; cx = BCX;
   cx.clearRect(0, 0, W, H);
-  /* دوربین هیچ‌وقت کاملاً بی‌حرکت نیست */
+  if(IMG[curArt]) drawCover(IMG[curArt]);
+  else (SCENES[curArt] || SCENES.gate)(t, S.lampLit);
+  cx = MCX;
+}
+function frame(t){
+  var step = reduced ? 1e9 : (QUAL < 1 ? 115 : 46);
+  if(bufDirty || t - bufT >= step){ bufT = t; bufDirty = false; drawScene(t); }
+  cx.clearRect(0, 0, W, H);
+  /* دوربین روی همان کپی حرکت می‌کند، پس نرم می‌ماند */
   cx.save();
-  if(!reduced){
+  if(!reduced && QUAL === 1){
     var z = 1.035 + Math.sin(t / 17000) * .012;
     var dx = Math.sin(t / 9500) * .006 * W, dy = Math.cos(t / 12500) * .004 * H;
     cx.translate(W / 2 + dx, H / 2 + dy); cx.scale(z, z); cx.translate(-W / 2, -H / 2);
@@ -4109,26 +4204,46 @@ function frame(t){
     var ak2 = (performance.now() - ANIM.t0) / ANIM.d;
     if(ak2 < 1){
       var e = ak2 < .5 ? ak2 * 2 : 2 - ak2 * 2;
-      if(ANIM.n === "climb"){ cx.translate(0, e * .085 * H); cx.scale(1 + e * .045, 1 + e * .045); }
-      if(ANIM.n === "rise"){ cx.translate(0, e * .05 * H); }
-      if(ANIM.n === "fall"){ cx.translate(0, -e * .05 * H); }
+      if(ANIM.n === "climb"){
+        cx.translate(W / 2, H / 2); cx.scale(1 + e * .14, 1 + e * .14); cx.translate(-W / 2, -H / 2);
+        cx.translate(0, e * .060 * H);
+      }
+      if(ANIM.n === "rise"){ cx.translate(0, e * .04 * H); }
+      if(ANIM.n === "fall"){ cx.translate(0, -e * .04 * H); }
     }
   }
-  if(IMG[curArt]) drawCover(IMG[curArt]);
-  else (SCENES[curArt] || SCENES.gate)(t, S.lampLit);
+  cx.drawImage(BUF, 0, 0, W, H);
   drawFigures(t, SCENE_META[curArt]);
   drawPuffs();
   cx.restore();
-  if(grain){
-    cx.globalAlpha = .045; cx.globalCompositeOperation = "overlay";
-    cx.fillStyle = grain; cx.fillRect(0, 0, W, H);
-    cx.globalCompositeOperation = "source-over"; cx.globalAlpha = 1;
-  }
+  watchFps();
   requestAnimationFrame(frame);
+}
+
+/* دیدبانِ سرعت: اگر دستگاه کند بود، خودش جزئیاتِ گران را کم می‌کند.
+   بچه‌ای که روی تبلتِ قدیمیِ مدرسه بازی می‌کند نباید معطل شود. */
+var QUAL = 1, _fpsT = 0, _fpsN = 0, _fpsSlow = 0, _fpsLocked = false;
+function watchFps(){
+  if(_fpsLocked || reduced) return;
+  var now = performance.now();
+  if(_fpsT){
+    var dt = now - _fpsT;
+    _fpsN++;
+    if(dt > 34) _fpsSlow++;
+    if(_fpsN >= 45){
+      if(_fpsSlow > 26){
+        QUAL = .45;
+        $("#game").classList.add("lowfx");
+        _fpsLocked = true;
+      } else if(_fpsN >= 120) _fpsLocked = true;
+      _fpsN = 0; _fpsSlow = 0;
+    }
+  }
+  _fpsT = now;
 }
 function setArt(name){
   if(!name || name === curArt) return;
-  curArt = name;
+  curArt = name; bufDirty = true;
   cv.animate([{opacity:.15},{opacity:1}], {duration: reduced ? 1 : 620, easing:"ease-out"});
 }
 addEventListener("pointermove", function(e){
@@ -4276,7 +4391,7 @@ function chapterCard(name, done){
   var c = $("#chCard");
   c.classList.remove("on"); void c.offsetWidth; c.classList.add("on");
   A.sfx("chime");
-  setTimeout(function(){ c.classList.remove("on"); done(); }, reduced ? 10 : 1700);
+  setTimeout(function(){ c.classList.remove("on"); done(); }, reduced ? 10 : 1250);
 }
 
 /* ══════════════ آموزشِ اولِ کار ══════════════ */
@@ -4338,45 +4453,43 @@ function shake(){
 
 /* ══════════════ حروف‌چینِ تدریجی ══════════════ */
 var typer = 0, typeDone = true, typeEl = null, typeToks = [], typeI = 0;
-function tokenize(html){
-  var out = [], i = 0;
-  while(i < html.length){
-    if(html.charAt(i) === "<"){
+/* جمله را یک بار می‌سازیم و هر کلمه را در یک <i> می‌پیچیم.
+   بعد فقط visibility عوض می‌شود: جا از اول گرفته شده، پس متن نمی‌پرد. */
+function wrapWords(html){
+  var out = "", i = 0, n = html.length;
+  while(i < n){
+    var c = html.charAt(i);
+    if(c === "<"){
       var j = html.indexOf(">", i);
-      if(j < 0){ out.push({c:html.charAt(i)}); i++; continue; }
-      out.push({g:html.slice(i, j + 1)}); i = j + 1;
-    } else { out.push({c:html.charAt(i)}); i++; }
+      if(j < 0){ out += c; i++; continue; }
+      out += html.slice(i, j + 1); i = j + 1; continue;
+    }
+    var k = i;
+    while(k < n && html.charAt(k) !== "<" && !/\s/.test(html.charAt(k))) k++;
+    if(k > i){ out += '<i class="tw">' + html.slice(i, k) + "</i>"; i = k; }
+    else { out += c; i++; }
   }
   return out;
 }
-function renderTyped(){
-  var buf = "", stack = [];
-  for(var i = 0; i < typeI; i++){
-    var tk = typeToks[i];
-    if(tk.g){
-      buf += tk.g;
-      if(tk.g.charAt(1) === "/") stack.pop();
-      else if(tk.g.charAt(tk.g.length - 2) !== "/") stack.push(tk.g.replace(/^<(\w+).*$/, "$1"));
-    } else buf += tk.c;
-  }
-  for(var k = stack.length - 1; k >= 0; k--) buf += "</" + stack[k] + ">";
-  typeEl.innerHTML = buf;
-}
 function typeHTML(el, html){
   clearInterval(typer);
-  typeEl = el; typeToks = tokenize(html); typeI = 0; typeDone = false;
-  if(reduced){ finishType(); return; }
+  el.innerHTML = wrapWords(html);
+  typeToks = el.querySelectorAll("i.tw");
+  typeEl = el; typeI = 0; typeDone = false;
+  if(reduced || !typeToks.length){ finishType(); return; }
   typer = setInterval(function(){
+    typeToks[typeI].classList.add("on");
     typeI++;
-    if(typeI % 5 === 0) A.sfx("tick");
-    renderTyped();
+    if(typeI % 3 === 0) A.sfx("tick");
     if(typeI >= typeToks.length) finishType();
-  }, 17);
+  }, 44);
 }
 function finishType(){
+  if(typeToks && typeToks.length && typeToks[0].classList){
+    for(var z = typeI; z < typeToks.length; z++) typeToks[z].classList.add("on");
+    typeI = typeToks.length;
+  }
   clearInterval(typer); typer = 0;
-  typeI = typeToks.length;
-  if(typeEl) renderTyped();
   typeDone = true;
   $("#more").hidden = false;
 }
