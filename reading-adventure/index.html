@@ -335,6 +335,11 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 .card .prog i.on{background:var(--lamp)}
 .card .play{margin-inline-start:auto;font-family:Lalezar,Vazirmatn,sans-serif;font-size:1.02rem;
   color:#B4600C}
+.card .go-on{background:var(--sage);color:#FFF6E6;border-radius:999px;padding:3px 12px 4px;
+  font-family:Lalezar,Vazirmatn,sans-serif;font-size:.92rem}
+.card .again{border:0;background:none;font-size:.8rem;color:var(--ink-soft);
+  text-decoration:underline;padding:0;margin-inline-start:10px}
+.card .again:hover{color:var(--ink)}
 
 .rank{display:flex;gap:10px;justify-content:center;margin:2px 0 4px}
 .rank svg{width:34px;height:44px;opacity:.22;transition:opacity .5s}
@@ -4822,6 +4827,7 @@ function enter(id){
   if(id === "END"){ finish(); return; }
   var n = G.nodes[id];
   S.node = id;
+  saveGame();
   if(n.art !== curArt) setFigure(null);
   setArt(n.art);
   if(A.ambKind !== n.amb) A.setAmb(n.amb);
@@ -4878,6 +4884,21 @@ function outOfTime(){
 
 /* ══════════════ گنجینهٔ پایان‌ها ══════════════ */
 function vKey(id){ return "shab/vault/" + id; }
+function sKey(id){ return "shab/save/" + id; }
+function saveGame(){
+  if(!G || !S || !S.node) return;
+  try {
+    localStorage.setItem(sKey(G.id), JSON.stringify({ v:1, node:S.node, s:S }));
+  } catch(e){}
+}
+function loadGame(id){
+  try {
+    var d = JSON.parse(localStorage.getItem(sKey(id)));
+    if(d && d.v === 1 && d.node && d.s) return d;
+  } catch(e){}
+  return null;
+}
+function clearGame(id){ try { localStorage.removeItem(sKey(id)); } catch(e){} }
 function vaultGet(id){
   try { return JSON.parse(localStorage.getItem(vKey(id))) || []; } catch(e){ return []; }
 }
@@ -4921,8 +4942,16 @@ function drawMenu(){
       '<div class="meta"><span>حدود ' + fa(st.minutes) + " دقیقه</span>" +
       '<span class="prog">' + pips + "</span>" +
       "<span>" + fa(v.length) + " از " + fa(total) + " پایان</span>" +
-      '<span class="play">بازی ▸</span></div></div>';
-    el.addEventListener("click", function(){ startStory(st); });
+      '<span class="play">' + (loadGame(st.id) ? '<span class="go-on">ادامه بده ▸</span>' +
+        '<button type="button" class="again">از اول</button>' : "بازی ▸") +
+      "</span></div></div>";
+    el.addEventListener("click", function(ev){
+      if(ev.target.closest(".again")){
+        ev.stopPropagation();
+        clearGame(st.id); startStory(st, false); return;
+      }
+      startStory(st, !!loadGame(st.id));
+    });
     box.appendChild(el);
   });
 }
@@ -4954,6 +4983,7 @@ function lampSvg(){
     '<path d="M6 33h18l-2 5h-14z" fill="#F5B14A"/></svg>';
 }
 function finish(){
+  if(G) clearGame(G.id);
   stopVo();
   var id = pickEnding(), e = G.endings[id];
   var isNew = vaultAdd(G.id, id);
@@ -5044,7 +5074,7 @@ $("#btnVoice").addEventListener("click", function(){
 });
 
 /* ══════════════ شروع ══════════════ */
-function startStory(st){
+function startStory(st, resume){
   G = st;
   A.init();
   if(A.c && A.c.state === "suspended") A.c.resume();
@@ -5059,14 +5089,20 @@ function startStory(st){
   book(false);
   $("#tut").classList.remove("on"); $("#chCard").classList.remove("on"); tutDone = null;
   S = fresh();
-  $("#bookN").textContent = "۰";
+  var rs = resume ? loadGame(st.id) : null;
+  if(rs && G.nodes[rs.node]){
+    for(var kk in rs.s) S[kk] = rs.s[kk];
+    if(!S.book) S.book = [];
+    if(!S.recap) S.recap = [];
+  } else { clearGame(st.id); rs = null; }
+  $("#bookN").textContent = fa(S.book.length);
   drawPips(); drawChips(); drawChapChip();
   $("#cover").classList.remove("on");
   $("#over").classList.remove("on");
   $("#game").classList.remove("sheeted");
   $("#choices").hidden = true;
   $("#tapHint").textContent = "برای ادامه، هرجای صفحه را بزن";
-  enter(G.start);
+  enter(rs ? rs.node : G.start);
 }
 function toMenu(){
   stopVo(); A.setAmb(null);
