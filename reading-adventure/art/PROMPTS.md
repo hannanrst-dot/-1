@@ -200,6 +200,12 @@
 | `fig-heydar.webp` | مشدی حیدر |
 | `fig-sakineh.webp` | ننه‌سکینه |
 | `fig-palang.webp` | پلنگ، سگِ گله |
+| `fig-pirkuh.webp` | پیرِ کوه |
+| `fig-shirin.webp` | شیرین، دخترِ چوپان |
+| `fig-simorgh.webp` | سیمرغ |
+| `fig-ghand.webp` | ننه‌قند |
+| `fig-shakoor.webp` | مشدی شکور |
+| `fig-goli.webp` | گلی |
 
 ## شرط‌های این تصویرها
 
