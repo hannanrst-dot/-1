@@ -247,6 +247,21 @@ button{font-family:inherit;font-size:inherit;color:inherit;border:0;background:n
 @keyframes nope{0%,100%{transform:none}20%{transform:translateX(-9px)}40%{transform:translateX(9px)}
   60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
 
+/* جای خالی */
+.fgap{display:inline-block;min-width:5.5ch;border-bottom:3px solid var(--edge2);
+  margin:0 4px;text-align:center;color:#B4600C;font-weight:700;
+  transition:color .2s,border-color .2s}
+.fgap.on{border-bottom-color:var(--sage);color:#1F6B41}
+.fopts{display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin-top:2px}
+.fopt{background:var(--glass2);border:2px solid var(--edge);border-radius:14px;
+  padding:11px 22px;color:var(--ink);font-weight:600;font-size:1.04rem;
+  box-shadow:0 8px 22px -14px #241A10;transition:border-color .16s,transform .16s,background .16s;
+  animation:cin .4s cubic-bezier(.2,.7,.3,1) both;animation-delay:var(--d,0s)}
+.fopt:hover{border-color:var(--edge2);background:#FFF1DA;transform:translateY(-2px)}
+.fopt.bad{animation:nope .45s;color:var(--rose);border-color:var(--rose)}
+.fopt.good{background:var(--lamp);border-color:var(--lamp);color:#FFF6E6}
+.fopt.dim{opacity:.4}
+
 /* کدام واژه؟ */
 .wsent{background:var(--glass2);border:2px solid var(--edge);border-radius:16px;
   padding:20px 22px;color:var(--ink);font-size:1.22rem;line-height:2.25;text-align:center;
@@ -2071,7 +2086,329 @@ const STORY_TRAIN = {
   }
 };
 
-const STORIES = [STORY_CHERAGH, STORY_POL, STORY_SIMORGH, STORY_HALVA, STORY_TRAIN];
+const STORY_KABOOTAR = {
+  id:"kabootar",
+  title:"کبوترِ نامه‌بر",
+  blurb:"ظهرِ یک روزِ آفتابی، کبوتری با کاغذی بسته به پایش برمی‌گردد. نصفِ کاغذ پاره شده و نویسنده‌اش ته یک چاه است.",
+  minutes:9,
+  tint:"linear-gradient(135deg,#2F86D8,#8FCBF0 45%,#E0AC79)",
+  start:"roofs",
+  time:6,
+  timeLabel:"تا غروب",
+  chapters:["بامِ کبوترخانه","برجِ کبوترها","کوچه","باغ‌ها","سرِ چاه"],
+
+  cast:{
+    "استاد نعمت":{ c:"#E8B45A", pic:"nemat", fig:"oldman", at:.73, size:.378, rim:"rgba(232,180,90,.55)" , look:{cloth:"#B98442",cloth2:"#96682E",trim:"#F0D79A",skin:"#DCA173",hat:"felt",hatCol:"#7E5628",beard:"short",beardCol:"#E8E2D6",prop:"none",hair:"#CFC8BA"} },
+    "رؤیا"      :{ c:"#57C6C0", pic:"roya",  fig:"girl",   at:.28, size:.322, rim:"rgba(87,198,192,.6)" , look:{cloth:"#2FA39C",cloth2:"#1E7B78",trim:"#F2D08A",skin:"#F0C39C",head:"twobraid",hair:"#241810"} },
+    "ننه بلقیس" :{ c:"#E8A0B8", pic:"belghis",fig:"oldwoman",at:.27, size:.352, rim:"rgba(232,160,184,.55)" , look:{cloth:"#C76E8C",cloth2:"#A25068",trim:"#F0DCB4",skin:"#EEBF9B",head:"chador",headCol:"#B05173",prop:"cane",hair:"#8A7C80"} },
+    "حیدر مقنی" :{ c:"#9AC46E", pic:"heydar",fig:"man",     at:.71, size:.382, rim:"rgba(154,196,110,.55)" , look:{cloth:"#5E7A44",cloth2:"#465C32",trim:"#C9A45E",skin:"#D89A68",hat:"skull",hatCol:"#3E5230",beard:"stubble",beardCol:"#6A5E56",hair:"#2A2018"} }
+  },
+
+  vary:{
+    qanat:[
+      { v:"a", w:"استاد نعمت",
+        r:"رشتهٔ قنات هفت چاه دارد و شش‌تایش را سنگ‌چین کرده‌اند. هر کدام سرش باز باشد، همان است.",
+        n:"استاد نعمت گفته بود از هفت چاه فقط یکی سرش باز مانده." },
+      { v:"b", w:"رؤیا",
+        r:"پدرم می‌گوید همهٔ چاه‌های رشته را بسته‌اند جز یکی — همان که لای‌روبی‌اش نیمه‌کاره ماند.",
+        n:"رؤیا گفته بود همهٔ چاه‌ها بسته‌اند جز یکی، همان که لای‌روبی‌اش تمام نشد." },
+      { v:"c", w:"ننه بلقیس",
+        r:"پارسال سرِ همهٔ چاه‌ها را پوشاندند که بچه‌ها نیفتند. یکی‌شان ماند و هر سال می‌گویم و کسی گوش نمی‌دهد.",
+        n:"ننه بلقیس گفته بود سرِ همهٔ چاه‌ها را پوشانده‌اند و فقط یکی مانده." }
+    ]
+  },
+
+  chips:[
+    { key:"roya",    off:"تنهایی",        on:"رؤیا همراهت است" },
+    { key:"belghis", off:"نشانیِ چاه",    on:"نشانیِ چاه را داری" },
+    { key:"found",   off:"بهروز گم است",  on:"بهروز پیدا شد" }
+  ],
+
+  nodes:{
+
+  roofs:{ chapter:"بامِ کبوترخانه", art:"roofs", amb:"wind", beats:[
+    {t:"ظهر است و آفتاب درست بالای سرِ شهر ایستاده.",
+     set:{roya:false, belghis:false, found:false, save:""}},
+    {t:"روی بامِ کبوترخانه سایه‌ها کوتاهِ کوتاه‌اند و کاهگل زیرِ پا داغ است."},
+    {t:"دستهٔ کبوترها بالای سرت دور می‌زنند، می‌روند و برمی‌گردند.", anim:"flock"},
+    {who:"استاد نعمت", vo:"kabootar-01", t:"هفتاد و دو تا. هر روز ظهر می‌شمارمشان و هیچ‌وقت کم و زیاد نمی‌شوند."},
+    {key:1, t:"یکی از دسته جدا شد، چرخی زد و آمد نشست روی جانپناه.", anim:"coo"},
+    {find:{ title:"کدام کبوتر تازه رسیده؟",
+            hint:"روی جانپناهِ بام، سه کبوتر نشسته‌اند. فقط یکی چیزی به پایش دارد.",
+            at:[.688, .682, .044],
+            ok:"کاغذی لوله‌شده، با نخِ قرمز بسته به پایش.",
+            recap:{k:"b", c:"۱ نوبت", label:"کبوترِ نامه‌بر را پیدا نکردی",
+                   note:"متن گفته بود یکی از دسته جدا شد و آمد نشست."} }},
+    {who:"رؤیا", vo:"kabootar-02", t:"این دم‌سفید است! مالِ بهروز. من رؤیا هستم، همهٔ این هفتاد و دو تا را به اسم می‌شناسم."}
+  ], ask:"اول چه می‌کنی؟", free:true, opts:[
+    { t:"نخ را باز می‌کنم و کاغذ را می‌خوانم.", goto:"roofs2",
+      beats:[ {t:"نخِ قرمز را باز کردی. کاغذ کفِ دستت لوله ماند."} ] },
+    { t:"اول می‌پرسم بهروز کیست.", goto:"roofs2",
+      beats:[ {who:"استاد نعمت", vo:"kabootar-03", t:"نوهٔ ننه بلقیس. صبحِ زود با همین کبوتر رفت طرفِ باغ‌ها."} ] }
+  ]},
+
+  roofs2:{ chapter:"بامِ کبوترخانه", art:"roofs", amb:"wind", beats:[
+    {t:"کاغذ را باز کردی. نصفش پاره شده بود و خط‌ها می‌لرزیدند."},
+    {who:"استاد نعمت", vo:"kabootar-04", t:"این خطِ بهروز است. صبح رفت باغ‌ها و هنوز برنگشته."},
+    {fill:{ q:"جای پاره‌شدهٔ نامه را کدام کلمه پُر می‌کند؟",
+            sentence:"«افتادم ته چاه. اینجا خشک است و آب ندارد، پس ___ نمی‌شوم؛ ولی تا غروب خیلی سرد می‌شود.»",
+            options:["غرق","گم","خسته"],
+            answer:"غرق",
+            ok:"«غرق». چون چاه خشک است، آب خطری ندارد — ولی سرما دارد.",
+            recap:{k:"b", c:"۱ نوبت", label:"جای خالیِ نامه را پُر نکردی",
+                   note:"خودِ نامه گفته بود «خشک است و آب ندارد». همین می‌گفت کدام کلمه جا می‌شود."} }},
+    {key:1, t:"پس بهروز ته یک چاه است — و آن چاه خشک است.", fx:"sting"},
+    {who:"رؤیا", vo:"kabootar-05", t:"تا غروب باید بیرونش بیاوریم. شب که بشود، ته چاه مثلِ یخچال می‌شود."},
+    {key:1, t:"تا غروب <em>شش نوبت</em> وقت داری.", fx:"heart"}
+  ], ask:"از کجا شروع می‌کنی؟", shuffle:true, opts:[
+    { t:"از رؤیا می‌خواهم بیاید؛ کبوترها را بهتر از همه می‌شناسد.", cost:1, set:{roya:true},
+      goto:"cote", toast:{t:"رؤیا همراهت شد.", k:"good"},
+      beats:[ {who:"رؤیا", vo:"kabootar-06", t:"دم‌سفید لانهٔ خودش را دارد. برویم ببینیم با خودش چه آورده."},
+              {t:"با هم از نردبان رفتید توی برج.", fx:"step", anim:"walk"} ],
+      recap:{k:"g", c:"۱ نوبت", label:"رؤیا را با خودت بردی",
+             note:"رؤیا گفته بود همهٔ کبوترها را به اسم می‌شناسد."} },
+    { t:"تنهایی می‌روم توی برجِ کبوترها.", cost:1, goto:"cote",
+      beats:[ {t:"از نردبان رفتی پایین، توی خنکیِ برج.", fx:"step", anim:"walk"} ],
+      recap:{k:"n", c:"۱ نوبت", label:"تنها رفتی توی برج",
+             note:"سریع بود، ولی رؤیا لانهٔ هر کبوتر را از حفظ بود و تو نه."} },
+    { t:"داد می‌زنم تا همهٔ محل خبردار شوند.", cost:2, goto:"cote",
+      beats:[ {t:"از لبِ بام داد زدی. چند در باز شد و چند سر بیرون آمد.", fx:"sting"},
+              {t:"هیچ‌کس نمی‌دانست از کدام چاه حرف می‌زنی — خودت هم نمی‌دانستی."},
+              {t:"تا همه را آرام کردی، دو نوبت رفته بود."} ],
+      recap:{k:"b", c:"۲ نوبت", label:"از بالای بام داد زدی",
+             note:"هفت چاه در رشته هست. بدونِ نشانی، خبر دادن فقط وقت می‌بَرَد."} },
+    { t:"همین حالا می‌دوم طرفِ باغ‌ها. وقت تنگ است.", cost:2, goto:"fields",
+      beats:[ {t:"از پله‌ها دویدی پایین و از کوچه زدی بیرون.", fx:"step", anim:"walk"},
+              {t:"راهِ باغ‌ها زیرِ آفتابِ ظهر دراز بود."},
+              {t:"رسیدی — و هیچ نشانی‌ای با خودت نیاورده بودی."} ],
+      recap:{k:"n", c:"۲ نوبت", label:"یک‌راست رفتی طرفِ باغ‌ها",
+             note:"زودتر رسیدی، ولی نه لانه را دیدی و نه با ننه بلقیس حرف زدی."} }
+  ]},
+
+  cote:{ chapter:"برجِ کبوترها", art:"cote", amb:"room", beats:[
+    {t:"داخلِ برج خنک بود و بوی کاه و پَر می‌داد."},
+    {t:"نورِ آفتاب از روزنهٔ سقف مثلِ یک ستون افتاده بود وسطِ برج."},
+    {who:"استاد نعمت", vo:"kabootar-07", t:"هر کبوتر لانهٔ خودش را دارد و هیچ‌وقت اشتباه نمی‌رود. صد و چهل لانه، صد و چهل جای مشخص."},
+    {find:{ title:"لانهٔ دم‌سفید کدام است؟",
+            hint:"بینِ این همه لانهٔ خالی، یکی خالی نیست. خوب نگاه کن.",
+            at:[.511, .477, .040],
+            ok:"آن تو، پشتِ سایه، یک جفت چشمِ نارنجی تکان خورد.",
+            recap:{k:"b", c:"۱ نوبت", label:"لانهٔ دم‌سفید را پیدا نکردی",
+                   note:"استاد نعمت گفته بود هر کبوتر لانهٔ خودش را دارد و اشتباه نمی‌رود."} }},
+    {t:"دست بردی تو. کفِ لانه، لای کاه، خاک بود."},
+    {word:{ q:"کدام کلمه می‌گوید این خاک از جای دیگری آمده؟",
+            sentence:"ته لانه، خاکِ سرخ چسبیده بود به کاهِ زردِ همیشگی.",
+            answer:"سرخ",
+            ok:"«سرخ». خاکِ این شهر زرد است؛ سرخ مالِ جای دیگری است.",
+            recap:{k:"b", c:"۱ نوبت", label:"کلمهٔ «سرخ» را نگرفتی",
+                   note:"جمله دو رنگ کنارِ هم گذاشته بود: سرخ و زرد. یکی‌شان غریبه بود."} }},
+    {who:"استاد نعمت", vo:"kabootar-08", t:"خاکِ سرخ فقط ته باغ‌هاست، آن‌جا که قنات از زمین می‌زند بیرون."},
+    {key:1, t:"پس دم‌سفید از ته رشتهٔ قنات آمده، نه از اولش."}
+  ], ask:"از اینجا کجا؟", shuffle:true, opts:[
+    { t:"می‌روم درِ خانهٔ ننه بلقیس؛ شاید بداند بهروز کجا رفته.", cost:1, goto:"lane",
+      beats:[ {t:"از برج آمدی بیرون، توی آفتابِ تندِ کوچه.", fx:"door", anim:"walk"} ],
+      recap:{k:"g", c:"۱ نوبت", label:"رفتی سراغِ ننه بلقیس",
+             note:"بهروز صبح از خانهٔ او بیرون رفته بود؛ آخرین کسی که دیدَش خودِ اوست."} },
+    { t:"می‌روم باغ‌ها و همهٔ چاه‌ها را یکی‌یکی صدا می‌زنم.", cost:2, goto:"fields",
+      beats:[ {t:"سرِ هر چاه ایستادی و اسمِ بهروز را صدا زدی.", anim:"walk"},
+              {t:"شش‌تای اول سنگ‌چین بود و صدا از سنگ برنمی‌گشت."},
+              {t:"آفتاب کج شده بود و دو نوبت رفته بود."} ],
+      recap:{k:"b", c:"۲ نوبت", label:"همهٔ چاه‌ها را صدا زدی",
+             note:"چاه‌های سرپوشیده صدا را رد نمی‌کنند. اول باید می‌فهمیدی کدام سرباز است."} },
+    { t:"کبوتر را دوباره رها می‌کنم تا راه را نشانمان بدهد.", cost:2, goto:"fields",
+      beats:[ {t:"دم‌سفید را بردی روی بام و ولش کردی.", anim:"flock"},
+              {t:"یک دور زد، دو دور زد — و برگشت نشست روی همان جانپناه.", fx:"sting"},
+              {who:"استاد نعمت", vo:"kabootar-09", t:"کبوترِ نامه‌بر فقط راهِ خانه را بلد است، نه راهِ برگشت را."},
+              {t:"دو نوبت رفت."} ],
+      recap:{k:"b", c:"۲ نوبت", label:"کبوتر را دوباره رها کردی",
+             note:"کبوترِ نامه‌بر همیشه به خانه برمی‌گردد. راهِ رفتن را نشان نمی‌دهد."} }
+  ]},
+
+  lane:{ chapter:"کوچه", art:"lane", amb:"wind", beats:[
+    {t:"کوچه از آفتاب سفید شده بود و فقط یک نوارِ سایه کنارِ دیوار مانده بود."},
+    {t:"ننه بلقیس لبِ درِ آبی نشسته بود و جورابی می‌بافت که تمام نمی‌شد."},
+    {who:"ننه بلقیس", vo:"kabootar-10", t:"صبح رفت. گفت تا ظهر برمی‌گردم. حالا ظهر گذشته."},
+    {order:{ title:"تا اینجا چه شده؟ به ترتیب بزن.",
+             hint:"از صبحِ زود شروع کن.",
+             items:["بهروز صبحِ زود با دم‌سفید رفت طرفِ باغ‌ها.",
+                    "توی یکی از چاه‌های رشته افتاد.",
+                    "روی کاغذ نوشت و به پای کبوتر بست.",
+                    "دم‌سفید برگشت به لانهٔ خودش توی برج."],
+             ok:"همین بود. و تنها چیزی که هنوز نمی‌دانی، «کدام چاه» است.",
+             recap:{k:"b", c:"۱ نوبت", label:"ترتیبِ اتفاق‌ها را نچیدی",
+                    note:"نامه، خاکِ سرخِ ته لانه و برگشتنِ کبوتر، هر سه را دیده بودی."} }},
+    {key:1, t:"چشمش به کاغذِ توی دستت افتاد."}
+  ], ask:"به ننه بلقیس چه می‌گویی؟", opts:[
+    { t:"بهروز افتاده ته چاه! زود باشید!", cost:2, goto:"fields",
+      beats:[ {t:"بلند گفتی. کلافِ نخ از دستش افتاد و قِل خورد توی جوی.", fx:"sting"},
+              {who:"ننه بلقیس", vo:"kabootar-11", t:"چاه؟ کدام چاه؟ وای بر من..."},
+              {t:"تا آرامش کردی و آب آوردی، دو نوبت رفته بود."},
+              {t:"و آخرش هم نپرسیدی صبح چه گفته بود."} ],
+      recap:{k:"b", c:"۲ نوبت", label:"خبر را یک‌دفعه دادی",
+             note:"او تنها کسی بود که می‌دانست بهروز صبح کجا می‌رفت. ترساندنش این را از دستت گرفت."} },
+    { t:"آرام می‌گویم و می‌پرسم صبح دقیقاً چه گفت.", cost:1, time:1, set:{belghis:true},
+      goto:"fields", toast:{t:"نشانیِ چاه را گرفتی. یک نوبت جلو افتادی.", k:"good"},
+      beats:[ {t:"نشستی کنارش و آهسته گفتی."},
+              {who:"ننه بلقیس", vo:"kabootar-12", t:"گفت می‌روم تا آخرِ رشته، همان‌جا که آب دیگر بالا نمی‌آید."},
+              {key:1, t:"آخرِ رشته. همان‌جا که خاکش سرخ است.", fx:"chime"},
+              {who:"ننه بلقیس", vo:"kabootar-13", t:"برو مادر. من به حیدر می‌گویم بیاید."} ],
+      recap:{k:"g", c:"+۱ نوبت", label:"آرام پرسیدی و نشانی گرفتی",
+             note:"«تا آخرِ رشته، همان‌جا که آب بالا نمی‌آید» — دقیقاً همان چاهِ خشک."} },
+    { t:"چیزی نمی‌گویم؛ وقت تنگ است.", cost:1, goto:"fields",
+      beats:[ {t:"سری تکان دادی و رد شدی.", anim:"walk"},
+              {t:"پشتِ سرت صدای میل‌های بافتنی دوباره شروع شد."},
+              {t:"چیزی را که می‌دانست، با خودش نگه داشت."} ],
+      recap:{k:"n", c:"۱ نوبت", label:"چیزی نپرسیدی",
+             note:"وقت را نگه داشتی، ولی نشانیِ چاه پیشِ خودش ماند."} }
+  ]},
+
+  fields:{ chapter:"باغ‌ها", art:"fields", amb:"wind", beats:[
+    {t:"باغ‌ها که شروع شد، خاکِ زیرِ پا سرخ شد."},
+    {t:"رشتهٔ چاه‌های قنات مثلِ یک بندِ تسبیح تا زیرِ کوه می‌رفت."},
+    {who:"حیدر مقنی", vo:"kabootar-14", t:"من حیدرم، مقنیِ همین رشته. از ته این چاه‌ها آبِ تمامِ شهر می‌آید."},
+    {key:1, t:"حرفِ {qanat.w} توی سرت تکرار شد: «{qanat.r}»"},
+    {trace:{ title:"رشتهٔ چاه‌ها از کجا به کجا می‌رود؟",
+             hint:"از نزدیک‌ترین چاه شروع کن و سه‌تای اول را به ترتیب بزن.",
+             pts:[[.86, .905], [.596, .800], [.332, .740]], r:.088,
+             ok:"از طرفِ شهر شروع می‌شود و می‌رود تا پای کوه. هرچه دورتر، عمیق‌تر.",
+             recap:{k:"b", c:"۱ نوبت", label:"رشتهٔ چاه‌ها را دنبال نکردی",
+                    note:"چاه‌ها روی یک خطِ مستقیم‌اند؛ همین خط می‌گفت کدام‌شان «آخرِ رشته» است."} }},
+    {who:"حیدر مقنی", vo:"kabootar-15", t:"آب فقط تا چاهِ سوم بالا می‌آید. از آن‌جا به بعد ته چاه‌ها را خودت می‌توانی راه بروی."},
+    {fill:{ q:"کدام کلمه جمله را کامل می‌کند؟",
+            sentence:"آب فقط تا چاهِ سوم بالا می‌آید. یعنی چاه‌های بعد از آن ___ اند.",
+            options:["خشک","پرآب","سنگی"],
+            answer:"خشک",
+            ok:"«خشک». و بهروز خودش نوشته بود جایی که افتاده آب ندارد.",
+            recap:{k:"b", c:"۱ نوبت", label:"جای خالی را پُر نکردی",
+                   note:"نامه گفته بود «خشک است و آب ندارد». پس چاهِ اول و دوم و سوم نیست."} }},
+    {key:1, t:"پس چاهی که دنبالش می‌گردی هم خشک است، هم سرش باز."},
+    {find:{ title:"کدام چاه سرش باز است؟",
+            hint:"سرِ همهٔ چاه‌ها را با سنگ پوشانده‌اند. دنبالِ آن یکی بگرد که نپوشانده‌اند.",
+            at:[.596, .800, .052],
+            ok:"یکی‌شان سرپوش ندارد. دهانه‌اش سیاهِ سیاه است.",
+            recap:{k:"b", c:"۱ نوبت", label:"چاهِ سرباز را پیدا نکردی",
+                   note:"{qanat.n}"} }},
+    {t:"دویدی طرفش. حیدر طناب را از روی دوشش برداشت و پشتِ سرت آمد.", fx:"step", anim:"walk"}
+  ], ask:"سرِ چاه چه می‌کنی؟", opts:[
+    { t:"سرم را می‌برم تو و صدایش می‌زنم.", cost:1, goto:"shaft",
+      beats:[ {t:"زانو زدی، سرت را بردی توی تاریکی و اسمش را صدا زدی."},
+              {key:1, t:"از خیلی پایین، صدایی آمد: «من اینجام.»", fx:"chime"} ],
+      recap:{k:"g", c:"۱ نوبت", label:"اول صدایش زدی",
+             note:"پیش از هر کاری باید مطمئن می‌شدی که همین چاه است."} },
+    { t:"سنگ می‌اندازم تو تا عمقش را بفهمم.", cost:2, goto:"shaft",
+      beats:[ {t:"سنگی انداختی. خیلی دیر صدا آمد.", fx:"thud"},
+              {who:"حیدر مقنی", vo:"kabootar-16", t:"این کار را نکن! اگر پایین کسی باشد، سنگ می‌خورد به سرش."},
+              {t:"شرمنده شدی و دو نوبت رفت."} ],
+      recap:{k:"b", c:"۲ نوبت", label:"سنگ توی چاه انداختی",
+             note:"می‌دانستی پایین یک نفر هست. سنگ چیزی را روشن نمی‌کرد."} }
+  ]},
+
+  shaft:{ chapter:"سرِ چاه", art:"shaft", amb:"wind", beats:[
+    {t:"دورِ دهانهٔ چاه، تپه‌ای از خاکِ نرم بود که مقنی‌ها بالا ریخته بودند."},
+    {t:"روی خاک، جای پای کوچکی بود که به لبه می‌رسید و برنمی‌گشت."},
+    {find:{ title:"لبِ چاه چه جا مانده؟",
+            hint:"روی تپهٔ خاک، همان طرفی که جای پاها می‌رود. رویش ضربه بزن.",
+            at:[.690, .898, .044],
+            ok:"یک کفشِ کوچک. لنگه‌اش لبِ چاه افتاده بود.",
+            recap:{k:"b", c:"۱ نوبت", label:"کفشِ بهروز را ندیدی",
+                   note:"متن گفته بود جای پاها به لبه می‌رسد و برنمی‌گردد."} }},
+    {who:"حیدر مقنی", vo:"kabootar-17", t:"خاکِ لبهٔ چاه سُست است. هرکس برود لبه، خودش هم می‌افتد."},
+    {key:1, t:"یعنی اگر جای بهروز بروی، دو نفر ته چاه‌اید، نه یکی."},
+    {t:"صدای بهروز دوباره از پایین آمد. آرام بود، ولی می‌لرزید.", fx:"heart"},
+    {t:"آفتاب داشت به لبهٔ کوه می‌رسید."}
+  ], ask:"چطور بیرونش می‌آوری؟", opts:[
+    { t:"طناب را به چوبِ عرضی می‌بندیم و می‌فرستیم پایین.", cost:1, set:{save:"rope", found:true},
+      goto:"END",
+      beats:[ {t:"حیدر طناب را دو دور به چوب پیچید و گره زد."},
+              {t:"طناب رفت پایین و کشیده شد.", anim:"rise"},
+              {t:"با هم کشیدید.", fx:"chime"} ],
+      recap:{k:"g", c:"انتخابِ تو", label:"با طناب بیرونش آوردید",
+             note:"حیدر گفته بود لبهٔ چاه سُست است؛ هیچ‌کس نباید پایین می‌رفت."} },
+    { t:"خودم می‌روم پایین. زودتر است.", cost:1, set:{save:"down"}, goto:"END",
+      beats:[ {t:"پا گذاشتی روی لبه."},
+              {t:"خاک زیرِ پایت ریخت.", fx:"thud", anim:"fall"},
+              {t:"تا به خودت بیایی، ته چاه بودی — کنارِ بهروز."} ],
+      recap:{k:"b", c:"انتخابِ تو", label:"خودت رفتی پایین",
+             note:"حیدر همان لحظه گفت خاکِ لبه سُست است."} },
+    { t:"می‌دوم تا ده و مردها را با نردبان می‌آورم.", cost:1, set:{save:"help", found:true},
+      goto:"END",
+      beats:[ {t:"دویدی. راهِ برگشت زیرِ آفتابِ کج دراز بود.", anim:"walk"},
+              {t:"وقتی با نردبان برگشتید، آفتاب رفته بود."} ],
+      recap:{k:"n", c:"انتخابِ تو", label:"رفتی دنبالِ کمک",
+             note:"طناب و چوبِ عرضی همان‌جا بود و حیدر هم کنارت ایستاده بود."} }
+  ]}
+  },
+
+  outOfTime:{ art:"shaft", beats:[
+    {t:"آفتاب پشتِ کوه رفت و خاک یک‌دفعه سرد شد."},
+    {t:"و تو هنوز نمی‌دانستی کدام چاه.", fx:"dawn"}
+  ]},
+
+  endingRules:[
+    {when:{timeout:true},                                          id:"dusk"},
+    {when:{minMissed:3},                                           id:"cold"},
+    {when:{save:"down"},                                           id:"twoInAWell"},
+    {when:{save:"help"},                                           id:"lantern"},
+    {when:{save:"rope", roya:true, belghis:true, minTime:2, maxMissed:0}, id:"daylight"},
+    {when:{save:"rope", maxMissed:1},                              id:"rope"},
+    {when:{save:"rope"},                                           id:"alone"},
+    {when:{},                                                      id:"cold"},
+    {when:{},                                                      id:"dusk"}
+  ],
+
+  endings:{
+    daylight:{ rank:5, art:"fields", title:"پیش از غروب", state:{found:true, roya:true, belghis:true}, text:[
+      "هیچ نشانه‌ای از دستت در نرفت: کاغذِ پاره، خاکِ سرخِ ته لانه، حرفِ ننه بلقیس، و آن یک چاهی که سرپوش نداشت.",
+      "طناب که بالا آمد، آفتاب هنوز یک وجب از کوه فاصله داشت.",
+      "بهروز لنگه‌کفش به پا، خاکی و لرزان، نشست روی تپهٔ خاک و اول از همه سراغِ دم‌سفید را گرفت.",
+      "رؤیا گفت: «خودش رساندت. یک‌راست آمد لانهٔ خودش.»",
+      "حیدر همان غروب سرِ چاهِ هفتم را سنگ‌چین کرد و ننه بلقیس برای همه شربت آورد.",
+      "و از آن روز، هر وقت کبوتری از دسته جدا می‌شود، کسی سرش را بالا می‌گیرد و نگاه می‌کند."]},
+
+    rope:{ rank:5, art:"shaft", title:"طنابی که کافی بود", state:{found:true}, text:[
+      "طناب دو دور به چوبِ عرضی پیچید و رفت پایین.",
+      "اول کشیده شد، بعد سنگین شد، و بعد دستی از تاریکی بیرون آمد.",
+      "بهروز بالا آمد و همان‌جا نشست و تا چند دقیقه حرف نزد.",
+      "حیدر گفت: «کارِ درست همین بود. هیچ‌کس نرفت پایین.»",
+      "شب که شد، ننه بلقیس هفت‌تا شمع گذاشت لبِ پنجره — یکی برای هر چاه."]},
+
+    alone:{ rank:4, art:"shaft", title:"دیر فهمیدی، ولی فهمیدی", state:{found:true}, text:[
+      "آخرش طناب رفت پایین و بهروز بالا آمد. کارِ درست را کردی.",
+      "ولی سرِ راه چند نشانه از دستت در رفت و هر کدام یک تکه از روز را برد.",
+      "وقتی طناب کشیده شد، آفتاب لبِ کوه بود و خاک داشت سرد می‌شد.",
+      "بهروز سالم بود؛ فقط تا صبح دندان‌هایش به هم می‌خورد.",
+      "حیدر گفت: «همهٔ جواب‌ها از ظهر توی دستت بود. فقط باید می‌خواندی‌شان.»"]},
+
+    lantern:{ rank:4, art:"shaft", title:"با فانوس برگشتیم", state:{found:true}, text:[
+      "دویدی تا ده و مردها را با نردبان و فانوس آوردی.",
+      "بهروز بیرون آمد، ولی توی تاریکی — و نردبان دو بار روی خاکِ سُست لیز خورد.",
+      "حیدر گفت: «طناب همین‌جا بود، پسرجان.» و راست می‌گفت.",
+      "همه‌چیز خوب تمام شد. فقط دیرتر از آنچه لازم بود."]},
+
+    twoInAWell:{ rank:3, art:"shaft", title:"دو نفر ته یک چاه", text:[
+      "پا که روی لبه گذاشتی، خاک ریخت و تو هم رفتی پایین.",
+      "ته چاه تاریک بود و بهروز از دیدنت هم خوشحال شد، هم نشد.",
+      "حیدر از بالا داد زد که تکان نخورید و رفت دنبالِ طناب و آدم.",
+      "شب شده بود که هر دوتان بالا آمدید. هیچ‌کس چیزی نگفت؛ لازم هم نبود.",
+      "حیدر همان اول گفته بود خاکِ لبهٔ چاه سُست است."]},
+
+    cold:{ rank:2, art:"shaft", title:"سرمای ته چاه", state:{found:true}, text:[
+      "نشانه‌ها یکی‌یکی از کنارت رد شدند و تو ندیدی‌شان.",
+      "آخرش پیدایش کردی، ولی وقتی آفتاب رفته بود و خاک سرد شده بود.",
+      "بهروز را پیچیدند لای پتو و تا صبح کنارِ کرسی نشست.",
+      "حالش خوب شد. ولی آن نامهٔ پاره از همان اول همه‌چیز را گفته بود:",
+      "«اینجا خشک است و آب ندارد» — یعنی از چاهِ سوم آن‌طرف‌تر."]},
+
+    dusk:{ rank:1, art:"shaft", title:"غروب", text:[
+      "آفتاب پشتِ کوه رفت و رشتهٔ چاه‌ها توی تاریکی گم شد.",
+      "آن شب با فانوس گشتند و نزدیکِ نیمه‌شب پیدایش کردند.",
+      "زنده بود. ولی تا یک هفته صدایش درنمی‌آمد و از تاریکی می‌ترسید.",
+      "کبوتر کارِ خودش را کرده بود؛ نامه را رسانده بود.",
+      "خواندنش مانده بود."]}
+  }
+};
+
+const STORIES = [STORY_CHERAGH, STORY_POL, STORY_SIMORGH, STORY_HALVA, STORY_TRAIN, STORY_KABOOTAR];
 </script><script>
 /* ============================================================
    موتور — پخشِ ضربه‌ها، پس‌زمینه، صدا، جست‌وجوی تصویری و شمارشِ نوبت.
@@ -3456,7 +3793,8 @@ function setFigure(f){
 var ANIM = null, PUFF = [];
 var ANIM_DUR = { staff:1200, point:1500, walk:1900, climb:2400, fly:1700,
                  dust:900, rise:1400, fall:1100,
-                 tunnel:2200, brake:2000, whistle:1500, jolt:700 };
+                 tunnel:2200, brake:2000, whistle:1500, jolt:700,
+                 flock:1800, coo:1100 };
 var ANIM_GEST = { staff:1, point:1, walk:1 };
 function playAnim(name){
   if(!name) return;
@@ -3468,6 +3806,8 @@ function playAnim(name){
     }, reduced ? 0 : 470);
   }
   if(name === "fly") setTimeout(function(){ A.sfx("wing"); }, reduced ? 0 : 260);
+  if(name === "flock"){ A.sfx("wing"); setTimeout(function(){ A.sfx("wing"); }, reduced ? 0 : 180); }
+  if(name === "coo") A.sfx("coo");
   if(name === "tunnel") A.sfx("tunnel");
   if(name === "whistle") A.sfx("whistle");
   if(name === "jolt"){ A.sfx("thud"); shake(); }
@@ -3599,10 +3939,163 @@ var SCENE_META = {
   corridor:{groundY:.900, lightX:.72, rock:1.5},
   freight:{groundY:.885, lightX:.80, rock:1.1},
   loco:{groundY:.905, lightX:.24, rock:1.7},
-  rails:{groundY:.840, lightX:.30}
+  rails:{groundY:.840, lightX:.30},
+  /* داستان شش — ظهرِ آفتابی. نور از بالای سر، پس lightX نزدیکِ خورشید است. */
+  roofs:{groundY:.905, lightX:.20},  cote:{groundY:.955, lightX:.27},
+  lane:{groundY:.930, lightX:.52},   fields:{groundY:.880, lightX:.78},
+  shaft:{groundY:.900, lightX:.30}
 };
 
 /* ── مبلمانِ صحنه: چیزهایی که جلوِ کادر را پُر می‌کنند ───────────── */
+/* آفتابِ بالای سر: نورِ سفیدِ داغ، نه نورِ نارنجیِ غروب */
+function noonSun(x, y, r){
+  glow(x, y, r * 6, "rgba(255,248,214,.30)");
+  glow(x, y, r * 3, "rgba(255,252,232,.34)");
+  cx.fillStyle = "#FFFDF0";
+  cx.beginPath(); cx.arc(x * W, y * H, r * H, 0, 6.284); cx.fill();
+}
+/* ابرِ پنبه‌ایِ تکه‌تکه که آرام می‌رود */
+function puff(x, y, s2, t, sp, a){
+  var dx = reduced ? 0 : ((t / (sp || 90000)) % 1.6 - .3);
+  var X = (x + dx) * W, Y = y * H, S = s2 * W;
+  cx.fillStyle = "rgba(255,255,255," + (a || .82) + ")";
+  [[0, 0, 1], [-.62, .16, .70], [.60, .18, .64], [-.30, -.20, .62], [.32, -.14, .58]]
+    .forEach(function(c){
+      cx.beginPath();
+      cx.ellipse(X + c[0] * S, Y + c[1] * S, S * c[2], S * c[2] * .62, 0, 0, 6.284);
+      cx.fill();
+    });
+}
+/* دیوارِ کاهگلی با رگهٔ افقی — بافتِ همهٔ این شهر */
+function mudWall(x, y, w2, h2, fill, line){
+  box(x, y, w2, h2, fill);
+  /* کاهگل هیچ‌وقت یک‌دست نیست: چند لکهٔ روشن و تیره روی هم */
+  for(var b2 = 0; b2 < 9; b2++){
+    var u = ((b2 * 41) % 13) / 13, v = ((b2 * 29) % 11) / 11;
+    cx.fillStyle = b2 % 2 ? "rgba(255,236,200,.10)" : "rgba(122,74,32,.09)";
+    cx.beginPath();
+    cx.ellipse((x + u * w2) * W, (y + v * h2) * H, w2 * .22 * W, h2 * .10 * H, .2, 0, 6.284);
+    cx.fill();
+  }
+  cx.strokeStyle = line || "rgba(140,88,44,.26)"; cx.lineWidth = 2;
+  for(var q = 1; q < 7; q++){
+    var yy = (y + h2 * q / 7) * H;
+    cx.beginPath(); cx.moveTo(x * W, yy);
+    cx.quadraticCurveTo((x + w2 / 2) * W, yy - h2 * H * .02, (x + w2) * W, yy);
+    cx.stroke();
+  }
+}
+/* گنبدِ فیروزه‌ای با ترک‌های کاشی */
+function dome(x, y, r, col, sh){
+  var X = x * W, Y = y * H, R = r * H;
+  cx.fillStyle = col;
+  cx.beginPath(); cx.ellipse(X, Y, R * .96, R, 0, Math.PI, 0); cx.fill();
+  cx.fillStyle = sh; cx.globalAlpha = .55;
+  cx.beginPath(); cx.ellipse(X, Y, R * .96, R, 0, Math.PI, Math.PI * 1.42); cx.fill();
+  cx.globalAlpha = 1;
+  cx.strokeStyle = "rgba(255,255,255,.22)"; cx.lineWidth = 1.6;
+  for(var q = -3; q <= 3; q++){
+    cx.beginPath();
+    cx.ellipse(X, Y, R * .96 * Math.abs(q / 3.4), R, 0, Math.PI, 0);
+    cx.stroke();
+  }
+  cx.fillStyle = "#E8C36A";
+  cx.fillRect(X - R * .045, Y - R * 1.20, R * .09, R * .22);
+  cx.beginPath(); cx.arc(X, Y - R * 1.24, R * .07, 0, 6.284); cx.fill();
+}
+/* بادگیر — چیزی که هیچ شهرِ کویری بدونش شهر نیست */
+function mudHouse(x, y, w2, h2, fc, sc, tc, win){
+  var d = w2 * .26;
+  poly([[x, y], [x + w2, y], [x + w2 + d, y - h2 * .10], [x + d, y - h2 * .10]], tc);
+  cx.fillStyle = sc;
+  cx.fillRect((x + w2) * W, y * H, d * W, h2 * H);
+  poly([[x + w2, y], [x + w2 + d, y - h2 * .10], [x + w2 + d, y - h2 * .10 + h2], [x + w2, y + h2]], sc);
+  box(x, y, w2, h2, fc);
+  if(win){
+    cx.fillStyle = "rgba(74,42,20,.60)";
+    for(var q = 0; q < win; q++)
+      cx.fillRect((x + w2 * (.18 + q * .34)) * W, (y + h2 * .30) * H, w2 * .16 * W, h2 * .30 * H);
+  }
+}
+function badgir(x, y, w2, h2){
+  box(x, y, w2, h2, "#D2A06A");
+  box(x, y, w2, h2 * .10, "#B9824B");
+  cx.fillStyle = "#6E4526";
+  for(var q = 0; q < 4; q++) cx.fillRect((x + w2 * (.12 + q * .22)) * W, (y + h2 * .16) * H,
+                                          w2 * .10 * W, h2 * .52 * H);
+  cx.fillStyle = "rgba(120,74,38,.20)";
+  cx.fillRect((x + w2 * .78) * W, y * H, w2 * .22 * W, h2 * H);
+}
+/* دهانهٔ چاهِ قنات از دور: حلقهٔ خاکِ دورِ یک نقطهٔ تاریک */
+function pigeon(x, y, s2, dirx, t, note){
+  var X = x * W, Y = y * H, S = s2 * W, d = dirx || 1;
+  /* سایهٔ کوتاهِ ظهر، زیرِ پا */
+  cx.fillStyle = "rgba(110,66,28,.20)";
+  cx.beginPath(); cx.ellipse(X, Y + S * .06, S * .78, S * .16, 0, 0, 6.284); cx.fill();
+  /* پاهای صورتی */
+  cx.strokeStyle = "#D2726A"; cx.lineWidth = Math.max(1.6, S * .10);
+  cx.beginPath(); cx.moveTo(X - S * .14, Y - S * .10); cx.lineTo(X - S * .14, Y); cx.stroke();
+  cx.beginPath(); cx.moveTo(X + S * .16, Y - S * .10); cx.lineTo(X + S * .16, Y); cx.stroke();
+  /* تن */
+  cx.fillStyle = "#7E8798";
+  cx.beginPath(); cx.ellipse(X, Y - S * .42, S * .74, S * .40, -.06 * d, 0, 6.284); cx.fill();
+  cx.fillStyle = "#A9B2C0";
+  cx.beginPath(); cx.ellipse(X - S * .12 * d, Y - S * .40, S * .52, S * .30, -.06 * d, 0, 6.284); cx.fill();
+  /* بالِ تاشده با دو نوارِ تیره */
+  cx.fillStyle = "#69738A";
+  cx.beginPath(); cx.ellipse(X + S * .10 * d, Y - S * .40, S * .50, S * .24, .10 * d, 0, 6.284); cx.fill();
+  cx.strokeStyle = "#48526A"; cx.lineWidth = Math.max(1.2, S * .07);
+  cx.beginPath(); cx.moveTo(X - S * .16 * d, Y - S * .30); cx.lineTo(X + S * .50 * d, Y - S * .38); cx.stroke();
+  cx.beginPath(); cx.moveTo(X - S * .14 * d, Y - S * .44); cx.lineTo(X + S * .50 * d, Y - S * .50); cx.stroke();
+  /* دم */
+  cx.fillStyle = "#69738A";
+  poly([[x + s2 * .58 * d, y - s2 * .50], [x + s2 * 1.30 * d, y - s2 * .62],
+        [x + s2 * 1.28 * d, y - s2 * .34], [x + s2 * .58 * d, y - s2 * .30]], "#69738A");
+  /* گردن و سر */
+  var nod = reduced ? 0 : Math.sin(t / 640) * .04;
+  cx.fillStyle = "#8A93A4";
+  cx.beginPath();
+  cx.ellipse(X - S * .58 * d, Y - S * (.66 + nod), S * .30, S * .34, .10 * d, 0, 6.284); cx.fill();
+  /* رنگین‌کمانِ گردن — همان چیزی که کبوتر را کبوتر می‌کند */
+  cx.fillStyle = "rgba(78,180,164,.55)";
+  cx.beginPath();
+  cx.ellipse(X - S * .50 * d, Y - S * (.58 + nod), S * .22, S * .18, .2 * d, 0, 6.284); cx.fill();
+  cx.fillStyle = "rgba(168,110,190,.40)";
+  cx.beginPath();
+  cx.ellipse(X - S * .56 * d, Y - S * (.70 + nod), S * .16, S * .13, .2 * d, 0, 6.284); cx.fill();
+  cx.fillStyle = "#C6CEDA";
+  cx.beginPath();
+  cx.ellipse(X - S * .74 * d, Y - S * (.92 + nod), S * .27, S * .25, 0, 0, 6.284); cx.fill();
+  /* منقار و چشمِ نارنجی */
+  cx.fillStyle = "#5E5A58";
+  poly([[x - s2 * (.96 + .0) * d, y - s2 * (.94 + nod)],
+        [x - s2 * 1.30 * d, y - s2 * (.90 + nod)],
+        [x - s2 * .96 * d, y - s2 * (.84 + nod)]], "#5E5A58");
+  cx.fillStyle = "#E8913A";
+  cx.beginPath(); cx.arc(X - S * .84 * d, Y - S * (.98 + nod), S * .075, 0, 6.284); cx.fill();
+  cx.fillStyle = "#1C1A20";
+  cx.beginPath(); cx.arc(X - S * .84 * d, Y - S * (.98 + nod), S * .042, 0, 6.284); cx.fill();
+  /* کاغذِ لوله‌شده، بسته به پا */
+  if(note){
+    cx.fillStyle = "#F6EFDC";
+    cx.save();
+    cx.translate(X + S * .16, Y - S * .07); cx.rotate(.28);
+    cx.fillRect(-S * .10, -S * .05, S * .20, S * .11);
+    cx.strokeStyle = "#C4362F"; cx.lineWidth = Math.max(1, S * .045);
+    cx.beginPath(); cx.moveTo(0, -S * .06); cx.lineTo(0, S * .06); cx.stroke();
+    cx.restore();
+  }
+}
+
+function shaftRing(x, y, r, fill, hi, dark){
+  cx.fillStyle = fill;
+  cx.beginPath(); cx.ellipse(x * W, y * H, r * W, r * W * .42, 0, 0, 6.284); cx.fill();
+  cx.fillStyle = hi;
+  cx.beginPath(); cx.ellipse(x * W, (y - r * .10) * H, r * W * .92, r * W * .34, 0, Math.PI, 0); cx.fill();
+  cx.fillStyle = dark || "#3A2A1E";
+  cx.beginPath(); cx.ellipse(x * W, y * H, r * W * .40, r * W * .17, 0, 0, 6.284); cx.fill();
+}
+
 function rock(x, y, w2, fill, hi){
   var a = w2 * W, b = a * .62;
   cx.fillStyle = fill;
@@ -3703,6 +4196,49 @@ function post(x, y0, y1, w2, fill){
 }
 
 var LIVE = {};
+
+/* یک کبوتر: دو کمانِ بال که با هم باز و بسته می‌شوند */
+function dove1(x, y, s2, flap, col, a){
+  cx.save();
+  cx.globalAlpha = a;
+  cx.strokeStyle = col; cx.lineWidth = Math.max(1.2, s2 * .26); cx.lineCap = "round";
+  var up = Math.sin(flap), k = .55 + up * .42;
+  cx.beginPath();
+  cx.moveTo(x - s2, y + s2 * .26 * k);
+  cx.quadraticCurveTo(x - s2 * .42, y - s2 * .92 * k, x, y);
+  cx.quadraticCurveTo(x + s2 * .42, y - s2 * .92 * k, x + s2, y + s2 * .26 * k);
+  cx.stroke();
+  /* تنِ کوچک، تا فقط دو خط نباشد */
+  cx.fillStyle = col;
+  cx.beginPath();
+  cx.ellipse(x, y + s2 * .08, s2 * .30, s2 * .17, 0, 0, 6.284);
+  cx.fill();
+  cx.restore();
+}
+
+/* دسته‌ای که دور می‌زند. اگر «flock» در حال پخش باشد، همه بالا می‌پاشند. */
+function flockDraw(t, n, cxr, cyr, rx, ry, sp, col, base){
+  var burst = 0;
+  if(ANIM && ANIM.n === "flock"){
+    var uf = (performance.now() - ANIM.t0) / ANIM.d;
+    if(uf > 0 && uf < 1) burst = Math.sin(Math.min(1, uf * 1.25) * Math.PI * .5);
+  }
+  for(var i = 0; i < n; i++){
+    var ph = i / n * 6.283;
+    var a1 = t / sp + ph;
+    /* هر پرنده کمی از مرکزِ دسته فاصله دارد، وگرنه می‌شود یک دایرهٔ منظم */
+    var off = ((i * 37) % 11) / 11 - .5, off2 = ((i * 23) % 7) / 7 - .5;
+    var x = cxr + Math.cos(a1) * rx * (1 + off * .34);
+    var y = cyr + Math.sin(a1 * 1.7 + off2) * ry * (1 + off2 * .40);
+    y -= burst * (.16 + off * .10);
+    x += burst * off2 * .22;
+    /* هرچه بالاتر، دورتر: کوچک‌تر و کم‌رنگ‌تر */
+    var dep = .55 + (Math.sin(a1 * 1.7 + off2) * .5 + .5) * .75;
+    var s2 = base * W * dep;
+    dove1(x * W, y * H, s2, t / (120 + i * 9) + ph + burst * 8, col,
+          (.30 + dep * .42) * (1 - burst * .15));
+  }
+}
 
 /* آنچه از پنجره می‌گذرد: تپه‌های دورِ کند، تپه‌های نزدیکِ تند،
    تیرهای تلگراف، و گاهی چراغِ یک خانه. */
@@ -3851,7 +4387,438 @@ LIVE.loco = function(t){
   cx.globalAlpha = 1;
   cx.restore();
 };
+LIVE.roofs = function(t){
+  flockDraw(t, 13, .62, .245, .30, .105, 2600, "#3E4E66", .0090);
+  flockDraw(t, 7, .26, .330, .19, .062, 3400, "#55657E", .0062);
+};
+LIVE.fields = function(t){
+  flockDraw(t, 9, .40, .225, .27, .085, 3000, "#44536B", .0080);
+};
+LIVE.shaft = function(t){
+  flockDraw(t, 5, .72, .215, .16, .050, 3800, "#54637B", .0060);
+};
+
 var SCENES = {
+
+  /* ───────── داستان شش · کبوترِ نامه‌بر ─────────
+     ظهرِ یک روزِ آفتابیِ پاییز. آبیِ روشن، کاهگلِ گرم، سایه‌های تیز. */
+
+  roofs: function(t){
+    grad([[0, "#2F86D8"], [.30, "#57A8E4"], [.58, "#94CCEF"], [.78, "#CBE6F6"], [1, "#E6D9BE"]]);
+    noonSun(.20, .13, .030);
+    puff(.16, .20, .052, t, 120000, .80);
+    puff(.58, .13, .040, t, 165000, .70);
+    puff(.86, .24, .034, t, 96000, .62);
+    /* کوهِ خشکِ پشتِ شهر */
+    poly([[0, .50], [.18, .40], [.34, .47], [.55, .37], [.74, .45], [1, .38], [1, .58], [0, .58]],
+         "#B69B85");
+    haze(.44, .58, "rgba(255,240,214,.34)");
+    /* شهر: بام روی بام، هرچه دورتر کم‌رنگ‌تر */
+    [[.575, "#BE8A61", "#A06F49", "#D2A276", .030, 7],
+     [.628, "#CE9A6C", "#AE7B50", "#E0B181", .044, 6],
+     [.690, "#DCA878", "#BB875A", "#EEC08E", .062, 5]]
+      .forEach(function(L, li){
+        var y0 = L[0];
+        box(0, y0, 1, .12, L[1]);
+        for(var q = 0; q < L[5]; q++){
+          /* ارتفاع‌های نامساوی، وگرنه شهر می‌شود شانه */
+          var jit = ((q * 37 + li * 13) % 7) / 7;
+          var hh = L[4] * (.62 + jit * .95);
+          var bx = -.04 + q * (1.08 / L[5]) + jit * .028 + px * .002;
+          mudHouse(bx, y0 - hh, .092 + jit * .050, hh, L[1], L[2], L[3], li === 2 ? 2 : 0);
+        }
+      });
+    /* گنبدِ فیروزه‌ای و دو بادگیر */
+    dome(.74, .560, .072, "#31A9A6", "#1E7C80");
+    dome(.16, .600, .040, "#3FBAB2", "#22868A");
+    dome(.955, .616, .030, "#2C9C9C", "#1B7376");
+    badgir(.30, .470, .052, .095);
+    badgir(.90, .492, .044, .074);
+    /* برجِ کبوترخانه، دور، استوانه‌ایِ سفید */
+    box(.505, .432, .066, .132, "#EADAC0");
+    box(.552, .432, .019, .132, "#C7AE8A");
+    cx.fillStyle = "#EADAC0";
+    cx.beginPath(); cx.ellipse(.538 * W, .432 * H, .033 * W, .014 * H, 0, Math.PI, 0); cx.fill();
+    box(.497, .424, .082, .014, "#D0B694");
+    box(.497, .556, .082, .012, "#C7AE8A");
+    cx.fillStyle = "#B99A72";
+    for(var r2 = 0; r2 < 5; r2++) for(var c2 = 0; c2 < 4; c2++){
+      cx.beginPath();
+      cx.arc((.516 + c2 * .0145) * W, (.452 + r2 * .0215) * H, .0035 * W, 0, 6.284); cx.fill();
+    }
+    /* بامِ خودمان: کاهگلِ روشن با جانپناهِ کوتاه */
+    poly([[0, .700], [.36, .672], [.72, .690], [1, .668], [1, 1], [0, 1]], "#E0AC79");
+    poly([[0, .742], [.36, .714], [.72, .732], [1, .710], [1, 1], [0, 1]], "#D49B65");
+    cx.strokeStyle = "rgba(150,92,44,.22)"; cx.lineWidth = 1.6;
+    [.80, .88, .96].forEach(function(u){
+      cx.beginPath(); cx.moveTo(0, u * H);
+      cx.quadraticCurveTo(.5 * W, (u - .022) * H, W, (u - .006) * H); cx.stroke();
+    });
+    /* جانپناهِ لبه، و سایهٔ تیزِ ظهر که رویش می‌افتد */
+    box(0, .700, 1, .046, "#EBBC8B");
+    cx.fillStyle = "rgba(122,70,32,.16)";
+    cx.beginPath();
+    cx.moveTo(0, .746 * H); cx.lineTo(W, .714 * H);
+    cx.lineTo(W, .778 * H); cx.lineTo(0, .812 * H); cx.closePath(); cx.fill();
+    /* قفسِ چوبیِ کبوترها، گوشهٔ بام */
+    box(.055, .758, .175, .150, "#A9743F");
+    box(.068, .772, .149, .122, "#4E3524");
+    cx.strokeStyle = "#C9A45E"; cx.lineWidth = 3;
+    for(var g2 = 0; g2 < 6; g2++){
+      cx.beginPath();
+      cx.moveTo((.072 + g2 * .0285) * W, .772 * H);
+      cx.lineTo((.072 + g2 * .0285) * W, .894 * H); cx.stroke();
+    }
+    box(.050, .748, .185, .016, "#8E5C2E");
+    /* کاسهٔ دانه و یک پرِ افتاده */
+    jar(.320, .906, .030, "#B5703F", "#D4A88F");
+    cx.fillStyle = "#F3EADA";
+    cx.save();
+    cx.translate(.46 * W, .922 * H); cx.rotate(.42);
+    cx.beginPath(); cx.ellipse(0, 0, .026 * W, .006 * W, 0, 0, 6.284); cx.fill();
+    cx.restore();
+    /* کبوترِ تازه‌رسیده، روی جانپناه — کاغذی به پایش بسته است */
+    pigeon(.688, .702, .030, 1, t, true);
+    /* دو کبوترِ دیگر، بی‌کاغذ، همان‌جا — تا پیدا کردن آسان نباشد */
+    pigeon(.845, .699, .026, -1, t + 900, false);
+    pigeon(.408, .706, .024, 1, t + 1900, false);
+    /* حصیرِ بافته، پهن وسطِ بام */
+    poly([[.40, .830], [.86, .806], [.95, .900], [.46, .930]], "#C99A52");
+    cx.strokeStyle = "rgba(120,74,30,.22)"; cx.lineWidth = 2;
+    for(var m2 = 1; m2 < 7; m2++){
+      cx.beginPath();
+      cx.moveTo((.40 + m2 * .066) * W, (.830 - m2 * .0034) * H);
+      cx.lineTo((.46 + m2 * .070) * W, (.930 - m2 * .0043) * H);
+      cx.stroke();
+    }
+    /* سایهٔ ظهرِ جانپناه، کوتاه و تیز */
+    cx.fillStyle = "rgba(118,66,28,.17)";
+    cx.beginPath();
+    cx.moveTo(0, .746 * H); cx.lineTo(W, .714 * H);
+    cx.lineTo(W, .756 * H); cx.lineTo(0, .790 * H); cx.closePath(); cx.fill();
+    motes(t, 14, "#FFF3D6");
+  },
+
+  cote: function(t){
+    grad([[0, "#6B4A2C"], [.22, "#A97C4C"], [.60, "#C99A62"], [1, "#8A6134"]]);
+    /* دیوارِ منحنیِ برج، پُر از لانه */
+    box(0, .10, 1, .78, "#C99A62");
+    cx.strokeStyle = "rgba(120,74,38,.14)"; cx.lineWidth = 2;
+    for(var q = 0; q < 5; q++){
+      cx.beginPath();
+      cx.moveTo(0, (.16 + q * .15) * H);
+      cx.quadraticCurveTo(.5 * W, (.13 + q * .15) * H, W, (.16 + q * .15) * H);
+      cx.stroke();
+    }
+    /* هزار لانهٔ گلی — ردیف به ردیف، با سایه‌ای که به طرفِ نور نیست */
+    for(var r3 = 0; r3 < 7; r3++){
+      var yy3 = .155 + r3 * .102, bow = Math.sin(r3 / 6 * Math.PI) * .012;
+      for(var c3 = 0; c3 < 13; c3++){
+        var xx3 = .040 + c3 * .0725 + (r3 % 2 ? .036 : 0);
+        if(xx3 > .97) continue;
+        var d3 = Math.abs(xx3 - .5);
+        box(xx3 - .026, yy3 - bow, .052, .062, "#B98A55");
+        cx.fillStyle = "#4A3220";
+        cx.beginPath();
+        cx.ellipse(xx3 * W, (yy3 + .028 - bow) * H, .021 * W * (1 - d3 * .5), .026 * H, 0, 0, 6.284);
+        cx.fill();
+        cx.fillStyle = "rgba(255,236,196,.40)";
+        cx.fillRect((xx3 - .026) * W, (yy3 - bow) * H, .052 * W, .007 * H);
+      }
+    }
+    /* یکی از این همه لانه خالی نیست */
+    cx.save();
+    cx.beginPath();
+    cx.ellipse(.511 * W, .477 * H, .021 * W, .026 * H, 0, 0, 6.284);
+    cx.clip();
+    pigeon(.515, .500, .020, -1, t, false);
+    cx.restore();
+    /* دو پرِ سفید که از لبهٔ همان لانه بیرون زده */
+    cx.fillStyle = "#EFE6D4";
+    cx.beginPath();
+    cx.ellipse(.529 * W, .489 * H, .011 * W, .0032 * W, -.5, 0, 6.284); cx.fill();
+    /* میلهٔ چوبیِ نشیمن، جلوی لانه‌ها */
+    cx.strokeStyle = "#8E5C2E"; cx.lineWidth = Math.max(4, W * .008);
+    [.40, .76].forEach(function(yr){
+      cx.beginPath(); cx.moveTo(0, yr * H); cx.lineTo(W, (yr - .012) * H); cx.stroke();
+    });
+    /* ستونِ نورِ آفتاب از روزنهٔ سقف */
+    var fl3 = flicker(t, .5, .06);
+    cx.save();
+    var lg = cx.createLinearGradient(.22 * W, 0, .52 * W, H);
+    lg.addColorStop(0, "rgba(255,246,214," + (.34 * fl3).toFixed(3) + ")");
+    lg.addColorStop(1, "rgba(255,246,214,0)");
+    cx.fillStyle = lg;
+    cx.beginPath();
+    cx.moveTo(.20 * W, 0); cx.lineTo(.34 * W, 0);
+    cx.lineTo(.62 * W, H); cx.lineTo(.30 * W, H);
+    cx.closePath(); cx.fill();
+    cx.restore();
+    /* کفِ خاکی، نردبانِ چوبی، کاسهٔ دانه، پرها */
+    box(0, .875, 1, .125, "#9A6E40");
+    box(0, .875, 1, .012, "#B98A55");
+    cx.strokeStyle = "#8E5C2E"; cx.lineWidth = Math.max(4, W * .009);
+    cx.beginPath(); cx.moveTo(.80 * W, H); cx.lineTo(.735 * W, .12 * H); cx.stroke();
+    cx.beginPath(); cx.moveTo(.90 * W, H); cx.lineTo(.825 * W, .12 * H); cx.stroke();
+    cx.lineWidth = Math.max(3, W * .006);
+    for(var s3 = 0; s3 < 8; s3++){
+      var u3 = s3 / 7;
+      cx.beginPath();
+      cx.moveTo((.80 - u3 * .065) * W, (1 - u3 * .88) * H);
+      cx.lineTo((.90 - u3 * .075) * W, (1 - u3 * .88) * H);
+      cx.stroke();
+    }
+    jar(.140, .965, .034, "#A36B48", "#C89066");
+    sack(.300, .968, .046, "#B8996A", "#D6BA8E");
+    cx.fillStyle = "#F6EEDF";
+    [[.42, .952, .55], [.52, .975, -.30], [.62, .944, .18]].forEach(function(f3){
+      cx.save(); cx.translate(f3[0] * W, f3[1] * H); cx.rotate(f3[2]);
+      cx.beginPath(); cx.ellipse(0, 0, .024 * W, .0055 * W, 0, 0, 6.284); cx.fill();
+      cx.restore();
+    });
+    motes(t, 30, "#FFEFC8");
+  },
+
+  lane: function(t){
+    grad([[0, "#3E93DC"], [.26, "#79BCEA"], [.52, "#BFE0F4"], [1, "#D8B98C"]]);
+    puff(.70, .10, .036, t, 140000, .70);
+    /* دو دیوارِ بلندِ کاهگلی که کوچه را باریک می‌کنند */
+    mudWall(0, .18, .30, .82, "#D9A167");
+    mudWall(.74, .14, .26, .86, "#C98D52", "rgba(120,72,34,.20)");
+    /* طاقِ کوتاهِ ته کوچه */
+    cx.fillStyle = "#C08A55";
+    cx.beginPath();
+    cx.moveTo(.30 * W, H); cx.lineTo(.30 * W, .46 * H);
+    cx.quadraticCurveTo(.52 * W, .30 * H, .74 * W, .46 * H);
+    cx.lineTo(.74 * W, H); cx.closePath(); cx.fill();
+    cx.fillStyle = "#E2B885";
+    cx.beginPath();
+    cx.moveTo(.345 * W, H); cx.lineTo(.345 * W, .49 * H);
+    cx.quadraticCurveTo(.52 * W, .35 * H, .695 * W, .49 * H);
+    cx.lineTo(.695 * W, H); cx.closePath(); cx.fill();
+    /* سنگ‌های قوسِ طاق */
+    for(var v2 = 0; v2 <= 10; v2++){
+      var an2 = Math.PI + v2 / 10 * Math.PI;
+      var ax = .52 + Math.cos(an2) * .195, ay = .49 + Math.sin(an2) * .145;
+      cx.save();
+      cx.translate(ax * W, ay * H); cx.rotate(an2 + Math.PI / 2);
+      cx.fillStyle = v2 % 2 ? "#CE9A62" : "#BC8A54";
+      cx.fillRect(-.016 * W, -.018 * H, .032 * W, .036 * H);
+      cx.restore();
+    }
+    /* روشناییِ ته طاق */
+    glow(.52, .70, .26, "rgba(255,244,206,.44)");
+    /* درِ چوبیِ آبی با کوبهٔ حلقه‌ای */
+    box(.055, .500, .150, .380, "#2E6E8E");
+    box(.066, .514, .128, .352, "#3B87A8");
+    cx.strokeStyle = "#245A76"; cx.lineWidth = 3;
+    for(var q4 = 1; q4 < 4; q4++){
+      cx.beginPath();
+      cx.moveTo((.066 + q4 * .032) * W, .514 * H);
+      cx.lineTo((.066 + q4 * .032) * W, .866 * H); cx.stroke();
+    }
+    cx.strokeStyle = "#C9A45E"; cx.lineWidth = Math.max(3, W * .006);
+    cx.beginPath(); cx.arc(.130 * W, .690 * H, .022 * W, 0, 6.284); cx.stroke();
+    /* شاخهٔ انار که از دیوار آویزان است */
+    cx.strokeStyle = "#5C4326"; cx.lineWidth = Math.max(3, W * .006);
+    cx.beginPath();
+    cx.moveTo(.98 * W, .22 * H);
+    cx.quadraticCurveTo(.86 * W, .26 * H, .80 * W, .38 * H);
+    cx.stroke();
+    [[.93, .245, .030], [.86, .272, .034], [.815, .330, .028], [.90, .318, .026]]
+      .forEach(function(lf){
+        cx.fillStyle = "#5E8E42";
+        cx.beginPath();
+        cx.ellipse(lf[0] * W, lf[1] * H, lf[2] * W, lf[2] * W * .66,
+                   sway(t + lf[0] * 900, 2600, .30), 0, 6.284);
+        cx.fill();
+      });
+    [[.885, .300], [.835, .352]].forEach(function(pm){
+      cx.fillStyle = "#C23E2F";
+      cx.beginPath(); cx.arc(pm[0] * W, pm[1] * H, .018 * W, 0, 6.284); cx.fill();
+      cx.fillStyle = "#E0603F";
+      cx.beginPath(); cx.arc((pm[0] - .005) * W, (pm[1] - .005) * H, .008 * W, 0, 6.284); cx.fill();
+    });
+    /* کفِ کوچه و جویِ آب */
+    box(0, .88, 1, .12, "#CBA372");
+    box(.38, .90, .30, .038, "#8A6A46");
+    cx.fillStyle = "rgba(122,196,214,.75)";
+    cx.fillRect(.39 * W, (.906 + Math.sin(t / 900) * .002) * H, .28 * W, .026 * H);
+    cx.fillStyle = "rgba(255,255,255,.45)";
+    for(var w4 = 0; w4 < 4; w4++){
+      var xw = .40 + ((t / 2600 + w4 / 4) % 1) * .25;
+      cx.fillRect(xw * W, .912 * H, .018 * W, .004 * H);
+    }
+    /* سایهٔ تیزِ ظهر: از لبهٔ دیوارِ راست، مورب روی کف و دیوارِ چپ */
+    cx.fillStyle = "rgba(104,58,24,.26)";
+    cx.beginPath();
+    cx.moveTo(.74 * W, .455 * H); cx.lineTo(.74 * W, H);
+    cx.lineTo(.30 * W, H); cx.lineTo(.30 * W, .74 * H); cx.closePath(); cx.fill();
+    cx.fillStyle = "rgba(104,58,24,.13)";
+    cx.beginPath();
+    cx.moveTo(.30 * W, .74 * H); cx.lineTo(.30 * W, H);
+    cx.lineTo(.08 * W, H); cx.lineTo(.08 * W, .86 * H); cx.closePath(); cx.fill();
+    motes(t, 16, "#FFF0CE");
+  },
+
+  fields: function(t){
+    grad([[0, "#2B84DA"], [.28, "#5FAEE6"], [.56, "#A4D5F1"], [.74, "#D6E9F4"], [1, "#C9C08A"]]);
+    noonSun(.78, .12, .026);
+    puff(.24, .16, .046, t, 130000, .78);
+    puff(.60, .22, .032, t, 172000, .62);
+    /* کوه‌های دور */
+    poly([[0, .48], [.22, .36], [.42, .44], [.62, .33], [.84, .42], [1, .36], [1, .56], [0, .56]],
+         "#9FA8B4");
+    poly([[0, .52], [.28, .43], [.52, .50], [.78, .42], [1, .49], [1, .60], [0, .60]], "#B0A894");
+    haze(.44, .60, "rgba(255,244,220,.40)");
+    /* دشتِ کاهی، سه نوار */
+    box(0, .56, 1, .12, "#CFBE84");
+    box(0, .66, 1, .14, "#C2B072");
+    box(0, .78, 1, .22, "#B7A263");
+    /* رشتهٔ چاه‌های قنات که تا افق می‌رود — امضای این داستان */
+    [[.905, .086], [.845, .064], [.800, .048], [.766, .036], [.740, .027], [.720, .021]]
+      .forEach(function(s5, i5){
+        var xx5 = .86 - i5 * .132;
+        shaftRing(xx5, s5[0], s5[1], "#C9A672", "#E2C79A", "#4A3320");
+        /* همه سنگ‌چین و سرپوشیده‌اند — جز یکی */
+        if(i5 !== 2){
+          cx.fillStyle = "#B5A377";
+          cx.beginPath();
+          cx.ellipse(xx5 * W, s5[0] * H, s5[1] * W * .46, s5[1] * W * .20, 0, 0, 6.284);
+          cx.fill();
+          cx.fillStyle = "#CCBB8E";
+          cx.beginPath();
+          cx.ellipse(xx5 * W, (s5[0] - s5[1] * .05) * H, s5[1] * W * .40, s5[1] * W * .15, 0, 0, 6.284);
+          cx.fill();
+          cx.strokeStyle = "rgba(110,88,48,.5)"; cx.lineWidth = 1.6;
+          cx.beginPath();
+          cx.ellipse(xx5 * W, s5[0] * H, s5[1] * W * .46, s5[1] * W * .20, 0, 0, 6.284);
+          cx.stroke();
+        }
+      });
+    /* درخت‌های انار، سبزِ تیره و پُر */
+    [[.14, .78, .105], [.33, .742, .082], [.62, .766, .094], [.90, .80, .088]]
+      .forEach(function(tr, i6){
+        cx.strokeStyle = "#5A4026"; cx.lineWidth = Math.max(4, tr[2] * W * .10);
+        cx.beginPath();
+        cx.moveTo(tr[0] * W, (tr[1] + tr[2] * .60) * H);
+        cx.lineTo((tr[0] + sway(t + i6 * 800, 3200, .004)) * W, tr[1] * H);
+        cx.stroke();
+        var sw6 = sway(t + i6 * 800, 3200, .006);
+        /* تاج از چند لکهٔ چرخیده ساخته می‌شود تا لبه‌اش صاف نباشد */
+        [["#39632A", 0, 0, 1.00, .00], ["#39632A", -.52, .14, .62, .35],
+         ["#39632A", .54, .12, .58, -.28], ["#4E7834", -.18, -.20, .74, .18],
+         ["#4E7834", .30, -.12, .66, -.14], ["#68924A", -.06, -.34, .52, .10],
+         ["#7CA655", .26, -.30, .38, -.20]]
+          .forEach(function(L){
+            cx.fillStyle = L[0];
+            cx.beginPath();
+            cx.ellipse((tr[0] + sw6 + L[1] * tr[2]) * W,
+                       (tr[1] - tr[2] * .22 + L[2] * tr[2] * 1.6) * H,
+                       tr[2] * W * L[3] * .52, tr[2] * H * L[3] * .70, L[4], 0, 6.284);
+            cx.fill();
+          });
+        cx.fillStyle = "#C23E2F";
+        for(var p6 = 0; p6 < 3; p6++){
+          cx.beginPath();
+          cx.arc((tr[0] + sw6 + (p6 - 1) * tr[2] * .30) * W,
+                 (tr[1] - tr[2] * .10 + (p6 % 2) * tr[2] * .18) * H, tr[2] * W * .050, 0, 6.284);
+          cx.fill();
+        }
+      });
+    /* شیارهای شخم که به افق می‌روند */
+    cx.strokeStyle = "rgba(150,126,66,.30)"; cx.lineWidth = 2;
+    for(var fr = 0; fr < 7; fr++){
+      cx.beginPath();
+      cx.moveTo((-.10 + fr * .20) * W, H);
+      cx.quadraticCurveTo((.24 + fr * .10) * W, .78 * H, (.40 + fr * .034) * W, .585 * H);
+      cx.stroke();
+    }
+    /* جویِ باریکی که از قنات می‌آید */
+    cx.strokeStyle = "rgba(122,196,214,.80)"; cx.lineWidth = Math.max(4, W * .009);
+    cx.beginPath();
+    cx.moveTo(.72 * W, .74 * H);
+    cx.bezierCurveTo(.56 * W, .80 * H, .44 * W, .84 * H, .18 * W, H);
+    cx.stroke();
+    motes(t, 12, "#FFF6DC");
+  },
+
+  shaft: function(t){
+    grad([[0, "#3B8ED6"], [.24, "#74B7E8"], [.46, "#B8DCF2"], [.62, "#DCC79A"], [1, "#9A7C4E"]]);
+    puff(.30, .12, .040, t, 150000, .74);
+    poly([[0, .44], [.26, .35], [.50, .42], [.76, .34], [1, .41], [1, .54], [0, .54]], "#A8AFB8");
+    haze(.40, .56, "rgba(255,244,220,.38)");
+    box(0, .52, 1, .14, "#C6B278");
+    /* چند چاهِ دیگر، دورتر — تا معلوم باشد این یکی از یک رشته است */
+    shaftRing(.15, .600, .052, "#C9A672", "#E4C79A", "#4A3320");
+    shaftRing(.86, .584, .040, "#C9A672", "#E4C79A", "#4A3320");
+    /* تپهٔ خاکِ دورِ دهانه، بزرگ و نزدیک */
+    box(0, .66, 1, .34, "#BCA067");
+    cx.fillStyle = "#C9AC71";
+    cx.beginPath();
+    cx.ellipse(.50 * W, .84 * H, .44 * W, .21 * H, 0, 0, 6.284); cx.fill();
+    cx.fillStyle = "#DCC28C";
+    cx.beginPath();
+    cx.ellipse(.50 * W, .805 * H, .40 * W, .165 * H, 0, Math.PI, 0); cx.fill();
+    /* سایهٔ سمتِ دور، که تپه را گرد نشان می‌دهد */
+    cx.fillStyle = "rgba(120,88,40,.22)";
+    cx.beginPath();
+    cx.ellipse(.50 * W, .868 * H, .40 * W, .120 * H, 0, 0, Math.PI); cx.fill();
+    cx.fillStyle = "rgba(255,244,208,.28)";
+    cx.beginPath();
+    cx.ellipse(.40 * W, .776 * H, .22 * W, .060 * H, -.12, Math.PI, 0); cx.fill();
+    /* حلقهٔ سنگ‌چینِ لبه */
+    cx.strokeStyle = "#8E7444"; cx.lineWidth = Math.max(4, W * .008);
+    cx.beginPath(); cx.ellipse(.50 * W, .830 * H, .175 * W, .078 * H, 0, 0, 6.284); cx.stroke();
+    [[.34, .828], [.40, .790], [.50, .776], [.60, .790], [.66, .828], [.60, .872], [.50, .886], [.40, .872]]
+      .forEach(function(s7){ rock(s7[0], s7[1], .030, "#A88C58", "#CDB37A"); });
+    /* دهانه: تاریکیِ واقعی، نه یک لکهٔ خاکستری */
+    var dg = cx.createRadialGradient(.50 * W, .834 * H, 2, .50 * W, .834 * H, .16 * W);
+    dg.addColorStop(0, "#0C0A10");
+    dg.addColorStop(.62, "#241B1E");
+    dg.addColorStop(1, "#4A3626");
+    cx.fillStyle = dg;
+    cx.beginPath(); cx.ellipse(.50 * W, .834 * H, .152 * W, .066 * H, 0, 0, 6.284); cx.fill();
+    /* طنابی که به چوبِ عرضی بسته شده و توی چاه می‌رود */
+    cx.strokeStyle = "#7A5A32"; cx.lineWidth = Math.max(5, W * .011);
+    cx.beginPath(); cx.moveTo(.30 * W, .762 * H); cx.lineTo(.70 * W, .762 * H); cx.stroke();
+    cx.strokeStyle = "#D8C08A"; cx.lineWidth = Math.max(3, W * .006);
+    cx.beginPath();
+    cx.moveTo(.455 * W, .762 * H);
+    cx.quadraticCurveTo((.462 + sway(t, 3000, .004)) * W, .806 * H, .470 * W, .846 * H);
+    cx.stroke();
+    /* یک کفشِ کوچک، لبِ تپه، رو به چاه */
+    cx.fillStyle = "rgba(110,80,36,.24)";
+    cx.beginPath(); cx.ellipse(.690 * W, .916 * H, .040 * W, .012 * H, 0, 0, 6.284); cx.fill();
+    cx.fillStyle = "#7A4A28";
+    cx.beginPath();
+    cx.moveTo(.655 * W, .910 * H);
+    cx.quadraticCurveTo(.660 * W, .884 * H, .688 * W, .880 * H);
+    cx.quadraticCurveTo(.722 * W, .878 * H, .726 * W, .902 * H);
+    cx.quadraticCurveTo(.728 * W, .914 * H, .700 * W, .914 * H);
+    cx.closePath(); cx.fill();
+    cx.fillStyle = "#9A6238";
+    cx.beginPath();
+    cx.ellipse(.694 * W, .888 * H, .020 * W, .007 * H, -.10, 0, 6.284); cx.fill();
+    cx.fillStyle = "#4E2F18";
+    cx.fillRect(.655 * W, .906 * H, .072 * W, .009 * H);
+    /* بوتهٔ خشک و چند پرِ افتاده لبِ چاه */
+    cx.strokeStyle = "#8A7648"; cx.lineWidth = 2.5;
+    [-.25, -.05, .16].forEach(function(a7){
+      cx.beginPath();
+      cx.moveTo(.845 * W, .930 * H);
+      cx.quadraticCurveTo((.845 + a7 * .06) * W, .880 * H, (.845 + a7 * .11) * W, .846 * H);
+      cx.stroke();
+    });
+    cx.fillStyle = "#F6EEDF";
+    [[.255, .900, .40], [.318, .934, -.22]].forEach(function(f7){
+      cx.save(); cx.translate(f7[0] * W, f7[1] * H); cx.rotate(f7[2]);
+      cx.beginPath(); cx.ellipse(0, 0, .026 * W, .006 * W, 0, 0, 6.284); cx.fill();
+      cx.restore();
+    });
+    motes(t, 14, "#FFF3D6");
+  },
+
   /* ───────── داستان یک ───────── */
   gate: function(t, lit){
     grad([[0, "#0d1739"], [.36, "#211663"], [.62, "#3b2278"], [1, "#572f73"]]);
@@ -5270,6 +6237,10 @@ A.sfx = function(n){
   else if(n === "found"){ A.tone("sine", 740, 1110, .10, .5); A.tone("sine", 1480, 1480, .04, .4, .07); }
   else if(n === "tick"){ A.noise(1700, 6, .012, .03); }
   else if(n === "splash"){ A.noise(900, 1.2, .09, .35); A.noise(400, .8, .05, .5, .04); }
+  else if(n === "coo"){
+    A.tone("sine", 430, 392, .045, .30); A.tone("sine", 392, 366, .040, .34, .26);
+    A.tone("sine", 300, 286, .028, .30, .58);
+  }
   else if(n === "whistle"){
     A.tone("sawtooth", 880, 860, .05, .55); A.tone("sawtooth", 1180, 1150, .04, .55, .02);
     A.tone("sawtooth", 880, 700, .05, .40, .62);
@@ -5483,6 +6454,7 @@ function step(){
   if(b.trace){ startTrace(b.trace); return; }
   if(b.order){ startOrder(b.order); return; }
   if(b.word){ startWord(b.word); return; }
+  if(b.fill){ startFill(b.fill); return; }
   if(b.set){ for(var k in b.set) S[k] = b.set[k]; drawChips(); }
   if(b.art) setArt(b.art);
   if(b.fx) A.sfx(b.fx);
@@ -5785,6 +6757,94 @@ function wordDone(){
   if(!wrd) return;
   var ok = wrd.ok;
   wrd = null;
+  $("#choices").hidden = true;
+  $("#game").classList.remove("interacting");
+  $("#tapHint").textContent = "برای ادامه، هرجای صفحه را بزن";
+  Q.splice(qi, 0, { key:1, t: ok });
+  step();
+}
+
+/* ══════════════ جای خالی ══════════════
+   جمله یک سوراخ دارد و چند کلمه پایینش. فقط یکی‌شان با بقیهٔ متن جور است. */
+var fil = null, filTries = 0;
+function shuf(a){
+  for(var i = a.length - 1; i > 0; i--){
+    var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+function startFill(f){
+  fil = f; filTries = 0;
+  var b = $("#choices");
+  b.innerHTML = '<p class="ask">' + f.q + "</p>";
+  var box = document.createElement("div");
+  box.className = "wsent";
+  /* جمله با ___ به دو تکه می‌شود و جای خالی وسطش می‌نشیند */
+  var parts = f.sentence.split("___");
+  box.appendChild(document.createTextNode(parts[0] || ""));
+  var gap = document.createElement("span");
+  gap.className = "fgap"; gap.id = "fgap"; gap.textContent = "…";
+  box.appendChild(gap);
+  box.appendChild(document.createTextNode(parts[1] || ""));
+  b.appendChild(box);
+
+  var row = document.createElement("div");
+  row.className = "fopts";
+  shuf(f.options.slice()).forEach(function(w, i){
+    var o = document.createElement("button");
+    o.type = "button"; o.className = "fopt"; o.textContent = w;
+    o.style.setProperty("--d", (i * .06).toFixed(2) + "s");
+    o.addEventListener("click", function(e){ e.stopPropagation(); fillTap(o, w); });
+    row.appendChild(o);
+  });
+  b.appendChild(row);
+
+  var gl = document.createElement("div");
+  gl.className = "giveline";
+  gl.innerHTML = '<button type="button">نمی‌دانم، نشانم بده</button>';
+  gl.firstChild.addEventListener("click", function(e){ e.stopPropagation(); fillReveal(); });
+  b.appendChild(gl);
+
+  b.hidden = false;
+  $("#game").classList.add("interacting");
+  $("#more").hidden = true;
+  $("#tapHint").textContent = "یک کلمه را انتخاب کن";
+  waiting = false;
+}
+function fillTap(el, w){
+  if(!fil) return;
+  var g = $("#fgap");
+  if(norm(w) === norm(fil.answer)){
+    el.classList.add("good"); g.textContent = w; g.classList.add("on");
+    A.sfx("found");
+    setTimeout(fillDone, 700);
+    return;
+  }
+  /* کلمهٔ غلط یک لحظه توی جای خالی می‌نشیند تا بچه ببیند چرا جور نیست */
+  g.textContent = w;
+  el.classList.remove("bad"); void el.offsetWidth; el.classList.add("bad");
+  A.sfx("tick");
+  setTimeout(function(){ if(fil && !g.classList.contains("on")) g.textContent = "…"; }, 700);
+  if(++filTries >= 3) fillReveal();
+}
+function fillReveal(){
+  if(!fil) return;
+  spend(1);
+  if(fil.recap) S.recap.push(fil.recap);
+  A.sfx("sting");
+  var g = $("#fgap");
+  g.textContent = fil.answer; g.classList.add("on");
+  var os = $("#choices").querySelectorAll(".fopt");
+  for(var i = 0; i < os.length; i++){
+    if(norm(os[i].textContent) === norm(fil.answer)) os[i].classList.add("good");
+    else os[i].classList.add("dim");
+  }
+  setTimeout(fillDone, 1200);
+}
+function fillDone(){
+  if(!fil) return;
+  var ok = fil.ok;
+  fil = null;
   $("#choices").hidden = true;
   $("#game").classList.remove("interacting");
   $("#tapHint").textContent = "برای ادامه، هرجای صفحه را بزن";
